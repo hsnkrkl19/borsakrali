@@ -14,10 +14,17 @@ async function parseJsonResponse(response) {
   return data
 }
 
+function buildAuthHeaders(token) {
+  return {
+    'Content-Type': 'application/json',
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+  }
+}
+
 export async function loginWithPassword({ email, password }) {
   const response = await fetch(getAuthEndpoint('login'), {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: buildAuthHeaders(),
     body: JSON.stringify({
       email: email.trim().toLowerCase(),
       password,
@@ -30,7 +37,7 @@ export async function loginWithPassword({ email, password }) {
 export async function registerWithPassword(payload) {
   const response = await fetch(getAuthEndpoint('register'), {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: buildAuthHeaders(),
     body: JSON.stringify({
       ...payload,
       email: payload.email.trim().toLowerCase(),
@@ -43,9 +50,20 @@ export async function registerWithPassword(payload) {
 
 export async function fetchCurrentUser(token) {
   const response = await fetch(getAuthEndpoint('me'), {
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
+    headers: buildAuthHeaders(token),
+  })
+
+  return parseJsonResponse(response)
+}
+
+export async function changePassword({ currentPassword, newPassword }, token) {
+  const response = await fetch(getAuthEndpoint('change-password'), {
+    method: 'POST',
+    headers: buildAuthHeaders(token),
+    body: JSON.stringify({
+      currentPassword,
+      newPassword,
+    }),
   })
 
   return parseJsonResponse(response)

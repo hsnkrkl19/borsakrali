@@ -9,6 +9,7 @@ const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
+const rateLimit = require('express-rate-limit');
 const http = require('http');
 const axios = require('axios');
 require('dotenv').config();
@@ -18,6 +19,8 @@ const telegramService = require('./services/telegramService');
 const socketService = require('./services/socketService');
 const authService = require('./services/authService');
 const financialsRouter = require('../routes/financials');
+const pushRoutes = require('./routes/push.routes');
+const adminRoutes = require('./routes/admin.routes');
 const { allBistStocks, bist30Stocks, bist100Stocks, sectors } = require('./data/allBistStocks');
 
 // Sinyal cache - tespit edilen sinyalleri sakla
@@ -27,6 +30,16 @@ let lastSignalCheck = null;
 const app = express();
 const server = http.createServer(app);
 const PORT = process.env.PORT || 5000;
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    success: false,
+    error: 'Cok fazla auth denemesi yapildi. Lutfen daha sonra tekrar deneyin.',
+  }
+});
 
 // Socket.IO başlat
 const io = socketService.initializeSocket(server);
@@ -105,13 +118,24 @@ app.get('/api/debug/invalid-symbols', (req, res) => {
 
 // ============ FINANCIAL DATA ROUTES ============
 app.use('/api/financials', financialsRouter);
+app.use('/api/push', pushRoutes);
+app.use('/api/admin', adminRoutes);
 
 // ============ AUTH ROUTES ============
 
 // Kayit
-app.post('/api/auth/register', async (req, res) => {
+app.post('/api/auth/register', authLimiter, async (req, res) => {
   try {
-    const { firstName, lastName, phone, username, email, password } = req.body;
+    const {
+      firstName,
+      lastName,
+      phone,
+      username,
+      email,
+      password,
+      acceptTerms,
+      acceptPrivacy,
+    } = req.body;
 
     if (!firstName || !lastName || !email || !password) {
       return res.status(400).json({ success: false, error: 'Tum alanlar gereklidir!' });
@@ -139,11 +163,13 @@ app.post('/api/auth/register', async (req, res) => {
       phone: phone ? String(phone).replace(/\D/g, '') : null,
       username: username || email.split('@')[0],
       email: email.toLowerCase(),
-      password
+      password,
+      acceptTerms,
+      acceptPrivacy,
     });
 
     if (result.success) {
-      res.json({ success: true, message: 'Kayit basarili!', userId: result.userId });
+      res.status(201).json({ success: true, message: result.message, userId: result.userId });
     } else {
       res.status(400).json(result);
     }
@@ -154,7 +180,7 @@ app.post('/api/auth/register', async (req, res) => {
 });
 
 // Giris - Tek adim (sifre dogrulama + JWT)
-app.post('/api/auth/login', async (req, res) => {
+app.post('/api/auth/login', authLimiter, async (req, res) => {
   try {
     const { email, password } = req.body;
 
@@ -171,6 +197,48 @@ app.post('/api/auth/login', async (req, res) => {
     }
   } catch (error) {
     console.error('Login error:', error);
+    res.status(500).json({ success: false, error: 'Sunucu hatasi' });
+  }
+});
+
+// Sifre degistirme
+app.post('/api/auth/change-password', authLimiter, async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization;
+
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ success: false, error: 'Token gerekli' });
+    }
+
+    const token = authHeader.split(' ')[1];
+    const verified = authService.verifyToken(token);
+
+    if (!verified.success) {
+      return res.status(401).json(verified);
+    }
+
+    const { currentPassword, newPassword } = req.body;
+
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({
+        success: false,
+        error: 'Mevcut sifre ve yeni sifre gerekli'
+      });
+    }
+
+    const result = await authService.changePassword(
+      verified.user.id,
+      currentPassword,
+      newPassword
+    );
+
+    if (result.success) {
+      res.json(result);
+    } else {
+      res.status(400).json(result);
+    }
+  } catch (error) {
+    console.error('Change password error:', error);
     res.status(500).json({ success: false, error: 'Sunucu hatasi' });
   }
 });

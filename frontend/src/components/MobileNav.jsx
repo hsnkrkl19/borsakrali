@@ -27,6 +27,7 @@ import {
   Table,
   Trash2,
   ShieldCheck,
+  BellRing,
 } from 'lucide-react'
 import { useAuthStore } from '../store/authStore'
 import BrandMark from './BrandMark'
@@ -41,7 +42,7 @@ const mainNavItems = [
 const moreNavItems = [
   { path: '/pro-analiz', label: 'Pro Analiz', icon: Gem },
   { path: '/malaysian-snr', label: 'Malaysian SNR', icon: CandlestickChart },
-  { path: '/gunluk-tespitler', label: 'Günlük Tespitler', icon: Target },
+  { path: '/gunluk-tespitler', label: 'Gunluk Tespitler', icon: Target },
   { path: '/takip-listem', label: 'Takip Listem', icon: Briefcase },
   { path: '/algoritma-performans', label: 'Alg. Performans', icon: TrendingUp },
   { path: '/temel-analiz-ai', label: 'Temel Analiz AI', icon: Brain },
@@ -52,7 +53,7 @@ const moreNavItems = [
   { path: '/finansal-notlar', label: 'Fin. Notlar', icon: StickyNote },
   { path: '/taramalar', label: 'Taramalar', icon: Search },
   { path: '/tarama-analiz-merkezi', label: 'Tarama Merkezi', icon: BarChart3 },
-  { path: '/inceleme-kutuphanesi', label: 'Kütüphane', icon: BookOpen },
+  { path: '/inceleme-kutuphanesi', label: 'Kutuphane', icon: BookOpen },
   { path: '/abonelik', label: 'Abonelik', icon: CreditCard },
   { path: '/account-deletion', label: 'Hesap Silme', icon: Trash2 },
   { path: '/ayarlar', label: 'Ayarlar', icon: Settings },
@@ -64,7 +65,12 @@ export default function MobileNav() {
   const navigate = useNavigate()
   const { user, logout } = useAuthStore()
 
-  const isMoreActive = moreNavItems.some(item => item.path === location.pathname)
+  const adminNavItems = user?.role === 'admin'
+    ? [{ path: '/admin-bildirimler', label: 'Admin Bildirim', icon: BellRing }]
+    : []
+  const allMoreNavItems = [...moreNavItems, ...adminNavItems]
+
+  const isMoreActive = allMoreNavItems.some((item) => item.path === location.pathname)
 
   useEffect(() => {
     setShowMore(false)
@@ -153,7 +159,7 @@ export default function MobileNav() {
                   </div>
                   <div className="flex-1">
                     <p className="font-semibold text-white">{user.firstName} {user.lastName}</p>
-                    <p className="text-xs text-gold-400">Premium Uye</p>
+                    <p className="text-xs text-gold-400">{user.role === 'admin' ? 'Admin Uye' : 'Premium Uye'}</p>
                   </div>
                 </div>
               </div>
@@ -162,7 +168,7 @@ export default function MobileNav() {
             <div className="p-4">
               <p className="text-xs text-gray-500 uppercase tracking-wider mb-3 px-1">Sayfalar</p>
               <div className="grid grid-cols-3 gap-2">
-                {moreNavItems.map((item) => {
+                {allMoreNavItems.map((item) => {
                   const isActive = location.pathname === item.path
                   return (
                     <button
@@ -213,7 +219,7 @@ export default function MobileNav() {
 
             <div className="mt-8 px-4 pb-4">
               <div className="text-center p-4 bg-dark-800/50 rounded-2xl">
-                <p className="text-xs text-gray-600">Borsa Krali v2.0</p>
+                <p className="text-xs text-gray-600">Borsa Krali v3.1.0</p>
                 <p className="text-[10px] text-gray-700 mt-1">
                   Egitim amacli platform - Yatirim tavsiyesi degildir
                 </p>

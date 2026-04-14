@@ -15,11 +15,11 @@ const path = require('path');
 const bcrypt = require('bcryptjs');
 
 // Bot ayarlari
-const BOT_TOKEN = '8374895928:AAGA830voVcjUoPlwzVUGoW1WRPrdru_Gv4';
-const CHAT_ID = '2116638354';
+const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || '';
+const CHAT_ID = process.env.TELEGRAM_CHAT_ID || process.env.TELEGRAM_ADMIN_CHAT_ID || '';
 const USERS_FILE = path.join(__dirname, 'src/data/users.json');
-const SITE_URL = 'https://lowbred-tonsillary-lucille.ngrok-free.dev';
-const SITE_URL_PROD = 'https://borsakrali.com.tr'; // Yayin sonrasi
+const SITE_URL = process.env.PUBLIC_SITE_URL || 'https://borsakrali.com';
+const SITE_URL_PROD = SITE_URL;
 
 const getTelegramUrl = (method) => `https://api.telegram.org/bot${BOT_TOKEN}/${method}`;
 
@@ -971,6 +971,10 @@ async function processUpdates() {
 // ==================== ANA DONGU ====================
 
 async function main() {
+  if (!BOT_TOKEN) {
+    throw new Error('TELEGRAM_BOT_TOKEN env degiskeni tanimli degil');
+  }
+
   console.log('=====================================');
   console.log('   BORSA KRALI BOT v4.2');
   console.log('   Kayit + Giris Kodu Sistemi');

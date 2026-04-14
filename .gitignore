@@ -29,3 +29,7 @@ frontend/android/app/*.keystore
 backend/src/data/users.enc
 backend/src/data/users.json
 backend/src/data/account-deletion-requests.json
+backend/src/data/push-devices.json
+frontend/android/app/google-services.json
+frontend/.gradle-user/
+frontend/android/.gradle-user/

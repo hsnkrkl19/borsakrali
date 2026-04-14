@@ -1,4 +1,4 @@
-import { Bell, User, LogOut, Search, TrendingUp, TrendingDown, Zap } from 'lucide-react'
+import { Bell, User, LogOut, Search, TrendingUp, TrendingDown, Zap, KeyRound, Settings } from 'lucide-react'
 import { useAuthStore } from '../store/authStore'
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
@@ -303,7 +303,24 @@ export default function Header() {
             {/* Dropdown */}
             <div className="absolute right-0 top-full mt-2 w-48 bg-surface-100 border border-gold-500/20 rounded-xl shadow-premium opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all">
               <div className="p-2">
-                <button className="w-full flex items-center space-x-2 px-3 py-2 rounded-lg hover:bg-surface-200 transition-colors text-left">
+                <button
+                  onClick={() => navigate('/ayarlar')}
+                  className="w-full flex items-center space-x-2 px-3 py-2 rounded-lg hover:bg-surface-200 transition-colors text-left"
+                >
+                  <Settings className="w-4 h-4 text-gold-400" />
+                  <span className="text-sm text-gray-300">Ayarlar</span>
+                </button>
+                <button
+                  onClick={() => navigate('/sifre-degistir')}
+                  className="w-full flex items-center space-x-2 px-3 py-2 rounded-lg hover:bg-surface-200 transition-colors text-left"
+                >
+                  <KeyRound className="w-4 h-4 text-gold-400" />
+                  <span className="text-sm text-gray-300">Sifre Degistir</span>
+                </button>
+                <button
+                  onClick={() => navigate('/ayarlar')}
+                  className="w-full flex items-center space-x-2 px-3 py-2 rounded-lg hover:bg-surface-200 transition-colors text-left"
+                >
                   <User className="w-4 h-4 text-gold-400" />
                   <span className="text-sm text-gray-300">Profil</span>
                 </button>

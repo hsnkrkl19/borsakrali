@@ -2,6 +2,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { useEffect } from 'react'
 import Layout from './components/Layout'
 import UpdatePopup from './components/UpdatePopup'
+import PushNotificationManager from './components/PushNotificationManager'
 import Dashboard from './pages/Dashboard'
 import GunlukTespitler from './pages/GunlukTespitler'
 import TakipListem from './pages/TakipListem'
@@ -17,6 +18,7 @@ import IncelemeKutuphanesi from './pages/IncelemeKutuphanesi'
 import Ayarlar from './pages/Ayarlar'
 import Login from './pages/Login'
 import Register from './pages/Register'
+import ChangePassword from './pages/ChangePassword'
 import PrivacyPolicy from './pages/PrivacyPolicy'
 import TermsOfUse from './pages/TermsOfUse'
 import AccountDeletion from './pages/AccountDeletion'
@@ -31,13 +33,15 @@ import IstekPaneli from './pages/IstekPaneli'
 import FinansalNotlar from './pages/FinansalNotlar'
 import EkonomikTakvim from './pages/EkonomikTakvim'
 import EMA34Tarayici from './pages/EMA34Tarayici'
+import AdminBildirimler from './pages/AdminBildirimler'
 import { useAuthStore } from './store/authStore'
+import { fetchCurrentUser } from './services/auth'
 import { applyTheme, getStoredTheme } from './utils/theme'
 
 const FONT_LEVELS = [80, 87, 93, 100, 108, 116]
 
 function App() {
-  const { isAuthenticated } = useAuthStore()
+  const { isAuthenticated, token, updateUser, user } = useAuthStore()
 
   useEffect(() => {
     const saved = localStorage.getItem('bk-font-level')
@@ -49,8 +53,30 @@ function App() {
     applyTheme(getStoredTheme())
   }, [])
 
+  useEffect(() => {
+    if (!token) return
+
+    let active = true
+
+    fetchCurrentUser(token)
+      .then((data) => {
+        if (active && data?.user) {
+          updateUser(data.user)
+        }
+      })
+      .catch(() => {
+        // Render free instance sleep or temporary network issues should not
+        // force a logout. We only refresh the cached user when the backend responds.
+      })
+
+    return () => {
+      active = false
+    }
+  }, [token, updateUser])
+
   return (
     <Router>
+      <PushNotificationManager />
       {isAuthenticated && <UpdatePopup />}
       <Routes>
         <Route path="/login" element={<Login />} />
@@ -82,6 +108,7 @@ function App() {
                   <Route path="/tarama-analiz-merkezi" element={<TaramaAnalizMerkezi />} />
                   <Route path="/inceleme-kutuphanesi" element={<IncelemeKutuphanesi />} />
                   <Route path="/ayarlar" element={<Ayarlar />} />
+                  <Route path="/sifre-degistir" element={<ChangePassword />} />
                   <Route path="/canli-heatmap" element={<LiveHeatmap />} />
                   <Route path="/mali-tablolar" element={<FinancialAnalysis />} />
                   <Route path="/pro-analiz" element={<ProAnaliz />} />
@@ -92,6 +119,9 @@ function App() {
                   <Route path="/finansal-notlar" element={<FinansalNotlar />} />
                   <Route path="/ekonomik-takvim" element={<EkonomikTakvim />} />
                   <Route path="/ema34-tarayici" element={<EMA34Tarayici />} />
+                  {user?.role === 'admin' && (
+                    <Route path="/admin-bildirimler" element={<AdminBildirimler />} />
+                  )}
                 </Routes>
               </Layout>
             ) : (

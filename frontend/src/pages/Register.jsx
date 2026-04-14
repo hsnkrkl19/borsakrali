@@ -1,25 +1,58 @@
-import { useNavigate, Link, Navigate } from 'react-router-dom'
 import { useState } from 'react'
-import { useAuthStore } from '../store/authStore'
-import { Crown, User, Phone, Mail, Lock, Eye, EyeOff, ArrowRight, Check, AlertCircle, Loader, TrendingUp, BarChart3, Zap, Shield } from 'lucide-react'
+import { Link, Navigate, useNavigate } from 'react-router-dom'
+import {
+  AlertCircle,
+  ArrowRight,
+  Check,
+  Crown,
+  Eye,
+  EyeOff,
+  Loader,
+  Lock,
+  Mail,
+  Phone,
+  Shield,
+  TrendingUp,
+  User,
+  Zap,
+} from 'lucide-react'
+import PasswordChecklist from '../components/PasswordChecklist'
 import { loginWithPassword, registerWithPassword } from '../services/auth'
+import { useAuthStore } from '../store/authStore'
+import { isPasswordValid } from '../utils/passwordPolicy'
 
 function formatPhone(digits) {
   if (digits.length <= 3) return digits
   if (digits.length <= 6) return `${digits.slice(0, 3)} ${digits.slice(3)}`
   if (digits.length <= 8) return `${digits.slice(0, 3)} ${digits.slice(3, 6)} ${digits.slice(6)}`
-  return `${digits.slice(0, 3)} ${digits.slice(3, 6)} ${digits.slice(6, 8)} ${digits.slice(8)}`
+  return `${digits.slice(0, 3)} ${digits.slice(3, 6)} ${digits.slice(6, 8)} ${digits.slice(8, 10)}`
 }
+
+const BENEFITS = [
+  {
+    icon: TrendingUp,
+    title: 'Canli BIST verisi',
+    description: 'BIST hisselerini tek panelde hizli ve temiz sekilde takip edin.',
+  },
+  {
+    icon: Zap,
+    title: 'AI destekli analiz',
+    description: 'Tarama ve yorum ekranlarinda yapay zeka destekli karar katmani.',
+  },
+  {
+    icon: Shield,
+    title: 'Guvenli auth altyapisi',
+    description: 'Sifre degisiminde eski oturumlar otomatik olarak gecersiz olur.',
+  },
+]
 
 export default function Register() {
   const navigate = useNavigate()
   const { login, isAuthenticated } = useAuthStore()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
-  const [successMessage, setSuccessMessage] = useState('')
   const [showPassword, setShowPassword] = useState(false)
-  const [showConfirm, setShowConfirm] = useState(false)
-
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [form, setForm] = useState({
     firstName: '',
     lastName: '',
@@ -27,50 +60,44 @@ export default function Register() {
     email: '',
     password: '',
     confirmPassword: '',
+    acceptTerms: false,
+    acceptPrivacy: false,
   })
 
   if (isAuthenticated) {
     return <Navigate to="/" replace />
   }
 
-  const update = (field, value) => {
-    setForm(prev => ({ ...prev, [field]: value }))
+  const phoneDigits = form.phone.replace(/\D/g, '')
+  const passwordsMatch = form.password === form.confirmPassword
+
+  const updateField = (field, value) => {
+    setForm((prev) => ({ ...prev, [field]: value }))
     setError('')
   }
 
-  const handlePhoneChange = (e) => {
-    const raw = e.target.value.replace(/\D/g, '')
-    if (raw && raw[0] !== '5') return
-    const digits = raw.slice(0, 10)
-    update('phone', formatPhone(digits))
+  const handlePhoneChange = (value) => {
+    const raw = String(value || '').replace(/\D/g, '')
+    if (raw && raw[0] !== '5') {
+      return
+    }
+
+    updateField('phone', formatPhone(raw.slice(0, 10)))
   }
 
   const validate = () => {
     if (!form.firstName.trim()) return 'Ad gerekli'
     if (!form.lastName.trim()) return 'Soyad gerekli'
-
-    const phoneDigits = form.phone.replace(/\D/g, '')
-    if (phoneDigits.length !== 10) {
-      return 'Telefon numarası 10 haneli olmalı (5XX XXX XX XX)'
-    }
-
-    if (!form.email.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/)) {
-      return 'Geçerli bir e-posta adresi girin'
-    }
-
-    if (form.password.length < 8) {
-      return 'Şifre en az 8 karakter olmalı'
-    }
-
-    if (form.password !== form.confirmPassword) {
-      return 'Şifreler eşleşmiyor'
-    }
-
+    if (phoneDigits.length !== 10) return 'Telefon numarasi 10 haneli olmali'
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) return 'Gecerli bir e-posta adresi girin'
+    if (!isPasswordValid(form.password)) return 'Sifre guvenlik kurallarini karsilamiyor'
+    if (!passwordsMatch) return 'Sifre tekrar alani ayni olmali'
+    if (!form.acceptTerms || !form.acceptPrivacy) return 'Devam etmek icin sozlesmeleri onaylamalisiniz'
     return null
   }
 
-  const handleSubmit = async (e) => {
-    e.preventDefault()
+  const handleSubmit = async (event) => {
+    event.preventDefault()
 
     const validationError = validate()
     if (validationError) {
@@ -80,319 +107,327 @@ export default function Register() {
 
     setLoading(true)
     setError('')
-    setSuccessMessage('')
 
     try {
-      const registration = await registerWithPassword({
+      await registerWithPassword({
         firstName: form.firstName.trim(),
         lastName: form.lastName.trim(),
         phone: form.phone,
-        email: form.email,
+        email: form.email.trim(),
+        password: form.password,
+        acceptTerms: form.acceptTerms,
+        acceptPrivacy: form.acceptPrivacy,
+      })
+
+      const session = await loginWithPassword({
+        email: form.email.trim(),
         password: form.password,
       })
 
-      try {
-        const session = await loginWithPassword({
-          email: form.email,
-          password: form.password,
-        })
-
-        login(session.user, session.token)
-        navigate('/')
-        return
-      } catch {
-        setSuccessMessage(
-          registration.message
-            || 'Hesabınız oluşturuldu. Otomatik giriş başarısız olursa aşağıdaki butonla devam edin.',
-        )
-      }
+      login(session.user, session.token)
+      navigate('/')
     } catch (err) {
-      setError(err.message || 'Sunucu bağlantı hatası')
+      setError(err.message || 'Kayit islemi basarisiz')
     } finally {
       setLoading(false)
     }
   }
 
-  if (successMessage) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-dark-950 p-4">
-        <div className="max-w-md w-full bg-surface-100 rounded-2xl p-8 border border-gold-500/20 text-center">
-          <div className="w-20 h-20 bg-green-500/20 rounded-full flex items-center justify-center mx-auto mb-6">
-            <Check className="w-10 h-10 text-green-400" />
-          </div>
-          <h1 className="text-2xl font-bold text-white mb-3">Kayıt Başarılı!</h1>
-          <p className="text-gray-400 mb-3">Hesabınız başarıyla oluşturuldu.</p>
-          <div className="bg-gold-500/10 border border-gold-500/20 rounded-xl p-4 mb-6">
-            <p className="text-sm text-gold-400">{successMessage}</p>
-          </div>
-          <button
-            onClick={() => navigate('/login')}
-            className="w-full bg-gradient-to-r from-gold-500 to-gold-600 text-dark-950 font-semibold py-3.5 rounded-xl hover:from-gold-400 hover:to-gold-500 transition-all"
-          >
-            Giriş Yap
-          </button>
-        </div>
-      </div>
-    )
-  }
-
   return (
-    <div className="min-h-screen flex bg-dark-950">
-      {/* Left Side */}
-      <div className="hidden lg:flex lg:w-5/12 bg-gradient-to-br from-dark-900 via-dark-950 to-dark-900 p-12 flex-col justify-between relative overflow-hidden">
-        <div className="absolute inset-0 opacity-10">
-          <div className="absolute top-0 left-0 w-96 h-96 bg-gold-500 rounded-full filter blur-3xl"></div>
-          <div className="absolute bottom-0 right-0 w-96 h-96 bg-gold-600 rounded-full filter blur-3xl"></div>
-        </div>
-
-        <div className="relative z-10">
-          <div className="flex items-center space-x-3">
-            <div className="w-14 h-14 bg-gradient-to-br from-gold-400 to-gold-600 rounded-2xl flex items-center justify-center shadow-glow-gold">
-              <Crown className="w-8 h-8 text-dark-950" />
+    <div className="min-h-screen bg-dark-950">
+      <div className="grid min-h-screen lg:grid-cols-[0.95fr_1.05fr]">
+        <aside className="relative hidden overflow-hidden border-r border-gold-500/10 bg-[radial-gradient(circle_at_top_left,rgba(234,179,8,0.18),transparent_35%),radial-gradient(circle_at_bottom_right,rgba(245,158,11,0.16),transparent_30%),linear-gradient(180deg,#09090b_0%,#111217_100%)] p-12 lg:flex lg:flex-col">
+          <div className="mb-12 flex items-center gap-3">
+            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-gold-400 to-gold-600 shadow-glow-gold">
+              <Crown className="h-8 w-8 text-dark-950" />
             </div>
             <div>
-              <h1 className="text-3xl font-bold bg-gradient-to-r from-gold-400 to-gold-600 bg-clip-text text-transparent">BORSA KRALI</h1>
-              <p className="text-gray-500 text-sm">Premium Analiz Platformu</p>
+              <div className="bg-gradient-to-r from-gold-300 to-gold-500 bg-clip-text text-3xl font-bold text-transparent">
+                BORSA KRALI
+              </div>
+              <p className="text-sm text-gray-500">Canli analiz platformu</p>
             </div>
           </div>
-        </div>
 
-        <div className="relative z-10 space-y-6">
-          <h2 className="text-3xl font-bold text-white leading-tight">
-            Ücretsiz Hesap<br />
-            <span className="bg-gradient-to-r from-gold-400 to-gold-600 bg-clip-text text-transparent">Oluştur</span>
-          </h2>
-          {[
-            { icon: TrendingUp, title: 'Gerçek Zamanlı Veri', desc: '300+ BIST hissesi canlı takip' },
-            { icon: BarChart3, title: 'Teknik Analiz', desc: 'RSI, MACD, Bollinger ve daha fazlası' },
-            { icon: Zap, title: 'AI Skorlama', desc: 'Yapay zeka destekli hisse değerlendirme' },
-            { icon: Shield, title: 'Güvenli Kayıt', desc: 'Verileriniz şifreli olarak saklanır' },
-          ].map(({ icon: Icon, title, desc }) => (
-            <div key={title} className="flex items-start space-x-4">
-              <div className="w-10 h-10 bg-gold-500/20 rounded-xl flex items-center justify-center flex-shrink-0">
-                <Icon className="w-5 h-5 text-gold-400" />
+          <div className="max-w-lg space-y-6">
+            <div className="space-y-3">
+              <div className="inline-flex items-center gap-2 rounded-full border border-gold-500/20 bg-gold-500/10 px-3 py-1 text-xs text-gold-300">
+                Yeni uye kaydi
               </div>
-              <div>
-                <h3 className="text-white font-semibold text-sm mb-0.5">{title}</h3>
-                <p className="text-gray-400 text-xs">{desc}</p>
-              </div>
+              <h1 className="text-4xl font-bold leading-tight text-white">
+                Kaydol, analiz ekranlarini ac ve hesabini guvenli sekilde yonet.
+              </h1>
+              <p className="text-base leading-7 text-gray-400">
+                Kayit sonrasi oturumun otomatik acilir. Istersen daha sonra Ayarlar bolumunden
+                sifreni degistirebilir, eski tum oturumlari tek hamlede kapatabilirsin.
+              </p>
             </div>
-          ))}
-        </div>
 
-        <div className="relative z-10">
-          <p className="text-gray-600 text-xs">Yalnızca eğitim amaçlıdır. Yatırım tavsiyesi değildir.</p>
-        </div>
-      </div>
-
-      {/* Right Side - Form */}
-      <div className="w-full lg:w-7/12 flex items-center justify-center p-6 overflow-y-auto">
-        <div className="max-w-md w-full py-6">
-          {/* Mobile Logo */}
-          <div className="text-center mb-6 lg:hidden">
-            <div className="inline-flex items-center justify-center w-14 h-14 bg-gradient-to-br from-gold-400 to-gold-600 rounded-2xl mb-3 shadow-glow-gold">
-              <Crown className="w-7 h-7 text-dark-950" />
+            <div className="space-y-4">
+              {BENEFITS.map(({ icon: Icon, title, description }) => (
+                <div
+                  key={title}
+                  className="rounded-2xl border border-gold-500/15 bg-dark-900/60 p-4 backdrop-blur-sm"
+                >
+                  <div className="mb-3 flex h-11 w-11 items-center justify-center rounded-2xl bg-gold-500/15">
+                    <Icon className="h-5 w-5 text-gold-300" />
+                  </div>
+                  <div className="text-sm font-semibold text-white">{title}</div>
+                  <p className="mt-1 text-sm text-gray-400">{description}</p>
+                </div>
+              ))}
             </div>
-            <h1 className="text-2xl font-bold bg-gradient-to-r from-gold-400 to-gold-600 bg-clip-text text-transparent">BORSA KRALI</h1>
           </div>
 
-          <div className="bg-surface-100 rounded-2xl p-6 border border-gold-500/20 shadow-premium">
-            <h2 className="text-xl font-bold text-white mb-1 text-center">Hesap Oluştur</h2>
-            <p className="text-gray-400 text-sm text-center mb-5">Bilgilerinizi eksiksiz doldurun</p>
+          <div className="mt-auto text-xs text-gray-600">
+            Yatirim tavsiyesi degildir. Yalnizca egitim amaclidir.
+          </div>
+        </aside>
 
-            {/* Google Kayıt - Yakında */}
-            <button
-              disabled
-              className="w-full border border-dark-600 bg-dark-800/50 rounded-xl py-3 flex items-center justify-center gap-2.5 text-gray-500 cursor-not-allowed mb-4 relative"
-            >
-              <svg className="w-4 h-4" viewBox="0 0 24 24">
-                <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-                <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-                <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
-                <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
-              </svg>
-              Google ile Kayıt
-              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] bg-dark-700 text-gray-500 px-2 py-0.5 rounded-full">Yakında</span>
-            </button>
-
-            <div className="relative my-4">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-gold-500/10"></div>
+        <main className="flex items-center justify-center px-4 py-10 sm:px-6 lg:px-10">
+          <div className="w-full max-w-xl">
+            <div className="mb-8 text-center lg:hidden">
+              <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-gold-400 to-gold-600 shadow-glow-gold">
+                <Crown className="h-8 w-8 text-dark-950" />
               </div>
-              <div className="relative flex justify-center text-xs">
-                <span className="px-3 bg-surface-100 text-gray-500">veya e-posta ile</span>
-              </div>
+              <h1 className="bg-gradient-to-r from-gold-300 to-gold-500 bg-clip-text text-3xl font-bold text-transparent">
+                BORSA KRALI
+              </h1>
+              <p className="mt-2 text-sm text-gray-400">Canli analiz platformu</p>
             </div>
 
-            {error && (
-              <div className="mb-4 p-3 bg-red-500/10 border border-red-500/30 rounded-xl text-red-400 text-sm flex items-center gap-2">
-                <AlertCircle className="w-4 h-4 flex-shrink-0" />
-                {error}
+            <div className="rounded-3xl border border-gold-500/20 bg-surface-100 p-6 shadow-premium sm:p-8">
+              <div className="mb-6">
+                <h2 className="text-2xl font-bold text-white">Hesap olustur</h2>
+                <p className="mt-2 text-sm text-gray-400">
+                  Bilgilerini eksiksiz gir, guclu bir sifre sec ve hemen kullanmaya basla.
+                </p>
               </div>
-            )}
 
-            <form onSubmit={handleSubmit} className="space-y-3.5">
-              {/* Ad + Soyad */}
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs text-gray-400 mb-1.5">
-                    Ad <span className="text-gray-600">örn: Ahmet</span>
-                  </label>
-                  <div className="relative">
-                    <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+              {error ? (
+                <div className="mb-5 flex items-center gap-2 rounded-2xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+                  <AlertCircle className="h-4 w-4 flex-shrink-0" />
+                  {error}
+                </div>
+              ) : null}
+
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <InputField
+                    label="Ad"
+                    icon={User}
+                    value={form.firstName}
+                    onChange={(value) => updateField('firstName', value)}
+                    placeholder="Ahmet"
+                    autoComplete="given-name"
+                  />
+                  <InputField
+                    label="Soyad"
+                    icon={User}
+                    value={form.lastName}
+                    onChange={(value) => updateField('lastName', value)}
+                    placeholder="Yilmaz"
+                    autoComplete="family-name"
+                  />
+                </div>
+
+                <InputField
+                  label="Telefon"
+                  icon={Phone}
+                  value={form.phone}
+                  onChange={handlePhoneChange}
+                  placeholder="5XX XXX XX XX"
+                  autoComplete="tel"
+                  helperText="5 ile baslayan 10 haneli telefon numarasi"
+                />
+
+                <InputField
+                  label="E-posta"
+                  icon={Mail}
+                  value={form.email}
+                  onChange={(value) => updateField('email', value)}
+                  placeholder="ornek@email.com"
+                  autoComplete="email"
+                  type="email"
+                />
+
+                <PasswordField
+                  label="Sifre"
+                  value={form.password}
+                  visible={showPassword}
+                  onToggle={() => setShowPassword((prev) => !prev)}
+                  onChange={(value) => updateField('password', value)}
+                  placeholder="Guclu bir sifre belirleyin"
+                  autoComplete="new-password"
+                />
+
+                <PasswordChecklist password={form.password} />
+
+                <PasswordField
+                  label="Sifre tekrar"
+                  value={form.confirmPassword}
+                  visible={showConfirmPassword}
+                  onToggle={() => setShowConfirmPassword((prev) => !prev)}
+                  onChange={(value) => updateField('confirmPassword', value)}
+                  placeholder="Sifrenizi tekrar girin"
+                  autoComplete="new-password"
+                  invalid={Boolean(form.confirmPassword) && !passwordsMatch}
+                  helperText={
+                    form.confirmPassword && !passwordsMatch
+                      ? 'Sifre tekrar alani ayni olmali'
+                      : ''
+                  }
+                />
+
+                <div className="space-y-3 rounded-2xl border border-gold-500/15 bg-dark-900/60 p-4">
+                  <label className="flex items-start gap-3 text-sm text-gray-300">
                     <input
-                      type="text"
-                      placeholder="Ahmet"
-                      value={form.firstName}
-                      onChange={e => update('firstName', e.target.value)}
-                      className="w-full bg-surface-200 border border-gold-500/20 rounded-xl pl-9 pr-3 py-3 text-gray-200 placeholder-gray-600 text-sm focus:outline-none focus:border-gold-500 focus:ring-1 focus:ring-gold-500 transition-all"
-                      autoComplete="given-name"
-                      required
+                      type="checkbox"
+                      checked={form.acceptTerms}
+                      onChange={(event) => updateField('acceptTerms', event.target.checked)}
+                      className="mt-1 h-4 w-4 rounded border-gold-500/30 bg-dark-950 text-gold-500 focus:ring-gold-500"
                     />
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-xs text-gray-400 mb-1.5">
-                    Soyad <span className="text-gray-600">örn: Yılmaz</span>
+                    <span>
+                      <Link to="/terms-of-use" className="text-gold-400 hover:text-gold-300">
+                        Kullanim Kosullari
+                      </Link>{' '}
+                      metnini okudum ve onayliyorum.
+                    </span>
                   </label>
-                  <div className="relative">
-                    <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+
+                  <label className="flex items-start gap-3 text-sm text-gray-300">
                     <input
-                      type="text"
-                      placeholder="Yılmaz"
-                      value={form.lastName}
-                      onChange={e => update('lastName', e.target.value)}
-                      className="w-full bg-surface-200 border border-gold-500/20 rounded-xl pl-9 pr-3 py-3 text-gray-200 placeholder-gray-600 text-sm focus:outline-none focus:border-gold-500 focus:ring-1 focus:ring-gold-500 transition-all"
-                      autoComplete="family-name"
-                      required
+                      type="checkbox"
+                      checked={form.acceptPrivacy}
+                      onChange={(event) => updateField('acceptPrivacy', event.target.checked)}
+                      className="mt-1 h-4 w-4 rounded border-gold-500/30 bg-dark-950 text-gold-500 focus:ring-gold-500"
                     />
-                  </div>
+                    <span>
+                      <Link to="/privacy-policy" className="text-gold-400 hover:text-gold-300">
+                        Gizlilik Politikasi
+                      </Link>{' '}
+                      metnini okudum ve verilerimin bu kapsamda islenmesini kabul ediyorum.
+                    </span>
+                  </label>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-gold-500 to-gold-600 px-4 py-3.5 font-semibold text-dark-950 shadow-glow-gold transition-all hover:from-gold-400 hover:to-gold-500 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {loading ? (
+                    <>
+                      <Loader className="h-4 w-4 animate-spin" />
+                      Hesap olusturuluyor...
+                    </>
+                  ) : (
+                    <>
+                      Kayit ol
+                      <ArrowRight className="h-4 w-4" />
+                    </>
+                  )}
+                </button>
+              </form>
+
+              <div className="mt-6 rounded-2xl border border-green-500/20 bg-green-500/10 p-4">
+                <div className="flex items-start gap-3">
+                  <Check className="mt-0.5 h-5 w-5 flex-shrink-0 text-green-400" />
+                  <p className="text-sm text-gray-200">
+                    Hesabiniz olustuktan sonra dogrudan giris yapilir. Daha sonra Ayarlar ekranindan
+                    sifrenizi guvenli sekilde degistirebilirsiniz.
+                  </p>
                 </div>
               </div>
 
-              {/* Telefon */}
-              <div>
-                <label className="block text-xs text-gray-400 mb-1.5">
-                  Telefon <span className="text-gray-600">5XX XXX XX XX (10 hane)</span>
-                </label>
-                <div className="relative">
-                  <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
-                  <input
-                    type="tel"
-                    placeholder="5XX XXX XX XX"
-                    value={form.phone}
-                    onChange={handlePhoneChange}
-                    className="w-full bg-surface-200 border border-gold-500/20 rounded-xl pl-9 pr-3 py-3 text-gray-200 placeholder-gray-600 text-sm focus:outline-none focus:border-gold-500 focus:ring-1 focus:ring-gold-500 transition-all"
-                    autoComplete="tel"
-                    required
-                  />
-                </div>
-              </div>
-
-              {/* E-posta */}
-              <div>
-                <label className="block text-xs text-gray-400 mb-1.5">
-                  E-posta <span className="text-gray-600">örn: ahmet.yilmaz@gmail.com</span>
-                </label>
-                <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
-                  <input
-                    type="email"
-                    placeholder="ahmet.yilmaz@gmail.com"
-                    value={form.email}
-                    onChange={e => update('email', e.target.value)}
-                    className="w-full bg-surface-200 border border-gold-500/20 rounded-xl pl-9 pr-3 py-3 text-gray-200 placeholder-gray-600 text-sm focus:outline-none focus:border-gold-500 focus:ring-1 focus:ring-gold-500 transition-all"
-                    autoComplete="email"
-                    required
-                  />
-                </div>
-              </div>
-
-              {/* Şifre */}
-              <div>
-                <label className="block text-xs text-gray-400 mb-1.5">
-                  Şifre <span className="text-gray-600">en az 8 karakter</span>
-                </label>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
-                  <input
-                    type={showPassword ? 'text' : 'password'}
-                    placeholder="En az 8 karakter"
-                    value={form.password}
-                    onChange={e => update('password', e.target.value)}
-                    className="w-full bg-surface-200 border border-gold-500/20 rounded-xl pl-9 pr-10 py-3 text-gray-200 placeholder-gray-600 text-sm focus:outline-none focus:border-gold-500 focus:ring-1 focus:ring-gold-500 transition-all"
-                    autoComplete="new-password"
-                    required
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300"
-                  >
-                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                  </button>
-                </div>
-              </div>
-
-              {/* Şifre Tekrar */}
-              <div>
-                <label className="block text-xs text-gray-400 mb-1.5">Şifre Tekrar</label>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
-                  <input
-                    type={showConfirm ? 'text' : 'password'}
-                    placeholder="Şifrenizi tekrar girin"
-                    value={form.confirmPassword}
-                    onChange={e => update('confirmPassword', e.target.value)}
-                    className={`w-full bg-surface-200 border rounded-xl pl-9 pr-10 py-3 text-gray-200 placeholder-gray-600 text-sm focus:outline-none focus:ring-1 transition-all ${
-                      form.confirmPassword && form.password !== form.confirmPassword
-                        ? 'border-red-500/50 focus:border-red-500 focus:ring-red-500'
-                        : 'border-gold-500/20 focus:border-gold-500 focus:ring-gold-500'
-                    }`}
-                    autoComplete="new-password"
-                    required
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowConfirm(!showConfirm)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300"
-                  >
-                    {showConfirm ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                  </button>
-                </div>
-                {form.confirmPassword && form.password !== form.confirmPassword && (
-                  <p className="text-red-400 text-xs mt-1">Şifreler eşleşmiyor</p>
-                )}
-              </div>
-
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full bg-gradient-to-r from-gold-500 to-gold-600 text-dark-950 font-semibold py-3.5 rounded-xl hover:from-gold-400 hover:to-gold-500 transition-all flex items-center justify-center gap-2 shadow-glow-gold mt-2 disabled:opacity-70 disabled:cursor-not-allowed"
-              >
-                {loading ? (
-                  <><Loader className="w-4 h-4 animate-spin" /> Kaydediliyor...</>
-                ) : (
-                  <>Kayıt Ol <ArrowRight className="w-4 h-4" /></>
-                )}
-              </button>
-            </form>
-
-            <div className="mt-5 text-center">
-              <p className="text-gray-400 text-sm">
-                Zaten hesabınız var mı?{' '}
-                <Link to="/login" className="text-gold-400 hover:text-gold-300 font-medium">
-                  Giriş Yap
+              <p className="mt-6 text-center text-sm text-gray-400">
+                Zaten hesabiniz var mi?{' '}
+                <Link to="/login" className="font-medium text-gold-400 hover:text-gold-300">
+                  Giris yap
                 </Link>
               </p>
             </div>
-          </div>
 
-          <p className="text-center text-xs text-gray-600 mt-4">
-            Yatırım tavsiyesi değildir. Eğitim amaçlı platformdur.
-          </p>
-        </div>
+            <p className="mt-6 text-center text-xs text-gray-600">
+              Yatirim tavsiyesi degildir. Egitim amacli platformdur.
+            </p>
+          </div>
+        </main>
       </div>
+    </div>
+  )
+}
+
+function InputField({
+  label,
+  icon: Icon,
+  value,
+  onChange,
+  placeholder,
+  autoComplete,
+  helperText = '',
+  type = 'text',
+}) {
+  return (
+    <div>
+      <label className="mb-2 block text-sm text-gray-400">{label}</label>
+      <div className="relative">
+        <Icon className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" />
+        <input
+          type={type}
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
+          placeholder={placeholder}
+          autoComplete={autoComplete}
+          className="w-full rounded-2xl border border-gold-500/20 bg-dark-900/70 py-3 pl-11 pr-4 text-gray-100 placeholder:text-gray-500 focus:border-gold-500 focus:outline-none focus:ring-1 focus:ring-gold-500"
+          required
+        />
+      </div>
+      {helperText ? <p className="mt-2 text-xs text-gray-500">{helperText}</p> : null}
+    </div>
+  )
+}
+
+function PasswordField({
+  label,
+  value,
+  visible,
+  onToggle,
+  onChange,
+  placeholder,
+  autoComplete,
+  invalid = false,
+  helperText = '',
+}) {
+  return (
+    <div>
+      <label className="mb-2 block text-sm text-gray-400">{label}</label>
+      <div className="relative">
+        <Lock className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" />
+        <input
+          type={visible ? 'text' : 'password'}
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
+          placeholder={placeholder}
+          autoComplete={autoComplete}
+          className={`w-full rounded-2xl border bg-dark-900/70 py-3 pl-11 pr-12 text-gray-100 placeholder:text-gray-500 focus:outline-none focus:ring-1 ${
+            invalid
+              ? 'border-red-500/40 focus:border-red-500 focus:ring-red-500'
+              : 'border-gold-500/20 focus:border-gold-500 focus:ring-gold-500'
+          }`}
+          required
+        />
+        <button
+          type="button"
+          onClick={onToggle}
+          className="absolute right-3 top-1/2 -translate-y-1/2 rounded-lg p-1 text-gray-400 transition-colors hover:text-white"
+        >
+          {visible ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+        </button>
+      </div>
+      {helperText ? (
+        <p className={`mt-2 text-xs ${invalid ? 'text-red-300' : 'text-gray-500'}`}>{helperText}</p>
+      ) : null}
     </div>
   )
 }
