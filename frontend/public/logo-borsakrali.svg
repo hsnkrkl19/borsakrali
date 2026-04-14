@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="none">
+  <defs>
+    <linearGradient id="bg" x1="32" y1="24" x2="224" y2="232" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0C2233"/>
+      <stop offset="1" stop-color="#08141D"/>
+    </linearGradient>
+    <linearGradient id="gold" x1="60" y1="170" x2="196" y2="60" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F6A900"/>
+      <stop offset="1" stop-color="#FFD978"/>
+    </linearGradient>
+  </defs>
+  <rect x="16" y="16" width="224" height="224" rx="52" fill="url(#bg)"/>
+  <path d="M56 72H200M56 104H200M56 136H200M56 168H200M88 56V184M120 56V184M152 56V184" stroke="#1E3A4B" stroke-width="6" stroke-linecap="round" opacity=".9"/>
+  <path d="M74 156V186" stroke="#24D17E" stroke-width="8" stroke-linecap="round"/>
+  <rect x="64" y="136" width="20" height="34" rx="7" fill="#24D17E"/>
+  <path d="M128 110V176" stroke="#FF6B5D" stroke-width="8" stroke-linecap="round"/>
+  <rect x="118" y="118" width="20" height="42" rx="7" fill="#FF6B5D"/>
+  <path d="M182 84V152" stroke="#24D17E" stroke-width="8" stroke-linecap="round"/>
+  <rect x="172" y="92" width="20" height="38" rx="7" fill="#24D17E"/>
+  <path d="M58 178L94 150L126 156L176 102L198 78" stroke="url(#gold)" stroke-width="14" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M174 78H206V110" stroke="url(#gold)" stroke-width="14" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M88 62L108 40L128 62L148 40L168 62" stroke="url(#gold)" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

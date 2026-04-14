@@ -1,0 +1,9 @@
+﻿BORSA KRALI - Otomatik Baslatma
+=====================================
+Yerel URL: http://127.0.0.1:5000
+Internet URL: https://www.borsakrali.com
+Alternatif URL: https://borsakrali.com
+Health URL: https://www.borsakrali.com/health
+Backend Hazir: True
+Tunnel Baslatildi: True
+Tarih: 14.04.2026 17:15:10

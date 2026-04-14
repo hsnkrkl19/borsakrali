@@ -1,0 +1,27 @@
+{
+  "appId": "com.borsakrali.app",
+  "appName": "Borsa Krali",
+  "webDir": "dist",
+  "server": {
+    "androidScheme": "https",
+    "cleartext": true
+  },
+  "android": {
+    "allowMixedContent": true,
+    "webContentsDebuggingEnabled": true,
+    "minWebViewVersion": 60
+  },
+  "plugins": {
+    "AdMob": {
+      "appId": "ca-app-pub-3940256099942544~3347511713"
+    },
+    "StatusBar": {
+      "style": "dark",
+      "backgroundColor": "#0a0a0f",
+      "overlaysWebView": false
+    },
+    "EdgeToEdge": {
+      "backgroundColor": "#0a0a0f"
+    }
+  }
+}
