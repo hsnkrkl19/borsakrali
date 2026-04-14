@@ -22,3 +22,10 @@ cloudflared.exe
 ngrok.exe
 
 nul
+
+frontend/android/app/*.jks
+frontend/android/app/*.keystore
+
+backend/src/data/users.enc
+backend/src/data/users.json
+backend/src/data/account-deletion-requests.json
