@@ -1301,7 +1301,7 @@ app.get('/api/analysis/fundamental/:symbol', async (req, res) => {
   } catch (_) {}
 
   try {
-    const yf = require('yahoo-finance2').default || require('yahoo-finance2');
+    const yf = await import('yahoo-finance2').then(m => m.default || m);
     const ticker = upperSymbol.endsWith('.IS') ? upperSymbol : `${upperSymbol}.IS`;
     const summary = await yf.quoteSummary(ticker, {
       modules: ['financialData', 'defaultKeyStatistics', 'summaryDetail']
@@ -4763,6 +4763,70 @@ function generateAICommentary(event) {
   };
 }
 
+// ============ FOREX FACTORY FALLBACK (free, no key, weekly JSON) ============
+// Kaynak: https://nfs.faireconomy.media/ff_calendar_thisweek.json (anahtarsız ücretsiz)
+const forexFactoryCache = new Map();
+const FF_CACHE_TTL = 60 * 60 * 1000; // 1 saat
+
+async function fetchForexFactoryCalendar(forceRefresh = false) {
+  const cacheKey = 'ff_combined';
+  if (!forceRefresh) {
+    const cached = forexFactoryCache.get(cacheKey);
+    if (cached && Date.now() - cached.fetchedAt < FF_CACHE_TTL) {
+      return { events: cached.data, fromCache: true };
+    }
+  }
+
+  const urls = [
+    'https://nfs.faireconomy.media/ff_calendar_thisweek.json',
+    'https://nfs.faireconomy.media/ff_calendar_nextweek.json',
+  ];
+
+  const allEvents = [];
+  for (const url of urls) {
+    try {
+      const r = await fetch(url, {
+        headers: { 'User-Agent': 'Mozilla/5.0 BorsaKrali/1.0' },
+        signal: AbortSignal.timeout(15000),
+      });
+      if (!r.ok) continue;
+      const data = await r.json();
+      if (!Array.isArray(data)) continue;
+      for (const item of data) {
+        // Forex Factory: {title, country, date, impact, forecast, previous, ...}
+        const country = item.country === 'USD' ? 'US' : item.country === 'TRY' ? 'TR' : null;
+        if (!country) continue;
+        const impactMap = { High: 'high', Medium: 'medium', Low: 'low' };
+        const dateObj = new Date(item.date);
+        if (isNaN(dateObj.getTime())) continue;
+        const dateStr = dateObj.toISOString().slice(0, 10);
+        const timeStr = dateObj.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Istanbul' });
+        allEvents.push({
+          id: `ff_${item.country}_${dateObj.getTime()}_${(item.title || '').slice(0, 20).replace(/\s/g, '')}`,
+          country,
+          flag: country === 'US' ? '🇺🇸' : '🇹🇷',
+          date: dateStr,
+          time: timeStr,
+          importance: impactMap[item.impact] || 'low',
+          title: item.title || '—',
+          category: inferCategoryFromTitle(item.title),
+          previous: item.previous || null,
+          forecast: item.forecast || null,
+          actual: item.actual || null,
+          note: null,
+        });
+      }
+    } catch (e) {
+      console.warn(`[ForexFactory] ${url} hata:`, e.message);
+    }
+  }
+
+  if (allEvents.length > 0) {
+    forexFactoryCache.set(cacheKey, { data: allEvents, fetchedAt: Date.now() });
+  }
+  return { events: allEvents, fromCache: false };
+}
+
 // ============ INVESTING.COM CALENDAR SCRAPER ============
 const investingCalendarCache = new Map();
 const INVESTING_CACHE_TTL = 30 * 60 * 1000; // 30 dakika
@@ -4980,7 +5044,36 @@ app.get('/api/economic-calendar', async (req, res) => {
       ? `Önbellekten (${now.toLocaleTimeString('tr-TR')}) — Yenile'ye basarak güncel veriyi çekin.`
       : `Investing.com'dan canlı çekildi: ${now.toLocaleTimeString('tr-TR')}`;
   } else {
-    // Fallback: statik + BLS
+    // Fallback: Forex Factory (ücretsiz JSON, anahtarsız) → statik + BLS
+    let ffOk = false;
+    try {
+      const ffResult = await fetchForexFactoryCalendar(forceRefresh);
+      const ffMonth = (ffResult.events || []).filter(e => {
+        const y = parseInt(e.date.slice(0, 4));
+        const m = parseInt(e.date.slice(5, 7));
+        return y === targetYear && m === targetMonth;
+      });
+      if (ffMonth.length > 0) {
+        // Forex Factory verilerini statik TR ile birleştir
+        const staticTRTitles = new Set(staticTR.map(e => e.title.slice(0, 15).toLowerCase()));
+        const extraFF = ffMonth.filter(e => !staticTRTitles.has(e.title.slice(0, 15).toLowerCase()));
+        events = [...staticTR, ...extraFF];
+        fetchedFrom = ffResult.fromCache ? 'forexfactory_cache' : 'forexfactory_live';
+        dataSource = 'Forex Factory + TCMB / TÜİK';
+        dataNote = ffResult.fromCache
+          ? `Önbellekten (Forex Factory): ${now.toLocaleTimeString('tr-TR')}`
+          : `Forex Factory canlı feed: ${now.toLocaleTimeString('tr-TR')}`;
+        ffOk = true;
+        console.log(`[Forex Factory] ${ffMonth.length} olay, fallback aktif`);
+      }
+    } catch (ffErr) {
+      console.warn('[Forex Factory fallback] Hata:', ffErr.message);
+    }
+
+    if (ffOk) {
+      // FF kullanıldı, statik birleşim hazır - BLS ile aktualleri tamamla aşağıda devam edecek
+    } else {
+    // Son fallback: statik + BLS
     const staticAll = ECONOMIC_CALENDAR_2026.filter(e => {
       if (parseInt(e.date.slice(0, 4)) !== targetYear) return false;
       if (targetMonth && parseInt(e.date.slice(5, 7)) !== targetMonth) return false;
@@ -5009,6 +5102,7 @@ app.get('/api/economic-calendar', async (req, res) => {
     } catch (blsErr) {
       console.warn('[BLS fallback] Hata:', blsErr.message);
     }
+    } // close: else of ffOk
   }
 
   // ── 3. investing.com'dan gelen US olaylarındaki null actual'ları BLS ile tamamla

@@ -1,4 +1,11 @@
-const yahooFinance = require('yahoo-finance2').default;
+// yahoo-finance2 v2.14+ ESM-only paketi; CommonJS projesinde dinamik import gerekli.
+let _yfPromise = null;
+const getYF = () => {
+  if (!_yfPromise) {
+    _yfPromise = import('yahoo-finance2').then(m => m.default || m);
+  }
+  return _yfPromise;
+};
 const logger = require('../utils/logger');
 
 class YahooFinanceService {
@@ -17,6 +24,7 @@ class YahooFinanceService {
     try {
       const yahooSymbol = `${symbol}.IS`; // BIST stocks end with .IS
 
+      const yahooFinance = await getYF();
       const result = await yahooFinance.chart(yahooSymbol, {
         period1: this.getPeriodDate(period),
         interval,
@@ -52,6 +60,7 @@ class YahooFinanceService {
   async getCurrentQuote(symbol) {
     try {
       const yahooSymbol = `${symbol}.IS`;
+      const yahooFinance = await getYF();
       const quote = await yahooFinance.quote(yahooSymbol, {}, { timeout: this.timeout });
 
       if (!quote) return null;
@@ -80,6 +89,7 @@ class YahooFinanceService {
   async getBatchQuotes(symbols) {
     try {
       const yahooSymbols = symbols.map(s => `${s}.IS`);
+      const yahooFinance = await getYF();
       const quotes = await yahooFinance.quote(yahooSymbols, {}, { timeout: this.timeout });
 
       if (!quotes) return [];
@@ -129,6 +139,7 @@ class YahooFinanceService {
    */
   async getBIST100() {
     try {
+      const yahooFinance = await getYF();
       const quote = await yahooFinance.quote('XU100.IS', {}, { timeout: this.timeout });
 
       if (!quote) return null;
@@ -158,6 +169,7 @@ class YahooFinanceService {
   async getFinancialData(symbol) {
     try {
       const yahooSymbol = `${symbol}.IS`;
+      const yahooFinance = await getYF();
 
       const [quoteSummary] = await Promise.all([
         yahooFinance.quoteSummary(yahooSymbol, {

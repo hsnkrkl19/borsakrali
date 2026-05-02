@@ -6,15 +6,7 @@ import PushNotificationManager from './components/PushNotificationManager'
 import Dashboard from './pages/Dashboard'
 import GunlukTespitler from './pages/GunlukTespitler'
 import TakipListem from './pages/TakipListem'
-import AlgoritmaPerformans from './pages/AlgoritmaPerformans'
-import TemelAnalizAI from './pages/TemelAnalizAI'
 import TeknikAnalizAI from './pages/TeknikAnalizAI'
-import HisseAISkor from './pages/HisseAISkor'
-import KAPAnalitik from './pages/KAPAnalitik'
-import TeknikNotlar from './pages/TeknikNotlar'
-import Taramalar from './pages/Taramalar'
-import TaramaAnalizMerkezi from './pages/TaramaAnalizMerkezi'
-import IncelemeKutuphanesi from './pages/IncelemeKutuphanesi'
 import Ayarlar from './pages/Ayarlar'
 import Login from './pages/Login'
 import Register from './pages/Register'
@@ -24,21 +16,48 @@ import TermsOfUse from './pages/TermsOfUse'
 import AccountDeletion from './pages/AccountDeletion'
 import PlayStorePreviewAuth from './pages/PlayStorePreviewAuth'
 import LiveHeatmap from './pages/LiveHeatmap'
-import FinancialAnalysis from './pages/FinancialAnalysis'
 import ProAnaliz from './pages/ProAnaliz'
 import Abonelik from './pages/Abonelik'
 import Odeme from './pages/Odeme'
-import MalaysianSNR from './pages/MalaysianSNR'
 import IstekPaneli from './pages/IstekPaneli'
-import FinansalNotlar from './pages/FinansalNotlar'
 import EkonomikTakvim from './pages/EkonomikTakvim'
-import EMA34Tarayici from './pages/EMA34Tarayici'
 import AdminBildirimler from './pages/AdminBildirimler'
+
+// === BİRLEŞİK SAYFALAR (sadeleştirme) ===
+import Tarayicilar from './pages/Tarayicilar'         // Taramalar + EMA34 + Malaysian SNR + Tarama Merkezi
+import Notlarim from './pages/Notlarim'               // Teknik Notlar + Finansal Notlar
+import SirketAnalizi from './pages/SirketAnalizi'     // Temel Analiz AI + Mali Tablolar + KAP + AI Skor
+import Performans from './pages/Performans'           // Algoritma Performans + İnceleme Kütüphanesi
+
 import { useAuthStore } from './store/authStore'
 import { fetchCurrentUser } from './services/auth'
 import { applyTheme, getStoredTheme } from './utils/theme'
 
 const FONT_LEVELS = [80, 87, 93, 100, 108, 116]
+
+// === ESKİ URL'LERİ YENİ BİRLEŞİK SAYFALARA YÖNLENDİR ===
+// Eski yer imleri / paylaşımlar bozulmasın diye redirect ekledik.
+const REDIRECT_MAP = [
+  // Tarayıcılar grubu
+  { from: '/taramalar',                to: '/tarayicilar?tab=genel' },
+  { from: '/ema34-tarayici',           to: '/tarayicilar?tab=ema34' },
+  { from: '/malaysian-snr',            to: '/tarayicilar?tab=snr' },
+  { from: '/tarama-analiz-merkezi',    to: '/tarayicilar?tab=merkez' },
+
+  // Notlarım grubu
+  { from: '/teknik-notlar',            to: '/notlarim?tab=teknik' },
+  { from: '/finansal-notlar',          to: '/notlarim?tab=finansal' },
+
+  // Şirket Analizi grubu
+  { from: '/temel-analiz-ai',          to: '/sirket-analizi?tab=temel-ai' },
+  { from: '/mali-tablolar',            to: '/sirket-analizi?tab=mali' },
+  { from: '/kap-analitik',             to: '/sirket-analizi?tab=kap' },
+  { from: '/hisse-ai-skor',            to: '/sirket-analizi?tab=ai-skor' },
+
+  // Performans grubu
+  { from: '/algoritma-performans',     to: '/performans?tab=algoritma' },
+  { from: '/inceleme-kutuphanesi',     to: '/performans?tab=kutuphane' },
+]
 
 function App() {
   const { isAuthenticated, token, updateUser, user } = useAuthStore()
@@ -95,33 +114,41 @@ function App() {
             isAuthenticated ? (
               <Layout>
                 <Routes>
+                  {/* === ANA SAYFALAR === */}
                   <Route path="/" element={<Dashboard />} />
-                  <Route path="/gunluk-tespitler" element={<GunlukTespitler />} />
-                  <Route path="/takip-listem" element={<TakipListem />} />
-                  <Route path="/algoritma-performans" element={<AlgoritmaPerformans />} />
-                  <Route path="/temel-analiz-ai" element={<TemelAnalizAI />} />
-                  <Route path="/teknik-analiz-ai" element={<TeknikAnalizAI />} />
-                  <Route path="/hisse-ai-skor" element={<HisseAISkor />} />
-                  <Route path="/kap-analitik" element={<KAPAnalitik />} />
-                  <Route path="/teknik-notlar" element={<TeknikNotlar />} />
-                  <Route path="/taramalar" element={<Taramalar />} />
-                  <Route path="/tarama-analiz-merkezi" element={<TaramaAnalizMerkezi />} />
-                  <Route path="/inceleme-kutuphanesi" element={<IncelemeKutuphanesi />} />
-                  <Route path="/ayarlar" element={<Ayarlar />} />
-                  <Route path="/sifre-degistir" element={<ChangePassword />} />
                   <Route path="/canli-heatmap" element={<LiveHeatmap />} />
-                  <Route path="/mali-tablolar" element={<FinancialAnalysis />} />
                   <Route path="/pro-analiz" element={<ProAnaliz />} />
+
+                  {/* === ANALİZ === */}
+                  <Route path="/teknik-analiz-ai" element={<TeknikAnalizAI />} />
+                  <Route path="/sirket-analizi" element={<SirketAnalizi />} />
+                  <Route path="/tarayicilar" element={<Tarayicilar />} />
+                  <Route path="/gunluk-tespitler" element={<GunlukTespitler />} />
+                  <Route path="/performans" element={<Performans />} />
+
+                  {/* === KİŞİSEL === */}
+                  <Route path="/takip-listem" element={<TakipListem />} />
+                  <Route path="/notlarim" element={<Notlarim />} />
+                  <Route path="/ekonomik-takvim" element={<EkonomikTakvim />} />
+
+                  {/* === HESAP === */}
                   <Route path="/abonelik" element={<Abonelik />} />
                   <Route path="/odeme" element={<Odeme />} />
-                  <Route path="/malaysian-snr" element={<MalaysianSNR />} />
+                  <Route path="/ayarlar" element={<Ayarlar />} />
+                  <Route path="/sifre-degistir" element={<ChangePassword />} />
                   <Route path="/istek-paneli" element={<IstekPaneli />} />
-                  <Route path="/finansal-notlar" element={<FinansalNotlar />} />
-                  <Route path="/ekonomik-takvim" element={<EkonomikTakvim />} />
-                  <Route path="/ema34-tarayici" element={<EMA34Tarayici />} />
+
                   {user?.role === 'admin' && (
                     <Route path="/admin-bildirimler" element={<AdminBildirimler />} />
                   )}
+
+                  {/* === ESKİ URL → YENİ URL YÖNLENDİRMELERİ === */}
+                  {REDIRECT_MAP.map(r => (
+                    <Route key={r.from} path={r.from} element={<Navigate to={r.to} replace />} />
+                  ))}
+
+                  {/* Bilinmeyen yollar Dashboard'a */}
+                  <Route path="*" element={<Navigate to="/" replace />} />
                 </Routes>
               </Layout>
             ) : (

@@ -179,13 +179,15 @@ export default function EkonomikTakvim() {
           <ExternalLink className="w-3 h-3 flex-shrink-0 text-gold-400" />
           <span>
             <span className="text-gold-400">{dataSource}</span>
-            {fetchedFrom === 'investing_live'  && <span className="ml-1.5 text-green-400 font-medium">● Canlı (Investing.com)</span>}
-            {fetchedFrom === 'investing_cache' && <span className="ml-1.5 text-blue-400 font-medium">● Önbellekten (Investing.com)</span>}
-            {fetchedFrom === 'fmp_live'        && <span className="ml-1.5 text-green-400 font-medium">● Canlı (FMP)</span>}
-            {fetchedFrom === 'fmp_cache'       && <span className="ml-1.5 text-blue-400 font-medium">● Önbellekten (FMP)</span>}
-            {fetchedFrom === 'bls_live'        && <span className="ml-1.5 text-green-400 font-medium">● Canlı (BLS.gov)</span>}
-            {fetchedFrom === 'bls_cache'       && <span className="ml-1.5 text-blue-400 font-medium">● Önbellekten (BLS.gov)</span>}
-            {fetchedFrom === 'static'          && <span className="ml-1.5 text-gray-500 font-medium">● Statik Veri</span>}
+            {fetchedFrom === 'investing_live'    && <span className="ml-1.5 text-green-400 font-medium">● Canlı (Investing.com)</span>}
+            {fetchedFrom === 'investing_cache'   && <span className="ml-1.5 text-blue-400 font-medium">● Önbellekten (Investing.com)</span>}
+            {fetchedFrom === 'forexfactory_live' && <span className="ml-1.5 text-green-400 font-medium">● Canlı (Forex Factory)</span>}
+            {fetchedFrom === 'forexfactory_cache'&& <span className="ml-1.5 text-blue-400 font-medium">● Önbellekten (Forex Factory)</span>}
+            {fetchedFrom === 'fmp_live'          && <span className="ml-1.5 text-green-400 font-medium">● Canlı (FMP)</span>}
+            {fetchedFrom === 'fmp_cache'         && <span className="ml-1.5 text-blue-400 font-medium">● Önbellekten (FMP)</span>}
+            {fetchedFrom === 'bls_live'          && <span className="ml-1.5 text-green-400 font-medium">● Canlı (BLS.gov)</span>}
+            {fetchedFrom === 'bls_cache'         && <span className="ml-1.5 text-blue-400 font-medium">● Önbellekten (BLS.gov)</span>}
+            {fetchedFrom === 'static'            && <span className="ml-1.5 text-gray-500 font-medium">● Statik Veri</span>}
             {dataNote ? ` — ${dataNote}` : ''}
           </span>
         </div>

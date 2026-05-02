@@ -4,26 +4,20 @@ import {
   Target,
   Briefcase,
   TrendingUp,
-  Brain,
+  Building2,
   Activity,
-  Star,
-  FileText,
-  Newspaper,
   Search,
-  BarChart3,
   BookOpen,
   Settings,
   ChevronLeft,
   ChevronRight,
   Flame,
   BellRing,
-  Table,
   Gem,
-  CandlestickChart,
   CreditCard,
-  StickyNote,
   Calendar,
-  Trash2,
+  Sparkles,
+  Crown,
 } from 'lucide-react'
 import { useAuthStore } from '../store/authStore'
 import BrandMark from './BrandMark'
@@ -31,97 +25,208 @@ import BrandMark from './BrandMark'
 export default function Sidebar({ isOpen, onToggle }) {
   const user = useAuthStore((state) => state.user)
 
+  // === SADELEŞTİRİLMİŞ NAVİGASYON ===
+  // 23 sekme → 11 sekme. Tek işlevli sayfalar tek çatı altında birleşti.
   const navItems = [
-    { path: '/', label: 'Piyasa Kokpiti', icon: LayoutDashboard },
-    { path: '/pro-analiz', label: 'Pro Analiz', icon: Gem, highlight: true, badge: 'PRO' },
-    { path: '/canli-heatmap', label: 'Canli Heatmap', icon: Flame, highlight: true },
-    { path: '/malaysian-snr', label: 'Malaysian SNR', icon: CandlestickChart, highlight: true, badge: 'YENI' },
-    { path: '/ema34-tarayici', label: 'EMA34 Takip', icon: TrendingUp, highlight: true, badge: 'YENI' },
-    { path: '/gunluk-tespitler', label: 'Gunluk Tespitler', icon: Target },
-    { path: '/takip-listem', label: 'Takip Listem', icon: Briefcase },
-    { path: '/algoritma-performans', label: 'Algoritma Performans', icon: TrendingUp },
-    { path: '/temel-analiz-ai', label: 'Temel Analiz AI', icon: Brain },
-    { path: '/mali-tablolar', label: 'Mali Tablolar', icon: Table },
-    { path: '/teknik-analiz-ai', label: 'Teknik Analiz AI', icon: Activity },
-    { path: '/hisse-ai-skor', label: 'Hisse AI Skor', icon: Star },
-    { path: '/kap-analitik', label: 'KAP Analitik', icon: FileText },
-    { path: '/teknik-notlar', label: 'Teknik Notlar', icon: Newspaper },
-    { path: '/ekonomik-takvim', label: 'Ekonomik Takvim', icon: Calendar },
-    { path: '/finansal-notlar', label: 'Finansal Notlar', icon: StickyNote },
-    { path: '/taramalar', label: 'Taramalar', icon: Search },
-    { path: '/tarama-analiz-merkezi', label: 'Tarama Analiz Merkezi', icon: BarChart3 },
-    { path: '/inceleme-kutuphanesi', label: 'Inceleme Kutuphanesi', icon: BookOpen },
-    { path: '/abonelik', label: 'Abonelik', icon: CreditCard },
-    { path: '/account-deletion', label: 'Hesap Silme', icon: Trash2 },
-    { path: '/ayarlar', label: 'Ayarlar & Takip', icon: Settings },
+    // Ana
+    { path: '/',                  label: 'Piyasa Kokpiti',   icon: LayoutDashboard, group: 'core' },
+    { path: '/canli-heatmap',     label: 'Canlı Heatmap',    icon: Flame,           group: 'core', highlight: true },
+    { path: '/pro-analiz',        label: 'Pro Analiz',       icon: Gem,             group: 'core', highlight: true, badge: 'PRO' },
+
+    // Analiz
+    { path: '/teknik-analiz-ai',  label: 'Teknik Analiz',    icon: Activity,        group: 'analiz' },
+    { path: '/sirket-analizi',    label: 'Şirket Analizi',   icon: Building2,       group: 'analiz' },
+    { path: '/tarayicilar',       label: 'Tarayıcılar',      icon: Search,          group: 'analiz' },
+    { path: '/gunluk-tespitler',  label: 'Günlük Sinyaller', icon: Target,          group: 'analiz' },
+    { path: '/performans',        label: 'Performans',       icon: TrendingUp,      group: 'analiz' },
+
+    // Kişisel
+    { path: '/takip-listem',      label: 'Takip Listem',     icon: Briefcase,       group: 'kisisel' },
+    { path: '/notlarim',          label: 'Notlarım',         icon: BookOpen,        group: 'kisisel' },
+    { path: '/ekonomik-takvim',   label: 'Ekonomik Takvim',  icon: Calendar,        group: 'kisisel' },
+
+    // Hesap
+    { path: '/abonelik',          label: 'Abonelik',         icon: CreditCard,      group: 'hesap' },
+    { path: '/ayarlar',           label: 'Ayarlar',          icon: Settings,        group: 'hesap' },
     ...(user?.role === 'admin'
-      ? [{ path: '/admin-bildirimler', label: 'Admin Bildirim', icon: BellRing, highlight: true, badge: 'ADMIN' }]
+      ? [{ path: '/admin-bildirimler', label: 'Admin Bildirim', icon: BellRing, highlight: true, badge: 'ADMIN', group: 'hesap' }]
       : []),
   ]
 
+  const groupLabels = {
+    core:    'Hızlı Erişim',
+    analiz:  'Analiz Araçları',
+    kisisel: 'Kişisel',
+    hesap:   'Hesap',
+  }
+
+  // Grouped order
+  const groupedItems = ['core', 'analiz', 'kisisel', 'hesap'].map(g => ({
+    group: g,
+    label: groupLabels[g],
+    items: navItems.filter(i => i.group === g),
+  }))
+
   return (
-    <aside className={`h-full flex flex-col overflow-hidden bg-gradient-to-b from-dark-900 to-dark-950 border-r border-gold-500/10 transition-all duration-300 z-40 ${isOpen ? 'w-64' : 'w-20'}`}>
-      <div className="h-16 flex items-center justify-between px-4 border-b border-gold-500/20">
+    <aside
+      className={`h-full flex flex-col overflow-hidden transition-all duration-300 z-40 relative
+        ${isOpen ? 'w-64' : 'w-20'}
+      `}
+      style={{
+        background: 'linear-gradient(180deg, var(--bg-card) 0%, var(--bg-base) 100%)',
+        borderRight: '1px solid var(--border-main)',
+      }}
+    >
+      {/* Subtle gold accent line on right edge */}
+      <div className="absolute top-0 right-0 bottom-0 w-px bg-gradient-to-b from-transparent via-amber-500/25 to-transparent pointer-events-none" />
+
+      {/* Header */}
+      <div className="h-16 flex items-center justify-between px-4 border-b border-amber-500/15 relative flex-shrink-0">
         {isOpen && (
-          <div className="flex items-center space-x-2">
-            <BrandMark size="md" className="shadow-glow-gold" />
-            <div className="flex flex-col">
-              <span className="font-bold text-lg bg-gradient-to-r from-gold-400 to-gold-600 bg-clip-text text-transparent">BORSA KRALI</span>
-              <span className="text-[10px] text-gray-500 -mt-1">Premium Platform</span>
+          <div className="flex items-center space-x-2.5 min-w-0">
+            <div className="relative flex-shrink-0">
+              <BrandMark size="md" className="glow-gold rounded-xl" />
+              <Crown className="absolute -top-1.5 -right-1.5 w-3.5 h-3.5 text-amber-400 drop-shadow-lg" />
+            </div>
+            <div className="flex flex-col min-w-0">
+              <span className="font-bold text-[15px] text-gold-shimmer truncate leading-tight tracking-wide">BORSA KRALI</span>
+              <span className="text-[9px] uppercase tracking-[0.12em] text-amber-400/80 font-medium -mt-0.5">Premium Edition</span>
             </div>
           </div>
         )}
 
-        {!isOpen && <BrandMark size="md" className="shadow-glow-gold mx-auto" />}
+        {!isOpen && <BrandMark size="md" className="glow-gold mx-auto rounded-xl" />}
 
         <button
           onClick={onToggle}
-          className="p-2 hover:bg-dark-800 rounded-lg transition-colors text-gold-400"
+          className="flex-shrink-0 p-1.5 hover:bg-amber-500/10 rounded-lg transition-all text-amber-400 hover:text-amber-300 border border-transparent hover:border-amber-500/25"
+          aria-label={isOpen ? 'Menüyü daralt' : 'Menüyü genişlet'}
         >
-          {isOpen ? <ChevronLeft className="w-5 h-5" /> : <ChevronRight className="w-5 h-5" />}
+          {isOpen ? <ChevronLeft className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
         </button>
       </div>
 
-      <nav className="flex-1 py-4 overflow-y-auto custom-scrollbar min-h-0">
-        <ul className="space-y-1 px-2">
-          {navItems.map((item) => (
-            <li key={item.path}>
-              <NavLink
-                to={item.path}
-                className={({ isActive }) =>
-                  `flex items-center space-x-3 px-3 py-3 rounded-xl transition-all group relative ${isActive
-                    ? 'bg-gradient-to-r from-gold-500 to-gold-600 text-dark-950 shadow-lg shadow-gold-500/30'
-                    : item.highlight
-                      ? 'text-gold-400 hover:bg-gold-500/10 border border-gold-500/30'
-                      : 'text-gray-400 hover:bg-dark-800 hover:text-white'
-                  }`
-                }
-              >
-                <item.icon className={`w-5 h-5 flex-shrink-0 ${item.highlight ? 'text-gold-400' : ''}`} />
-                {isOpen && <span className="text-sm font-medium">{item.label}</span>}
-                {item.highlight && isOpen && (
-                  <span className="absolute right-2 top-1/2 -translate-y-1/2 px-2 py-0.5 bg-gold-500/20 text-gold-400 text-[10px] rounded-full font-semibold">
-                    {item.badge || 'CANLI'}
-                  </span>
-                )}
-              </NavLink>
+      {/* Nav Items */}
+      <nav className="flex-1 py-3 overflow-y-auto custom-scrollbar min-h-0">
+        <ul className="space-y-3 px-2">
+          {groupedItems.map((g, gIdx) => (
+            <li key={g.group} className="space-y-0.5">
+              {isOpen && (
+                <div className="px-3 pt-1 pb-1.5 text-[10px] uppercase tracking-[0.14em] font-semibold text-amber-400/60">
+                  {g.label}
+                </div>
+              )}
+              {!isOpen && gIdx > 0 && <div className="mx-3 my-1 border-t border-amber-500/10" />}
+              <ul className="space-y-0.5">
+                {g.items.map((item) => {
+                  const Icon = item.icon
+                  return (
+                    <li key={item.path}>
+                      <NavLink
+                        to={item.path}
+                        end={item.path === '/'}
+                        className={({ isActive }) =>
+                          `group relative flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200
+                          ${isActive
+                            ? 'bg-gradient-to-r from-amber-500/90 via-amber-500/85 to-amber-600/80 text-slate-950 shadow-[0_4px_14px_rgba(245,158,11,0.35)] font-semibold'
+                            : item.highlight
+                              ? 'text-amber-400 hover:bg-amber-500/10 hover:text-amber-300'
+                              : 'text-gray-400 hover:bg-white/5 hover:text-white'
+                          }`
+                        }
+                      >
+                        {({ isActive }) => (
+                          <>
+                            {/* Left accent bar when active */}
+                            {isActive && (
+                              <span className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-7 bg-white/60 rounded-r-full" />
+                            )}
+
+                            <Icon
+                              className={`w-[18px] h-[18px] flex-shrink-0 transition-transform duration-200
+                                ${isActive ? 'text-slate-950' : item.highlight ? 'text-amber-400' : ''}
+                                group-hover:scale-110
+                              `}
+                            />
+
+                            {isOpen && (
+                              <span className={`text-[13px] truncate flex-1 ${isActive ? 'font-semibold' : 'font-medium'}`}>
+                                {item.label}
+                              </span>
+                            )}
+
+                            {isOpen && item.badge && (
+                              <span
+                                className={`px-1.5 py-0.5 text-[9px] font-bold rounded-md tracking-wider
+                                  ${isActive
+                                    ? 'bg-slate-950/20 text-slate-950'
+                                    : item.badge === 'ADMIN'
+                                      ? 'bg-red-500/20 text-red-400'
+                                      : 'bg-amber-500/20 text-amber-400 badge-new'
+                                  }`}
+                              >
+                                {item.badge}
+                              </span>
+                            )}
+
+                            {isOpen && item.highlight && !item.badge && (
+                              <span className="flex items-center gap-1 px-1.5 py-0.5 text-[9px] font-bold rounded-md tracking-wider bg-emerald-500/20 text-emerald-400">
+                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                                LIVE
+                              </span>
+                            )}
+
+                            {/* Collapsed-mode tooltip on hover */}
+                            {!isOpen && (
+                              <span className="invisible group-hover:visible absolute left-full ml-3 px-3 py-1.5 bg-slate-900 border border-amber-500/30 text-white text-xs font-medium rounded-lg shadow-premium whitespace-nowrap z-50 pointer-events-none">
+                                {item.label}
+                              </span>
+                            )}
+                          </>
+                        )}
+                      </NavLink>
+                    </li>
+                  )
+                })}
+              </ul>
             </li>
           ))}
         </ul>
       </nav>
 
-      <div className="flex-shrink-0 px-2 py-3 border-t border-gold-500/10">
-        <div className={`bg-surface-100 rounded-xl p-3 border border-gold-500/20 ${isOpen ? '' : 'flex items-center justify-center'}`}>
+      {/* Footer card */}
+      <div className="flex-shrink-0 p-2 border-t border-amber-500/15">
+        <div
+          className={`relative overflow-hidden rounded-xl p-3 ${isOpen ? '' : 'flex items-center justify-center'}`}
+          style={{
+            background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.08), rgba(245, 158, 11, 0.02))',
+            border: '1px solid rgba(245, 158, 11, 0.2)',
+          }}
+        >
+          {/* Subtle shimmer overlay */}
+          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-amber-500/5 to-transparent" />
+
           {isOpen ? (
-            <div className="flex items-center space-x-3">
-              <BrandMark size="md" className="rounded-full shadow-glow-gold" imageClassName="rounded-full" />
+            <div className="relative flex items-center space-x-2.5">
+              <div className="relative">
+                <BrandMark size="md" className="rounded-full glow-gold" imageClassName="rounded-full" />
+                <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-emerald-500 border-2 border-[var(--bg-card)] rounded-full" />
+              </div>
               <div className="flex-1 min-w-0">
-                <div className="text-sm font-semibold text-white truncate">Borsa Krali</div>
-                <div className="text-xs text-gold-400">Premium Platform</div>
+                <div className="text-[13px] font-semibold text-white truncate flex items-center gap-1">
+                  {user?.firstName || 'Borsa Kralı'}
+                  <Sparkles className="w-3 h-3 text-amber-400" />
+                </div>
+                <div className="text-[10px] text-amber-400 font-medium tracking-wide">
+                  {user?.plan === 'lifetime' ? 'Lifetime Üyelik' :
+                   user?.plan === 'pro_monthly' ? 'Pro Aylık' :
+                   user?.plan === 'starter_monthly' ? 'Starter' :
+                   user?.isDemo ? 'Demo Erişim' : 'Premium Platform'}
+                </div>
               </div>
             </div>
           ) : (
-            <BrandMark size="md" className="rounded-full shadow-glow-gold" imageClassName="rounded-full" />
+            <BrandMark size="md" className="rounded-full glow-gold" imageClassName="rounded-full" />
           )}
         </div>
       </div>

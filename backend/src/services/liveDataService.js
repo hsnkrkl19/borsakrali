@@ -457,7 +457,7 @@ function calculateIndicators(historicalData) {
     return { k: +k.toFixed(1), d: +d.toFixed(1) };
   };
 
-  // ATR (Average True Range)
+  // ATR (Average True Range) — Wilder smoothing (standart)
   const calculateATR = (highs, lows, closes, period = 14) => {
     if (highs.length < period + 1) return null;
 
@@ -471,7 +471,14 @@ function calculateIndicators(historicalData) {
       trueRanges.push(tr);
     }
 
-    const atr = trueRanges.slice(-period).reduce((a, b) => a + b, 0) / period;
+    if (trueRanges.length < period) return null;
+
+    // İlk ATR: ilk period TR'nin SMA'si (Wilder'in başlangıç değeri)
+    let atr = trueRanges.slice(0, period).reduce((a, b) => a + b, 0) / period;
+    // Wilder's smoothing: ATR_n = ((ATR_{n-1} * (period-1)) + TR_n) / period
+    for (let i = period; i < trueRanges.length; i++) {
+      atr = (atr * (period - 1) + trueRanges[i]) / period;
+    }
     return +atr.toFixed(2);
   };
 
