@@ -83,6 +83,7 @@ export default function Kripto() {
   const [refreshTick, setRefreshTick]   = useState(0)
   const [stale, setStale]               = useState(false)
   const [lastUpdate, setLastUpdate]     = useState(null)
+  const [source, setSource]             = useState('')
 
   // Fetch all data
   useEffect(() => {
@@ -101,13 +102,14 @@ export default function Kripto() {
         setTrending(tr.data.trending || [])
         setStale(!!mk.data.stale)
         setLastUpdate(mk.data.lastUpdate)
+        setSource(mk.data.source || '')
       })
       .catch(e => {
         if (!active) return
         const status = e.response?.status
-        const detail = e.response?.data?.detail || e.response?.data?.error || e.message
-        if (status === 429) {
-          setError('Kripto API geçici olarak yoğun — birkaç dakika sonra tekrar deneyin.')
+        const detail = e.response?.data?.error || e.response?.data?.detail || e.message
+        if (status === 429 || status === 503) {
+          setError('Kripto verisi şu an yoğunlaşmış durumda — birkaç dakika sonra tekrar deneyin (3 farklı kaynak deniyoruz).')
         } else {
           setError(detail)
         }
@@ -251,7 +253,11 @@ export default function Kripto() {
             <div>
               <h1 className="text-xl sm:text-2xl font-bold text-white tracking-tight">Kripto Piyasası</h1>
               <p className="text-xs sm:text-sm text-gray-400">
-                CoinGecko · 5 dk auto-refresh
+                {source === 'coingecko' && 'CoinGecko'}
+                {source === 'coincap' && 'CoinCap'}
+                {source === 'binance' && 'Binance'}
+                {!source && 'CoinGecko/CoinCap/Binance'}
+                <span> · 5 dk auto-refresh</span>
                 {lastUpdate && <span className="ml-1 text-gray-500">· {new Date(lastUpdate).toLocaleTimeString('tr-TR')}</span>}
                 {stale && <span className="ml-2 text-amber-400">● önbellek</span>}
               </p>

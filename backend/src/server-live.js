@@ -3686,11 +3686,149 @@ app.get('/api/pro-analiz/crypto-list', (req, res) => {
   res.json({ coins: Object.entries(CRYPTO_MAP).map(([symbol, id]) => ({ symbol, id })) });
 });
 
-// ============ KRİPTO MARKETS (CoinGecko top N) ============
-// CoinGecko free tier: ~30 req/min - cache aggressively
+// ============ KRİPTO MARKETS — ÇOKLU PROVIDER (CoinGecko → CoinCap → Binance) ============
+// Her API anahtarsız & ücretsiz. Birinci 429/error verirse otomatik bir sonrakine geç.
 const cryptoMarketsCache = new Map();
 const CRYPTO_CACHE_TTL = 10 * 60 * 1000; // 10 dakika (cache hit)
-const CRYPTO_STALE_TTL = 60 * 60 * 1000; // 1 saat (stale OK on 429/error)
+const CRYPTO_STALE_TTL = 6 * 60 * 60 * 1000; // 6 saat (stale OK on 429/error)
+
+// Logo CDN — CoinGecko ID'sinden ikon URL'si
+const coinIconUrl = (id) => `https://assets.coincap.io/assets/icons/${id.toLowerCase()}@2x.png`;
+
+// ─── Provider 1: CoinGecko (en zengin veri, ama 429 sınırlı) ───
+async function fetchMarketsCoinGecko(vs, limit) {
+  const url = `https://api.coingecko.com/api/v3/coins/markets?vs_currency=${vs}&order=market_cap_desc&per_page=${limit}&page=1&sparkline=true&price_change_percentage=1h,24h,7d`;
+  const r = await fetch(url, {
+    headers: { 'User-Agent': 'BorsaKrali/3.3', 'Accept': 'application/json' },
+    signal: AbortSignal.timeout(12000),
+  });
+  if (!r.ok) throw new Error(`CoinGecko HTTP ${r.status}`);
+  const data = await r.json();
+  return data.map(c => ({
+    id: c.id,
+    symbol: (c.symbol || '').toUpperCase(),
+    name: c.name,
+    image: c.image,
+    currentPrice: c.current_price,
+    marketCap: c.market_cap,
+    marketCapRank: c.market_cap_rank,
+    totalVolume: c.total_volume,
+    high24h: c.high_24h,
+    low24h: c.low_24h,
+    priceChange24h: c.price_change_24h,
+    priceChangePercent1h: c.price_change_percentage_1h_in_currency,
+    priceChangePercent24h: c.price_change_percentage_24h_in_currency,
+    priceChangePercent7d: c.price_change_percentage_7d_in_currency,
+    circulatingSupply: c.circulating_supply,
+    totalSupply: c.total_supply,
+    ath: c.ath,
+    athChangePercent: c.ath_change_percentage,
+    sparkline: c.sparkline_in_7d?.price?.slice(-30) || [],
+  }));
+}
+
+// ─── Provider 2: CoinCap.io (anahtarsız, sınırsız fiilen) ───
+async function fetchMarketsCoinCap(limit) {
+  const url = `https://api.coincap.io/v2/assets?limit=${limit}`;
+  const r = await fetch(url, {
+    headers: { 'User-Agent': 'BorsaKrali/3.3', 'Accept': 'application/json' },
+    signal: AbortSignal.timeout(12000),
+  });
+  if (!r.ok) throw new Error(`CoinCap HTTP ${r.status}`);
+  const { data } = await r.json();
+  return (data || []).map(c => ({
+    id: c.id,
+    symbol: (c.symbol || '').toUpperCase(),
+    name: c.name,
+    image: coinIconUrl(c.symbol || c.id),
+    currentPrice: parseFloat(c.priceUsd) || 0,
+    marketCap: parseFloat(c.marketCapUsd) || 0,
+    marketCapRank: parseInt(c.rank) || null,
+    totalVolume: parseFloat(c.volumeUsd24Hr) || 0,
+    high24h: null,
+    low24h: null,
+    priceChange24h: null,
+    priceChangePercent1h: null,
+    priceChangePercent24h: parseFloat(c.changePercent24Hr) || 0,
+    priceChangePercent7d: null,
+    circulatingSupply: parseFloat(c.supply) || null,
+    totalSupply: parseFloat(c.maxSupply) || null,
+    ath: null,
+    athChangePercent: null,
+    sparkline: [],
+  }));
+}
+
+// ─── Provider 3: Binance (en hızlı, ama sadece USDT çiftleri) ───
+async function fetchMarketsBinance(limit) {
+  const r = await fetch('https://api.binance.com/api/v3/ticker/24hr', {
+    headers: { 'User-Agent': 'BorsaKrali/3.3' },
+    signal: AbortSignal.timeout(12000),
+  });
+  if (!r.ok) throw new Error(`Binance HTTP ${r.status}`);
+  const arr = await r.json();
+  // USDT çiftlerini filtrele, hacme göre sırala
+  const usdt = arr.filter(t => t.symbol.endsWith('USDT'))
+    .map(t => ({
+      symbolBase: t.symbol.replace('USDT', ''),
+      price: parseFloat(t.lastPrice),
+      change24hPct: parseFloat(t.priceChangePercent),
+      high24h: parseFloat(t.highPrice),
+      low24h: parseFloat(t.lowPrice),
+      vol: parseFloat(t.quoteVolume),
+    }))
+    .sort((a, b) => b.vol - a.vol)
+    .slice(0, limit);
+
+  return usdt.map((t, i) => ({
+    id: t.symbolBase.toLowerCase(),
+    symbol: t.symbolBase,
+    name: t.symbolBase,
+    image: coinIconUrl(t.symbolBase),
+    currentPrice: t.price,
+    marketCap: null,
+    marketCapRank: i + 1,
+    totalVolume: t.vol,
+    high24h: t.high24h,
+    low24h: t.low24h,
+    priceChange24h: null,
+    priceChangePercent1h: null,
+    priceChangePercent24h: t.change24hPct,
+    priceChangePercent7d: null,
+    circulatingSupply: null,
+    totalSupply: null,
+    ath: null,
+    athChangePercent: null,
+    sparkline: [],
+  }));
+}
+
+// Ana orkestratör — sırayla dener
+async function fetchCryptoMarkets(vs, limit) {
+  const errors = [];
+  // CoinGecko
+  try {
+    const coins = await fetchMarketsCoinGecko(vs, limit);
+    return { coins, source: 'coingecko' };
+  } catch (e) {
+    errors.push(`CoinGecko: ${e.message}`);
+  }
+  // CoinCap (USD only)
+  try {
+    const coins = await fetchMarketsCoinCap(limit);
+    return { coins, source: 'coincap' };
+  } catch (e) {
+    errors.push(`CoinCap: ${e.message}`);
+  }
+  // Binance (USDT only)
+  try {
+    const coins = await fetchMarketsBinance(limit);
+    return { coins, source: 'binance' };
+  } catch (e) {
+    errors.push(`Binance: ${e.message}`);
+  }
+  throw new Error('Tüm kripto kaynakları başarısız: ' + errors.join(' | '));
+}
 
 app.get('/api/crypto/markets', async (req, res) => {
   const vs = (req.query.vs || 'usd').toLowerCase();
@@ -3704,53 +3842,20 @@ app.get('/api/crypto/markets', async (req, res) => {
   }
 
   try {
-    const url = `https://api.coingecko.com/api/v3/coins/markets?vs_currency=${vs}&order=market_cap_desc&per_page=${limit}&page=1&sparkline=true&price_change_percentage=1h,24h,7d`;
-    const r = await fetch(url, {
-      headers: { 'User-Agent': 'BorsaKrali/3.3', 'Accept': 'application/json' },
-      signal: AbortSignal.timeout(15000),
-    });
-    if (!r.ok) {
-      // 429 / 5xx → eski cache varsa onu döndür
-      if (cached && Date.now() - cached.t < CRYPTO_STALE_TTL) {
-        console.warn(`[crypto/markets] CoinGecko ${r.status} - stale cache döndürülüyor`);
-        return res.json({ ...cached.data, fromCache: true, stale: true });
-      }
-      throw new Error(`CoinGecko HTTP ${r.status}`);
-    }
-    const data = await r.json();
-
-    const coins = data.map(c => ({
-      id: c.id,
-      symbol: (c.symbol || '').toUpperCase(),
-      name: c.name,
-      image: c.image,
-      currentPrice: c.current_price,
-      marketCap: c.market_cap,
-      marketCapRank: c.market_cap_rank,
-      totalVolume: c.total_volume,
-      high24h: c.high_24h,
-      low24h: c.low_24h,
-      priceChange24h: c.price_change_24h,
-      priceChangePercent1h: c.price_change_percentage_1h_in_currency,
-      priceChangePercent24h: c.price_change_percentage_24h_in_currency,
-      priceChangePercent7d: c.price_change_percentage_7d_in_currency,
-      circulatingSupply: c.circulating_supply,
-      totalSupply: c.total_supply,
-      ath: c.ath,
-      athChangePercent: c.ath_change_percentage,
-      sparkline: c.sparkline_in_7d?.price?.slice(-30) || [],
-    }));
-
-    const payload = { vs, count: coins.length, coins, lastUpdate: new Date().toISOString() };
+    const { coins, source } = await fetchCryptoMarkets(vs, limit);
+    const payload = {
+      vs, count: coins.length, coins, source,
+      lastUpdate: new Date().toISOString(),
+    };
     cryptoMarketsCache.set(cacheKey, { t: Date.now(), data: payload });
     res.json({ ...payload, fromCache: false });
   } catch (e) {
     console.error('[crypto/markets]', e.message);
-    // Hata durumunda eski cache varsa onu döndür (kullanıcı 429 görmesin)
+    // Tüm kaynaklar çöktü - eski cache varsa döndür
     if (cached && Date.now() - cached.t < CRYPTO_STALE_TTL) {
       return res.json({ ...cached.data, fromCache: true, stale: true });
     }
-    res.status(500).json({ error: 'Kripto verileri alınamadı', detail: e.message });
+    res.status(503).json({ error: 'Kripto verileri şu an alınamıyor, lütfen birkaç dakika sonra tekrar deneyin.', detail: e.message });
   }
 });
 
@@ -3858,31 +3963,11 @@ app.get('/api/crypto/global', async (req, res) => {
 // === ARKA PLAN WARMUP: Server start'ta + her 8 dakikada bir cache'i doldur ===
 async function warmupCryptoCache() {
   try {
-    const url = `https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=100&page=1&sparkline=true&price_change_percentage=1h,24h,7d`;
-    const r = await fetch(url, {
-      headers: { 'User-Agent': 'BorsaKrali/3.3' },
-      signal: AbortSignal.timeout(20000),
-    });
-    if (!r.ok) {
-      console.warn(`[warmup] CoinGecko HTTP ${r.status}`);
-      return;
-    }
-    const data = await r.json();
-    const coins = data.map(c => ({
-      id: c.id, symbol: (c.symbol || '').toUpperCase(), name: c.name, image: c.image,
-      currentPrice: c.current_price, marketCap: c.market_cap, marketCapRank: c.market_cap_rank,
-      totalVolume: c.total_volume, high24h: c.high_24h, low24h: c.low_24h,
-      priceChange24h: c.price_change_24h,
-      priceChangePercent1h: c.price_change_percentage_1h_in_currency,
-      priceChangePercent24h: c.price_change_percentage_24h_in_currency,
-      priceChangePercent7d: c.price_change_percentage_7d_in_currency,
-      circulatingSupply: c.circulating_supply, totalSupply: c.total_supply,
-      ath: c.ath, athChangePercent: c.ath_change_percentage,
-      sparkline: c.sparkline_in_7d?.price?.slice(-30) || [],
-    }));
-    cryptoMarketsCache.set('mk_usd_100', { t: Date.now(), data: { vs: 'usd', count: coins.length, coins, lastUpdate: new Date().toISOString() } });
-    cryptoMarketsCache.set('mk_usd_50',  { t: Date.now(), data: { vs: 'usd', count: 50, coins: coins.slice(0, 50), lastUpdate: new Date().toISOString() } });
-    console.log(`[warmup] Crypto cache dolduruldu: ${coins.length} coin`);
+    const { coins, source } = await fetchCryptoMarkets('usd', 100);
+    const stamp = new Date().toISOString();
+    cryptoMarketsCache.set('mk_usd_100', { t: Date.now(), data: { vs: 'usd', count: coins.length, coins, source, lastUpdate: stamp } });
+    cryptoMarketsCache.set('mk_usd_50',  { t: Date.now(), data: { vs: 'usd', count: 50, coins: coins.slice(0, 50), source, lastUpdate: stamp } });
+    console.log(`[warmup] Crypto cache dolduruldu: ${coins.length} coin (kaynak: ${source})`);
   } catch (e) {
     console.warn('[warmup] Hata:', e.message);
   }
