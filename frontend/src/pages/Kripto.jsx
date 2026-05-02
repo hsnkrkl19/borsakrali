@@ -81,6 +81,8 @@ export default function Kripto() {
   const [alertPrice, setAlertPrice]     = useState('')
   const [alertDir, setAlertDir]         = useState('above')
   const [refreshTick, setRefreshTick]   = useState(0)
+  const [stale, setStale]               = useState(false)
+  const [lastUpdate, setLastUpdate]     = useState(null)
 
   // Fetch all data
   useEffect(() => {
@@ -97,15 +99,26 @@ export default function Kripto() {
         setCoins(mk.data.coins || [])
         setGlobal(gl.data || null)
         setTrending(tr.data.trending || [])
+        setStale(!!mk.data.stale)
+        setLastUpdate(mk.data.lastUpdate)
       })
-      .catch(e => active && setError(e.response?.data?.error || e.message))
+      .catch(e => {
+        if (!active) return
+        const status = e.response?.status
+        const detail = e.response?.data?.detail || e.response?.data?.error || e.message
+        if (status === 429) {
+          setError('Kripto API geçici olarak yoğun — birkaç dakika sonra tekrar deneyin.')
+        } else {
+          setError(detail)
+        }
+      })
       .finally(() => active && setLoading(false))
     return () => { active = false }
   }, [refreshTick])
 
-  // Auto-refresh every 60 seconds
+  // Auto-refresh every 5 minutes (önceden 60sn idi - rate limit'e takılmamak için)
   useEffect(() => {
-    const interval = setInterval(() => setRefreshTick(t => t + 1), 60_000)
+    const interval = setInterval(() => setRefreshTick(t => t + 1), 5 * 60_000)
     return () => clearInterval(interval)
   }, [])
 
@@ -237,7 +250,11 @@ export default function Kripto() {
             </div>
             <div>
               <h1 className="text-xl sm:text-2xl font-bold text-white tracking-tight">Kripto Piyasası</h1>
-              <p className="text-xs sm:text-sm text-gray-400">CoinGecko canlı verisi · 60 sn auto-refresh</p>
+              <p className="text-xs sm:text-sm text-gray-400">
+                CoinGecko · 5 dk auto-refresh
+                {lastUpdate && <span className="ml-1 text-gray-500">· {new Date(lastUpdate).toLocaleTimeString('tr-TR')}</span>}
+                {stale && <span className="ml-2 text-amber-400">● önbellek</span>}
+              </p>
             </div>
           </div>
           <button

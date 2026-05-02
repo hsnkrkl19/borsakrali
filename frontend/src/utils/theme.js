@@ -1,18 +1,19 @@
 export function getStoredTheme() {
   try {
+    // Yeni kullanıcılar için varsayılan: dark (premium tema)
     const explicitTheme =
-      document.documentElement.getAttribute('data-theme') ||
       localStorage.getItem('bk-theme') ||
-      'light'
+      document.documentElement.getAttribute('data-theme') ||
+      'dark'
 
-    return explicitTheme === 'dark' ? 'dark' : 'light'
+    return explicitTheme === 'light' ? 'light' : 'dark'
   } catch {
-    return 'light'
+    return 'dark'
   }
 }
 
 export function applyTheme(theme) {
-  const resolvedTheme = theme === 'dark' ? 'dark' : 'light'
+  const resolvedTheme = theme === 'light' ? 'light' : 'dark'
 
   try {
     localStorage.setItem('bk-theme', resolvedTheme)

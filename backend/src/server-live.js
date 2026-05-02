@@ -3687,8 +3687,10 @@ app.get('/api/pro-analiz/crypto-list', (req, res) => {
 });
 
 // ============ KRİPTO MARKETS (CoinGecko top N) ============
+// CoinGecko free tier: ~30 req/min - cache aggressively
 const cryptoMarketsCache = new Map();
-const CRYPTO_CACHE_TTL = 2 * 60 * 1000; // 2 dakika
+const CRYPTO_CACHE_TTL = 10 * 60 * 1000; // 10 dakika (cache hit)
+const CRYPTO_STALE_TTL = 60 * 60 * 1000; // 1 saat (stale OK on 429/error)
 
 app.get('/api/crypto/markets', async (req, res) => {
   const vs = (req.query.vs || 'usd').toLowerCase();
@@ -3696,6 +3698,7 @@ app.get('/api/crypto/markets', async (req, res) => {
   const cacheKey = `mk_${vs}_${limit}`;
 
   const cached = cryptoMarketsCache.get(cacheKey);
+  // Fresh cache hit
   if (cached && Date.now() - cached.t < CRYPTO_CACHE_TTL) {
     return res.json({ ...cached.data, fromCache: true });
   }
@@ -3706,7 +3709,14 @@ app.get('/api/crypto/markets', async (req, res) => {
       headers: { 'User-Agent': 'BorsaKrali/3.3', 'Accept': 'application/json' },
       signal: AbortSignal.timeout(15000),
     });
-    if (!r.ok) throw new Error(`CoinGecko HTTP ${r.status}`);
+    if (!r.ok) {
+      // 429 / 5xx → eski cache varsa onu döndür
+      if (cached && Date.now() - cached.t < CRYPTO_STALE_TTL) {
+        console.warn(`[crypto/markets] CoinGecko ${r.status} - stale cache döndürülüyor`);
+        return res.json({ ...cached.data, fromCache: true, stale: true });
+      }
+      throw new Error(`CoinGecko HTTP ${r.status}`);
+    }
     const data = await r.json();
 
     const coins = data.map(c => ({
@@ -3736,6 +3746,10 @@ app.get('/api/crypto/markets', async (req, res) => {
     res.json({ ...payload, fromCache: false });
   } catch (e) {
     console.error('[crypto/markets]', e.message);
+    // Hata durumunda eski cache varsa onu döndür (kullanıcı 429 görmesin)
+    if (cached && Date.now() - cached.t < CRYPTO_STALE_TTL) {
+      return res.json({ ...cached.data, fromCache: true, stale: true });
+    }
     res.status(500).json({ error: 'Kripto verileri alınamadı', detail: e.message });
   }
 });
@@ -3768,13 +3782,23 @@ app.get('/api/crypto/quote/:id', async (req, res) => {
 });
 
 // Trending coins (popüler / arama trendinde)
+const trendingCache = { t: 0, data: null };
 app.get('/api/crypto/trending', async (req, res) => {
+  // 15 dk fresh cache
+  if (trendingCache.data && Date.now() - trendingCache.t < 15 * 60 * 1000) {
+    return res.json({ ...trendingCache.data, fromCache: true });
+  }
   try {
     const r = await fetch('https://api.coingecko.com/api/v3/search/trending', {
       headers: { 'User-Agent': 'BorsaKrali/3.3' },
       signal: AbortSignal.timeout(10000),
     });
-    if (!r.ok) throw new Error(`CoinGecko HTTP ${r.status}`);
+    if (!r.ok) {
+      if (trendingCache.data && Date.now() - trendingCache.t < 6 * 60 * 60 * 1000) {
+        return res.json({ ...trendingCache.data, fromCache: true, stale: true });
+      }
+      throw new Error(`CoinGecko HTTP ${r.status}`);
+    }
     const data = await r.json();
     const trending = (data.coins || []).map(item => ({
       id: item.item.id,
@@ -3784,22 +3808,35 @@ app.get('/api/crypto/trending', async (req, res) => {
       marketCapRank: item.item.market_cap_rank,
       score: item.item.score,
     }));
-    res.json({ trending, lastUpdate: new Date().toISOString() });
+    const payload = { trending, lastUpdate: new Date().toISOString() };
+    trendingCache.t = Date.now();
+    trendingCache.data = payload;
+    res.json(payload);
   } catch (e) {
+    if (trendingCache.data) return res.json({ ...trendingCache.data, fromCache: true, stale: true });
     res.status(500).json({ error: e.message });
   }
 });
 
 // Global pazar özeti (toplam mcap, dominance)
+const globalCache = { t: 0, data: null };
 app.get('/api/crypto/global', async (req, res) => {
+  if (globalCache.data && Date.now() - globalCache.t < 10 * 60 * 1000) {
+    return res.json({ ...globalCache.data, fromCache: true });
+  }
   try {
     const r = await fetch('https://api.coingecko.com/api/v3/global', {
       headers: { 'User-Agent': 'BorsaKrali/3.3' },
       signal: AbortSignal.timeout(10000),
     });
-    if (!r.ok) throw new Error(`CoinGecko HTTP ${r.status}`);
+    if (!r.ok) {
+      if (globalCache.data && Date.now() - globalCache.t < 6 * 60 * 60 * 1000) {
+        return res.json({ ...globalCache.data, fromCache: true, stale: true });
+      }
+      throw new Error(`CoinGecko HTTP ${r.status}`);
+    }
     const { data } = await r.json();
-    res.json({
+    const payload = {
       activeCryptocurrencies: data.active_cryptocurrencies,
       markets: data.markets,
       totalMarketCapUsd: data.total_market_cap?.usd,
@@ -3808,11 +3845,51 @@ app.get('/api/crypto/global', async (req, res) => {
       ethDominance: data.market_cap_percentage?.eth,
       marketCapChangePercent24h: data.market_cap_change_percentage_24h_usd,
       lastUpdate: new Date().toISOString(),
-    });
+    };
+    globalCache.t = Date.now();
+    globalCache.data = payload;
+    res.json(payload);
   } catch (e) {
+    if (globalCache.data) return res.json({ ...globalCache.data, fromCache: true, stale: true });
     res.status(500).json({ error: e.message });
   }
 });
+
+// === ARKA PLAN WARMUP: Server start'ta + her 8 dakikada bir cache'i doldur ===
+async function warmupCryptoCache() {
+  try {
+    const url = `https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=100&page=1&sparkline=true&price_change_percentage=1h,24h,7d`;
+    const r = await fetch(url, {
+      headers: { 'User-Agent': 'BorsaKrali/3.3' },
+      signal: AbortSignal.timeout(20000),
+    });
+    if (!r.ok) {
+      console.warn(`[warmup] CoinGecko HTTP ${r.status}`);
+      return;
+    }
+    const data = await r.json();
+    const coins = data.map(c => ({
+      id: c.id, symbol: (c.symbol || '').toUpperCase(), name: c.name, image: c.image,
+      currentPrice: c.current_price, marketCap: c.market_cap, marketCapRank: c.market_cap_rank,
+      totalVolume: c.total_volume, high24h: c.high_24h, low24h: c.low_24h,
+      priceChange24h: c.price_change_24h,
+      priceChangePercent1h: c.price_change_percentage_1h_in_currency,
+      priceChangePercent24h: c.price_change_percentage_24h_in_currency,
+      priceChangePercent7d: c.price_change_percentage_7d_in_currency,
+      circulatingSupply: c.circulating_supply, totalSupply: c.total_supply,
+      ath: c.ath, athChangePercent: c.ath_change_percentage,
+      sparkline: c.sparkline_in_7d?.price?.slice(-30) || [],
+    }));
+    cryptoMarketsCache.set('mk_usd_100', { t: Date.now(), data: { vs: 'usd', count: coins.length, coins, lastUpdate: new Date().toISOString() } });
+    cryptoMarketsCache.set('mk_usd_50',  { t: Date.now(), data: { vs: 'usd', count: 50, coins: coins.slice(0, 50), lastUpdate: new Date().toISOString() } });
+    console.log(`[warmup] Crypto cache dolduruldu: ${coins.length} coin`);
+  } catch (e) {
+    console.warn('[warmup] Hata:', e.message);
+  }
+}
+// İlk warmup 5sn sonra, sonra her 8 dakikada bir
+setTimeout(warmupCryptoCache, 5000);
+setInterval(warmupCryptoCache, 8 * 60 * 1000);
 
 // ============ NOTES ROUTES ============
 const notesStore = new Map(); // userId -> notes[]
