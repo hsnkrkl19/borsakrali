@@ -3686,6 +3686,134 @@ app.get('/api/pro-analiz/crypto-list', (req, res) => {
   res.json({ coins: Object.entries(CRYPTO_MAP).map(([symbol, id]) => ({ symbol, id })) });
 });
 
+// ============ KRİPTO MARKETS (CoinGecko top N) ============
+const cryptoMarketsCache = new Map();
+const CRYPTO_CACHE_TTL = 2 * 60 * 1000; // 2 dakika
+
+app.get('/api/crypto/markets', async (req, res) => {
+  const vs = (req.query.vs || 'usd').toLowerCase();
+  const limit = Math.min(parseInt(req.query.limit) || 50, 100);
+  const cacheKey = `mk_${vs}_${limit}`;
+
+  const cached = cryptoMarketsCache.get(cacheKey);
+  if (cached && Date.now() - cached.t < CRYPTO_CACHE_TTL) {
+    return res.json({ ...cached.data, fromCache: true });
+  }
+
+  try {
+    const url = `https://api.coingecko.com/api/v3/coins/markets?vs_currency=${vs}&order=market_cap_desc&per_page=${limit}&page=1&sparkline=true&price_change_percentage=1h,24h,7d`;
+    const r = await fetch(url, {
+      headers: { 'User-Agent': 'BorsaKrali/3.3', 'Accept': 'application/json' },
+      signal: AbortSignal.timeout(15000),
+    });
+    if (!r.ok) throw new Error(`CoinGecko HTTP ${r.status}`);
+    const data = await r.json();
+
+    const coins = data.map(c => ({
+      id: c.id,
+      symbol: (c.symbol || '').toUpperCase(),
+      name: c.name,
+      image: c.image,
+      currentPrice: c.current_price,
+      marketCap: c.market_cap,
+      marketCapRank: c.market_cap_rank,
+      totalVolume: c.total_volume,
+      high24h: c.high_24h,
+      low24h: c.low_24h,
+      priceChange24h: c.price_change_24h,
+      priceChangePercent1h: c.price_change_percentage_1h_in_currency,
+      priceChangePercent24h: c.price_change_percentage_24h_in_currency,
+      priceChangePercent7d: c.price_change_percentage_7d_in_currency,
+      circulatingSupply: c.circulating_supply,
+      totalSupply: c.total_supply,
+      ath: c.ath,
+      athChangePercent: c.ath_change_percentage,
+      sparkline: c.sparkline_in_7d?.price?.slice(-30) || [],
+    }));
+
+    const payload = { vs, count: coins.length, coins, lastUpdate: new Date().toISOString() };
+    cryptoMarketsCache.set(cacheKey, { t: Date.now(), data: payload });
+    res.json({ ...payload, fromCache: false });
+  } catch (e) {
+    console.error('[crypto/markets]', e.message);
+    res.status(500).json({ error: 'Kripto verileri alınamadı', detail: e.message });
+  }
+});
+
+// Tek bir coin'in canlı verisi (alarm için hızlı erişim)
+app.get('/api/crypto/quote/:id', async (req, res) => {
+  const id = (req.params.id || '').toLowerCase();
+  if (!id) return res.status(400).json({ error: 'id gerekli' });
+  try {
+    const url = `https://api.coingecko.com/api/v3/simple/price?ids=${encodeURIComponent(id)}&vs_currencies=usd,try&include_24hr_change=true&include_market_cap=true`;
+    const r = await fetch(url, {
+      headers: { 'User-Agent': 'BorsaKrali/3.3' },
+      signal: AbortSignal.timeout(10000),
+    });
+    if (!r.ok) throw new Error(`CoinGecko HTTP ${r.status}`);
+    const data = await r.json();
+    const item = data[id];
+    if (!item) return res.status(404).json({ error: 'Coin bulunamadı' });
+    res.json({
+      id,
+      priceUsd: item.usd,
+      priceTry: item.try,
+      change24h: item.usd_24h_change,
+      marketCap: item.usd_market_cap,
+      lastUpdate: new Date().toISOString(),
+    });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Trending coins (popüler / arama trendinde)
+app.get('/api/crypto/trending', async (req, res) => {
+  try {
+    const r = await fetch('https://api.coingecko.com/api/v3/search/trending', {
+      headers: { 'User-Agent': 'BorsaKrali/3.3' },
+      signal: AbortSignal.timeout(10000),
+    });
+    if (!r.ok) throw new Error(`CoinGecko HTTP ${r.status}`);
+    const data = await r.json();
+    const trending = (data.coins || []).map(item => ({
+      id: item.item.id,
+      symbol: item.item.symbol,
+      name: item.item.name,
+      image: item.item.large || item.item.thumb,
+      marketCapRank: item.item.market_cap_rank,
+      score: item.item.score,
+    }));
+    res.json({ trending, lastUpdate: new Date().toISOString() });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Global pazar özeti (toplam mcap, dominance)
+app.get('/api/crypto/global', async (req, res) => {
+  try {
+    const r = await fetch('https://api.coingecko.com/api/v3/global', {
+      headers: { 'User-Agent': 'BorsaKrali/3.3' },
+      signal: AbortSignal.timeout(10000),
+    });
+    if (!r.ok) throw new Error(`CoinGecko HTTP ${r.status}`);
+    const { data } = await r.json();
+    res.json({
+      activeCryptocurrencies: data.active_cryptocurrencies,
+      markets: data.markets,
+      totalMarketCapUsd: data.total_market_cap?.usd,
+      totalVolumeUsd: data.total_volume?.usd,
+      btcDominance: data.market_cap_percentage?.btc,
+      ethDominance: data.market_cap_percentage?.eth,
+      marketCapChangePercent24h: data.market_cap_change_percentage_24h_usd,
+      lastUpdate: new Date().toISOString(),
+    });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // ============ NOTES ROUTES ============
 const notesStore = new Map(); // userId -> notes[]
 

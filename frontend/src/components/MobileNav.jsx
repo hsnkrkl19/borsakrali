@@ -16,6 +16,7 @@ import {
   ChevronRight,
   LogOut,
   Gem,
+  Coins,
   CreditCard,
   Calendar,
   ShieldCheck,
@@ -34,6 +35,7 @@ const mainNavItems = [
 
 // === DAHA FAZLA MENÜSÜ — birleşik sayfalar ===
 const moreNavItems = [
+  { path: '/kripto',           label: 'Kripto',           icon: Coins,         color: 'from-yellow-500 to-orange-500', badge: 'YENİ' },
   { path: '/pro-analiz',       label: 'Pro Analiz',       icon: Gem,           color: 'from-amber-500 to-amber-600' },
   { path: '/sirket-analizi',   label: 'Şirket Analizi',   icon: Building2,     color: 'from-blue-500 to-blue-600' },
   { path: '/gunluk-tespitler', label: 'Sinyaller',        icon: Target,        color: 'from-red-500 to-red-600' },
@@ -161,11 +163,16 @@ export default function MobileNav() {
                     <button
                       key={item.path}
                       onClick={() => handleNavClick(item.path)}
-                      className={`flex flex-col items-center justify-center p-3 rounded-2xl transition-all ${isActive
+                      className={`relative flex flex-col items-center justify-center p-3 rounded-2xl transition-all ${isActive
                         ? 'bg-gold-500/20 border-2 border-gold-500/50'
                         : 'bg-dark-800 border-2 border-transparent active:bg-dark-700'
                       }`}
                     >
+                      {item.badge && (
+                        <span className="absolute -top-1 -right-1 px-1.5 py-0.5 bg-gradient-to-r from-amber-400 to-amber-500 text-dark-950 text-[8px] font-bold rounded-md shadow-lg">
+                          {item.badge}
+                        </span>
+                      )}
                       <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${item.color} flex items-center justify-center mb-1.5 shadow-md`}>
                         <item.icon className="w-5 h-5 text-white" />
                       </div>

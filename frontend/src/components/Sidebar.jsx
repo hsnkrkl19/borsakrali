@@ -7,6 +7,7 @@ import {
   Building2,
   Activity,
   Search,
+  Coins,
   BookOpen,
   Settings,
   ChevronLeft,
@@ -31,6 +32,7 @@ export default function Sidebar({ isOpen, onToggle }) {
     // Ana
     { path: '/',                  label: 'Piyasa Kokpiti',   icon: LayoutDashboard, group: 'core' },
     { path: '/canli-heatmap',     label: 'Canlı Heatmap',    icon: Flame,           group: 'core', highlight: true },
+    { path: '/kripto',            label: 'Kripto',           icon: Coins,           group: 'core', highlight: true, badge: 'YENİ' },
     { path: '/pro-analiz',        label: 'Pro Analiz',       icon: Gem,             group: 'core', highlight: true, badge: 'PRO' },
 
     // Analiz

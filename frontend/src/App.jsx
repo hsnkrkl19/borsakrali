@@ -28,6 +28,7 @@ import Tarayicilar from './pages/Tarayicilar'         // Taramalar + EMA34 + Mal
 import Notlarim from './pages/Notlarim'               // Teknik Notlar + Finansal Notlar
 import SirketAnalizi from './pages/SirketAnalizi'     // Temel Analiz AI + Mali Tablolar + KAP + AI Skor
 import Performans from './pages/Performans'           // Algoritma Performans + İnceleme Kütüphanesi
+import Kripto from './pages/Kripto'                   // YENİ: Kripto piyasa, watchlist, fiyat alarmı
 
 import { useAuthStore } from './store/authStore'
 import { fetchCurrentUser } from './services/auth'
@@ -117,6 +118,7 @@ function App() {
                   {/* === ANA SAYFALAR === */}
                   <Route path="/" element={<Dashboard />} />
                   <Route path="/canli-heatmap" element={<LiveHeatmap />} />
+                  <Route path="/kripto" element={<Kripto />} />
                   <Route path="/pro-analiz" element={<ProAnaliz />} />
 
                   {/* === ANALİZ === */}
