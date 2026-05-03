@@ -79,6 +79,20 @@ app.use(cors({
 }));
 // Handle preflight
 app.options('*', cors());
+
+// === EXTRA HEADERS for Capacitor APK (https://localhost origin) ===
+// Chrome 104+ Private Network Access requires this header on responses
+// to allow requests from "private" origins (like https://localhost) to public servers.
+app.use((req, res, next) => {
+  res.setHeader('Access-Control-Allow-Private-Network', 'true');
+  // Mobile WebView için ekstra güvence
+  const origin = req.headers.origin;
+  if (origin) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+  }
+  next();
+});
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(morgan('dev'));
