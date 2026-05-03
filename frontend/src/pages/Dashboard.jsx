@@ -96,7 +96,7 @@ function QuickAccess({ to, icon: Icon, label, sub, color, navigate }) {
   return (
     <button
       onClick={() => navigate(to)}
-      className="group flex items-center gap-3 p-3 sm:p-4 rounded-2xl transition-all text-left border"
+      className="group flex flex-col sm:flex-row items-center sm:items-center gap-2 sm:gap-3 p-3 sm:p-4 rounded-2xl transition-all text-center sm:text-left border h-full min-h-[110px] sm:min-h-[72px]"
       style={{
         background: 'var(--bg-card)',
         borderColor: 'var(--border-main)',
@@ -110,14 +110,14 @@ function QuickAccess({ to, icon: Icon, label, sub, color, navigate }) {
         e.currentTarget.style.borderColor = 'var(--border-main)'
       }}
     >
-      <div className={`flex-shrink-0 w-10 h-10 rounded-xl bg-gradient-to-br ${color} flex items-center justify-center shadow-md`}>
+      <div className={`flex-shrink-0 w-11 h-11 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-br ${color} flex items-center justify-center shadow-md`}>
         <Icon className="w-5 h-5 text-white" />
       </div>
       <div className="min-w-0 flex-1">
-        <div className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{label}</div>
-        <div className="text-[11px] truncate" style={{ color: 'var(--text-muted)' }}>{sub}</div>
+        <div className="text-xs sm:text-sm font-semibold leading-tight" style={{ color: 'var(--text-primary)' }}>{label}</div>
+        <div className="text-[10px] sm:text-[11px] truncate hidden sm:block" style={{ color: 'var(--text-muted)' }}>{sub}</div>
       </div>
-      <ChevronRight className="w-4 h-4 group-hover:text-amber-400 transition-colors" style={{ color: 'var(--text-faint)' }} />
+      <ChevronRight className="w-4 h-4 group-hover:text-amber-400 transition-colors hidden sm:block" style={{ color: 'var(--text-faint)' }} />
     </button>
   )
 }
@@ -210,7 +210,7 @@ export default function Dashboard() {
           <Gem className="w-4 h-4 text-amber-400" />
           <span className="text-xs uppercase tracking-wider font-semibold text-amber-400/80">Hızlı Erişim</span>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-3">
+        <div className="grid grid-cols-3 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-3">
           <QuickAccess to="/canli-heatmap"   icon={Flame}      label="Canlı Heatmap"  sub="BIST30 renk haritası"             color="from-orange-500 to-red-500"     navigate={navigate} />
           <QuickAccess to="/kripto"          icon={Coins}      label="Kripto"         sub="Top 100 + alarm + watchlist"      color="from-yellow-500 to-orange-500"  navigate={navigate} />
           <QuickAccess to="/teknik-analiz-ai" icon={Activity}  label="Teknik Analiz"  sub="RSI · MACD · EMA · BB"            color="from-blue-500 to-blue-600"      navigate={navigate} />
