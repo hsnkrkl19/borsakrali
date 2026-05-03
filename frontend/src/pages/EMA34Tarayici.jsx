@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { TrendingUp, TrendingDown, RefreshCw, Search, Activity, ArrowUp, ArrowDown, Minus } from 'lucide-react'
 import api from '../services/api'
 import InfoTooltip from '../components/InfoTooltip'
@@ -18,6 +19,7 @@ const EMA34_TIP = {
 }
 
 export default function EMA34Tarayici() {
+  const [searchParams] = useSearchParams()
   const [scanData, setScanData] = useState(null)
   const [loading, setLoading] = useState(false)
   const [trackSymbol, setTrackSymbol] = useState('')
@@ -59,6 +61,18 @@ export default function EMA34Tarayici() {
   }
 
   useEffect(() => { runScan() }, [])
+
+  // URL'den symbol gelirse o hisseyi otomatik takip et
+  useEffect(() => {
+    const urlSym = searchParams.get('symbol')
+    const urlType = searchParams.get('type')
+    if (urlSym) {
+      const s = urlSym.toUpperCase()
+      setTrackInput(s)
+      trackStock(s, urlType === 'crypto' ? 'crypto' : 'stock')
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const filteredResults = scanData?.results?.filter(r =>
     filterSignal === 'all' || r.signal === filterSignal
