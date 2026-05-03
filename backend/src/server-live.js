@@ -3629,30 +3629,172 @@ app.get('/api/pro-analiz/:symbol', async (req, res) => {
   }
 });
 
-// --- ROUTE 3: Crypto Pro Analysis ---
+// --- ROUTE 3: Crypto Pro Analysis (Multi-source: Yahoo → Binance → CryptoCompare → CoinGecko) ---
+const PRO_CRYPTO_STALE_TTL = 6 * 60 * 60 * 1000; // 6 saat - tüm kaynaklar başarısız olursa
+
+// CoinGecko ID → ticker (BTC, ETH...) eşleştirme — fallback'ler için ticker gerekir
+const GECKO_ID_TO_TICKER = Object.fromEntries(
+  Object.entries(CRYPTO_MAP).map(([t, id]) => [id, t])
+);
+
+async function fetchCryptoOhlcMultiSource(coinId) {
+  const axios = require('axios');
+  const ticker = GECKO_ID_TO_TICKER[coinId] || coinId.toUpperCase();
+  const errors = [];
+
+  // 1) Yahoo Finance (en güvenilir, anahtarsız)
+  try {
+    const r = await axios.get(
+      `https://query1.finance.yahoo.com/v8/finance/chart/${ticker}-USD?interval=1d&range=1y`,
+      { timeout: 10000, headers: { 'User-Agent': 'Mozilla/5.0' } }
+    );
+    const result = r.data?.chart?.result?.[0];
+    if (result) {
+      const ts = result.timestamp || [];
+      const q = result.indicators?.quote?.[0] || {};
+      const bars = ts.map((t, i) => ({
+        date: new Date(t * 1000).toISOString().slice(0, 10),
+        timestamp: t * 1000,
+        open: parseFloat(q.open?.[i]) || 0,
+        high: parseFloat(q.high?.[i]) || 0,
+        low: parseFloat(q.low?.[i]) || 0,
+        close: parseFloat(q.close?.[i]) || 0,
+        volume: parseFloat(q.volume?.[i]) || 0,
+      })).filter(b => b.close > 0);
+      if (bars.length >= 30) return { bars, source: 'yahoo' };
+    }
+  } catch (e) { errors.push(`Yahoo: ${e.message}`); }
+
+  // 2) Binance
+  try {
+    const r = await axios.get(
+      `https://api.binance.com/api/v3/klines?symbol=${ticker}USDT&interval=1d&limit=365`,
+      { timeout: 10000 }
+    );
+    if (Array.isArray(r.data) && r.data.length > 0) {
+      const bars = r.data.map(k => ({
+        date: new Date(k[0]).toISOString().slice(0, 10),
+        timestamp: k[0],
+        open: parseFloat(k[1]), high: parseFloat(k[2]),
+        low: parseFloat(k[3]), close: parseFloat(k[4]),
+        volume: parseFloat(k[5]),
+      })).filter(b => b.close > 0);
+      if (bars.length >= 30) return { bars, source: 'binance' };
+    }
+  } catch (e) { errors.push(`Binance: ${e.message}`); }
+
+  // 3) CryptoCompare
+  try {
+    const r = await axios.get(
+      `https://min-api.cryptocompare.com/data/v2/histoday?fsym=${ticker}&tsym=USD&limit=365`,
+      { timeout: 10000 }
+    );
+    const rows = r.data?.Data?.Data;
+    if (rows && rows.length > 0) {
+      const bars = rows.map(rr => ({
+        date: new Date(rr.time * 1000).toISOString().slice(0, 10),
+        timestamp: rr.time * 1000,
+        open: rr.open, high: rr.high, low: rr.low, close: rr.close,
+        volume: rr.volumefrom || 0,
+      })).filter(b => b.close > 0);
+      if (bars.length >= 30) return { bars, source: 'cryptocompare' };
+    }
+  } catch (e) { errors.push(`CryptoCompare: ${e.message}`); }
+
+  // 4) CoinGecko (son çare — 429'a düşer)
+  try {
+    const r = await axios.get(
+      `https://api.coingecko.com/api/v3/coins/${coinId}/ohlc?vs_currency=usd&days=365`,
+      { timeout: 12000 }
+    );
+    const bars = (r.data || []).map(bar => ({
+      date: new Date(bar[0]).toISOString().slice(0, 10),
+      timestamp: bar[0],
+      open: bar[1], high: bar[2], low: bar[3], close: bar[4],
+      volume: 0,
+    }));
+    if (bars.length >= 20) return { bars, source: 'coingecko' };
+  } catch (e) { errors.push(`CoinGecko: ${e.message}`); }
+
+  throw new Error('Tüm kripto kaynakları başarısız: ' + errors.join(' | '));
+}
+
+async function fetchCryptoMetaMultiSource(coinId) {
+  const axios = require('axios');
+  const ticker = GECKO_ID_TO_TICKER[coinId] || coinId.toUpperCase();
+
+  // Önce markets cache'inden bak (warmup ile dolu olur)
+  const cachedMk = cryptoMarketsCache.get('mk_usd_100');
+  if (cachedMk?.data?.coins) {
+    const hit = cachedMk.data.coins.find(c =>
+      c.id === coinId || c.symbol?.toUpperCase() === ticker
+    );
+    if (hit) {
+      return {
+        name: hit.name,
+        current_price: hit.currentPrice,
+        price_change_percentage_24h: hit.priceChangePercent24h,
+        market_cap: hit.marketCap,
+        total_volume: hit.totalVolume,
+      };
+    }
+  }
+
+  // CoinGecko markets endpoint (rate limit'e takılabilir, ama meta opsiyonel)
+  try {
+    const r = await axios.get(
+      `https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&ids=${coinId}&order=market_cap_desc`,
+      { timeout: 6000 }
+    );
+    return (r.data || [])[0] || {};
+  } catch {
+    // Binance fiyat bilgisi
+    try {
+      const axios2 = require('axios');
+      const r = await axios2.get(
+        `https://api.binance.com/api/v3/ticker/24hr?symbol=${ticker}USDT`,
+        { timeout: 5000 }
+      );
+      return {
+        name: ticker,
+        current_price: parseFloat(r.data.lastPrice),
+        price_change_percentage_24h: parseFloat(r.data.priceChangePercent),
+        total_volume: parseFloat(r.data.quoteVolume),
+        market_cap: null,
+      };
+    } catch {
+      return {};
+    }
+  }
+}
+
 app.get('/api/pro-analiz/crypto/:coinId', async (req, res) => {
   const { coinId } = req.params;
   const cached = cryptoProCache.get(coinId);
   if (cached && (Date.now() - cached.ts) < CRYPTO_PRO_TTL) return res.json(cached.data);
 
   try {
-    const axios = require('axios');
-    const [ohlcRes, mktRes] = await Promise.all([
-      axios.get(`https://api.coingecko.com/api/v3/coins/${coinId}/ohlc?vs_currency=usd&days=365`, { timeout: 12000 }),
-      axios.get(`https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&ids=${coinId}&order=market_cap_desc`, { timeout: 8000 })
+    const [{ bars: ohlcBars, source: ohlcSource }, coinMeta] = await Promise.all([
+      fetchCryptoOhlcMultiSource(coinId),
+      fetchCryptoMetaMultiSource(coinId),
     ]);
 
-    const ohlcBars = (ohlcRes.data || []).map(bar => ({
-      date: new Date(bar[0]).toISOString().split('T')[0],
-      timestamp: bar[0], open: bar[1], high: bar[2], low: bar[3], close: bar[4], volume: 0
-    }));
+    if (ohlcBars.length < 20) {
+      // Eski cache stale dön
+      if (cached && Date.now() - cached.ts < PRO_CRYPTO_STALE_TTL) {
+        return res.json({ ...cached.data, stale: true });
+      }
+      return res.status(404).json({ error: 'Yeterli kripto veri yok' });
+    }
 
-    if (ohlcBars.length < 20) return res.status(404).json({ error: 'Yeterli kripto veri yok' });
-
-    const coinMeta = (mktRes.data || [])[0] || {};
     const currentPrice = coinMeta.current_price || ohlcBars[ohlcBars.length - 1].close;
     const indicators = liveDataService.calculateIndicators(ohlcBars);
-    if (!indicators) return res.status(500).json({ error: 'Indikatör hesaplanamadı' });
+    if (!indicators) {
+      if (cached && Date.now() - cached.ts < PRO_CRYPTO_STALE_TTL) {
+        return res.json({ ...cached.data, stale: true });
+      }
+      return res.status(500).json({ error: 'Indikatör hesaplanamadı' });
+    }
 
     const score = computeProScore(indicators, currentPrice, ohlcBars);
     const patterns = detectAllPatterns(ohlcBars, indicators);
@@ -3684,6 +3826,8 @@ app.get('/api/pro-analiz/crypto/:coinId', async (req, res) => {
       },
       fibonacci: { high: high90, low: low90, levels: fibLevels, currentPrice: +currentPrice.toFixed(4) },
       patterns, commentary,
+      ohlc: ohlcBars.slice(-180), // chart için son 180 gün
+      dataSource: ohlcSource,
       cachedAt: new Date().toISOString()
     };
 
@@ -3691,7 +3835,11 @@ app.get('/api/pro-analiz/crypto/:coinId', async (req, res) => {
     res.json(result);
   } catch (error) {
     console.error(`Crypto pro analiz hatasi ${coinId}:`, error.message);
-    res.status(500).json({ error: 'Kripto analiz yapılamadı: ' + error.message });
+    // Stale cache fallback
+    if (cached && Date.now() - cached.ts < PRO_CRYPTO_STALE_TTL) {
+      return res.json({ ...cached.data, stale: true });
+    }
+    res.status(503).json({ error: 'Kripto analiz şu an yapılamıyor, birkaç dakika sonra tekrar deneyin', detail: error.message });
   }
 });
 
@@ -3995,29 +4143,32 @@ async function fetchMarketsBinance(limit) {
   }));
 }
 
-// Ana orkestratör — sırayla dener
+// Ana orkestratör — Binance önce (en hızlı, rate limit yüksek), sonra CoinCap, son CoinGecko
+// (CoinGecko ücretsiz tier'da Türkiye IP'lerinden sürekli 429 dönüyor)
 async function fetchCryptoMarkets(vs, limit) {
   const errors = [];
-  // CoinGecko
+  // 1) Binance (USDT, güvenilir, neredeyse hiç 429 yok)
   try {
-    const coins = await fetchMarketsCoinGecko(vs, limit);
-    return { coins, source: 'coingecko' };
+    const coins = await fetchMarketsBinance(limit);
+    return { coins, source: 'binance' };
   } catch (e) {
-    errors.push(`CoinGecko: ${e.message}`);
+    errors.push(`Binance: ${e.message}`);
   }
-  // CoinCap (USD only)
+  // 2) CoinCap (USD, anahtarsız sınırsız)
   try {
     const coins = await fetchMarketsCoinCap(limit);
     return { coins, source: 'coincap' };
   } catch (e) {
     errors.push(`CoinCap: ${e.message}`);
   }
-  // Binance (USDT only)
-  try {
-    const coins = await fetchMarketsBinance(limit);
-    return { coins, source: 'binance' };
-  } catch (e) {
-    errors.push(`Binance: ${e.message}`);
+  // 3) CoinGecko (en zengin veri ama 429 sorunu var) — son çare
+  if (vs !== 'usd' || true) {
+    try {
+      const coins = await fetchMarketsCoinGecko(vs, limit);
+      return { coins, source: 'coingecko' };
+    } catch (e) {
+      errors.push(`CoinGecko: ${e.message}`);
+    }
   }
   throw new Error('Tüm kripto kaynakları başarısız: ' + errors.join(' | '));
 }
@@ -4078,8 +4229,37 @@ app.get('/api/crypto/quote/:id', async (req, res) => {
   }
 });
 
-// Trending coins (popüler / arama trendinde)
+// Trending coins (popüler / arama trendinde) — CoinGecko 429 olursa Binance top-gainers fallback
 const trendingCache = { t: 0, data: null };
+
+async function fetchTrendingBinanceFallback() {
+  // Binance'den 24s en çok yükselen 8 USDT coinini al
+  try {
+    const r = await fetch('https://api.binance.com/api/v3/ticker/24hr', {
+      headers: { 'User-Agent': 'BorsaKrali/3.3' },
+      signal: AbortSignal.timeout(8000),
+    });
+    if (!r.ok) return [];
+    const arr = await r.json();
+    return arr
+      .filter(t => t.symbol.endsWith('USDT') && parseFloat(t.quoteVolume) > 1e7)
+      .map(t => ({
+        symbolBase: t.symbol.replace('USDT', ''),
+        change: parseFloat(t.priceChangePercent),
+      }))
+      .sort((a, b) => Math.abs(b.change) - Math.abs(a.change))
+      .slice(0, 8)
+      .map((t, i) => ({
+        id: t.symbolBase.toLowerCase(),
+        symbol: t.symbolBase.toLowerCase(),
+        name: t.symbolBase,
+        image: `https://assets.coincap.io/assets/icons/${t.symbolBase.toLowerCase()}@2x.png`,
+        marketCapRank: i + 1,
+        score: 0,
+      }));
+  } catch { return []; }
+}
+
 app.get('/api/crypto/trending', async (req, res) => {
   // 15 dk fresh cache
   if (trendingCache.data && Date.now() - trendingCache.t < 15 * 60 * 1000) {
@@ -4090,12 +4270,7 @@ app.get('/api/crypto/trending', async (req, res) => {
       headers: { 'User-Agent': 'BorsaKrali/3.3' },
       signal: AbortSignal.timeout(10000),
     });
-    if (!r.ok) {
-      if (trendingCache.data && Date.now() - trendingCache.t < 6 * 60 * 60 * 1000) {
-        return res.json({ ...trendingCache.data, fromCache: true, stale: true });
-      }
-      throw new Error(`CoinGecko HTTP ${r.status}`);
-    }
+    if (!r.ok) throw new Error(`CoinGecko HTTP ${r.status}`);
     const data = await r.json();
     const trending = (data.coins || []).map(item => ({
       id: item.item.id,
@@ -4105,18 +4280,54 @@ app.get('/api/crypto/trending', async (req, res) => {
       marketCapRank: item.item.market_cap_rank,
       score: item.item.score,
     }));
-    const payload = { trending, lastUpdate: new Date().toISOString() };
+    const payload = { trending, lastUpdate: new Date().toISOString(), source: 'coingecko' };
     trendingCache.t = Date.now();
     trendingCache.data = payload;
     res.json(payload);
   } catch (e) {
-    if (trendingCache.data) return res.json({ ...trendingCache.data, fromCache: true, stale: true });
-    res.status(500).json({ error: e.message });
+    // 1) Eski cache varsa kullan
+    if (trendingCache.data && Date.now() - trendingCache.t < 6 * 60 * 60 * 1000) {
+      return res.json({ ...trendingCache.data, fromCache: true, stale: true });
+    }
+    // 2) Binance fallback — top gainers/losers'tan trending listesi türet
+    const binanceTrending = await fetchTrendingBinanceFallback();
+    const payload = { trending: binanceTrending, lastUpdate: new Date().toISOString(), source: 'binance' };
+    if (binanceTrending.length > 0) {
+      trendingCache.t = Date.now();
+      trendingCache.data = payload;
+    }
+    // 3) Boş bile olsa 200 dön — frontend'e düzgün veri gelsin (UI 500'e takılmaz)
+    res.json(payload);
   }
 });
 
-// Global pazar özeti (toplam mcap, dominance)
+// Global pazar özeti (toplam mcap, dominance) — CoinGecko 429 olursa markets cache'inden türet
 const globalCache = { t: 0, data: null };
+
+function deriveGlobalFromMarketsCache() {
+  // Markets cache'inden basit toplam pazar özeti çıkar
+  const cached = cryptoMarketsCache.get('mk_usd_100');
+  if (!cached?.data?.coins) return null;
+  const coins = cached.data.coins;
+  const totalMcap = coins.reduce((s, c) => s + (c.marketCap || 0), 0);
+  const totalVol = coins.reduce((s, c) => s + (c.totalVolume || 0), 0);
+  const btc = coins.find(c => c.symbol === 'BTC');
+  const eth = coins.find(c => c.symbol === 'ETH');
+  const btcDom = btc && totalMcap > 0 ? (btc.marketCap / totalMcap) * 100 : null;
+  const ethDom = eth && totalMcap > 0 ? (eth.marketCap / totalMcap) * 100 : null;
+  return {
+    activeCryptocurrencies: coins.length,
+    markets: null,
+    totalMarketCapUsd: totalMcap || null,
+    totalVolumeUsd: totalVol || null,
+    btcDominance: btcDom,
+    ethDominance: ethDom,
+    marketCapChangePercent24h: null,
+    lastUpdate: new Date().toISOString(),
+    source: 'derived-markets',
+  };
+}
+
 app.get('/api/crypto/global', async (req, res) => {
   if (globalCache.data && Date.now() - globalCache.t < 10 * 60 * 1000) {
     return res.json({ ...globalCache.data, fromCache: true });
@@ -4126,12 +4337,7 @@ app.get('/api/crypto/global', async (req, res) => {
       headers: { 'User-Agent': 'BorsaKrali/3.3' },
       signal: AbortSignal.timeout(10000),
     });
-    if (!r.ok) {
-      if (globalCache.data && Date.now() - globalCache.t < 6 * 60 * 60 * 1000) {
-        return res.json({ ...globalCache.data, fromCache: true, stale: true });
-      }
-      throw new Error(`CoinGecko HTTP ${r.status}`);
-    }
+    if (!r.ok) throw new Error(`CoinGecko HTTP ${r.status}`);
     const { data } = await r.json();
     const payload = {
       activeCryptocurrencies: data.active_cryptocurrencies,
@@ -4142,13 +4348,28 @@ app.get('/api/crypto/global', async (req, res) => {
       ethDominance: data.market_cap_percentage?.eth,
       marketCapChangePercent24h: data.market_cap_change_percentage_24h_usd,
       lastUpdate: new Date().toISOString(),
+      source: 'coingecko',
     };
     globalCache.t = Date.now();
     globalCache.data = payload;
     res.json(payload);
   } catch (e) {
-    if (globalCache.data) return res.json({ ...globalCache.data, fromCache: true, stale: true });
-    res.status(500).json({ error: e.message });
+    // 1) Eski cache
+    if (globalCache.data && Date.now() - globalCache.t < 6 * 60 * 60 * 1000) {
+      return res.json({ ...globalCache.data, fromCache: true, stale: true });
+    }
+    // 2) Markets cache'inden türet
+    const derived = deriveGlobalFromMarketsCache();
+    if (derived) return res.json({ ...derived, fromCache: true, stale: true });
+    // 3) Boş ama 200 — frontend null kontrolü yapıyor
+    res.json({
+      activeCryptocurrencies: null, markets: null,
+      totalMarketCapUsd: null, totalVolumeUsd: null,
+      btcDominance: null, ethDominance: null,
+      marketCapChangePercent24h: null,
+      lastUpdate: new Date().toISOString(),
+      source: 'unavailable',
+    });
   }
 });
 

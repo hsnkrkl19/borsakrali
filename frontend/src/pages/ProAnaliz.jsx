@@ -280,14 +280,23 @@ export default function ProAnaliz() {
     setLoading(true); setError(null); setAnalysis(null); setChartData(null)
     try {
       const res = await fetch(`${API_BASE}/api/pro-analiz/crypto/${coinId}`)
-      if (!res.ok) { const d = await res.json(); throw new Error(d.error || 'Kripto analiz hatası') }
+      if (!res.ok) {
+        let msg = 'Kripto analiz hatası'
+        try { const d = await res.json(); msg = d.error || msg } catch {}
+        if (res.status === 429 || res.status === 503) {
+          msg = 'Kripto verisi şu an yoğun — birkaç dakika sonra tekrar deneyin (3 farklı kaynak deniyoruz).'
+        }
+        throw new Error(msg)
+      }
       const data = await res.json()
       setAnalysis(data)
-      // Fetch CoinGecko OHLC for chart
-      const ohlcRes = await fetch(`https://api.coingecko.com/api/v3/coins/${coinId}/ohlc?vs_currency=usd&days=90`)
-      if (ohlcRes.ok) {
-        const ohlc = await ohlcRes.json()
-        setChartData(ohlc.map(b => ({ timestamp: b[0], open: b[1], high: b[2], low: b[3], close: b[4], volume: 0 })))
+      // Backend zaten OHLC döndürüyor (Yahoo/Binance/CryptoCompare fallback ile)
+      if (Array.isArray(data.ohlc) && data.ohlc.length > 0) {
+        setChartData(data.ohlc.map(b => ({
+          timestamp: b.timestamp,
+          open: b.open, high: b.high, low: b.low, close: b.close,
+          volume: b.volume || 0,
+        })))
       }
     } catch (e) {
       setError(e.message)
