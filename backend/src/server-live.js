@@ -5495,6 +5495,28 @@ app.use((req, res) => {
   res.status(404).json({ error: 'Endpoint bulunamadi', path: req.path });
 });
 
+// === RENDER SELF-KEEPALIVE ===
+// Render free tier 15dk hareketsizlikten sonra uyutuyor.
+// Her 10 dakikada bir kendi /health'ine ping atarak uyanık tut.
+const KEEPALIVE_URL = process.env.RENDER_EXTERNAL_URL
+  || process.env.PUBLIC_URL
+  || 'https://borsakrali.com';
+
+if (process.env.NODE_ENV === 'production' || process.env.RENDER) {
+  setInterval(async () => {
+    try {
+      const r = await fetch(`${KEEPALIVE_URL}/health`, {
+        headers: { 'User-Agent': 'BorsaKrali-Keepalive/1.0' },
+        signal: AbortSignal.timeout(15000),
+      });
+      console.log(`[keepalive] ${KEEPALIVE_URL}/health → ${r.status}`);
+    } catch (e) {
+      console.warn('[keepalive] Hata:', e.message);
+    }
+  }, 10 * 60 * 1000); // 10 dakika
+  console.log('[keepalive] Aktif - her 10dk kendine ping atacak');
+}
+
 // Start server with Socket.IO
 server.listen(PORT, () => {
   console.log('');

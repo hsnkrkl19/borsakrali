@@ -3,6 +3,7 @@ import { useEffect } from 'react'
 import Layout from './components/Layout'
 import UpdatePopup from './components/UpdatePopup'
 import PushNotificationManager from './components/PushNotificationManager'
+import ErrorBoundary from './components/ErrorBoundary'
 import Dashboard from './pages/Dashboard'
 import GunlukTespitler from './pages/GunlukTespitler'
 import TakipListem from './pages/TakipListem'
@@ -95,6 +96,7 @@ function App() {
   }, [token, updateUser])
 
   return (
+    <ErrorBoundary>
     <Router>
       <PushNotificationManager />
       {isAuthenticated && <UpdatePopup />}
@@ -114,6 +116,7 @@ function App() {
           element={
             isAuthenticated ? (
               <Layout>
+                <ErrorBoundary>
                 <Routes>
                   {/* === ANA SAYFALAR === */}
                   <Route path="/" element={<Dashboard />} />
@@ -152,6 +155,7 @@ function App() {
                   {/* Bilinmeyen yollar Dashboard'a */}
                   <Route path="*" element={<Navigate to="/" replace />} />
                 </Routes>
+                </ErrorBoundary>
               </Layout>
             ) : (
               <Navigate to="/login" replace />
@@ -160,6 +164,7 @@ function App() {
         />
       </Routes>
     </Router>
+    </ErrorBoundary>
   )
 }
 
