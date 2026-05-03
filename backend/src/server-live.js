@@ -3700,6 +3700,184 @@ app.get('/api/pro-analiz/crypto-list', (req, res) => {
   res.json({ coins: Object.entries(CRYPTO_MAP).map(([symbol, id]) => ({ symbol, id })) });
 });
 
+// ============ PORTFOLIO (Lot bazlı portföy takibi) ============
+// Memory-store. Her kullanıcının kendi lot listesi var.
+// Lot şekli: { id, symbol, quantity, buyPrice, buyDate, type: 'buy'|'sell', note }
+const portfolioStore = new Map(); // userId -> [lot, ...]
+
+function getUserKey(req) {
+  // requireAuth middleware'den geçtiyse req.user.id var, yoksa demo
+  return req.user?.id || req.headers['x-portfolio-user'] || 'demo';
+}
+
+// GET tüm portföy + computed metrics
+app.get('/api/portfolio', requireAuth, async (req, res) => {
+  const userId = getUserKey(req);
+  const lots = portfolioStore.get(userId) || [];
+
+  // Her sembol için canlı fiyat çek
+  const symbols = [...new Set(lots.map(l => l.symbol))];
+  const liveQuotes = {};
+  if (symbols.length > 0) {
+    try {
+      const yahooFinance = (await import('yahoo-finance2')).default;
+      const yahooSymbols = symbols.map(s => s.includes('.') ? s : `${s}.IS`);
+      const results = await yahooFinance.quote(yahooSymbols, {}, { validateResult: false });
+      const arr = Array.isArray(results) ? results : [results];
+      arr.forEach(q => {
+        if (q?.symbol) {
+          const cleanSym = q.symbol.replace('.IS', '');
+          liveQuotes[cleanSym] = {
+            price: q.regularMarketPrice || q.previousClose || 0,
+            previousClose: q.previousClose || 0,
+            change: q.regularMarketChange || 0,
+            changePercent: q.regularMarketChangePercent || 0,
+          };
+        }
+      });
+    } catch (e) {
+      console.warn('[portfolio] Live fiyat hatası:', e.message);
+    }
+  }
+
+  // Symbol bazlı agregasyon (FIFO mantığı: sell'leri buy'lardan düş)
+  const grouped = {};
+  for (const lot of lots) {
+    if (!grouped[lot.symbol]) {
+      grouped[lot.symbol] = { symbol: lot.symbol, lots: [], totalQty: 0, totalCost: 0 };
+    }
+    grouped[lot.symbol].lots.push(lot);
+  }
+
+  const positions = Object.values(grouped).map(g => {
+    // Net quantity ve weighted average cost
+    let netQty = 0;
+    let totalCost = 0;
+    for (const lot of g.lots) {
+      const q = parseFloat(lot.quantity) || 0;
+      const p = parseFloat(lot.buyPrice) || 0;
+      if (lot.type === 'sell') {
+        // Satış: maliyetten düş, mevcut ortalama maliyetle
+        const avgCost = netQty > 0 ? totalCost / netQty : 0;
+        netQty -= q;
+        totalCost -= avgCost * q;
+      } else {
+        // Alım
+        netQty += q;
+        totalCost += q * p;
+      }
+    }
+
+    const avgCost = netQty > 0 ? totalCost / netQty : 0;
+    const live = liveQuotes[g.symbol] || { price: 0, changePercent: 0 };
+    const currentValue = netQty * live.price;
+    const investedValue = netQty * avgCost;
+    const profit = currentValue - investedValue;
+    const profitPercent = investedValue > 0 ? (profit / investedValue) * 100 : 0;
+
+    return {
+      symbol: g.symbol,
+      quantity: netQty,
+      avgCost: parseFloat(avgCost.toFixed(4)),
+      currentPrice: live.price,
+      dayChangePercent: live.changePercent,
+      currentValue: parseFloat(currentValue.toFixed(2)),
+      investedValue: parseFloat(investedValue.toFixed(2)),
+      profit: parseFloat(profit.toFixed(2)),
+      profitPercent: parseFloat(profitPercent.toFixed(2)),
+      lotCount: g.lots.length,
+      lots: g.lots,
+    };
+  }).filter(p => p.quantity > 0); // Sadece açık pozisyonlar
+
+  // Toplam özet
+  const summary = positions.reduce((s, p) => {
+    s.totalInvested += p.investedValue;
+    s.totalCurrent += p.currentValue;
+    s.totalProfit += p.profit;
+    return s;
+  }, { totalInvested: 0, totalCurrent: 0, totalProfit: 0 });
+  summary.totalProfitPercent = summary.totalInvested > 0
+    ? (summary.totalProfit / summary.totalInvested) * 100
+    : 0;
+  summary.totalInvested = parseFloat(summary.totalInvested.toFixed(2));
+  summary.totalCurrent = parseFloat(summary.totalCurrent.toFixed(2));
+  summary.totalProfit = parseFloat(summary.totalProfit.toFixed(2));
+  summary.totalProfitPercent = parseFloat(summary.totalProfitPercent.toFixed(2));
+
+  res.json({ positions, summary, allLots: lots });
+});
+
+// POST yeni lot ekle (alım veya satım)
+app.post('/api/portfolio', requireAuth, (req, res) => {
+  const { symbol, quantity, buyPrice, buyDate, type, note } = req.body;
+
+  if (!symbol || !quantity || !buyPrice) {
+    return res.status(400).json({ error: 'symbol, quantity, buyPrice gerekli' });
+  }
+
+  const userId = getUserKey(req);
+  const lots = portfolioStore.get(userId) || [];
+
+  const newLot = {
+    id: `lot_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+    symbol: String(symbol).toUpperCase().trim(),
+    quantity: Math.abs(parseFloat(quantity)),
+    buyPrice: parseFloat(buyPrice),
+    buyDate: buyDate || new Date().toISOString().slice(0, 10),
+    type: type === 'sell' ? 'sell' : 'buy',
+    note: note || '',
+    createdAt: new Date().toISOString(),
+  };
+
+  // Satış için: mevcut net adetten fazla satılamaz
+  if (newLot.type === 'sell') {
+    let net = 0;
+    for (const l of lots) {
+      if (l.symbol !== newLot.symbol) continue;
+      net += l.type === 'sell' ? -l.quantity : l.quantity;
+    }
+    if (newLot.quantity > net) {
+      return res.status(400).json({
+        error: `${newLot.symbol}: Mevcut ${net} adet, ${newLot.quantity} satamazsınız`,
+      });
+    }
+  }
+
+  lots.push(newLot);
+  portfolioStore.set(userId, lots);
+  res.json({ success: true, lot: newLot });
+});
+
+// DELETE bir lot sil
+app.delete('/api/portfolio/:lotId', requireAuth, (req, res) => {
+  const userId = getUserKey(req);
+  const lots = portfolioStore.get(userId) || [];
+  const filtered = lots.filter(l => l.id !== req.params.lotId);
+  if (filtered.length === lots.length) {
+    return res.status(404).json({ error: 'Lot bulunamadı' });
+  }
+  portfolioStore.set(userId, filtered);
+  res.json({ success: true });
+});
+
+// PUT bir lot güncelle (sadece kendi lot'unu)
+app.put('/api/portfolio/:lotId', requireAuth, (req, res) => {
+  const userId = getUserKey(req);
+  const lots = portfolioStore.get(userId) || [];
+  const lot = lots.find(l => l.id === req.params.lotId);
+  if (!lot) return res.status(404).json({ error: 'Lot bulunamadı' });
+
+  const { quantity, buyPrice, buyDate, note, type } = req.body;
+  if (quantity != null) lot.quantity = Math.abs(parseFloat(quantity));
+  if (buyPrice != null) lot.buyPrice = parseFloat(buyPrice);
+  if (buyDate) lot.buyDate = buyDate;
+  if (note !== undefined) lot.note = note;
+  if (type) lot.type = type === 'sell' ? 'sell' : 'buy';
+
+  res.json({ success: true, lot });
+});
+
 // ============ KRİPTO MARKETS — ÇOKLU PROVIDER (CoinGecko → CoinCap → Binance) ============
 // Her API anahtarsız & ücretsiz. Birinci 429/error verirse otomatik bir sonrakine geç.
 const cryptoMarketsCache = new Map();

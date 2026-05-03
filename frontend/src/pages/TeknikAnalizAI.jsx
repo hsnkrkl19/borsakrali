@@ -135,6 +135,202 @@ const TIPS = {
   },
 }
 
+// İkonlar — sektör adına göre emoji eşleştirme
+const SECTOR_ICONS = [
+  { match: ['banka', 'finans', 'sigorta'], icon: '🏦' },
+  { match: ['ulast', 'taşı', 'tasi', 'havayol'],   icon: '✈️' },
+  { match: ['teknoloji', 'bilis', 'biliş', 'yazil'], icon: '💻' },
+  { match: ['enerji', 'elektrik', 'petrol', 'rafineri'], icon: '⚡' },
+  { match: ['gida', 'gıda', 'icec', 'içec', 'tarim', 'tarım'], icon: '🍞' },
+  { match: ['inşa', 'insa', 'çimento', 'cimento', 'gayrim', 'gyo'], icon: '🏗️' },
+  { match: ['turizm', 'otel'], icon: '🏖️' },
+  { match: ['saglik', 'sağlık', 'ilac', 'ilaç'], icon: '💊' },
+  { match: ['perak', 'tica', 'ticar'], icon: '🛍️' },
+  { match: ['otomot', 'oto'], icon: '🚗' },
+  { match: ['demir', 'çelik', 'metal', 'maden'], icon: '⛏️' },
+  { match: ['savun', 'savunma'], icon: '🛡️' },
+  { match: ['holding'], icon: '🏛️' },
+  { match: ['kimya', 'plastik'], icon: '⚗️' },
+  { match: ['tekstil', 'giyim'], icon: '🧵' },
+  { match: ['iletişim', 'iletisim', 'telekom', 'medya'], icon: '📡' },
+  { match: ['kripto'], icon: '🪙' },
+]
+function pickSectorIcon(name) {
+  const n = (name || '').toLowerCase()
+  const hit = SECTOR_ICONS.find(({ match }) => match.some(m => n.includes(m)))
+  return hit ? hit.icon : '📊'
+}
+
+function SectorPicker({ sectors, selectedSector, onSelectSector, sectorStocks, sectorLoading, onPickStock }) {
+  const railRef = useRef(null)
+  const activeIdx = sectors.findIndex(s => s.sector === selectedSector)
+
+  // Aktif pill'i görünür alana kaydır
+  useEffect(() => {
+    if (!selectedSector || !railRef.current) return
+    const rail = railRef.current
+    const el = rail.querySelector(`[data-sector="${CSS.escape(selectedSector)}"]`)
+    if (el) {
+      const left = el.offsetLeft - rail.clientWidth / 2 + el.clientWidth / 2
+      rail.scrollTo({ left, behavior: 'smooth' })
+    }
+  }, [selectedSector])
+
+  const activeData = activeIdx >= 0 ? sectors[activeIdx] : null
+  const sortedSectors = sectors // backend zaten sıralı geliyor
+
+  const fmtPct = (v) => {
+    const n = Number(v) || 0
+    return `${n >= 0 ? '+' : ''}${n.toFixed(2)}%`
+  }
+  const fmtVol = (v) => {
+    const n = Number(v) || 0
+    if (n >= 1e9) return (n / 1e9).toFixed(1) + 'B'
+    if (n >= 1e6) return (n / 1e6).toFixed(1) + 'M'
+    if (n >= 1e3) return (n / 1e3).toFixed(1) + 'K'
+    return n.toFixed(0)
+  }
+
+  return (
+    <div className="card overflow-hidden">
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
+          <span className="text-lg">🏭</span>
+          <h3 className="font-semibold text-white">Sektörden Seçim</h3>
+          <span className="text-[10px] text-gray-500 bg-dark-800 px-2 py-0.5 rounded-full">
+            {sectors.length} sektör
+          </span>
+        </div>
+        {selectedSector && (
+          <button
+            onClick={() => onSelectSector('')}
+            className="text-[11px] text-gray-400 hover:text-gold-400 transition-colors"
+          >
+            Temizle ✕
+          </button>
+        )}
+      </div>
+
+      {/* Sektör pill rail */}
+      {sectors.length === 0 ? (
+        <div className="flex gap-2 py-2">
+          {[...Array(8)].map((_, i) => (
+            <div key={i} className="h-8 w-24 bg-dark-800/60 rounded-full animate-pulse" />
+          ))}
+        </div>
+      ) : (
+        <div ref={railRef} className="sector-rail">
+          {sortedSectors.map((s) => {
+            const isActive = s.sector === selectedSector
+            const change = Number(s.change) || 0
+            const positive = change >= 0
+            return (
+              <button
+                key={s.sector}
+                data-sector={s.sector}
+                onClick={() => onSelectSector(isActive ? '' : s.sector)}
+                className={`sector-pill ${isActive ? 'is-active' : ''}`}
+                title={`${s.sector} • Ortalama: ${fmtPct(change)}`}
+              >
+                <span className="text-base leading-none">{pickSectorIcon(s.sector)}</span>
+                <span className="truncate max-w-[140px]">{s.sector}</span>
+                <span className="pill-count">{s.stockCount}</span>
+                <span className={`pill-change ${isActive ? '' : (positive ? 'text-success-500' : 'text-danger-500')}`}>
+                  {positive ? '▲' : '▼'} {Math.abs(change).toFixed(2)}%
+                </span>
+              </button>
+            )
+          })}
+        </div>
+      )}
+
+      {/* Seçili sektör paneli */}
+      {selectedSector && activeData && (
+        <div key={selectedSector} className="sector-reveal mt-4 space-y-3">
+          {/* Özet şeridi */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            <div className="sector-stat">
+              <div className="text-[10px] text-gray-400 uppercase tracking-wide">Sektör</div>
+              <div className="text-sm font-semibold text-white truncate flex items-center gap-1">
+                <span>{pickSectorIcon(activeData.sector)}</span>
+                {activeData.sector}
+              </div>
+            </div>
+            <div className="sector-stat">
+              <div className="text-[10px] text-gray-400 uppercase tracking-wide">Ort. Değişim</div>
+              <div className={`text-sm font-bold ${(activeData.change || 0) >= 0 ? 'text-success-500' : 'text-danger-500'}`}>
+                {fmtPct(activeData.change)}
+              </div>
+            </div>
+            <div className="sector-stat">
+              <div className="text-[10px] text-gray-400 uppercase tracking-wide">Hisse</div>
+              <div className="text-sm font-bold text-white">{activeData.stockCount}</div>
+            </div>
+            <div className="sector-stat">
+              <div className="text-[10px] text-gray-400 uppercase tracking-wide">Hacim</div>
+              <div className="text-sm font-bold text-gold-400">{fmtVol(activeData.volume)}</div>
+            </div>
+          </div>
+
+          {/* Hisseler grid */}
+          {sectorLoading ? (
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
+              {[...Array(8)].map((_, i) => (
+                <div key={i} className="h-16 bg-dark-800/50 rounded-xl animate-pulse" />
+              ))}
+            </div>
+          ) : sectorStocks.length === 0 ? (
+            <p className="text-gray-500 text-sm py-4 text-center">Bu sektörde hisse bulunamadı.</p>
+          ) : (
+            <>
+              <div className="flex items-center justify-between text-[11px] text-gray-500">
+                <span>{sectorStocks.length} hisse — değişime göre sıralı</span>
+                <span className="hidden sm:inline">Bir hisseye tıkla → analiz</span>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
+                {sectorStocks.map((s, i) => {
+                  const ch = Number(s.changePercent) || 0
+                  const positive = ch >= 0
+                  return (
+                    <button
+                      key={s.symbol}
+                      onClick={() => onPickStock(s.symbol)}
+                      className="sector-stock-tile stock-card-anim text-left"
+                      style={{ animationDelay: `${Math.min(i * 35, 600)}ms` }}
+                    >
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="font-mono text-sm font-bold text-white">{s.symbol}</span>
+                        <span className={`text-[10px] ${positive ? 'text-success-500' : 'text-danger-500'}`}>
+                          {positive ? '▲' : '▼'}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className={`text-xs font-bold ${positive ? 'text-success-500' : 'text-danger-500'}`}>
+                          {fmtPct(ch)}
+                        </span>
+                        <span className="text-[10px] text-gray-500">
+                          {Number.isFinite(s.price) ? Number(s.price).toFixed(2) : '-'}
+                        </span>
+                      </div>
+                      {/* mini bar */}
+                      <div className="mt-1.5 h-1 bg-dark-900 rounded-full overflow-hidden">
+                        <div
+                          className={`h-full rounded-full ${positive ? 'bg-gradient-to-r from-success-500/50 to-success-500' : 'bg-gradient-to-r from-danger-500/50 to-danger-500'}`}
+                          style={{ width: `${Math.min(Math.abs(ch) * 8, 100)}%` }}
+                        />
+                      </div>
+                    </button>
+                  )
+                })}
+              </div>
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function TeknikAnalizAI() {
   const [searchParams] = useSearchParams()
   const [symbol, setSymbol] = useState('')
@@ -181,13 +377,12 @@ export default function TeknikAnalizAI() {
       return
     }
     setSectorLoading(true)
-    fetch(`/api/market/live?limit=200`)
+    const url = `/api/market/stocks?sector=${encodeURIComponent(selectedSector)}&limit=50&sort=changePercent&order=desc`
+    fetch(url)
       .then(res => res.ok ? res.json() : { stocks: [] })
       .then(data => {
         const stocks = (data.stocks || [])
-          .filter(s => s.sector === selectedSector)
           .sort((a, b) => (b.changePercent || 0) - (a.changePercent || 0))
-          .slice(0, 20)
         setSectorStocks(stocks)
       })
       .catch(() => setSectorStocks([]))
@@ -278,89 +473,55 @@ export default function TeknikAnalizAI() {
         </button>
       </div>
 
-      {/* Arama ve Sektör/Kripto Seçimi */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {assetType === 'stock' ? (
-          <div className="card">
-            <h3 className="font-semibold text-white mb-4">Sektörden Seçim</h3>
-            <select
-              value={selectedSector}
-              onChange={(e) => setSelectedSector(e.target.value)}
-              className="input w-full"
-            >
-              <option value="">Bir Sektör Seçin</option>
-              {sectors.map((sector, idx) => (
-                <option key={idx} value={sector.sector}>{sector.sector} ({sector.stockCount} hisse)</option>
-              ))}
-            </select>
-            {selectedSector && (
-              <div className="mt-3">
-                {sectorLoading ? (
-                  <div className="flex items-center gap-2 text-gray-400 text-xs py-2">
-                    <Activity className="w-4 h-4 animate-pulse" />
-                    Sektör hisseleri yükleniyor...
-                  </div>
-                ) : sectorStocks.length === 0 ? (
-                  <p className="text-gray-500 text-xs py-2">Bu sektörde hisse bulunamadı.</p>
-                ) : (
-                  <div className="space-y-1 max-h-48 overflow-y-auto pr-1">
-                    <p className="text-xs text-gray-500 mb-2">{selectedSector} — {sectorStocks.length} hisse (değişime göre)</p>
-                    {sectorStocks.map(s => (
-                      <button
-                        key={s.symbol}
-                        onClick={() => { setSymbol(s.symbol); handleAnalyze(s.symbol, 'stock'); }}
-                        className="w-full flex items-center justify-between px-3 py-2 bg-dark-800 hover:bg-dark-700 rounded-lg text-sm transition-colors group"
-                      >
-                        <span className="font-mono font-semibold text-white group-hover:text-primary-400">{s.symbol}</span>
-                        <span className={`text-xs font-semibold ${(s.changePercent || 0) >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-                          {(s.changePercent || 0) >= 0 ? '+' : ''}{(s.changePercent || 0).toFixed(2)}%
-                        </span>
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
+      {/* Arama */}
+      <div className="card">
+        <h3 className="font-semibold text-white mb-4">
+          {assetType === 'crypto' ? '🔍 Kripto Ara' : 'Hızlı Arama'}
+        </h3>
+        <div className="flex responsive-stack gap-2">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
+            <input
+              type="text"
+              placeholder={assetType === 'crypto' ? 'Kripto sembol (BTC, ETH, SOL...)' : 'Hisse kodu (örn: THYAO)'}
+              value={symbol}
+              onChange={(e) => setSymbol(e.target.value.toUpperCase())}
+              onKeyDown={(e) => e.key === 'Enter' && handleAnalyze()}
+              className="input w-full pl-10"
+            />
           </div>
-        ) : (
-          <div className="card">
-            <h3 className="font-semibold text-white mb-4">🪙 Popüler Kriptolar</h3>
-            <div className="flex flex-wrap gap-1.5">
-              {CRYPTO_QUICK.map(s => (
-                <button
-                  key={s}
-                  onClick={() => { setSymbol(s); handleAnalyze(s, 'crypto'); }}
-                  className="px-2.5 py-1.5 bg-orange-500/10 border border-orange-500/20 hover:bg-orange-500/20 text-xs text-orange-300 rounded-lg transition-colors font-medium"
-                >
-                  {s}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-
-        <div className="card">
-          <h3 className="font-semibold text-white mb-4">
-            {assetType === 'crypto' ? '🔍 Kripto Ara' : 'Hızlı Arama'}
-          </h3>
-          <div className="flex responsive-stack gap-2">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
-              <input
-                type="text"
-                placeholder={assetType === 'crypto' ? 'Kripto sembol (BTC, ETH, SOL...)' : 'Hisse kodu (örn: THYAO)'}
-                value={symbol}
-                onChange={(e) => setSymbol(e.target.value.toUpperCase())}
-                onKeyDown={(e) => e.key === 'Enter' && handleAnalyze()}
-                className="input w-full pl-10"
-              />
-            </div>
-            <button onClick={() => handleAnalyze()} disabled={loading} className={`btn-primary ${assetType === 'crypto' ? 'bg-orange-600 hover:bg-orange-500' : ''}`}>
-              {loading ? '...' : 'Ara'}
-            </button>
-          </div>
+          <button onClick={() => handleAnalyze()} disabled={loading} className={`btn-primary ${assetType === 'crypto' ? 'bg-orange-600 hover:bg-orange-500' : ''}`}>
+            {loading ? '...' : 'Ara'}
+          </button>
         </div>
       </div>
+
+      {/* Sektör / Kripto seçimi */}
+      {assetType === 'stock' ? (
+        <SectorPicker
+          sectors={sectors}
+          selectedSector={selectedSector}
+          onSelectSector={setSelectedSector}
+          sectorStocks={sectorStocks}
+          sectorLoading={sectorLoading}
+          onPickStock={(sym) => { setSymbol(sym); handleAnalyze(sym, 'stock'); }}
+        />
+      ) : (
+        <div className="card">
+          <h3 className="font-semibold text-white mb-4">🪙 Popüler Kriptolar</h3>
+          <div className="flex flex-wrap gap-1.5">
+            {CRYPTO_QUICK.map(s => (
+              <button
+                key={s}
+                onClick={() => { setSymbol(s); handleAnalyze(s, 'crypto'); }}
+                className="px-2.5 py-1.5 bg-orange-500/10 border border-orange-500/20 hover:bg-orange-500/20 text-xs text-orange-300 rounded-lg transition-colors font-medium"
+              >
+                {s}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Popüler Hisseler / Kripto kısayolları */}
       {assetType === 'stock' && (

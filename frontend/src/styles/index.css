@@ -307,6 +307,170 @@
   50%      { box-shadow: 0 0 24px 4px rgba(212, 175, 55, 0.35); }
 }
 
+/* ─── SECTOR PICKER ANIMATIONS ──────────────────────────────────────────────── */
+@keyframes sector-slide-in {
+  0%   { opacity: 0; transform: translateY(16px) scale(0.98); filter: blur(6px); }
+  100% { opacity: 1; transform: translateY(0) scale(1);       filter: blur(0); }
+}
+@keyframes stagger-fade-up {
+  0%   { opacity: 0; transform: translateY(14px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+@keyframes pill-pop {
+  0%   { transform: scale(1); }
+  40%  { transform: scale(1.08); }
+  100% { transform: scale(1); }
+}
+@keyframes sector-bg-shift {
+  0%, 100% { background-position: 0% 50%; }
+  50%      { background-position: 100% 50%; }
+}
+@keyframes pill-shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+/* Sector pill base */
+.sector-pill {
+  position: relative;
+  scroll-snap-align: start;
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.95rem;
+  border-radius: 9999px;
+  border: 1px solid var(--border-main, rgba(148, 163, 184, 0.15));
+  background: var(--bg-input, rgba(30, 41, 59, 0.6));
+  color: var(--text-secondary, #cbd5e1);
+  font-size: 0.78rem;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: transform 220ms cubic-bezier(0.34, 1.56, 0.64, 1),
+              background 240ms ease,
+              border-color 240ms ease,
+              color 240ms ease,
+              box-shadow 280ms ease;
+  will-change: transform;
+}
+.sector-pill:hover {
+  transform: translateY(-2px) scale(1.03);
+  border-color: rgba(251, 191, 36, 0.45);
+  color: #fde68a;
+  box-shadow: 0 6px 18px -8px rgba(251, 191, 36, 0.55);
+}
+.sector-pill:active { animation: pill-pop 320ms ease; }
+.sector-pill .pill-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.5rem;
+  height: 1.25rem;
+  padding: 0 0.4rem;
+  border-radius: 9999px;
+  background: rgba(15, 23, 42, 0.55);
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: #fbbf24;
+}
+.sector-pill .pill-change {
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+.sector-pill.is-active {
+  color: #0a0e27;
+  border-color: rgba(251, 191, 36, 0.85);
+  background: linear-gradient(120deg, #fcd34d 0%, #f59e0b 50%, #fbbf24 100%);
+  background-size: 200% 200%;
+  animation: sector-bg-shift 4s ease-in-out infinite, pulse-ring-gold 2.4s ease-out infinite;
+  box-shadow: 0 8px 24px -8px rgba(251, 191, 36, 0.6);
+  transform: translateY(-1px);
+}
+.sector-pill.is-active .pill-count {
+  background: rgba(10, 14, 39, 0.85);
+  color: #fde68a;
+}
+.sector-pill.is-active .pill-change { color: #0a0e27; }
+
+/* Sector scroll rail */
+.sector-rail {
+  display: flex;
+  gap: 0.55rem;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scroll-snap-type: x proximity;
+  scroll-behavior: smooth;
+  padding: 0.35rem 0.25rem 0.6rem 0.25rem;
+  -webkit-overflow-scrolling: touch;
+  mask-image: linear-gradient(to right, transparent 0, #000 24px, #000 calc(100% - 24px), transparent 100%);
+}
+.sector-rail::-webkit-scrollbar { height: 4px; }
+.sector-rail::-webkit-scrollbar-thumb {
+  background: linear-gradient(90deg, rgba(251, 191, 36, 0.5), rgba(245, 158, 11, 0.3));
+  border-radius: 9999px;
+}
+
+/* Sector reveal panel */
+.sector-reveal {
+  animation: sector-slide-in 420ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.stock-card-anim {
+  animation: stagger-fade-up 380ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* Sector summary chip */
+.sector-stat {
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(135deg, rgba(251, 191, 36, 0.08), rgba(15, 23, 42, 0));
+  border: 1px solid rgba(251, 191, 36, 0.18);
+  border-radius: 0.85rem;
+  padding: 0.65rem 0.85rem;
+}
+.sector-stat::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(120deg, transparent 30%, rgba(251, 191, 36, 0.18) 50%, transparent 70%);
+  background-size: 200% 100%;
+  animation: pill-shimmer 3.6s linear infinite;
+  pointer-events: none;
+  opacity: 0.6;
+}
+
+/* Stock tile (sector grid) */
+.sector-stock-tile {
+  position: relative;
+  overflow: hidden;
+  background: var(--bg-input, rgba(30, 41, 59, 0.55));
+  border: 1px solid var(--border-main, rgba(148, 163, 184, 0.12));
+  border-radius: 0.85rem;
+  padding: 0.7rem 0.85rem;
+  cursor: pointer;
+  transition: transform 220ms cubic-bezier(0.34, 1.56, 0.64, 1),
+              border-color 240ms ease,
+              box-shadow 240ms ease,
+              background 240ms ease;
+}
+.sector-stock-tile:hover {
+  transform: translateY(-3px);
+  border-color: rgba(251, 191, 36, 0.55);
+  box-shadow: 0 14px 28px -16px rgba(251, 191, 36, 0.5);
+}
+.sector-stock-tile::after {
+  content: '';
+  position: absolute;
+  left: 0; right: 0; bottom: 0;
+  height: 2px;
+  transform: scaleX(0);
+  transform-origin: left;
+  background: linear-gradient(90deg, #fcd34d, #f59e0b);
+  transition: transform 320ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.sector-stock-tile:hover::after { transform: scaleX(1); }
+
 /* ─── LEGACY CLASS MAPPING (preserves existing components) ─────────────────── */
 .bg-dark-950 { background-color: var(--bg-base) !important; }
 .bg-dark-900 { background-color: var(--bg-card) !important; }
