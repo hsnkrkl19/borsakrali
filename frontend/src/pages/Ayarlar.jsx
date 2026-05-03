@@ -17,6 +17,7 @@ import {
 } from 'lucide-react'
 import { useAuthStore } from '../store/authStore'
 import { applyTheme, getStoredTheme } from '../utils/theme'
+import ConnectionTester from '../components/ConnectionTester'
 
 const FONT_LEVELS = [80, 87, 93, 100, 108, 116]
 const DEFAULT_LEVEL = 3
@@ -436,7 +437,7 @@ export default function Ayarlar() {
         <div className="space-y-2 text-sm">
           {[
             ['Uygulama Adi', 'Borsa Krali'],
-            ['Versiyon', '3.1.0'],
+            ['Versiyon', '3.3.2'],
             ['Veri Kaynagi', 'Yahoo Finance'],
             ['Borsa', 'BIST (Borsa Istanbul)'],
           ].map(([label, value]) => (
@@ -454,6 +455,10 @@ export default function Ayarlar() {
           <p className="text-center text-xs text-gray-500">
             Bu uygulama yalnizca egitim amaclidir. Yatirim tavsiyesi degildir.
           </p>
+        </div>
+
+        <div className="mt-4">
+          <ConnectionTester />
         </div>
       </SectionCard>
     </div>
