@@ -28,12 +28,13 @@ function CinematicChartBackdrop() {
   }, [])
 
   useEffect(() => {
-    const id = setInterval(() => setTick(t => t + 1), 1500)
+    // Slower tick + fully drawn after first cycle (no infinite redraw — perf friendly)
+    const id = setInterval(() => setTick(t => Math.min(60, t + 1)), 80)
     return () => clearInterval(id)
   }, [])
 
-  // animated draw progress 0..1
-  const progress = Math.min(1, ((tick % 80) / 60))
+  // animated draw progress 0..1 (one-time draw on mount)
+  const progress = Math.min(1, tick / 60)
   const visibleCount = Math.max(8, Math.floor(points.length * progress))
 
   const W = 800

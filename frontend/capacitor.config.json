@@ -12,9 +12,6 @@
     "minWebViewVersion": 60
   },
   "plugins": {
-    "AdMob": {
-      "appId": "ca-app-pub-3940256099942544~3347511713"
-    },
     "StatusBar": {
       "style": "dark",
       "backgroundColor": "#0a0a0f",
@@ -22,9 +19,6 @@
     },
     "EdgeToEdge": {
       "backgroundColor": "#0a0a0f"
-    },
-    "PushNotifications": {
-      "presentationOptions": ["badge", "sound", "alert"]
     }
   }
 }
