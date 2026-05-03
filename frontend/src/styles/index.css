@@ -569,6 +569,32 @@
 [data-theme="light"] .to-dark-950   { --tw-gradient-to:   var(--bg-base); }
 [data-theme="light"] .to-dark-900   { --tw-gradient-to:   #ffffff; }
 
+/* Pro Analiz hero kartı — tema uyumlu altın aksanlı gradient */
+.pro-hero-card {
+  background: linear-gradient(125deg,
+    color-mix(in srgb, var(--bg-card) 92%, #fbbf24 8%) 0%,
+    var(--bg-card) 55%,
+    color-mix(in srgb, var(--bg-card) 88%, #f59e0b 12%) 100%) !important;
+  border: 1px solid color-mix(in srgb, var(--border-main) 70%, rgba(251, 191, 36, 0.35) 30%) !important;
+  position: relative;
+  overflow: hidden;
+}
+.pro-hero-card::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  right: -10%;
+  width: 280px;
+  height: 280px;
+  background: radial-gradient(circle, rgba(251, 191, 36, 0.18) 0%, transparent 60%);
+  pointer-events: none;
+  z-index: 0;
+}
+.pro-hero-card > * { position: relative; z-index: 1; }
+[data-theme="light"] .pro-hero-card::before {
+  background: radial-gradient(circle, rgba(251, 191, 36, 0.22) 0%, transparent 60%);
+}
+
 [data-theme="light"] .shadow-card { box-shadow: var(--shadow-card) !important; }
 [data-theme="light"] .shadow-lg   { box-shadow: var(--shadow-lg)   !important; }
 [data-theme="light"] .shadow-xl   { box-shadow: var(--shadow-xl)   !important; }

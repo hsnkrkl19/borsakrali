@@ -9,6 +9,7 @@ import { createChart } from 'lightweight-charts'
 import { getApiBase } from '../config'
 import { useFeatureGate } from '../hooks/useFeatureGate'
 import UsageLimitModal from '../components/UsageLimitModal'
+import { getStoredTheme, getChartTheme } from '../utils/theme'
 
 const API_BASE = getApiBase()
 
@@ -65,18 +66,29 @@ function ScoreGauge({ score }) {
 function ProChart({ symbol, isCrypto, chartData }) {
   const containerRef = useRef(null)
   const chartRef = useRef(null)
+  const [themeTick, setThemeTick] = useState(0)
+
+  // Tema değişikliğini dinle, grafik yeniden render edilsin
+  useEffect(() => {
+    const handler = () => setThemeTick(t => t + 1)
+    window.addEventListener('bk-theme-change', handler)
+    return () => window.removeEventListener('bk-theme-change', handler)
+  }, [])
 
   useEffect(() => {
     if (!containerRef.current) return
     if (chartRef.current) { chartRef.current.remove(); chartRef.current = null }
     if (!chartData || chartData.length < 5) return
 
+    const themeName = getStoredTheme()
+    const t = getChartTheme(themeName)
+
     const chart = createChart(containerRef.current, {
-      layout: { background: { color: '#0f172a' }, textColor: '#9ca3af' },
-      grid: { vertLines: { color: '#1e293b' }, horzLines: { color: '#1e293b' } },
+      layout: { background: { color: t.background }, textColor: t.textColor },
+      grid: { vertLines: { color: t.gridColor }, horzLines: { color: t.gridColor } },
       crosshair: { mode: 1 },
-      rightPriceScale: { borderColor: '#334155' },
-      timeScale: { borderColor: '#334155', timeVisible: true },
+      rightPriceScale: { borderColor: t.borderColor },
+      timeScale: { borderColor: t.borderColor, timeVisible: true },
       width: containerRef.current.clientWidth,
       height: 380,
     })
@@ -95,10 +107,10 @@ function ProChart({ symbol, isCrypto, chartData }) {
 
     // Volume
     const volSeries = chart.addHistogramSeries({
-      color: '#3b82f680', priceFormat: { type: 'volume' }, priceScaleId: 'vol',
+      color: t.volumeUp, priceFormat: { type: 'volume' }, priceScaleId: 'vol',
     })
     chart.priceScale('vol').applyOptions({ scaleMargins: { top: 0.8, bottom: 0 } })
-    volSeries.setData(chartData.map(d => ({ time: d.timestamp ? Math.floor(d.timestamp / 1000) : d.date, value: d.volume || 0, color: d.close >= d.open ? '#22c55e40' : '#ef444440' })).filter(d => d.value >= 0).sort((a, b) => a.time - b.time))
+    volSeries.setData(chartData.map(d => ({ time: d.timestamp ? Math.floor(d.timestamp / 1000) : d.date, value: d.volume || 0, color: d.close >= d.open ? t.volumeUp : t.volumeDown })).filter(d => d.value >= 0).sort((a, b) => a.time - b.time))
 
     // EMA overlays (computed client-side)
     const closes = chartData.map(d => d.close).filter(Boolean)
@@ -126,7 +138,7 @@ function ProChart({ symbol, isCrypto, chartData }) {
     const handleResize = () => chart.applyOptions({ width: containerRef.current?.clientWidth || 600 })
     window.addEventListener('resize', handleResize)
     return () => { window.removeEventListener('resize', handleResize); chart.remove(); chartRef.current = null }
-  }, [chartData])
+  }, [chartData, themeTick])
 
   return <div ref={containerRef} className="w-full rounded-xl overflow-hidden" />
 }
@@ -418,7 +430,7 @@ export default function ProAnaliz() {
           {analysis && !loading && (
             <div className="space-y-4">
               {/* Hero */}
-              <div className="card bg-gradient-to-r from-dark-800 to-dark-900">
+              <div className="card pro-hero-card">
                 <div className="flex flex-col md:flex-row items-center md:items-start gap-6">
                   <ScoreGauge score={analysis.score?.total || 0} />
                   <div className="flex-1 text-center md:text-left">
@@ -755,7 +767,7 @@ export default function ProAnaliz() {
           {analysis && analysis.isCrypto && !loading && (
             <div className="space-y-4">
               {/* Hero */}
-              <div className="card bg-gradient-to-r from-dark-800 to-dark-900">
+              <div className="card pro-hero-card">
                 <div className="flex flex-col md:flex-row items-center gap-6">
                   <ScoreGauge score={analysis.score?.total || 0} />
                   <div className="flex-1 text-center md:text-left">
