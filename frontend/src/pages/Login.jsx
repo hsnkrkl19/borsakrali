@@ -12,6 +12,7 @@ export default function Login() {
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [waking, setWaking] = useState(false)
 
   if (isAuthenticated) {
     return <Navigate to="/" replace />
@@ -21,6 +22,10 @@ export default function Login() {
     e.preventDefault()
     setError('')
     setLoading(true)
+    setWaking(false)
+
+    // 5 saniye sonra hâlâ yükleniyorsa, server uyanıyor mesajı göster
+    const wakingTimer = setTimeout(() => setWaking(true), 5000)
 
     try {
       const data = await loginWithPassword({ email, password })
@@ -33,9 +38,18 @@ export default function Login() {
 
       setError(data.error || 'Giriş başarısız')
     } catch (err) {
-      setError(err.message || 'Sunucu bağlantı hatası')
+      // Network hatası mı, gerçek bir login hatası mı?
+      if (err.message?.includes('Network') || err.code === 'ERR_NETWORK' || err.message?.includes('timeout')) {
+        setError('Sunucuya ulaşılamıyor. İnternet bağlantınızı kontrol edip tekrar deneyin (sunucu uyanıyor olabilir, ~30sn sürer).')
+      } else if (err.response?.status >= 500) {
+        setError('Sunucu geçici olarak meşgul. Birkaç saniye sonra tekrar deneyin.')
+      } else {
+        setError(err.message || 'Giriş başarısız')
+      }
     } finally {
+      clearTimeout(wakingTimer)
       setLoading(false)
+      setWaking(false)
     }
   }
 
@@ -221,11 +235,17 @@ export default function Login() {
                 className="btn-gold w-full flex items-center justify-center gap-2 text-[14px] py-3 mt-2"
               >
                 {loading ? (
-                  <><Loader className="w-4 h-4 animate-spin" /> Giriş yapılıyor...</>
+                  <><Loader className="w-4 h-4 animate-spin" /> {waking ? 'Sunucu uyanıyor (~30sn)...' : 'Giriş yapılıyor...'}</>
                 ) : (
                   <>Giriş Yap <ArrowRight className="w-4 h-4" /></>
                 )}
               </button>
+
+              {waking && (
+                <div className="mt-2 p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-[11px] text-amber-400 text-center">
+                  ⏳ Sunucu yeni uyandığı için ilk giriş ~30 saniye sürebilir. Lütfen bekleyin, otomatik tekrar deniyoruz...
+                </div>
+              )}
             </form>
 
             <div className="relative my-5">
