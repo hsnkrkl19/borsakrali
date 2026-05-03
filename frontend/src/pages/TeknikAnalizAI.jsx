@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
-import { useSearchParams } from 'react-router-dom'
-import { Search, Activity, TrendingUp, TrendingDown, ArrowUp, ArrowDown, Minus, AlertCircle, Clock } from 'lucide-react'
+import { useSearchParams, useNavigate } from 'react-router-dom'
+import { Search, Activity, TrendingUp, TrendingDown, ArrowUp, ArrowDown, Minus, AlertCircle, Clock, ChevronLeft, ChevronRight, CandlestickChart, BarChart2 } from 'lucide-react'
 import StockChart from '../components/charts/StockChart'
 import InfoTooltip from '../components/InfoTooltip'
 import { getStoredTheme, getTradingViewTheme } from '../utils/theme'
@@ -161,9 +161,38 @@ function pickSectorIcon(name) {
   return hit ? hit.icon : '📊'
 }
 
+// rAF tabanlı yumuşak yatay scroll. scroll-behavior:smooth yokken native behavior:'smooth'
+// genelde çalışır ama scroll-snap/iframe/sandbox kombinleriyle çakışan durumlar için
+// kendi rAF'ımızı kullanıyoruz — cancel-able ve deterministic.
+function smoothScrollTo(el, target, duration = 380) {
+  if (el.__scrollAnim) cancelAnimationFrame(el.__scrollAnim)
+  const max = Math.max(0, el.scrollWidth - el.clientWidth)
+  const to = Math.max(0, Math.min(max, target))
+  const from = el.scrollLeft
+  const dist = to - from
+  if (Math.abs(dist) < 1) {
+    el.__scrollAnim = null
+    return
+  }
+  const start = performance.now()
+  const ease = (t) => 1 - Math.pow(1 - t, 3)
+  const step = (now) => {
+    const t = Math.min(1, (now - start) / duration)
+    el.scrollLeft = from + dist * ease(t)
+    if (t < 1) {
+      el.__scrollAnim = requestAnimationFrame(step)
+    } else {
+      el.__scrollAnim = null
+    }
+  }
+  el.__scrollAnim = requestAnimationFrame(step)
+}
+
 function SectorPicker({ sectors, selectedSector, onSelectSector, sectorStocks, sectorLoading, onPickStock }) {
   const railRef = useRef(null)
   const activeIdx = sectors.findIndex(s => s.sector === selectedSector)
+  const [canLeft, setCanLeft] = useState(false)
+  const [canRight, setCanRight] = useState(false)
 
   // Aktif pill'i görünür alana kaydır
   useEffect(() => {
@@ -171,10 +200,116 @@ function SectorPicker({ sectors, selectedSector, onSelectSector, sectorStocks, s
     const rail = railRef.current
     const el = rail.querySelector(`[data-sector="${CSS.escape(selectedSector)}"]`)
     if (el) {
-      const left = el.offsetLeft - rail.clientWidth / 2 + el.clientWidth / 2
-      rail.scrollTo({ left, behavior: 'smooth' })
+      const target = el.offsetLeft - rail.clientWidth / 2 + el.clientWidth / 2
+      smoothScrollTo(rail, target, 380)
     }
   }, [selectedSector])
+
+  // Rail scroll affordance + wheel→horizontal + drag-to-scroll
+  useEffect(() => {
+    const rail = railRef.current
+    if (!rail || sectors.length === 0) return
+
+    const updateArrows = () => {
+      const max = rail.scrollWidth - rail.clientWidth
+      setCanLeft(rail.scrollLeft > 4)
+      setCanRight(rail.scrollLeft < max - 4)
+    }
+    updateArrows()
+
+    // Scroll event (asıl tetikleyici) + rAF poll (bazı tarayıcılarda smooth scroll
+    // sırasında scroll event throttling olabiliyor, bu yüzden interaksiyon sırasında
+    // poll'u açıyoruz)
+    let rafId = null
+    let pollUntil = 0
+    const tick = () => {
+      updateArrows()
+      if (Date.now() < pollUntil) {
+        rafId = requestAnimationFrame(tick)
+      } else {
+        rafId = null
+      }
+    }
+    const startPolling = (ms = 700) => {
+      pollUntil = Date.now() + ms
+      if (rafId == null) rafId = requestAnimationFrame(tick)
+    }
+
+    const onScroll = () => updateArrows()
+    rail.addEventListener('scroll', onScroll, { passive: true })
+
+    // Mouse wheel: dikey hareketi yatay scroll'a çevir
+    const onWheel = (e) => {
+      if (Math.abs(e.deltaY) <= Math.abs(e.deltaX)) return
+      const max = rail.scrollWidth - rail.clientWidth
+      const next = rail.scrollLeft + e.deltaY
+      if ((e.deltaY < 0 && rail.scrollLeft > 0) || (e.deltaY > 0 && rail.scrollLeft < max)) {
+        e.preventDefault()
+        rail.scrollLeft = Math.max(0, Math.min(max, next))
+        startPolling(250)
+      }
+    }
+    rail.addEventListener('wheel', onWheel, { passive: false })
+
+    // Drag-to-scroll (sadece mouse)
+    let isDown = false, startX = 0, startLeft = 0, moved = false
+    const onDown = (e) => {
+      if (e.button !== 0) return
+      isDown = true
+      moved = false
+      startX = e.clientX
+      startLeft = rail.scrollLeft
+      rail.classList.add('is-dragging')
+    }
+    const onMove = (e) => {
+      if (!isDown) return
+      const dx = e.clientX - startX
+      if (Math.abs(dx) > 4) moved = true
+      rail.scrollLeft = startLeft - dx
+      startPolling(150)
+    }
+    const onUp = () => {
+      isDown = false
+      rail.classList.remove('is-dragging')
+    }
+    const onClickCapture = (e) => {
+      if (moved) {
+        e.stopPropagation()
+        e.preventDefault()
+        moved = false
+      }
+    }
+    rail.addEventListener('mousedown', onDown)
+    window.addEventListener('mousemove', onMove)
+    window.addEventListener('mouseup', onUp)
+    rail.addEventListener('click', onClickCapture, true)
+
+    const ro = new ResizeObserver(updateArrows)
+    ro.observe(rail)
+
+    // Dışa aç: scrollByDir kullansın
+    rail.__pollArrows = startPolling
+
+    return () => {
+      rail.removeEventListener('scroll', onScroll)
+      rail.removeEventListener('wheel', onWheel)
+      rail.removeEventListener('mousedown', onDown)
+      window.removeEventListener('mousemove', onMove)
+      window.removeEventListener('mouseup', onUp)
+      rail.removeEventListener('click', onClickCapture, true)
+      ro.disconnect()
+      if (rafId != null) cancelAnimationFrame(rafId)
+      delete rail.__pollArrows
+    }
+  }, [sectors.length])
+
+  const scrollByDir = (dir) => {
+    const rail = railRef.current
+    if (!rail) return
+    const step = Math.max(rail.clientWidth * 0.7, 220)
+    smoothScrollTo(rail, rail.scrollLeft + dir * step, 380)
+    if (rail.__pollArrows) rail.__pollArrows(500)
+  }
 
   const activeData = activeIdx >= 0 ? sectors[activeIdx] : null
   const sortedSectors = sectors // backend zaten sıralı geliyor
@@ -219,28 +354,46 @@ function SectorPicker({ sectors, selectedSector, onSelectSector, sectorStocks, s
           ))}
         </div>
       ) : (
-        <div ref={railRef} className="sector-rail">
-          {sortedSectors.map((s) => {
-            const isActive = s.sector === selectedSector
-            const change = Number(s.change) || 0
-            const positive = change >= 0
-            return (
-              <button
-                key={s.sector}
-                data-sector={s.sector}
-                onClick={() => onSelectSector(isActive ? '' : s.sector)}
-                className={`sector-pill ${isActive ? 'is-active' : ''}`}
-                title={`${s.sector} • Ortalama: ${fmtPct(change)}`}
-              >
-                <span className="text-base leading-none">{pickSectorIcon(s.sector)}</span>
-                <span className="truncate max-w-[140px]">{s.sector}</span>
-                <span className="pill-count">{s.stockCount}</span>
-                <span className={`pill-change ${isActive ? '' : (positive ? 'text-success-500' : 'text-danger-500')}`}>
-                  {positive ? '▲' : '▼'} {Math.abs(change).toFixed(2)}%
-                </span>
-              </button>
-            )
-          })}
+        <div className="sector-rail-wrap">
+          <button
+            type="button"
+            aria-label="Sola kaydır"
+            onClick={() => scrollByDir(-1)}
+            className={`sector-arrow sector-arrow-left ${canLeft ? '' : 'is-disabled'}`}
+          >
+            <ChevronLeft className="w-4 h-4" />
+          </button>
+          <div ref={railRef} className="sector-rail">
+            {sortedSectors.map((s) => {
+              const isActive = s.sector === selectedSector
+              const change = Number(s.change) || 0
+              const positive = change >= 0
+              return (
+                <button
+                  key={s.sector}
+                  data-sector={s.sector}
+                  onClick={() => onSelectSector(isActive ? '' : s.sector)}
+                  className={`sector-pill ${isActive ? 'is-active' : ''}`}
+                  title={`${s.sector} • Ortalama: ${fmtPct(change)}`}
+                >
+                  <span className="text-base leading-none">{pickSectorIcon(s.sector)}</span>
+                  <span className="truncate max-w-[140px]">{s.sector}</span>
+                  <span className="pill-count">{s.stockCount}</span>
+                  <span className={`pill-change ${isActive ? '' : (positive ? 'text-success-500' : 'text-danger-500')}`}>
+                    {positive ? '▲' : '▼'} {Math.abs(change).toFixed(2)}%
+                  </span>
+                </button>
+              )
+            })}
+          </div>
+          <button
+            type="button"
+            aria-label="Sağa kaydır"
+            onClick={() => scrollByDir(1)}
+            className={`sector-arrow sector-arrow-right ${canRight ? '' : 'is-disabled'}`}
+          >
+            <ChevronRight className="w-4 h-4" />
+          </button>
         </div>
       )}
 
@@ -333,6 +486,7 @@ function SectorPicker({ sectors, selectedSector, onSelectSector, sectorStocks, s
 
 export default function TeknikAnalizAI() {
   const [searchParams] = useSearchParams()
+  const navigate = useNavigate()
   const [symbol, setSymbol] = useState('')
   const [assetType, setAssetType] = useState('stock') // 'stock' | 'crypto'
   const [selectedSector, setSelectedSector] = useState('')
@@ -492,6 +646,60 @@ export default function TeknikAnalizAI() {
           </div>
           <button onClick={() => handleAnalyze()} disabled={loading} className={`btn-primary ${assetType === 'crypto' ? 'bg-orange-600 hover:bg-orange-500' : ''}`}>
             {loading ? '...' : 'Ara'}
+          </button>
+        </div>
+      </div>
+
+      {/* Diğer Analiz Yöntemleri — SNR + EMA34 hızlı erişim */}
+      <div className="card">
+        <h3 className="font-semibold text-white mb-1 flex items-center gap-2">
+          <span className="text-amber-400">⚡</span>
+          Diğer Analiz Yöntemleri
+        </h3>
+        <p className="text-xs text-gray-500 mb-3">
+          {symbol
+            ? <>Aktif sembol: <span className="text-amber-400 font-mono font-bold">{symbol}</span> — bu sembol için farklı analiz yapın</>
+            : 'Tarayıcı veya bireysel analiz için aşağıdaki butonları kullanın'}
+        </p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          <button
+            onClick={() => {
+              const sym = (symbol || '').trim().toUpperCase()
+              const url = sym
+                ? `/tarayicilar?tab=snr&symbol=${encodeURIComponent(sym)}${assetType === 'crypto' ? '&type=crypto' : ''}`
+                : '/tarayicilar?tab=snr'
+              navigate(url)
+            }}
+            className="group flex items-center gap-3 p-3 sm:p-4 bg-gradient-to-br from-blue-500/10 to-blue-600/5 hover:from-blue-500/20 hover:to-blue-600/10 border border-blue-500/30 hover:border-blue-500/50 rounded-xl text-left transition-all"
+          >
+            <div className="flex-shrink-0 w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shadow-md">
+              <CandlestickChart className="w-5 h-5 text-white" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="text-sm font-semibold text-white">Malaysian SNR</div>
+              <div className="text-[11px] text-gray-400">Gövde tabanlı destek/direnç + Giriş/Stop/TP</div>
+            </div>
+            <ChevronRight className="w-4 h-4 text-gray-500 group-hover:text-blue-400" />
+          </button>
+
+          <button
+            onClick={() => {
+              const sym = (symbol || '').trim().toUpperCase()
+              const url = sym
+                ? `/tarayicilar?tab=ema34&symbol=${encodeURIComponent(sym)}`
+                : '/tarayicilar?tab=ema34'
+              navigate(url)
+            }}
+            className="group flex items-center gap-3 p-3 sm:p-4 bg-gradient-to-br from-emerald-500/10 to-emerald-600/5 hover:from-emerald-500/20 hover:to-emerald-600/10 border border-emerald-500/30 hover:border-emerald-500/50 rounded-xl text-left transition-all"
+          >
+            <div className="flex-shrink-0 w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center shadow-md">
+              <BarChart2 className="w-5 h-5 text-white" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="text-sm font-semibold text-white">EMA34 Takip</div>
+              <div className="text-[11px] text-gray-400">34 günlük üstel ortalama trend takibi</div>
+            </div>
+            <ChevronRight className="w-4 h-4 text-gray-500 group-hover:text-emerald-400" />
           </button>
         </div>
       </div>

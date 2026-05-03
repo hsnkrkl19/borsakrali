@@ -395,21 +395,69 @@
 .sector-pill.is-active .pill-change { color: #0a0e27; }
 
 /* Sector scroll rail */
+.sector-rail-wrap {
+  position: relative;
+  display: block;
+}
 .sector-rail {
   display: flex;
   gap: 0.55rem;
   overflow-x: auto;
   overflow-y: hidden;
-  scroll-snap-type: x proximity;
-  scroll-behavior: smooth;
-  padding: 0.35rem 0.25rem 0.6rem 0.25rem;
+  padding: 0.35rem 2.4rem 0.6rem 2.4rem;
   -webkit-overflow-scrolling: touch;
-  mask-image: linear-gradient(to right, transparent 0, #000 24px, #000 calc(100% - 24px), transparent 100%);
+  cursor: grab;
+  user-select: none;
+  scrollbar-color: rgba(251, 191, 36, 0.6) transparent;
 }
-.sector-rail::-webkit-scrollbar { height: 4px; }
+.sector-rail.is-dragging { cursor: grabbing; scroll-behavior: auto; }
+.sector-rail::-webkit-scrollbar { height: 6px; }
+.sector-rail::-webkit-scrollbar-track { background: rgba(15, 23, 42, 0.4); border-radius: 9999px; }
 .sector-rail::-webkit-scrollbar-thumb {
-  background: linear-gradient(90deg, rgba(251, 191, 36, 0.5), rgba(245, 158, 11, 0.3));
+  background: linear-gradient(90deg, rgba(251, 191, 36, 0.65), rgba(245, 158, 11, 0.45));
   border-radius: 9999px;
+}
+.sector-rail::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(90deg, rgba(251, 191, 36, 0.85), rgba(245, 158, 11, 0.7));
+}
+
+/* Sol/sağ ok butonları */
+.sector-arrow {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 5;
+  width: 2rem;
+  height: 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  border: 1px solid rgba(251, 191, 36, 0.35);
+  background: rgba(15, 23, 42, 0.85);
+  color: #fde68a;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  box-shadow: 0 6px 18px -8px rgba(0, 0, 0, 0.6);
+  cursor: pointer;
+  transition: transform 200ms ease, opacity 200ms ease, background 200ms ease, border-color 200ms ease;
+}
+.sector-arrow:hover {
+  background: rgba(245, 158, 11, 0.18);
+  border-color: rgba(251, 191, 36, 0.65);
+  transform: translateY(-50%) scale(1.08);
+}
+.sector-arrow:active { transform: translateY(-50%) scale(0.94); }
+.sector-arrow-left  { left: 0.15rem; }
+.sector-arrow-right { right: 0.15rem; }
+.sector-arrow.is-disabled {
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-50%) scale(0.85);
+}
+@media (max-width: 640px) {
+  .sector-arrow { display: none; }
+  .sector-rail { padding-left: 0.25rem; padding-right: 0.25rem; }
 }
 
 /* Sector reveal panel */
