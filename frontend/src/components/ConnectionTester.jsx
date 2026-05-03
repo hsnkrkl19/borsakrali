@@ -34,11 +34,14 @@ export default function ConnectionTester() {
 
     for (const ep of endpoints) {
       const start = Date.now()
+      // AbortController ile timeout (AbortSignal.timeout eski WebView'da yok!)
+      const ctrl = new AbortController()
+      const tid = setTimeout(() => ctrl.abort(), 60000)
       try {
         const r = await fetch(ep.url, {
           method: 'GET',
           headers: { 'Accept': 'application/json' },
-          signal: AbortSignal.timeout(60000),
+          signal: ctrl.signal,
         })
         const ms = Date.now() - start
         const text = await r.text()
@@ -61,6 +64,8 @@ export default function ConnectionTester() {
           ms: Date.now() - start,
           preview: e?.message || String(e),
         })
+      } finally {
+        clearTimeout(tid)
       }
       setTests([...results])
     }

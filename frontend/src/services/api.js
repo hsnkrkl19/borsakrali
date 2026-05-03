@@ -26,9 +26,12 @@ function wakeupServer() {
   if (now - lastWakeup < 30000) return // 30sn'de bir
   lastWakeup = now
   try {
+    // AbortController kullan (AbortSignal.timeout eski Android WebView'da yok!)
+    const ctrl = new AbortController()
+    setTimeout(() => ctrl.abort(), 60000)
     fetch(API_BASE_URL.replace(/\/api$/, '') + '/health', {
       method: 'GET',
-      signal: AbortSignal.timeout(60000),
+      signal: ctrl.signal,
     }).catch(() => {})
   } catch (_) {}
 }
