@@ -1,24 +1,25 @@
 import { useState, useEffect } from 'react'
-import { X, Sparkles, CheckCircle } from 'lucide-react'
+import { X, Sparkles, Crown } from 'lucide-react'
 import { createPortal } from 'react-dom'
 
-const FEATURES = [
-  { icon: '🏅', text: 'Kıymetli Madenler (Altın, Gümüş, Altın TL)' },
-  { icon: '☀️', text: 'Aydınlık Tema' },
-  { icon: '✨', text: 'Yeni Arayüz & Modern Tasarım' },
-  { icon: '📊', text: 'Gelişmiş Grafik Araçları' },
-  { icon: '🔔', text: 'Fiyat Alarm Sistemi' },
-  { icon: '🤖', text: 'Yapay Zeka Destekli Analiz' },
-  { icon: '📱', text: 'Mobil Uygulama Güncellemeleri' },
+const VERSION = '3.4.0'
+
+const NEW_FEATURES = [
+  { icon: '🏠', title: 'Sade Ana Sayfa',          desc: 'Kalabalık grafikler kaldırıldı, hızlı erişim kartları geldi' },
+  { icon: '📈', title: 'Endeks Detay Grafikleri', desc: 'BIST 100/30\'a tıklayınca özel grafik sayfası açılır' },
+  { icon: '💼', title: 'Portföyüm — YENİ',         desc: 'Hisse adet + alış fiyatı + tarihi gir, otomatik kar/zarar' },
+  { icon: '🪙', title: 'Kripto Piyasası',          desc: 'Top 100 coin · fiyat alarmı · watchlist' },
+  { icon: '🔔', title: 'Fiyat Alarm Sistemi',     desc: 'Belirlediğin fiyata ulaşınca anında bildirim' },
+  { icon: '🎨', title: 'Premium Tasarım',         desc: 'Yeni ikon · sade arayüz · 11 sade sekme' },
 ]
 
-const POPUP_KEY   = 'bk-update-popup'
-const MAX_SHOWS   = 2
+const POPUP_KEY = 'bk-update-popup-v3.4'  // Yeni versiyon → herkes bir kez daha görsün
+const MAX_SHOWS = 2
 const INTERVAL_MS = 10 * 60 * 1000  // 10 dakika
 
 export default function UpdatePopup() {
-  const [visible, setVisible] = useState(false)
-  const [canClose, setCanClose] = useState(false)
+  const [visible, setVisible]     = useState(false)
+  const [canClose, setCanClose]   = useState(false)
   const [countdown, setCountdown] = useState(3)
 
   useEffect(() => {
@@ -29,14 +30,13 @@ export default function UpdatePopup() {
 
     try {
       const stored = JSON.parse(localStorage.getItem(POPUP_KEY) || '{}')
-      const count    = stored.count    || 0
+      const count = stored.count || 0
       const lastShown = stored.lastShown || 0
 
       if (count >= MAX_SHOWS) return
       const elapsed = Date.now() - lastShown
       if (count > 0 && elapsed < INTERVAL_MS) return
 
-      // Gösterilecek — küçük gecikme ile
       const timer = setTimeout(() => {
         setVisible(true)
         localStorage.setItem(POPUP_KEY, JSON.stringify({
@@ -48,7 +48,6 @@ export default function UpdatePopup() {
     } catch (_) {}
   }, [])
 
-  // 3 saniye geri sayım — kapat butonunu aktif et
   useEffect(() => {
     if (!visible) return
     setCanClose(false)
@@ -72,77 +71,123 @@ export default function UpdatePopup() {
     <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
       {/* Backdrop */}
       <div
-        className="absolute inset-0 bg-black/70 backdrop-blur-sm"
+        className="absolute inset-0 backdrop-blur-md"
+        style={{ background: 'rgba(0, 0, 0, 0.55)' }}
         onClick={canClose ? () => setVisible(false) : undefined}
       />
 
-      {/* Modal */}
-      <div className="relative w-full max-w-sm rounded-2xl overflow-hidden shadow-2xl"
-           style={{ background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%)', border: '1px solid rgba(245,158,11,0.3)' }}>
-
+      {/* Modal — TEMA UYUMLU */}
+      <div
+        className="relative w-full max-w-md rounded-3xl overflow-hidden shadow-2xl border"
+        style={{
+          background: 'var(--bg-card)',
+          borderColor: 'var(--border-gold-strong)',
+          maxHeight: '90vh',
+          overflowY: 'auto',
+        }}
+      >
         {/* Altın üst çizgi */}
-        <div className="h-1 w-full" style={{ background: 'linear-gradient(90deg, #f59e0b, #fbbf24, #f59e0b)' }} />
+        <div className="h-1.5 w-full bg-gradient-to-r from-amber-300 via-amber-400 to-amber-500" />
 
-        {/* İçerik */}
-        <div className="p-5">
-          {/* Başlık */}
-          <div className="flex items-start justify-between mb-4">
-            <div className="flex items-center gap-2">
-              <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: 'rgba(245,158,11,0.15)', border: '1px solid rgba(245,158,11,0.3)' }}>
-                <Sparkles className="w-5 h-5 text-amber-400" />
+        <div className="p-5 sm:p-6">
+          {/* Hero — Crown + version */}
+          <div className="flex items-start justify-between mb-5">
+            <div className="flex items-center gap-3">
+              <div className="relative">
+                <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center shadow-lg shadow-amber-500/30">
+                  <Crown className="w-6 h-6 text-white" />
+                </div>
+                <Sparkles className="absolute -top-1 -right-1 w-4 h-4 text-amber-400 animate-pulse" />
               </div>
               <div>
-                <p className="text-xs text-amber-400 font-semibold tracking-wider uppercase">Borsa Krali</p>
-                <h2 className="text-white font-bold text-base leading-tight">Geliştirme Devam Ediyor!</h2>
+                <div className="flex items-center gap-1.5">
+                  <span
+                    className="text-[10px] font-bold uppercase tracking-[0.15em]"
+                    style={{ color: 'var(--gold-400)' }}
+                  >Borsa Kralı</span>
+                  <span className="px-1.5 py-0.5 text-[9px] font-bold rounded bg-gradient-to-r from-amber-400 to-amber-500 text-dark-950">
+                    v{VERSION}
+                  </span>
+                </div>
+                <h2
+                  className="font-bold text-lg leading-tight mt-0.5"
+                  style={{ color: 'var(--text-primary)' }}
+                >Yenilikler Geldi! 🎉</h2>
               </div>
             </div>
 
-            {/* Kapat butonu */}
+            {/* Kapat */}
             <button
               onClick={() => canClose && setVisible(false)}
-              className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${
-                canClose
-                  ? 'bg-gray-700 hover:bg-gray-600 text-white cursor-pointer'
-                  : 'bg-gray-800 text-gray-600 cursor-not-allowed'
+              className={`w-8 h-8 rounded-full flex items-center justify-center transition-all flex-shrink-0 ${
+                canClose ? 'cursor-pointer hover:opacity-80' : 'cursor-not-allowed opacity-60'
               }`}
+              style={{
+                background: 'var(--bg-elevated)',
+                color: canClose ? 'var(--text-primary)' : 'var(--text-faint)',
+                border: '1px solid var(--border-subtle)',
+              }}
             >
-              {canClose ? (
-                <X className="w-4 h-4" />
-              ) : (
-                <span className="text-xs font-bold">{countdown}</span>
-              )}
+              {canClose ? <X className="w-4 h-4" /> : <span className="text-xs font-bold">{countdown}</span>}
             </button>
           </div>
 
           {/* Alt metin */}
-          <p className="text-gray-400 text-sm mb-4 leading-relaxed">
-            Platformumuzu daha iyi hale getirmek için çalışıyoruz.
-            Yakında gelecek özellikler:
+          <p
+            className="text-sm mb-4 leading-relaxed"
+            style={{ color: 'var(--text-secondary)' }}
+          >
+            Borsa Kralı'nı baştan tasarladık — daha hızlı, daha sade, daha güçlü.
+            <span className="font-semibold" style={{ color: 'var(--gold-400)' }}> Bu sürümde 6 büyük yenilik:</span>
           </p>
 
-          {/* Özellik listesi */}
-          <ul className="space-y-2 mb-5">
-            {FEATURES.map((f, i) => (
-              <li key={i} className="flex items-center gap-2.5 text-sm text-gray-300">
-                <span className="text-base leading-none shrink-0">{f.icon}</span>
-                <span>{f.text}</span>
-              </li>
+          {/* Yeni Özellikler */}
+          <div className="space-y-2 mb-5">
+            {NEW_FEATURES.map((f, i) => (
+              <div
+                key={i}
+                className="flex items-start gap-3 p-2.5 rounded-xl border"
+                style={{
+                  background: 'var(--bg-elevated)',
+                  borderColor: 'var(--border-main)',
+                }}
+              >
+                <div className="text-2xl leading-none flex-shrink-0">{f.icon}</div>
+                <div className="min-w-0 flex-1">
+                  <div
+                    className="text-sm font-semibold leading-tight"
+                    style={{ color: 'var(--text-primary)' }}
+                  >{f.title}</div>
+                  <div
+                    className="text-[11px] mt-0.5 leading-snug"
+                    style={{ color: 'var(--text-muted)' }}
+                  >{f.desc}</div>
+                </div>
+              </div>
             ))}
-          </ul>
+          </div>
 
-          {/* Alt buton */}
+          {/* CTA Buton */}
           <button
             onClick={() => canClose && setVisible(false)}
             disabled={!canClose}
-            className={`w-full py-2.5 rounded-xl font-semibold text-sm transition-all ${
-              canClose
-                ? 'text-slate-950 cursor-pointer hover:opacity-90 active:scale-95'
-                : 'text-gray-500 cursor-not-allowed'
+            className={`w-full py-3 rounded-xl font-bold text-sm transition-all ${
+              canClose ? 'cursor-pointer hover:opacity-90 active:scale-[0.98] shadow-lg shadow-amber-500/30' : 'cursor-not-allowed opacity-60'
             }`}
-            style={canClose ? { background: 'linear-gradient(90deg, #f59e0b, #fbbf24)' } : { background: '#1e293b', border: '1px solid #334155' }}
+            style={canClose
+              ? { background: 'linear-gradient(135deg, #f59e0b, #fbbf24, #f59e0b)', color: '#0a0a0f' }
+              : { background: 'var(--bg-elevated)', color: 'var(--text-muted)', border: '1px solid var(--border-subtle)' }
+            }
           >
-            {canClose ? 'Harika, devam edin! 🚀' : `Lütfen bekleyin (${countdown}s)`}
+            {canClose ? 'Harika, kullanmaya başla! 🚀' : `Birkaç saniye... (${countdown}s)`}
           </button>
+
+          <div
+            className="text-[10px] text-center mt-3"
+            style={{ color: 'var(--text-faint)' }}
+          >
+            Borsa Kralı v{VERSION} · Premium Edition
+          </div>
         </div>
       </div>
     </div>,

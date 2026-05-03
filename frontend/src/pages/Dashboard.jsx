@@ -9,43 +9,53 @@ import apiClient from '../services/api'
 
 const fmt = (n, d = 2) => n == null ? '—' : n.toLocaleString('tr-TR', { minimumFractionDigits: d, maximumFractionDigits: d })
 
-/* ─── Tıklanabilir endeks kartı ─────────────────────────────────────────── */
+/* ─── Tıklanabilir endeks kartı (tema uyumlu) ───────────────────────────── */
 function IndexCard({ symbol, label, value, change, changePct, onClick, loading }) {
   const up = (changePct ?? 0) >= 0
+  const accent = up ? '0,201,138' : '255,59,70' // RGB jade / ember
   return (
     <button
       onClick={onClick}
-      className={`relative w-full text-left rounded-2xl p-4 sm:p-5 border transition-all
-        active:scale-[0.99] hover:scale-[1.005] hover:border-amber-500/40
-        ${up
-          ? 'bg-gradient-to-br from-emerald-500/[0.08] via-dark-900/80 to-dark-900/40 border-emerald-500/20'
-          : 'bg-gradient-to-br from-red-500/[0.08] via-dark-900/80 to-dark-900/40 border-red-500/20'
-        }`}
+      className="relative w-full text-left rounded-2xl p-4 sm:p-5 border transition-all
+        active:scale-[0.99] hover:scale-[1.005]"
+      style={{
+        background: `linear-gradient(135deg, rgba(${accent}, 0.10) 0%, var(--bg-card) 50%, var(--bg-elevated) 100%)`,
+        borderColor: `rgba(${accent}, 0.30)`,
+      }}
     >
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
-          <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-[10px] font-bold tracking-wider
-            ${up ? 'bg-emerald-500/15 text-emerald-400' : 'bg-red-500/15 text-red-400'}`}>
+          <div
+            className="w-8 h-8 rounded-lg flex items-center justify-center text-[10px] font-bold tracking-wider"
+            style={{
+              background: `rgba(${accent}, 0.15)`,
+              color: up ? 'var(--jade)' : 'var(--ember)',
+            }}
+          >
             {symbol.replace('XU', '')}
           </div>
-          <span className="text-sm font-semibold text-gray-300">{label}</span>
+          <span className="text-sm font-semibold" style={{ color: 'var(--text-secondary)' }}>{label}</span>
         </div>
-        <ChevronRight className="w-4 h-4 text-gray-500" />
+        <ChevronRight className="w-4 h-4" style={{ color: 'var(--text-muted)' }} />
       </div>
 
       {loading ? (
         <div className="space-y-2">
-          <div className="h-7 w-32 bg-dark-800 rounded animate-pulse" />
-          <div className="h-4 w-20 bg-dark-800 rounded animate-pulse" />
+          <div className="h-7 w-32 rounded animate-pulse" style={{ background: 'var(--bg-elevated)' }} />
+          <div className="h-4 w-20 rounded animate-pulse" style={{ background: 'var(--bg-elevated)' }} />
         </div>
       ) : (
         <>
-          <div className="text-2xl sm:text-3xl font-bold text-white font-mono tracking-tight">
+          <div
+            className="text-2xl sm:text-3xl font-bold font-mono tracking-tight"
+            style={{ color: 'var(--text-primary)' }}
+          >
             {fmt(value)}
           </div>
-          <div className={`flex items-center gap-1 mt-1 text-xs sm:text-sm font-semibold ${
-            up ? 'text-emerald-400' : 'text-red-400'
-          }`}>
+          <div
+            className="flex items-center gap-1 mt-1 text-xs sm:text-sm font-semibold"
+            style={{ color: up ? 'var(--jade)' : 'var(--ember)' }}
+          >
             {up ? <TrendingUp className="w-3.5 h-3.5" /> : <TrendingDown className="w-3.5 h-3.5" />}
             <span>{up ? '+' : ''}{fmt(change)}</span>
             <span>({up ? '+' : ''}{fmt(changePct)}%)</span>
@@ -56,21 +66,24 @@ function IndexCard({ symbol, label, value, change, changePct, onClick, loading }
   )
 }
 
-/* ─── Hisse Mover Kartı (kompakt, alt grid için) ───────────────────────── */
+/* ─── Hisse Mover Kartı (tema uyumlu) ──────────────────────────────────── */
 function MoverRow({ stock, onClick }) {
   const up = (stock.changePercent ?? 0) >= 0
   return (
     <button
       onClick={onClick}
-      className="w-full flex items-center justify-between gap-2 px-3 py-2.5 hover:bg-dark-800/60 rounded-xl transition-colors text-left"
+      className="w-full flex items-center justify-between gap-2 px-3 py-2.5 rounded-xl transition-colors text-left hover:opacity-90"
+      style={{ background: 'transparent' }}
+      onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-hover)'}
+      onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
     >
       <div className="min-w-0 flex-1">
-        <div className="text-sm font-semibold text-white truncate">{stock.symbol}</div>
-        <div className="text-[10px] text-gray-500 truncate">{stock.name || '—'}</div>
+        <div className="text-sm font-semibold truncate" style={{ color: 'var(--text-primary)' }}>{stock.symbol}</div>
+        <div className="text-[10px] truncate" style={{ color: 'var(--text-faint)' }}>{stock.name || '—'}</div>
       </div>
       <div className="text-right flex-shrink-0">
-        <div className="text-sm font-bold text-white font-mono">{fmt(stock.price)}</div>
-        <div className={`text-[11px] font-semibold ${up ? 'text-emerald-400' : 'text-red-400'}`}>
+        <div className="text-sm font-bold font-mono" style={{ color: 'var(--text-primary)' }}>{fmt(stock.price)}</div>
+        <div className="text-[11px] font-semibold" style={{ color: up ? 'var(--jade)' : 'var(--ember)' }}>
           {up ? '+' : ''}{fmt(stock.changePercent)}%
         </div>
       </div>
@@ -78,21 +91,33 @@ function MoverRow({ stock, onClick }) {
   )
 }
 
-/* ─── Hızlı erişim butonu ───────────────────────────────────────────── */
+/* ─── Hızlı erişim butonu (tema uyumlu) ─────────────────────────────────── */
 function QuickAccess({ to, icon: Icon, label, sub, color, navigate }) {
   return (
     <button
       onClick={() => navigate(to)}
-      className="group flex items-center gap-3 p-3 sm:p-4 bg-dark-900/60 hover:bg-dark-800 border border-dark-700 hover:border-amber-500/30 rounded-2xl transition-all text-left"
+      className="group flex items-center gap-3 p-3 sm:p-4 rounded-2xl transition-all text-left border"
+      style={{
+        background: 'var(--bg-card)',
+        borderColor: 'var(--border-main)',
+      }}
+      onMouseEnter={e => {
+        e.currentTarget.style.background = 'var(--bg-hover)'
+        e.currentTarget.style.borderColor = 'var(--border-gold)'
+      }}
+      onMouseLeave={e => {
+        e.currentTarget.style.background = 'var(--bg-card)'
+        e.currentTarget.style.borderColor = 'var(--border-main)'
+      }}
     >
       <div className={`flex-shrink-0 w-10 h-10 rounded-xl bg-gradient-to-br ${color} flex items-center justify-center shadow-md`}>
         <Icon className="w-5 h-5 text-white" />
       </div>
       <div className="min-w-0 flex-1">
-        <div className="text-sm font-semibold text-white">{label}</div>
-        <div className="text-[11px] text-gray-500 truncate">{sub}</div>
+        <div className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{label}</div>
+        <div className="text-[11px] truncate" style={{ color: 'var(--text-muted)' }}>{sub}</div>
       </div>
-      <ChevronRight className="w-4 h-4 text-gray-600 group-hover:text-amber-400 transition-colors" />
+      <ChevronRight className="w-4 h-4 group-hover:text-amber-400 transition-colors" style={{ color: 'var(--text-faint)' }} />
     </button>
   )
 }
@@ -141,8 +166,8 @@ export default function Dashboard() {
       {/* Header */}
       <div className="flex items-center justify-between gap-3">
         <div className="min-w-0">
-          <h1 className="text-xl sm:text-2xl font-bold text-white tracking-tight">Piyasa Kokpiti</h1>
-          <p className="text-xs sm:text-sm text-gray-400 mt-0.5">BIST anlık verileri · 60 sn auto-refresh</p>
+          <h1 className="text-xl sm:text-2xl font-bold tracking-tight" style={{ color: 'var(--text-primary)' }}>Piyasa Kokpiti</h1>
+          <p className="text-xs sm:text-sm mt-0.5" style={{ color: 'var(--text-muted)' }}>BIST anlık verileri · 60 sn auto-refresh</p>
         </div>
         <button
           onClick={() => setRefreshTick(t => t + 1)}
@@ -198,18 +223,21 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Yükselen / Düşen Hisseler — KOMPAKT */}
+      {/* Yükselen / Düşen Hisseler — TEMA UYUMLU */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4">
         {/* Yükselenler */}
-        <div className="bg-dark-900/60 border border-dark-700 rounded-2xl p-3 sm:p-4">
+        <div
+          className="rounded-2xl p-3 sm:p-4 border"
+          style={{ background: 'var(--bg-card)', borderColor: 'var(--border-main)' }}
+        >
           <div className="flex items-center gap-2 mb-3">
-            <TrendingUp className="w-4 h-4 text-emerald-400" />
-            <span className="text-sm font-semibold text-white">En Çok Yükselenler</span>
+            <TrendingUp className="w-4 h-4" style={{ color: 'var(--jade)' }} />
+            <span className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>En Çok Yükselenler</span>
           </div>
           <div className="space-y-1">
             {loading && gainers.length === 0 && (
               [...Array(5)].map((_, i) => (
-                <div key={i} className="h-12 bg-dark-800/40 rounded-xl animate-pulse" />
+                <div key={i} className="h-12 rounded-xl animate-pulse" style={{ background: 'var(--bg-elevated)' }} />
               ))
             )}
             {gainers.map(s => (
@@ -220,21 +248,24 @@ export default function Dashboard() {
               />
             ))}
             {!loading && gainers.length === 0 && (
-              <div className="text-center text-xs text-gray-500 py-4">Veri yok</div>
+              <div className="text-center text-xs py-4" style={{ color: 'var(--text-faint)' }}>Veri yok</div>
             )}
           </div>
         </div>
 
         {/* Düşenler */}
-        <div className="bg-dark-900/60 border border-dark-700 rounded-2xl p-3 sm:p-4">
+        <div
+          className="rounded-2xl p-3 sm:p-4 border"
+          style={{ background: 'var(--bg-card)', borderColor: 'var(--border-main)' }}
+        >
           <div className="flex items-center gap-2 mb-3">
-            <TrendingDown className="w-4 h-4 text-red-400" />
-            <span className="text-sm font-semibold text-white">En Çok Düşenler</span>
+            <TrendingDown className="w-4 h-4" style={{ color: 'var(--ember)' }} />
+            <span className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>En Çok Düşenler</span>
           </div>
           <div className="space-y-1">
             {loading && losers.length === 0 && (
               [...Array(5)].map((_, i) => (
-                <div key={i} className="h-12 bg-dark-800/40 rounded-xl animate-pulse" />
+                <div key={i} className="h-12 rounded-xl animate-pulse" style={{ background: 'var(--bg-elevated)' }} />
               ))
             )}
             {losers.map(s => (
@@ -245,14 +276,14 @@ export default function Dashboard() {
               />
             ))}
             {!loading && losers.length === 0 && (
-              <div className="text-center text-xs text-gray-500 py-4">Veri yok</div>
+              <div className="text-center text-xs py-4" style={{ color: 'var(--text-faint)' }}>Veri yok</div>
             )}
           </div>
         </div>
       </div>
 
       {/* Footer */}
-      <div className="text-xs text-gray-600 text-center pt-2 pb-4">
+      <div className="text-xs text-center pt-2 pb-4" style={{ color: 'var(--text-faint)' }}>
         Veri: Yahoo Finance + KAP · Eğitim amaçlıdır, yatırım tavsiyesi değildir
       </div>
     </div>
