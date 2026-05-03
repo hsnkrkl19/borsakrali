@@ -1,6 +1,6 @@
-import { Bell, User, LogOut, Search, TrendingUp, TrendingDown, Zap, KeyRound, Settings, Activity, Sparkles } from 'lucide-react'
+import { Bell, User, LogOut, Search, TrendingUp, TrendingDown, Zap, KeyRound, Settings, Activity, Sparkles, Crown } from 'lucide-react'
 import { useAuthStore } from '../store/authStore'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import apiClient from '../services/api'
 import { useUsageStore, DAILY_LIMIT } from '../store/usageStore'
@@ -9,57 +9,56 @@ import BrandMark from './BrandMark'
 const API_BASE = ''
 
 const CRYPTO_LIST = [
-  { symbol: 'BTC',  name: 'Bitcoin' },
-  { symbol: 'ETH',  name: 'Ethereum' },
-  { symbol: 'BNB',  name: 'BNB' },
-  { symbol: 'SOL',  name: 'Solana' },
-  { symbol: 'XRP',  name: 'XRP' },
-  { symbol: 'ADA',  name: 'Cardano' },
-  { symbol: 'AVAX', name: 'Avalanche' },
-  { symbol: 'DOGE', name: 'Dogecoin' },
-  { symbol: 'DOT',  name: 'Polkadot' },
-  { symbol: 'LTC',  name: 'Litecoin' },
-  { symbol: 'LINK', name: 'Chainlink' },
-  { symbol: 'SHIB', name: 'Shiba Inu' },
-  { symbol: 'BCH',  name: 'Bitcoin Cash' },
-  { symbol: 'NEAR', name: 'NEAR Protocol' },
-  { symbol: 'UNI',  name: 'Uniswap' },
-  { symbol: 'MATIC',name: 'Polygon' },
-  { symbol: 'TRX',  name: 'TRON' },
-  { symbol: 'TON',  name: 'Toncoin' },
-  { symbol: 'APT',  name: 'Aptos' },
-  { symbol: 'ICP',  name: 'Internet Computer' },
-  { symbol: 'FIL',  name: 'Filecoin' },
-  { symbol: 'ATOM', name: 'Cosmos' },
-  { symbol: 'OP',   name: 'Optimism' },
-  { symbol: 'ARB',  name: 'Arbitrum' },
-  { symbol: 'INJ',  name: 'Injective' },
-  { symbol: 'SUI',  name: 'Sui' },
-  { symbol: 'SEI',  name: 'Sei' },
-  { symbol: 'TIA',  name: 'Celestia' },
-  { symbol: 'WIF',  name: 'dogwifhat' },
-  { symbol: 'PEPE', name: 'Pepe' },
-  { symbol: 'BONK', name: 'Bonk' },
-  { symbol: 'JUP',  name: 'Jupiter' },
-  { symbol: 'FLOKI',name: 'Floki' },
-  { symbol: 'WLD',  name: 'Worldcoin' },
-  { symbol: 'STX',  name: 'Stacks' },
-  { symbol: 'ORDI', name: 'ORDI' },
-  { symbol: 'ENA',  name: 'Ethena' },
-  { symbol: 'RUNE', name: 'THORChain' },
-  { symbol: 'AAVE', name: 'Aave' },
-  { symbol: 'MKR',  name: 'Maker' },
-  { symbol: 'GRT',  name: 'The Graph' },
-  { symbol: 'ALGO', name: 'Algorand' },
-  { symbol: 'VET',  name: 'VeChain' },
-  { symbol: 'XLM',  name: 'Stellar' },
-  { symbol: 'SAND', name: 'The Sandbox' },
-  { symbol: 'MANA', name: 'Decentraland' },
-  { symbol: 'AXS',  name: 'Axie Infinity' },
-  { symbol: 'CRV',  name: 'Curve DAO' },
-  { symbol: 'COMP', name: 'Compound' },
-  { symbol: 'ZK',   name: 'zkSync' },
+  { symbol: 'BTC', name: 'Bitcoin' }, { symbol: 'ETH', name: 'Ethereum' },
+  { symbol: 'BNB', name: 'BNB' }, { symbol: 'SOL', name: 'Solana' },
+  { symbol: 'XRP', name: 'XRP' }, { symbol: 'ADA', name: 'Cardano' },
+  { symbol: 'AVAX', name: 'Avalanche' }, { symbol: 'DOGE', name: 'Dogecoin' },
+  { symbol: 'DOT', name: 'Polkadot' }, { symbol: 'LTC', name: 'Litecoin' },
+  { symbol: 'LINK', name: 'Chainlink' }, { symbol: 'SHIB', name: 'Shiba Inu' },
+  { symbol: 'BCH', name: 'Bitcoin Cash' }, { symbol: 'NEAR', name: 'NEAR Protocol' },
+  { symbol: 'UNI', name: 'Uniswap' }, { symbol: 'MATIC', name: 'Polygon' },
+  { symbol: 'TRX', name: 'TRON' }, { symbol: 'TON', name: 'Toncoin' },
+  { symbol: 'APT', name: 'Aptos' }, { symbol: 'ICP', name: 'Internet Computer' },
+  { symbol: 'FIL', name: 'Filecoin' }, { symbol: 'ATOM', name: 'Cosmos' },
+  { symbol: 'OP', name: 'Optimism' }, { symbol: 'ARB', name: 'Arbitrum' },
+  { symbol: 'INJ', name: 'Injective' }, { symbol: 'SUI', name: 'Sui' },
+  { symbol: 'SEI', name: 'Sei' }, { symbol: 'TIA', name: 'Celestia' },
+  { symbol: 'PEPE', name: 'Pepe' }, { symbol: 'WLD', name: 'Worldcoin' },
+  { symbol: 'AAVE', name: 'Aave' }, { symbol: 'MKR', name: 'Maker' },
+  { symbol: 'GRT', name: 'The Graph' }, { symbol: 'ALGO', name: 'Algorand' },
+  { symbol: 'XLM', name: 'Stellar' }, { symbol: 'SAND', name: 'The Sandbox' },
 ]
+
+/* Compact index cell — Bloomberg-style data band */
+function IndexCell({ label, value, change, status, pulse }) {
+  const up = (change ?? 0) >= 0
+  const fmtVal = value != null
+    ? Number(value).toLocaleString('tr-TR', { maximumFractionDigits: 2 })
+    : '—'
+  return (
+    <div className="flex items-center gap-2 px-3 py-1.5 group">
+      <div className="flex flex-col items-start leading-none">
+        <span className="text-[9px] uppercase tracking-[0.16em] text-amber-400/70 font-bold">{label}</span>
+        {status && (
+          <span className={`text-[9px] font-bold flex items-center gap-1 mt-0.5 ${pulse ? 'text-emerald-400' : 'text-red-400'}`}>
+            <span className={`status-dot ${pulse ? 'status-dot-live' : 'status-dot-off'}`} />
+            {status}
+          </span>
+        )}
+      </div>
+      <div className="flex items-center gap-1.5">
+        <span className="text-white font-bold text-[13px] num-tabular tracking-tight">{fmtVal}</span>
+        {change != null && (
+          <span className={`text-[10.5px] font-bold num-tabular px-1.5 py-0.5 rounded-md leading-none ${
+            up ? 'bg-emerald-500/12 text-emerald-400' : 'bg-red-500/12 text-red-400'
+          }`}>
+            {up ? '▲' : '▼'} {Math.abs(change).toFixed(2)}%
+          </span>
+        )}
+      </div>
+    </div>
+  )
+}
 
 export default function Header() {
   const { user, logout } = useAuthStore()
@@ -72,6 +71,8 @@ export default function Header() {
   const [bist100, setBist100] = useState(null)
   const [bist30, setBist30] = useState(null)
   const [tickerData, setTickerData] = useState([])
+  const [time, setTime] = useState(new Date())
+  const searchInputRef = useRef(null)
 
   useEffect(() => {
     const fetchMarketData = async () => {
@@ -93,6 +94,26 @@ export default function Header() {
     return () => clearInterval(interval)
   }, [])
 
+  useEffect(() => {
+    const t = setInterval(() => setTime(new Date()), 1000)
+    return () => clearInterval(t)
+  }, [])
+
+  // Keyboard shortcut: "/" focuses search
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.key === '/' && document.activeElement?.tagName !== 'INPUT' && document.activeElement?.tagName !== 'TEXTAREA') {
+        e.preventDefault()
+        searchInputRef.current?.focus()
+      }
+      if (e.key === 'Escape') {
+        setShowResults(false)
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [])
+
   const handleSearch = async (query) => {
     setSearchQuery(query)
     if (query.length >= 1) {
@@ -107,7 +128,6 @@ export default function Header() {
         setSearchResults([...cryptoMatches, ...stockResults])
         setShowResults(true)
       } catch (error) {
-        console.error('Arama hatası:', error)
         setSearchResults(cryptoMatches)
         setShowResults(cryptoMatches.length > 0)
       }
@@ -118,276 +138,257 @@ export default function Header() {
   }
 
   const handleStockClick = (symbol, isCrypto = false) => {
-    if (isCrypto) {
-      navigate(`/malaysian-snr?symbol=${symbol}&type=crypto`)
-    } else {
-      navigate(`/teknik-analiz-ai?symbol=${symbol}`)
-    }
+    if (isCrypto) navigate(`/kripto?symbol=${symbol}`)
+    else navigate(`/teknik-analiz-ai?symbol=${symbol}`)
     setShowResults(false)
     setSearchQuery('')
   }
 
   const [isMarketOpen, setIsMarketOpen] = useState(false)
-  const [marketStatusText, setMarketStatusText] = useState('Piyasa Kapalı')
-
   useEffect(() => {
-    const checkMarketStatus = () => {
+    const check = () => {
       const now = new Date()
       const day = now.getDay()
       const hour = now.getHours()
-      const isOpen = (day >= 1 && day <= 5) && (hour >= 9 && hour < 18)
-      setIsMarketOpen(isOpen)
-      setMarketStatusText(isOpen ? 'Canlı' : 'Kapalı')
+      setIsMarketOpen(day >= 1 && day <= 5 && hour >= 9 && hour < 18)
     }
-
-    checkMarketStatus()
-    const interval = setInterval(checkMarketStatus, 60000)
-    return () => clearInterval(interval)
+    check()
+    const i = setInterval(check, 60000)
+    return () => clearInterval(i)
   }, [])
 
-  const fmtPct = (v) => v != null ? `${v >= 0 ? '+' : ''}${Number(v).toFixed(2)}%` : '—'
+  const fmtTime = time.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
 
   return (
     <header
-      className="relative flex h-16 w-full min-w-0 items-center justify-between gap-2 overflow-visible border-b px-4 lg:px-6"
+      className="relative z-30 sticky top-0"
       style={{
-        background: 'linear-gradient(180deg, var(--bg-card) 0%, color-mix(in srgb, var(--bg-card) 75%, var(--bg-base) 25%) 100%)',
-        borderColor: 'var(--border-main)',
-        boxShadow: '0 1px 0 rgba(245, 158, 11, 0.08), 0 4px 20px rgba(0, 0, 0, 0.15)',
+        background: 'linear-gradient(180deg, var(--bg-card) 0%, color-mix(in srgb, var(--bg-card) 80%, var(--bg-canvas) 20%) 100%)',
+        borderBottom: '1px solid var(--border-main)',
+        boxShadow: '0 1px 0 rgba(212, 175, 55, 0.08), 0 6px 24px rgba(0, 0, 0, 0.18)',
       }}
     >
-      {/* Top gold accent line */}
-      <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-amber-500/30 to-transparent pointer-events-none" />
+      {/* Bottom hairline accent */}
+      <div className="absolute bottom-0 left-0 right-0 h-px pointer-events-none"
+        style={{ background: 'linear-gradient(90deg, transparent, rgba(212, 175, 55, 0.35), transparent)' }}
+      />
 
-      {/* Market Indices */}
-      <div className="flex min-w-0 items-center gap-2 lg:gap-3">
-        {bist100 && (
-          <div className="hidden lg:flex items-center gap-3 rounded-xl px-3 py-2 group transition-all"
-            style={{
-              background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.06), rgba(245, 158, 11, 0.02))',
-              border: '1px solid rgba(245, 158, 11, 0.2)',
-            }}
-          >
-            <div className="flex flex-col">
-              <span className="text-[9px] uppercase tracking-wider text-amber-400/80 font-semibold">BIST 100</span>
-              <span className={`text-[10px] font-bold flex items-center gap-1 ${isMarketOpen ? 'text-emerald-400' : 'text-red-400'}`}>
-                <span className={`w-1.5 h-1.5 rounded-full ${isMarketOpen ? 'bg-emerald-400 pulse-ring' : 'bg-red-400'}`} />
-                {marketStatusText}
-              </span>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="text-white font-bold num-tabular text-sm">{bist100.value?.toLocaleString('tr-TR', { maximumFractionDigits: 2 })}</span>
-              <span className={`flex items-center gap-0.5 text-[11px] font-semibold num-tabular px-1.5 py-0.5 rounded ${
-                bist100.changePercent >= 0 ? 'bg-emerald-500/15 text-emerald-400' : 'bg-red-500/15 text-red-400'
-              }`}>
-                {bist100.changePercent >= 0 ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
-                {fmtPct(bist100.changePercent)}
-              </span>
-            </div>
-          </div>
-        )}
+      {/* ─── ROW 1 — DATA BAND (Bloomberg style) ─────────────────────────── */}
+      <div
+        className="hidden lg:flex items-center justify-between px-4 lg:px-6 py-1.5 text-xs"
+        style={{
+          background: 'rgba(0, 0, 0, 0.2)',
+          borderBottom: '1px solid var(--border-main)',
+        }}
+      >
+        <div className="flex items-center divide-x divide-amber-500/10">
+          {bist100 && (
+            <IndexCell
+              label="BIST 100"
+              value={bist100.value}
+              change={bist100.changePercent}
+              status={isMarketOpen ? 'CANLI' : 'KAPALI'}
+              pulse={isMarketOpen}
+            />
+          )}
+          {bist30 && <IndexCell label="BIST 30" value={bist30.value} change={bist30.changePercent} />}
+          <IndexCell label="USD/TRY" value="32.41" change={0.12} />
+          <IndexCell label="EUR/TRY" value="35.18" change={-0.08} />
+          <IndexCell label="GRAM" value="2.847" change={0.84} />
+        </div>
 
-        {/* Ticker */}
-        <div
-          className="relative mx-1 hidden h-10 min-w-0 flex-1 items-center overflow-hidden rounded-lg xl:flex 2xl:mx-3"
+        <div className="flex items-center gap-3 text-[10px]">
+          <span className="flex items-center gap-1.5 text-amber-400/70 font-mono uppercase tracking-wider">
+            <span className="status-dot status-dot-gold" />
+            {fmtTime}
+          </span>
+          <span className="text-slate-500 hidden xl:inline">İstanbul · BIST</span>
+        </div>
+      </div>
+
+      {/* ─── ROW 2 — MAIN HEADER ─────────────────────────────────────────── */}
+      <div className="flex h-14 lg:h-16 w-full min-w-0 items-center justify-between gap-2 px-4 lg:px-6">
+        {/* Left: Ticker (only on xl+) */}
+        <div className="hidden xl:flex relative min-w-0 flex-1 max-w-2xl items-center h-9 overflow-hidden rounded-xl"
           style={{
             background: 'rgba(var(--bg-input-rgb), 0.5)',
             border: '1px solid var(--border-main)',
           }}
         >
-          {/* Gradient fade edges */}
-          <div className="absolute left-0 top-0 bottom-0 w-8 bg-gradient-to-r from-[var(--bg-card)] to-transparent z-10 pointer-events-none" />
-          <div className="absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-[var(--bg-card)] to-transparent z-10 pointer-events-none" />
+          <div className="absolute left-0 top-0 bottom-0 w-10 z-10 pointer-events-none"
+            style={{ background: 'linear-gradient(90deg, var(--bg-card), transparent)' }}
+          />
+          <div className="absolute right-0 top-0 bottom-0 w-10 z-10 pointer-events-none"
+            style={{ background: 'linear-gradient(-90deg, var(--bg-card), transparent)' }}
+          />
 
           <div className="flex animate-marquee whitespace-nowrap">
-            {tickerData.length > 0 ? tickerData.map((item, idx) => (
-              <div key={idx} className="ticker-item flex items-center gap-1.5 px-4 border-r border-amber-500/10 transition-colors">
-                <span className="font-bold text-white text-[12px]">{item.symbol}</span>
-                <span className={`font-mono text-[12px] num-tabular ${item.changePercent >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+            {tickerData.length > 0 ? [...tickerData, ...tickerData].map((item, idx) => (
+              <button
+                key={idx}
+                onClick={() => handleStockClick(item.symbol)}
+                className="flex items-center gap-1.5 px-3.5 border-r border-amber-500/8 hover:bg-amber-500/5 transition-colors"
+              >
+                <span className="font-bold text-white text-[11.5px] tracking-tight">{item.symbol}</span>
+                <span className={`font-mono text-[11.5px] num-tabular ${item.changePercent >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
                   {item.price ? item.price.toFixed(2) : '-'}
                 </span>
-                <span className={`text-[10px] font-semibold num-tabular ${item.changePercent >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                  {item.changePercent != null ? `${item.changePercent >= 0 ? '▲' : '▼'} ${Math.abs(item.changePercent).toFixed(2)}%` : ''}
+                <span className={`text-[10px] font-bold num-tabular ${item.changePercent >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                  {item.changePercent != null ? `${item.changePercent >= 0 ? '+' : ''}${item.changePercent.toFixed(2)}%` : ''}
                 </span>
-              </div>
+              </button>
             )) : (
-              <div className="flex items-center px-4 text-gray-400 text-xs">
+              <div className="flex items-center px-4 text-slate-400 text-xs">
                 <Activity className="w-3 h-3 mr-1.5 animate-pulse text-amber-400" />
-                Piyasa verileri yükleniyor...
+                Piyasa verileri yükleniyor…
               </div>
             )}
-            {tickerData.length > 0 && tickerData.map((item, idx) => (
-              <div key={`dup-${idx}`} className="ticker-item flex items-center gap-1.5 px-4 border-r border-amber-500/10 transition-colors">
-                <span className="font-bold text-white text-[12px]">{item.symbol}</span>
-                <span className={`font-mono text-[12px] num-tabular ${item.changePercent >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                  {item.price ? item.price.toFixed(2) : '-'}
-                </span>
-                <span className={`text-[10px] font-semibold num-tabular ${item.changePercent >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                  {item.changePercent != null ? `${item.changePercent >= 0 ? '▲' : '▼'} ${Math.abs(item.changePercent).toFixed(2)}%` : ''}
-                </span>
-              </div>
-            ))}
           </div>
         </div>
 
-        {bist30 && (
-          <div className="hidden 2xl:flex items-center gap-2 rounded-xl px-3 py-2"
-            style={{
-              background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.06), rgba(245, 158, 11, 0.02))',
-              border: '1px solid rgba(245, 158, 11, 0.2)',
-            }}
-          >
-            <span className="text-[9px] uppercase tracking-wider text-amber-400/80 font-semibold">BIST 30</span>
-            <span className="text-white font-bold num-tabular text-sm">{bist30.value?.toLocaleString('tr-TR', { maximumFractionDigits: 2 })}</span>
-            <span className={`flex items-center gap-0.5 text-[11px] font-semibold num-tabular ${
-              bist30.changePercent >= 0 ? 'text-emerald-400' : 'text-red-400'
-            }`}>
-              {bist30.changePercent >= 0 ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
-              {fmtPct(bist30.changePercent)}
+        {/* Search */}
+        <div className="relative flex-1 lg:flex-initial min-w-0 max-w-[14rem] sm:max-w-xs xl:max-w-sm">
+          <div className="relative">
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-amber-400/70 pointer-events-none" />
+            <input
+              ref={searchInputRef}
+              type="text"
+              placeholder="Hisse veya kripto ara…"
+              value={searchQuery}
+              onChange={(e) => handleSearch(e.target.value)}
+              onFocus={() => searchResults.length > 0 && setShowResults(true)}
+              onBlur={() => setTimeout(() => setShowResults(false), 200)}
+              className="input-premium pl-10 pr-10 !py-2.5 !text-[13px]"
+            />
+            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[9px] uppercase tracking-wider text-slate-500 font-mono px-1.5 py-0.5 rounded border border-slate-700/50 hidden md:block">
+              /
             </span>
           </div>
-        )}
-      </div>
 
-      {/* Search Bar */}
-      <div className="relative mx-1 min-w-0 flex-1 max-w-[11rem] sm:max-w-xs xl:mx-4 xl:max-w-sm 2xl:max-w-md">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-amber-400/70" />
-          <input
-            type="text"
-            placeholder="Hisse veya kripto ara…"
-            value={searchQuery}
-            onChange={(e) => handleSearch(e.target.value)}
-            onFocus={() => searchResults.length > 0 && setShowResults(true)}
-            onBlur={() => setTimeout(() => setShowResults(false), 200)}
-            className="w-full rounded-xl pl-10 pr-4 py-2.5 text-[13px] placeholder-gray-500 focus:outline-none transition-all focus-gold"
-            style={{
-              background: 'rgba(var(--bg-input-rgb), 0.7)',
-              border: '1px solid var(--border-main)',
-              color: 'var(--text-primary)',
-            }}
-          />
+          {showResults && searchResults.length > 0 && (
+            <div className="absolute top-full left-0 right-0 mt-2 overflow-hidden z-50 rounded-xl surface-glass">
+              {searchResults.slice(0, 10).map((stock) => (
+                <button
+                  key={`${stock.isCrypto ? 'crypto' : 'stock'}-${stock.symbol}`}
+                  onClick={() => handleStockClick(stock.symbol, stock.isCrypto)}
+                  className="w-full flex items-center justify-between px-4 py-3 hover:bg-amber-500/8 transition-colors border-b last:border-b-0 border-amber-500/5"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className={`w-9 h-9 rounded-lg flex items-center justify-center font-bold text-[11px] flex-shrink-0 ${
+                      stock.isCrypto
+                        ? 'bg-orange-500/15 text-orange-400 border border-orange-500/30'
+                        : 'bg-amber-500/15 text-amber-400 border border-amber-500/30'
+                    }`}>
+                      {stock.isCrypto ? '◎' : stock.symbol.slice(0, 2)}
+                    </div>
+                    <div className="text-left min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="text-white font-semibold text-[13px]">{stock.symbol}</span>
+                        {stock.isCrypto && <span className="pill pill-azure !text-[8px] !py-0">KRİPTO</span>}
+                      </div>
+                      <div className="text-slate-400 text-[11px] truncate max-w-[160px]">{stock.name}</div>
+                    </div>
+                  </div>
+                  {stock.price != null && (
+                    <div className="text-right">
+                      <div className="text-white font-bold num-tabular text-[13px]">
+                        {stock.price?.toFixed(2)} <span className="text-slate-500 text-[10px]">{stock.isCrypto ? '$' : '₺'}</span>
+                      </div>
+                      {stock.changePercent != null && (
+                        <div className={`text-[11px] font-bold num-tabular ${stock.changePercent >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                          {stock.changePercent >= 0 ? '+' : ''}{stock.changePercent.toFixed(2)}%
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
-        {showResults && searchResults.length > 0 && (
-          <div
-            className="absolute top-full left-0 right-0 mt-2 overflow-hidden z-50 rounded-xl glass shadow-premium"
-            style={{ border: '1px solid rgba(245, 158, 11, 0.25)' }}
+        {/* Right cluster */}
+        <div className="flex shrink-0 items-center gap-2">
+          {/* Usage badge */}
+          {!isPremium && (
+            <button
+              onClick={() => navigate('/abonelik')}
+              className={`hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-bold border transition-all hover:scale-105 ${
+                remaining > 3
+                  ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/25'
+                  : remaining > 0
+                    ? 'bg-amber-500/10 text-amber-400 border-amber-500/25'
+                    : 'bg-red-500/10 text-red-400 border-red-500/25'
+              }`}
+              title="Günlük kullanım hakkı"
+            >
+              <Zap className="w-3.5 h-3.5" />
+              <span className="num-tabular">{remaining}/{DAILY_LIMIT}</span>
+            </button>
+          )}
+
+          {/* Notifications */}
+          <button
+            className="relative p-2 rounded-xl transition-all border border-transparent hover:border-amber-500/25 hover:bg-amber-500/8"
+            aria-label="Bildirimler"
           >
-            {searchResults.slice(0, 10).map((stock) => (
-              <button
-                key={`${stock.isCrypto ? 'crypto' : 'stock'}-${stock.symbol}`}
-                onClick={() => handleStockClick(stock.symbol, stock.isCrypto)}
-                className="w-full flex items-center justify-between px-4 py-3 hover:bg-amber-500/10 transition-colors border-b last:border-b-0 border-amber-500/5"
-              >
-                <div className="flex items-center gap-3">
-                  <div className={`w-9 h-9 rounded-xl flex items-center justify-center font-bold text-xs flex-shrink-0 ${
-                    stock.isCrypto
-                      ? 'bg-gradient-to-br from-orange-500/30 to-orange-600/20 text-orange-400 border border-orange-500/30'
-                      : 'bg-gradient-to-br from-amber-500/30 to-amber-600/20 text-amber-400 border border-amber-500/30'
-                  }`}>
-                    {stock.isCrypto ? '🪙' : stock.symbol.slice(0, 2)}
-                  </div>
-                  <div className="text-left">
-                    <div className="flex items-center gap-2">
-                      <span className="text-white font-semibold text-sm">{stock.symbol}</span>
-                      {stock.isCrypto && <span className="text-[9px] text-orange-400 bg-orange-500/10 px-1.5 py-0.5 rounded-md font-bold tracking-wide">KRİPTO</span>}
-                    </div>
-                    <div className="text-gray-400 text-[11px] truncate max-w-[160px]">{stock.name}</div>
-                  </div>
-                </div>
-                {stock.price && (
-                  <div className="text-right">
-                    <div className="text-white font-bold num-tabular text-sm">{stock.price?.toFixed(2)} <span className="text-gray-400 text-[10px]">{stock.isCrypto ? '$' : '₺'}</span></div>
-                    {stock.changePercent != null && (
-                      <div className={`text-[11px] font-semibold num-tabular ${stock.changePercent >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                        {fmtPct(stock.changePercent)}
-                      </div>
-                    )}
-                  </div>
-                )}
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
+            <Bell className="w-4 h-4 text-slate-400" />
+            <span className="absolute top-1 right-1 w-2 h-2 rounded-full status-dot-gold" />
+          </button>
 
-      {/* Right Side */}
-      <div className="flex shrink-0 items-center gap-2 lg:gap-3">
-        {!isPremium && (
-          <div className={`hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold border ${
-            remaining > 3
-              ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/25'
-              : remaining > 0
-                ? 'bg-amber-500/10 text-amber-400 border-amber-500/25'
-                : 'bg-red-500/10 text-red-400 border-red-500/25'
-          }`}>
-            <Zap className="w-3.5 h-3.5" />
-            <span className="num-tabular">{remaining}/{DAILY_LIMIT}</span>
-          </div>
-        )}
+          {/* User menu */}
+          <div className="relative group flex items-center gap-2 lg:gap-2.5 pl-2 lg:pl-2.5 border-l border-amber-500/15 ml-1">
+            <div className="text-right hidden lg:block">
+              <p className="text-[12.5px] font-semibold text-white leading-tight">
+                {user?.firstName ? `${user.firstName} ${user.lastName || ''}`.trim() : 'Kullanıcı'}
+              </p>
+              <p className="text-[10px] text-amber-400 font-bold flex items-center gap-1 justify-end mt-0.5 uppercase tracking-wider">
+                <Crown className="w-2.5 h-2.5" />
+                {user?.plan === 'lifetime' ? 'Lifetime' :
+                 user?.plan === 'pro_monthly' ? 'Pro Üye' :
+                 user?.isDemo ? 'Demo' : 'Premium'}
+              </p>
+            </div>
 
-        <button
-          className="relative p-2 hover:bg-amber-500/10 rounded-xl transition-all border border-transparent hover:border-amber-500/25"
-          aria-label="Bildirimler"
-        >
-          <Bell className="w-4 h-4 text-gray-400 group-hover:text-amber-400" />
-          <span className="absolute top-1 right-1 w-2 h-2 bg-amber-500 rounded-full pulse-ring"></span>
-        </button>
-
-        <div className="flex items-center gap-2 lg:gap-3 pl-2 lg:pl-3 border-l border-amber-500/15">
-          <div className="text-right hidden lg:block">
-            <p className="text-[13px] font-semibold text-white leading-tight">{user?.firstName ? `${user.firstName} ${user.lastName || ''}`.trim() : 'Kullanıcı'}</p>
-            <p className="text-[10px] text-amber-400 font-medium flex items-center gap-1 justify-end">
-              <Sparkles className="w-2.5 h-2.5" />
-              Premium Üye
-            </p>
-          </div>
-
-          <div className="relative group">
             <button className="hover:glow-gold transition-all rounded-2xl" aria-label="Kullanıcı menüsü">
               <BrandMark size="md" />
             </button>
 
             <div
-              className="absolute right-0 top-full mt-2 w-52 rounded-xl glass shadow-premium opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all translate-y-1 group-hover:translate-y-0 z-50"
-              style={{ border: '1px solid rgba(245, 158, 11, 0.25)' }}
+              className="absolute right-0 top-full mt-2 w-56 rounded-xl surface-glass shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all translate-y-1 group-hover:translate-y-0 z-50"
             >
-              <div className="p-2">
-                <div className="px-3 py-2 border-b border-amber-500/15 mb-1">
-                  <div className="text-[13px] font-semibold text-white truncate">{user?.email || 'demo@borsakrali.com'}</div>
-                  <div className="text-[10px] text-amber-400 font-medium mt-0.5">
+              <div className="p-1.5">
+                <div className="px-3 py-2.5 border-b border-amber-500/15 mb-1">
+                  <div className="text-[12.5px] font-semibold text-white truncate">{user?.email || 'demo@borsakrali.com'}</div>
+                  <div className="text-[10px] text-amber-400 font-bold mt-0.5 uppercase tracking-wider flex items-center gap-1">
+                    <Crown className="w-2.5 h-2.5" />
                     {user?.plan === 'lifetime' ? 'Lifetime' : user?.plan === 'pro_monthly' ? 'Pro Aylık' : user?.isDemo ? 'Demo Erişim' : 'Premium'}
                   </div>
                 </div>
-                <button
-                  onClick={() => navigate('/ayarlar')}
-                  className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg hover:bg-amber-500/10 transition-colors text-left"
-                >
-                  <Settings className="w-4 h-4 text-amber-400" />
-                  <span className="text-[13px] text-gray-200">Ayarlar</span>
-                </button>
-                <button
-                  onClick={() => navigate('/sifre-degistir')}
-                  className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg hover:bg-amber-500/10 transition-colors text-left"
-                >
-                  <KeyRound className="w-4 h-4 text-amber-400" />
-                  <span className="text-[13px] text-gray-200">Şifre Değiştir</span>
-                </button>
-                <button
-                  onClick={() => navigate('/abonelik')}
-                  className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg hover:bg-amber-500/10 transition-colors text-left"
-                >
-                  <Sparkles className="w-4 h-4 text-amber-400" />
-                  <span className="text-[13px] text-gray-200">Abonelik</span>
-                </button>
-                <div className="my-1 border-t border-amber-500/15" />
+                {[
+                  { icon: Settings, label: 'Ayarlar', to: '/ayarlar' },
+                  { icon: KeyRound, label: 'Şifre Değiştir', to: '/sifre-degistir' },
+                  { icon: Sparkles, label: 'Abonelik', to: '/abonelik' },
+                ].map(item => {
+                  const Icon = item.icon
+                  return (
+                    <button
+                      key={item.to}
+                      onClick={() => navigate(item.to)}
+                      className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg hover:bg-amber-500/10 transition-colors text-left text-[13px] text-slate-200"
+                    >
+                      <Icon className="w-4 h-4 text-amber-400" />
+                      {item.label}
+                    </button>
+                  )
+                })}
+                <div className="my-1 divider-gold" />
                 <button
                   onClick={logout}
-                  className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg hover:bg-red-500/10 transition-colors text-left"
+                  className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg hover:bg-red-500/10 transition-colors text-left text-[13px] text-red-400"
                 >
-                  <LogOut className="w-4 h-4 text-red-400" />
-                  <span className="text-[13px] text-red-400">Çıkış Yap</span>
+                  <LogOut className="w-4 h-4" />
+                  Çıkış Yap
                 </button>
               </div>
             </div>
