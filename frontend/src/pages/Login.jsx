@@ -7,6 +7,7 @@ import {
   CandlestickChart, Cpu, Lightbulb,
 } from 'lucide-react'
 import { loginWithPassword } from '../services/auth'
+import BrandMark from '../components/BrandMark'
 
 /* ────────────────────────────────────────────────────────────────────────────
    Animated chart backdrop — pure SVG, performant, theme-aware.
@@ -247,18 +248,7 @@ export default function Login() {
         {/* Top bar — brand + ticker chips */}
         <div className="relative z-10 flex items-center justify-between p-8">
           <div className="flex items-center gap-3">
-            <div className="relative">
-              <div
-                className="w-12 h-12 rounded-2xl flex items-center justify-center"
-                style={{
-                  background: 'linear-gradient(135deg, #fef3c7 0%, #d4af37 50%, #8b6510 100%)',
-                  boxShadow: '0 8px 28px rgba(212, 175, 55, 0.45), inset 0 1px 0 rgba(255,255,255,0.5)',
-                }}
-              >
-                <Crown className="w-6 h-6 text-slate-950" strokeWidth={2.6} />
-              </div>
-              <Sparkles className="absolute -top-1 -right-1 w-3.5 h-3.5 text-amber-300 animate-pulse" />
-            </div>
+            <BrandMark size="lg" />
             <div>
               <h1 className="text-xl font-bold text-gold-shimmer tracking-wider leading-none">BORSA KRALI</h1>
               <p className="text-amber-300/70 text-[10px] uppercase tracking-[0.22em] font-bold mt-1">Obsidian Edition</p>
@@ -345,14 +335,8 @@ export default function Login() {
         <div className="max-w-[400px] w-full">
           {/* Mobile brand */}
           <div className="text-center mb-8 lg:hidden">
-            <div className="relative inline-flex items-center justify-center w-14 h-14 rounded-2xl mb-4"
-              style={{
-                background: 'linear-gradient(135deg, #fef3c7, #d4af37 50%, #8b6510)',
-                boxShadow: '0 8px 28px rgba(212, 175, 55, 0.5)',
-              }}
-            >
-              <Crown className="w-7 h-7 text-slate-950" strokeWidth={2.6} />
-              <Sparkles className="absolute -top-1 -right-1 w-3.5 h-3.5 text-amber-300 animate-pulse" />
+            <div className="inline-flex mb-4">
+              <BrandMark size="xl" />
             </div>
             <h1 className="text-2xl font-bold text-gold-shimmer tracking-wider">BORSA KRALI</h1>
             <p className="text-amber-400/80 text-[10px] uppercase tracking-[0.22em] font-bold mt-1">Obsidian Edition</p>

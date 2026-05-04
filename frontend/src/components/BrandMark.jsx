@@ -1,20 +1,22 @@
 const SIZE_MAP = {
-  sm: 'w-8 h-8 p-1',
-  md: 'w-10 h-10 p-1.5',
-  lg: 'w-12 h-12 p-1.5',
+  xs: 'w-6 h-6',
+  sm: 'w-8 h-8',
+  md: 'w-10 h-10',
+  lg: 'w-14 h-14',
+  xl: 'w-20 h-20',
 }
 
 export default function BrandMark({ size = 'md', className = '', imageClassName = '' }) {
   const sizeClass = SIZE_MAP[size] || SIZE_MAP.md
 
   return (
-    <div
-      className={`rounded-2xl border border-gold-500/25 bg-white shadow-sm shadow-amber-500/10 ${sizeClass} ${className}`.trim()}
-    >
+    <div className={`relative inline-flex items-center justify-center ${sizeClass} ${className}`.trim()}>
       <img
-        src="/logo-borsakrali.svg"
+        src="/icon-512.png"
         alt="Borsa Krali"
-        className={`w-full h-full object-cover rounded-xl ${imageClassName}`.trim()}
+        className={`w-full h-full object-contain drop-shadow-[0_2px_8px_rgba(212,175,55,0.35)] ${imageClassName}`.trim()}
+        loading="eager"
+        decoding="async"
       />
     </div>
   )

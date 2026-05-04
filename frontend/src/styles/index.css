@@ -993,3 +993,38 @@ select.premium:hover, select.premium:focus { border-color: var(--border-gold-str
   .badge-danger  { @apply bg-red-500/15 text-red-400 px-2 py-0.5 rounded-md text-xs font-semibold tracking-wide; }
   .badge-warning { @apply bg-amber-500/15 text-amber-400 px-2 py-0.5 rounded-md text-xs font-semibold tracking-wide; }
 }
+
+/* ─── MOBILE POLISH (added) ────────────────────────────────────────────────── */
+
+/* Any direct table that escaped a .table-shell still gets safe horizontal scroll */
+@media (max-width: 768px) {
+  /* Tables not already in a scrollable shell scroll themselves */
+  table:not(.table-shell table) {
+    display: block;
+    width: 100%;
+    max-width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  /* Make sure cards/grids never overflow viewport even with long unbreakable strings */
+  main, article, section, .surface-card, .surface-card-gold {
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
+  /* Long stock symbols / tickers should never break the layout */
+  td, th { white-space: nowrap; }
+  /* Numeric columns stay tight; first column gets a sticky-left feel */
+  .table-shell thead th { position: sticky; top: 0; background: var(--bg-card); z-index: 1; }
+
+  /* Tight-pack default: smaller heading scale on mobile */
+  h1 { font-size: clamp(1.35rem, 5vw, 1.875rem); }
+  h2 { font-size: clamp(1.15rem, 4.5vw, 1.5rem); }
+
+  /* Cards: less aggressive padding on small screens */
+  .card { padding: 0.875rem; }
+}
+
+/* Crisp logo rendering at small sizes */
+img[alt="Borsa Krali"] {
+  image-rendering: -webkit-optimize-contrast;
+}

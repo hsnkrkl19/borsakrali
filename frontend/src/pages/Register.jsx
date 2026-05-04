@@ -4,7 +4,6 @@ import {
   AlertCircle,
   ArrowRight,
   Check,
-  Crown,
   Eye,
   EyeOff,
   Loader,
@@ -16,6 +15,7 @@ import {
   User,
   Zap,
 } from 'lucide-react'
+import BrandMark from '../components/BrandMark'
 import PasswordChecklist from '../components/PasswordChecklist'
 import { loginWithPassword, registerWithPassword } from '../services/auth'
 import { useAuthStore } from '../store/authStore'
@@ -138,9 +138,7 @@ export default function Register() {
       <div className="grid min-h-screen lg:grid-cols-[0.95fr_1.05fr]">
         <aside className="relative hidden overflow-hidden border-r border-gold-500/10 bg-[radial-gradient(circle_at_top_left,rgba(234,179,8,0.18),transparent_35%),radial-gradient(circle_at_bottom_right,rgba(245,158,11,0.16),transparent_30%),linear-gradient(180deg,#09090b_0%,#111217_100%)] p-12 lg:flex lg:flex-col">
           <div className="mb-12 flex items-center gap-3">
-            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-gold-400 to-gold-600 shadow-glow-gold">
-              <Crown className="h-8 w-8 text-dark-950" />
-            </div>
+            <BrandMark size="lg" />
             <div>
               <div className="bg-gradient-to-r from-gold-300 to-gold-500 bg-clip-text text-3xl font-bold text-transparent">
                 BORSA KRALI
@@ -187,8 +185,8 @@ export default function Register() {
         <main className="flex items-center justify-center px-4 py-10 sm:px-6 lg:px-10">
           <div className="w-full max-w-xl">
             <div className="mb-8 text-center lg:hidden">
-              <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-gold-400 to-gold-600 shadow-glow-gold">
-                <Crown className="h-8 w-8 text-dark-950" />
+              <div className="mx-auto mb-4 flex justify-center">
+                <BrandMark size="xl" />
               </div>
               <h1 className="bg-gradient-to-r from-gold-300 to-gold-500 bg-clip-text text-3xl font-bold text-transparent">
                 BORSA KRALI
