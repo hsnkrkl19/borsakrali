@@ -72,7 +72,30 @@ export default function Header() {
   const [bist30, setBist30] = useState(null)
   const [tickerData, setTickerData] = useState([])
   const [time, setTime] = useState(new Date())
+  const [userMenuOpen, setUserMenuOpen] = useState(false)
   const searchInputRef = useRef(null)
+  const userMenuRef = useRef(null)
+
+  useEffect(() => {
+    if (!userMenuOpen) return
+    const handler = (e) => {
+      if (userMenuRef.current && !userMenuRef.current.contains(e.target)) {
+        setUserMenuOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handler)
+    document.addEventListener('touchstart', handler)
+    return () => {
+      document.removeEventListener('mousedown', handler)
+      document.removeEventListener('touchstart', handler)
+    }
+  }, [userMenuOpen])
+
+  const handleLogout = () => {
+    setUserMenuOpen(false)
+    logout()
+    navigate('/login')
+  }
 
   useEffect(() => {
     const fetchMarketData = async () => {
@@ -337,7 +360,7 @@ export default function Header() {
           </button>
 
           {/* User menu */}
-          <div className="relative group flex items-center gap-2 lg:gap-2.5 pl-2 lg:pl-2.5 border-l border-amber-500/15 ml-1">
+          <div ref={userMenuRef} className="relative flex items-center gap-2 lg:gap-2.5 pl-2 lg:pl-2.5 border-l border-amber-500/15 ml-1">
             <div className="text-right hidden lg:block">
               <p className="text-[12.5px] font-semibold text-white leading-tight">
                 {user?.firstName ? `${user.firstName} ${user.lastName || ''}`.trim() : 'Kullanıcı'}
@@ -350,48 +373,60 @@ export default function Header() {
               </p>
             </div>
 
-            <button className="hover:glow-gold transition-all rounded-2xl" aria-label="Kullanıcı menüsü">
+            <button
+              type="button"
+              onClick={() => setUserMenuOpen((v) => !v)}
+              className="hover:glow-gold transition-all rounded-2xl"
+              aria-label="Kullanıcı menüsü"
+              aria-expanded={userMenuOpen}
+              aria-haspopup="menu"
+            >
               <BrandMark size="md" />
             </button>
 
-            <div
-              className="absolute right-0 top-full mt-2 w-56 rounded-xl surface-glass shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all translate-y-1 group-hover:translate-y-0 z-50"
-            >
-              <div className="p-1.5">
-                <div className="px-3 py-2.5 border-b border-amber-500/15 mb-1">
-                  <div className="text-[12.5px] font-semibold text-white truncate">{user?.email || 'demo@borsakrali.com'}</div>
-                  <div className="text-[10px] text-amber-400 font-bold mt-0.5 uppercase tracking-wider flex items-center gap-1">
-                    <Crown className="w-2.5 h-2.5" />
-                    {user?.plan === 'lifetime' ? 'Lifetime' : user?.plan === 'pro_monthly' ? 'Pro Aylık' : user?.isDemo ? 'Demo Erişim' : 'Premium'}
+            {userMenuOpen && (
+              <div
+                role="menu"
+                className="absolute right-0 top-full mt-2 w-56 rounded-xl surface-glass shadow-xl z-50"
+              >
+                <div className="p-1.5">
+                  <div className="px-3 py-2.5 border-b border-amber-500/15 mb-1">
+                    <div className="text-[12.5px] font-semibold text-white truncate">{user?.email || 'demo@borsakrali.com'}</div>
+                    <div className="text-[10px] text-amber-400 font-bold mt-0.5 uppercase tracking-wider flex items-center gap-1">
+                      <Crown className="w-2.5 h-2.5" />
+                      {user?.plan === 'lifetime' ? 'Lifetime' : user?.plan === 'pro_monthly' ? 'Pro Aylık' : user?.isDemo ? 'Demo Erişim' : 'Premium'}
+                    </div>
                   </div>
+                  {[
+                    { icon: Settings, label: 'Ayarlar', to: '/ayarlar' },
+                    { icon: KeyRound, label: 'Şifre Değiştir', to: '/sifre-degistir' },
+                    { icon: Sparkles, label: 'Abonelik', to: '/abonelik' },
+                  ].map(item => {
+                    const Icon = item.icon
+                    return (
+                      <button
+                        key={item.to}
+                        role="menuitem"
+                        onClick={() => { setUserMenuOpen(false); navigate(item.to) }}
+                        className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg hover:bg-amber-500/10 transition-colors text-left text-[13px] text-slate-200"
+                      >
+                        <Icon className="w-4 h-4 text-amber-400" />
+                        {item.label}
+                      </button>
+                    )
+                  })}
+                  <div className="my-1 divider-gold" />
+                  <button
+                    role="menuitem"
+                    onClick={handleLogout}
+                    className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg hover:bg-red-500/10 transition-colors text-left text-[13px] text-red-400"
+                  >
+                    <LogOut className="w-4 h-4" />
+                    Çıkış Yap
+                  </button>
                 </div>
-                {[
-                  { icon: Settings, label: 'Ayarlar', to: '/ayarlar' },
-                  { icon: KeyRound, label: 'Şifre Değiştir', to: '/sifre-degistir' },
-                  { icon: Sparkles, label: 'Abonelik', to: '/abonelik' },
-                ].map(item => {
-                  const Icon = item.icon
-                  return (
-                    <button
-                      key={item.to}
-                      onClick={() => navigate(item.to)}
-                      className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg hover:bg-amber-500/10 transition-colors text-left text-[13px] text-slate-200"
-                    >
-                      <Icon className="w-4 h-4 text-amber-400" />
-                      {item.label}
-                    </button>
-                  )
-                })}
-                <div className="my-1 divider-gold" />
-                <button
-                  onClick={logout}
-                  className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg hover:bg-red-500/10 transition-colors text-left text-[13px] text-red-400"
-                >
-                  <LogOut className="w-4 h-4" />
-                  Çıkış Yap
-                </button>
               </div>
-            </div>
+            )}
           </div>
         </div>
       </div>

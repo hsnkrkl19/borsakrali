@@ -1,4 +1,4 @@
-import { NavLink } from 'react-router-dom'
+import { NavLink, useNavigate } from 'react-router-dom'
 import {
   LayoutDashboard,
   Target,
@@ -19,12 +19,45 @@ import {
   Calendar,
   Sparkles,
   Crown,
+  LogOut,
+  KeyRound,
 } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
 import { useAuthStore } from '../store/authStore'
 import BrandMark from './BrandMark'
 
 export default function Sidebar({ isOpen, onToggle }) {
   const user = useAuthStore((state) => state.user)
+  const logout = useAuthStore((state) => state.logout)
+  const navigate = useNavigate()
+  const [profileMenuOpen, setProfileMenuOpen] = useState(false)
+  const profileMenuRef = useRef(null)
+
+  useEffect(() => {
+    if (!profileMenuOpen) return
+    const handler = (e) => {
+      if (profileMenuRef.current && !profileMenuRef.current.contains(e.target)) {
+        setProfileMenuOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handler)
+    document.addEventListener('touchstart', handler)
+    return () => {
+      document.removeEventListener('mousedown', handler)
+      document.removeEventListener('touchstart', handler)
+    }
+  }, [profileMenuOpen])
+
+  const handleLogout = () => {
+    setProfileMenuOpen(false)
+    logout()
+    navigate('/login')
+  }
+
+  const goTo = (path) => {
+    setProfileMenuOpen(false)
+    navigate(path)
+  }
 
   // === SADELEŞTİRİLMİŞ NAVİGASYON ===
   // 23 sekme → 11 sekme. Tek işlevli sayfalar tek çatı altında birleşti.
@@ -197,16 +230,21 @@ export default function Sidebar({ isOpen, onToggle }) {
       </nav>
 
       {/* Footer card */}
-      <div className="flex-shrink-0 p-2 border-t border-amber-500/15">
-        <div
-          className={`relative overflow-hidden rounded-xl p-3 ${isOpen ? '' : 'flex items-center justify-center'}`}
+      <div ref={profileMenuRef} className="flex-shrink-0 p-2 border-t border-amber-500/15 relative">
+        <button
+          type="button"
+          onClick={() => setProfileMenuOpen((v) => !v)}
+          aria-expanded={profileMenuOpen}
+          aria-haspopup="menu"
+          aria-label="Profil menüsü"
+          className={`relative overflow-hidden rounded-xl p-3 w-full text-left transition-all hover:brightness-110 ${isOpen ? '' : 'flex items-center justify-center'}`}
           style={{
             background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.08), rgba(245, 158, 11, 0.02))',
             border: '1px solid rgba(245, 158, 11, 0.2)',
           }}
         >
           {/* Subtle shimmer overlay */}
-          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-amber-500/5 to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-amber-500/5 to-transparent pointer-events-none" />
 
           {isOpen ? (
             <div className="relative flex items-center space-x-2.5">
@@ -219,18 +257,69 @@ export default function Sidebar({ isOpen, onToggle }) {
                   {user?.firstName || 'Borsa Kralı'}
                   <Sparkles className="w-3 h-3 text-amber-400" />
                 </div>
-                <div className="text-[10px] text-amber-400 font-medium tracking-wide">
+                <div className="text-[10px] text-amber-400 font-medium tracking-wide truncate">
                   {user?.plan === 'lifetime' ? 'Lifetime Üyelik' :
                    user?.plan === 'pro_monthly' ? 'Pro Aylık' :
                    user?.plan === 'starter_monthly' ? 'Starter' :
                    user?.isDemo ? 'Demo Erişim' : 'Premium Platform'}
                 </div>
               </div>
+              <ChevronRight
+                className={`w-4 h-4 text-amber-400/70 flex-shrink-0 transition-transform ${profileMenuOpen ? 'rotate-90' : ''}`}
+              />
             </div>
           ) : (
             <BrandMark size="md" className="rounded-full glow-gold" imageClassName="rounded-full" />
           )}
-        </div>
+        </button>
+
+        {profileMenuOpen && (
+          <div
+            role="menu"
+            className="absolute bottom-full left-2 right-2 mb-2 rounded-xl surface-glass shadow-xl z-50"
+          >
+            <div className="p-1.5">
+              {user?.email && (
+                <div className="px-3 py-2 border-b border-amber-500/15 mb-1">
+                  <div className="text-[11.5px] font-medium text-slate-300 truncate">{user.email}</div>
+                </div>
+              )}
+              <button
+                role="menuitem"
+                onClick={() => goTo('/ayarlar')}
+                className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg hover:bg-amber-500/10 transition-colors text-left text-[13px] text-slate-200"
+              >
+                <Settings className="w-4 h-4 text-amber-400" />
+                Ayarlar
+              </button>
+              <button
+                role="menuitem"
+                onClick={() => goTo('/sifre-degistir')}
+                className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg hover:bg-amber-500/10 transition-colors text-left text-[13px] text-slate-200"
+              >
+                <KeyRound className="w-4 h-4 text-amber-400" />
+                Şifre Değiştir
+              </button>
+              <button
+                role="menuitem"
+                onClick={() => goTo('/abonelik')}
+                className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg hover:bg-amber-500/10 transition-colors text-left text-[13px] text-slate-200"
+              >
+                <Sparkles className="w-4 h-4 text-amber-400" />
+                Abonelik
+              </button>
+              <div className="my-1 h-px bg-amber-500/15" />
+              <button
+                role="menuitem"
+                onClick={handleLogout}
+                className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg hover:bg-red-500/10 transition-colors text-left text-[13px] text-red-400 font-medium"
+              >
+                <LogOut className="w-4 h-4" />
+                Çıkış Yap
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </aside>
   )
