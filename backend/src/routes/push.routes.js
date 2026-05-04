@@ -17,14 +17,14 @@ const registerLimiter = rateLimit({
   },
 });
 
-function getOptionalUser(req) {
+async function getOptionalUser(req) {
   const authHeader = req.headers.authorization;
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
     return null;
   }
 
   const token = authHeader.split(' ')[1];
-  const verified = authService.verifyToken(token);
+  const verified = await authService.verifyToken(token);
   return verified.success ? verified.user : null;
 }
 
@@ -35,7 +35,7 @@ router.get('/status', (req, res) => {
 router.post('/register', registerLimiter, async (req, res) => {
   const result = await pushNotificationService.registerDevice({
     ...req.body,
-    user: getOptionalUser(req),
+    user: await getOptionalUser(req),
   });
 
   res.status(result.statusCode || (result.success ? 200 : 500)).json(result);

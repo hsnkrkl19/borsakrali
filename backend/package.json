@@ -25,6 +25,7 @@
   "author": "Borsa Sanatı Team",
   "license": "MIT",
   "dependencies": {
+    "@supabase/supabase-js": "^2.105.3",
     "axios": "^1.6.5",
     "axios-cookiejar-support": "^6.0.5",
     "bcrypt": "^5.1.1",

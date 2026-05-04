@@ -225,7 +225,7 @@ app.post('/api/auth/change-password', authLimiter, async (req, res) => {
     }
 
     const token = authHeader.split(' ')[1];
-    const verified = authService.verifyToken(token);
+    const verified = await authService.verifyToken(token);
 
     if (!verified.success) {
       return res.status(401).json(verified);
@@ -258,7 +258,7 @@ app.post('/api/auth/change-password', authLimiter, async (req, res) => {
 });
 
 // Mevcut kullanici bilgisi
-app.get('/api/auth/me', (req, res) => {
+app.get('/api/auth/me', async (req, res) => {
   const authHeader = req.headers.authorization;
 
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -266,7 +266,7 @@ app.get('/api/auth/me', (req, res) => {
   }
 
   const token = authHeader.split(' ')[1];
-  const result = authService.verifyToken(token);
+  const result = await authService.verifyToken(token);
 
   if (result.success) {
     res.json({ success: true, user: result.user });
@@ -276,7 +276,7 @@ app.get('/api/auth/me', (req, res) => {
 });
 
 // Token yenileme
-app.post('/api/auth/refresh', (req, res) => {
+app.post('/api/auth/refresh', async (req, res) => {
   const authHeader = req.headers.authorization;
 
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -284,7 +284,7 @@ app.post('/api/auth/refresh', (req, res) => {
   }
 
   const token = authHeader.split(' ')[1];
-  const result = authService.verifyToken(token);
+  const result = await authService.verifyToken(token);
 
   if (result.success) {
     res.json({ success: true, user: result.user });
@@ -294,7 +294,7 @@ app.post('/api/auth/refresh', (req, res) => {
 });
 
 // Web uzerinden hesap silme talebi
-app.post('/api/auth/account-deletion-request', (req, res) => {
+app.post('/api/auth/account-deletion-request', async (req, res) => {
   try {
     const { email, note } = req.body;
 
@@ -302,7 +302,7 @@ app.post('/api/auth/account-deletion-request', (req, res) => {
       return res.status(400).json({ success: false, error: 'E-posta gerekli' });
     }
 
-    const result = authService.createDeletionRequest({ email, note });
+    const result = await authService.createDeletionRequest({ email, note });
     if (result.success) {
       res.json(result);
     } else {
@@ -315,7 +315,7 @@ app.post('/api/auth/account-deletion-request', (req, res) => {
 });
 
 // Uygulama icinden hesap silme
-app.delete('/api/auth/delete-account', (req, res) => {
+app.delete('/api/auth/delete-account', async (req, res) => {
   try {
     const authHeader = req.headers.authorization;
 
@@ -324,13 +324,13 @@ app.delete('/api/auth/delete-account', (req, res) => {
     }
 
     const token = authHeader.split(' ')[1];
-    const verified = authService.verifyToken(token);
+    const verified = await authService.verifyToken(token);
 
     if (!verified.success) {
       return res.status(401).json(verified);
     }
 
-    const result = authService.deleteUserAccount(verified.user.id);
+    const result = await authService.deleteUserAccount(verified.user.id);
     if (result.success) {
       res.json({ success: true, message: 'Hesabiniz silindi' });
     } else {
@@ -419,28 +419,28 @@ app.get('/api/subscription/plans', (req, res) => {
 });
 
 // Auth middleware for subscription
-function requireAuth(req, res, next) {
+async function requireAuth(req, res, next) {
   const authHeader = req.headers.authorization;
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
     return res.status(401).json({ success: false, error: 'Token gerekli' });
   }
   const token = authHeader.split(' ')[1];
-  const result = authService.verifyToken(token);
+  const result = await authService.verifyToken(token);
   if (!result.success) return res.status(401).json(result);
   req.user = result.user;
   next();
 }
 
 // Kullanicinin aktif plan durumu
-app.get('/api/subscription/status', requireAuth, (req, res) => {
-  const status = authService.getSubscriptionStatus(req.user.id);
+app.get('/api/subscription/status', requireAuth, async (req, res) => {
+  const status = await authService.getSubscriptionStatus(req.user.id);
   if (!status) return res.status(404).json({ success: false, error: 'Kullanici bulunamadi' });
   const plan = SUBSCRIPTION_PLANS.find(p => p.id === status.plan) || SUBSCRIPTION_PLANS[0];
   res.json({ success: true, ...status, planDetails: plan });
 });
 
 // Plan yukseltme (placeholder — gercek odeme sonra)
-app.post('/api/subscription/upgrade', requireAuth, (req, res) => {
+app.post('/api/subscription/upgrade', requireAuth, async (req, res) => {
   const { planId } = req.body;
   const plan = SUBSCRIPTION_PLANS.find(p => p.id === planId);
   if (!plan) return res.status(400).json({ success: false, error: 'Gecersiz plan' });
@@ -454,7 +454,7 @@ app.post('/api/subscription/upgrade', requireAuth, (req, res) => {
     expiry = d.toISOString();
   }
 
-  const result = authService.updateUserPlan(req.user.id, planId, expiry);
+  const result = await authService.updateUserPlan(req.user.id, planId, expiry);
   if (!result.success) return res.status(500).json(result);
 
   res.json({

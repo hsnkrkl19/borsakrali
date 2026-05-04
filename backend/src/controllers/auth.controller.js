@@ -165,7 +165,7 @@ class AuthController {
         });
       }
 
-      const result = authService.verifyToken(refreshToken);
+      const result = await authService.verifyToken(refreshToken);
 
       if (!result.success) {
         return res.status(401).json(result);
@@ -192,7 +192,7 @@ class AuthController {
         });
       }
 
-      const result = authService.verifyToken(token);
+      const result = await authService.verifyToken(token);
 
       if (!result.success) {
         return res.status(401).json(result);
@@ -219,7 +219,7 @@ class AuthController {
         });
       }
 
-      const verified = authService.verifyToken(token);
+      const verified = await authService.verifyToken(token);
       if (!verified.success) {
         return res.status(401).json(verified);
       }
@@ -272,7 +272,7 @@ class AuthController {
         });
       }
 
-      const result = authService.createDeletionRequest({ email, note });
+      const result = await authService.createDeletionRequest({ email, note });
       if (!result.success) {
         return res.status(400).json(result);
       }
@@ -295,13 +295,13 @@ class AuthController {
         });
       }
 
-      const verified = authService.verifyToken(token);
+      const verified = await authService.verifyToken(token);
 
       if (!verified.success) {
         return res.status(401).json(verified);
       }
 
-      const result = authService.deleteUserAccount(verified.user.id);
+      const result = await authService.deleteUserAccount(verified.user.id);
       if (!result.success) {
         return res.status(404).json(result);
       }

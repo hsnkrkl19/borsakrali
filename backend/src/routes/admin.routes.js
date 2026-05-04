@@ -17,14 +17,14 @@ const sendLimiter = rateLimit({
   },
 });
 
-function requireAdmin(req, res, next) {
+async function requireAdmin(req, res, next) {
   const authHeader = req.headers.authorization;
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
     return res.status(401).json({ success: false, error: 'Token gerekli' });
   }
 
   const token = authHeader.split(' ')[1];
-  const verified = authService.verifyToken(token);
+  const verified = await authService.verifyToken(token);
 
   if (!verified.success) {
     return res.status(401).json(verified);
