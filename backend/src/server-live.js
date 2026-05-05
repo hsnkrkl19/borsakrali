@@ -1854,7 +1854,9 @@ app.get('/api/combo-strategies/scan/bist30', async (req, res) => {
   }
 });
 
-app.get('/api/snr/:symbol', async (req, res) => {
+app.get('/api/snr/:symbol', async (req, res, next) => {
+  // 'scanner' literal path /api/snr/scanner ile çakışıyor — onu sonraki handler'a bırak
+  if (req.params.symbol === 'scanner') return next();
   try {
     const rawSym = req.params.symbol.toUpperCase().replace('.IS', '');
     const assetType = (req.query.type || 'stock').toLowerCase(); // 'stock' | 'crypto'
