@@ -775,9 +775,12 @@
 }
 
 /* Inputs — premium */
+/* Default horizontal padding only applies when no Tailwind pl-/pr- utility class is present,
+   so icons positioned absolutely inside the input do not overlap with placeholder text. */
 .input-premium {
   width: 100%;
-  padding: 0.7rem 1rem;
+  padding-top: 0.7rem;
+  padding-bottom: 0.7rem;
   font-size: 13.5px;
   background: rgba(var(--bg-input-rgb), 0.7);
   border: 1px solid var(--border-main);
@@ -785,6 +788,8 @@
   color: var(--text-primary);
   transition: border-color 180ms ease, box-shadow 180ms ease, background 180ms ease;
 }
+.input-premium:not([class*="pl-"]) { padding-left: 1rem; }
+.input-premium:not([class*="pr-"]) { padding-right: 1rem; }
 .input-premium::placeholder { color: var(--text-faint); }
 .input-premium:focus {
   outline: none;
