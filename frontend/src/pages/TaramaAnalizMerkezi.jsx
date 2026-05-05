@@ -60,14 +60,16 @@ export default function TaramaAnalizMerkezi() {
   const [detailLoading, setDetailLoading] = useState(false)
   const [detailView, setDetailView] = useState('standart')
 
+  const [scope, setScope] = useState('bist100')
+
   useEffect(() => {
     loadData()
-  }, [selectedTimeframe])
+  }, [selectedTimeframe, scope])
 
   const loadData = async () => {
     setLoading(true)
     try {
-      const res = await axios.get(`${API_BASE}/market/strategy-scan`)
+      const res = await axios.get(`${API_BASE}/market/strategy-scan`, { params: { scope } })
       const data = res.data
 
       setHighlights({
@@ -306,6 +308,31 @@ export default function TaramaAnalizMerkezi() {
           <div className="text-xs md:text-sm text-gray-400">
             Toplam: <span className="text-white font-medium">{totalScans} tarama</span>
           </div>
+        </div>
+
+        {/* Tarama kapsamı */}
+        <div className="mt-3 pt-3 border-t border-dark-700/50 flex items-center gap-2 flex-wrap">
+          <span className="text-xs text-gray-400">Kapsam:</span>
+          {[
+            { id: 'bist30',  label: 'BIST30',  hint: '~10 sn' },
+            { id: 'bist100', label: 'BIST100', hint: '~30 sn', recommended: true },
+            { id: 'all',     label: 'Tümü (510)', hint: '2-3 dk' },
+          ].map(opt => (
+            <button
+              key={opt.id}
+              onClick={() => setScope(opt.id)}
+              disabled={loading}
+              className={`px-2.5 py-1 rounded-md text-xs font-semibold border transition disabled:opacity-50 ${
+                scope === opt.id
+                  ? 'bg-amber-500/20 border-amber-500/50 text-amber-200'
+                  : 'bg-dark-700 border-dark-600 text-gray-400 hover:text-white'
+              }`}
+            >
+              {opt.label}
+              {opt.recommended && scope !== opt.id && <span className="ml-1 text-[8px] text-emerald-400">★</span>}
+              <span className="ml-1 text-[9px] opacity-70">{opt.hint}</span>
+            </button>
+          ))}
         </div>
       </div>
 

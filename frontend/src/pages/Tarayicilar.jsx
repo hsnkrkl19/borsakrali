@@ -1,16 +1,18 @@
 import { useState, useEffect } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { Search, TrendingUp, CandlestickChart, BarChart3, Sparkles } from 'lucide-react'
+import { Search, TrendingUp, CandlestickChart, BarChart3, Sparkles, Brain } from 'lucide-react'
 import Taramalar from './Taramalar'
 import EMA34Tarayici from './EMA34Tarayici'
 import MalaysianSNR from './MalaysianSNR'
 import TaramaAnalizMerkezi from './TaramaAnalizMerkezi'
+import StratejiKombolari from './StratejiKombolari'
 
 const TABS = [
-  { id: 'genel',    label: 'Genel Tarama',     icon: Search,           component: Taramalar,           desc: 'Hızlı sembol arama ve filtreleme' },
-  { id: 'ema34',    label: 'EMA34 Takip',      icon: TrendingUp,       component: EMA34Tarayici,       desc: '34 günlük EMA trend takibi' },
-  { id: 'snr',      label: 'Malaysian SNR',    icon: CandlestickChart, component: MalaysianSNR,        desc: 'Destek/direnç bölge analizi' },
-  { id: 'merkez',   label: 'Strateji Merkezi', icon: BarChart3,        component: TaramaAnalizMerkezi, desc: 'Çoklu strateji tarama merkezi' },
+  { id: 'genel',    label: 'Genel Tarama',      icon: Search,           component: Taramalar,           desc: 'Hızlı sembol arama ve filtreleme' },
+  { id: 'ema34',    label: 'EMA34 Takip',       icon: TrendingUp,       component: EMA34Tarayici,       desc: '34 günlük EMA trend takibi' },
+  { id: 'snr',      label: 'Malaysian SNR',     icon: CandlestickChart, component: MalaysianSNR,        desc: 'Destek/direnç bölge analizi' },
+  { id: 'merkez',   label: 'Strateji Merkezi',  icon: BarChart3,        component: TaramaAnalizMerkezi, desc: 'Çoklu strateji tarama merkezi' },
+  { id: 'kombolar', label: 'Strateji Komboları', icon: Brain,           component: StratejiKombolari,   desc: 'TradingView tarzı çoklu indikatör kombosu — Zincir Bozan, Düşüş Treni, Sessiz Devrim ve daha fazlası', isNew: true },
 ]
 
 export default function Tarayicilar() {
@@ -55,7 +57,7 @@ export default function Tarayicilar() {
               <button
                 key={t.id}
                 onClick={() => setTab(t.id)}
-                className={`flex items-center gap-2 px-3 sm:px-4 py-2.5 rounded-xl text-xs sm:text-sm font-semibold whitespace-nowrap transition-all
+                className={`relative flex items-center gap-2 px-3 sm:px-4 py-2.5 rounded-xl text-xs sm:text-sm font-semibold whitespace-nowrap transition-all
                   ${isActive
                     ? 'bg-gradient-to-r from-amber-500 to-amber-600 text-dark-950 shadow-lg shadow-amber-500/25'
                     : 'text-gray-400 hover:text-white hover:bg-dark-800'
@@ -63,6 +65,9 @@ export default function Tarayicilar() {
               >
                 <Icon className="w-4 h-4" />
                 {t.label}
+                {t.isNew && !isActive && (
+                  <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-amber-500/30 text-amber-200 border border-amber-500/40">YENİ</span>
+                )}
               </button>
             )
           })}

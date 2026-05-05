@@ -343,6 +343,7 @@ export default function MalaysianSNR() {
   const [error, setError]         = useState(null)
   const [scanner, setScanner]     = useState(null)
   const [scanLoading, setScanLoading] = useState(false)
+  const [scanScope, setScanScope] = useState('bist100')
   const [tab, setTab]             = useState('zones')
   const [cryptoPage, setCryptoPage] = useState(0) // kripto sayfa (50'şer)
   const chartRef = useRef(null)
@@ -398,10 +399,10 @@ export default function MalaysianSNR() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  const loadScanner = async () => {
+  const loadScanner = async (scope = scanScope) => {
     setScanLoading(true)
     try {
-      const r = await api.get('/snr/scanner/bist30')
+      const r = await api.get('/snr/scanner', { params: { scope } })
       setScanner(r.data.results || [])
     } catch {
       setScanner([])
@@ -430,7 +431,7 @@ export default function MalaysianSNR() {
           className="btn-secondary flex items-center gap-2 text-sm"
         >
           <BarChart2 className="w-4 h-4" />
-          BIST30 Tarayıcı
+          BIST Tarayıcı
         </button>
       </div>
 
@@ -767,25 +768,51 @@ export default function MalaysianSNR() {
       {/* ── Scanner ────────────────────────────────────────────────────────── */}
       {tab === 'scanner' && (
         <div className="space-y-3">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between flex-wrap gap-2">
             <div className="flex items-center gap-2">
-              <h2 className="text-sm font-semibold text-white">BIST30 Yüksek Puanlı Sinyaller</h2>
+              <h2 className="text-sm font-semibold text-white">BIST Yüksek Puanlı Sinyaller</h2>
               <InfoTooltip {...TIPS.score} />
             </div>
-            <button onClick={loadScanner} disabled={scanLoading} className="btn-secondary text-xs px-3 py-1.5 flex items-center gap-1">
-              {scanLoading ? <RefreshCw className="w-3 h-3 animate-spin" /> : <RefreshCw className="w-3 h-3" />}
+            <button onClick={() => loadScanner()} disabled={scanLoading} className="btn-secondary text-xs px-3 py-1.5 flex items-center gap-1">
+              <RefreshCw className={`w-3 h-3 ${scanLoading ? 'animate-spin' : ''}`} />
               Yenile
             </button>
           </div>
+
+          {/* Tarama kapsamı seçici */}
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-xs text-gray-400">Kapsam:</span>
+            {[
+              { id: 'bist30',  label: 'BIST30',  hint: '~10 sn' },
+              { id: 'bist100', label: 'BIST100', hint: '~30 sn', recommended: true },
+              { id: 'all',     label: 'Tümü',    hint: '2-3 dk' },
+            ].map(opt => (
+              <button
+                key={opt.id}
+                onClick={() => { setScanScope(opt.id); loadScanner(opt.id) }}
+                disabled={scanLoading}
+                className={`px-2.5 py-1 rounded-md text-xs font-semibold border transition disabled:opacity-50 ${
+                  scanScope === opt.id
+                    ? 'bg-amber-500/20 border-amber-500/50 text-amber-200'
+                    : 'bg-dark-700 border-dark-600 text-gray-400 hover:text-white'
+                }`}
+              >
+                {opt.label}
+                {opt.recommended && scanScope !== opt.id && <span className="ml-1 text-[8px] text-emerald-400">★</span>}
+                <span className="ml-1 text-[9px] opacity-70">{opt.hint}</span>
+              </button>
+            ))}
+          </div>
+
           {scanLoading ? (
             <div className="flex items-center justify-center py-16">
               <div className="text-center">
                 <div className="w-8 h-8 border-2 border-gold-500 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
-                <p className="text-sm text-gray-400">BIST30 taranıyor...</p>
+                <p className="text-sm text-gray-400">{scanScope === 'all' ? 'Tüm BIST' : scanScope === 'bist100' ? 'BIST100' : 'BIST30'} taranıyor...</p>
               </div>
             </div>
           ) : scanner === null ? (
-            <div className="text-center py-8 text-gray-500 text-sm">Tarama başlatmak için "BIST30 Tarayıcı" butonuna tıklayın</div>
+            <div className="text-center py-8 text-gray-500 text-sm">Tarama başlatmak için "BIST Tarayıcı" butonuna tıklayın</div>
           ) : scanner.length === 0 ? (
             <div className="text-center py-8 text-gray-500 text-sm">Aktif sinyal bulunamadı</div>
           ) : scanner.map((item, i) => (

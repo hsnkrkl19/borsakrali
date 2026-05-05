@@ -1731,6 +1731,128 @@ app.get('/api/analysis/technical/:symbol', async (req, res) => {
 
 // ============ MALAYSIAN SNR ROUTES ============
 const snrService = require('./services/snrService');
+const comboStrategyService = require('./services/comboStrategyService');
+
+// ============ COMBO STRATEJİ TARAYICI ============
+// 15+ TradingView tarzı çoklu indikatör kombosu — catchy Türkçe isimli (Zincir Bozan, Düşüş Treni vb.)
+// Scope-aware: bist30 (hızlı), bist100 (varsayılan), all (~510 hisse — uzun)
+const comboScanCacheMap = new Map(); // scope -> { data, ts }
+const COMBO_SCAN_TTL_FAST = 10 * 60 * 1000; // 10 dk (bist30/bist100)
+const COMBO_SCAN_TTL_ALL = 30 * 60 * 1000;  // 30 dk (all — pahalı)
+
+// Combo katalog (sembolsüz, sadece liste — "neler tarıyor?" sayfası için)
+app.get('/api/combo-strategies/catalog', (req, res) => {
+  try {
+    const catalog = comboStrategyService.getCatalog();
+    res.json({ success: true, total: catalog.length, catalog });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Tek sembol için combo analizi
+app.get('/api/combo-strategies/analyze/:symbol', async (req, res) => {
+  try {
+    const symbol = req.params.symbol.toUpperCase().replace('.IS', '');
+    const raw = await liveDataService.fetchHistoricalData(symbol, '1y', '1d');
+    if (!raw || raw.length < 60) {
+      return res.json({ success: false, error: 'Yetersiz tarihsel veri' });
+    }
+    const candles = raw.map(r => ({
+      time: Math.floor(new Date(r.date || r.timestamp).getTime() / 1000),
+      open: r.open, high: r.high, low: r.low, close: r.close, volume: r.volume || 0,
+    }));
+    const result = comboStrategyService.analyzeSymbol(symbol, candles);
+    res.json({ success: true, result });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Toplu tarama — scope ile BIST30/BIST100/Tümü destekler
+async function runComboScan(scope) {
+  let symbolList;
+  if (scope === 'bist30') symbolList = bist30Stocks;
+  else if (scope === 'all') symbolList = allBistStocks;
+  else { scope = 'bist100'; symbolList = bist100Stocks; }
+
+  const symbols = symbolList.map(s => (s.symbol || s).replace('.IS', ''));
+  const results = [];
+  const BATCH = scope === 'all' ? 10 : 8;
+  const PAUSE = scope === 'all' ? 200 : 250;
+
+  for (let i = 0; i < symbols.length; i += BATCH) {
+    const batch = symbols.slice(i, i + BATCH);
+    const batchRes = await Promise.allSettled(batch.map(async (sym) => {
+      try {
+        const raw = await liveDataService.fetchHistoricalData(sym, '1y', '1d');
+        if (!raw || raw.length < 60) return null;
+        const candles = raw.map(r => ({
+          time: Math.floor(new Date(r.date || r.timestamp).getTime() / 1000),
+          open: r.open, high: r.high, low: r.low, close: r.close, volume: r.volume || 0,
+        }));
+        const analysis = comboStrategyService.analyzeSymbol(sym, candles);
+        return analysis.hits.length > 0 ? analysis : null;
+      } catch { return null; }
+    }));
+    batchRes.forEach(r => { if (r.status === 'fulfilled' && r.value) results.push(r.value); });
+    if (i + BATCH < symbols.length) await new Promise(r => setTimeout(r, PAUSE));
+  }
+
+  const catalog = comboStrategyService.getCatalog();
+  const byCombo = catalog.map(c => {
+    const matches = results
+      .map(r => {
+        const hit = r.hits.find(h => h.key === c.key);
+        return hit ? { symbol: r.symbol, lastPrice: r.lastPrice, dayChange: r.dayChange, ...hit } : null;
+      })
+      .filter(Boolean)
+      .sort((a, b) => b.score - a.score);
+    return { ...c, matchCount: matches.length, matches };
+  });
+
+  return {
+    success: true,
+    scope,
+    scannedAt: new Date().toISOString(),
+    totalScanned: symbols.length,
+    withSignals: results.length,
+    bullishStocks: results.filter(r => r.bias === 'boga').length,
+    bearishStocks: results.filter(r => r.bias === 'ayi').length,
+    bySymbol: results.sort((a, b) => b.hits.length - a.hits.length),
+    byCombo,
+    catalog,
+  };
+}
+
+// Yeni route — scope query parametreli (default: bist100)
+app.get('/api/combo-strategies/scan', async (req, res) => {
+  try {
+    const scope = ['bist30', 'bist100', 'all'].includes(req.query.scope) ? req.query.scope : 'bist100';
+    const ttl = scope === 'all' ? COMBO_SCAN_TTL_ALL : COMBO_SCAN_TTL_FAST;
+    const cached = comboScanCacheMap.get(scope);
+    if (cached && Date.now() - cached.ts < ttl) return res.json(cached.data);
+
+    const payload = await runComboScan(scope);
+    comboScanCacheMap.set(scope, { data: payload, ts: Date.now() });
+    res.json(payload);
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Geriye uyumluluk: eski /scan/bist30 route'u korunur
+app.get('/api/combo-strategies/scan/bist30', async (req, res) => {
+  try {
+    const cached = comboScanCacheMap.get('bist30');
+    if (cached && Date.now() - cached.ts < COMBO_SCAN_TTL_FAST) return res.json(cached.data);
+    const payload = await runComboScan('bist30');
+    comboScanCacheMap.set('bist30', { data: payload, ts: Date.now() });
+    res.json(payload);
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
 
 app.get('/api/snr/:symbol', async (req, res) => {
   try {
@@ -1998,11 +2120,24 @@ app.get('/api/snr/:symbol', async (req, res) => {
 });
 
 // BIST30 SNR Scanner — yüksek puanlı sinyaller
-app.get('/api/snr/scanner/bist30', async (req, res) => {
-  try {
-    const results = [];
-    // Paralel fetch ile tüm BIST30'u tara (daha hızlı)
-    const scanPromises = bist30Stocks.slice(0, 20).map(async (stock) => {
+// SNR scanner cache — scope bazlı
+const snrScannerCacheMap = new Map(); // scope -> { results, ts }
+const SNR_SCANNER_TTL_FAST = 10 * 60 * 1000;
+const SNR_SCANNER_TTL_ALL = 30 * 60 * 1000;
+
+async function runSnrScan(scope) {
+  let universe;
+  if (scope === 'bist30') universe = bist30Stocks;
+  else if (scope === 'all') universe = allBistStocks;
+  else universe = bist100Stocks;
+
+  const results = [];
+  const BATCH = scope === 'all' ? 12 : 10;
+  const PAUSE = scope === 'all' ? 200 : 250;
+
+  for (let i = 0; i < universe.length; i += BATCH) {
+    const batch = universe.slice(i, i + BATCH);
+    const batchRes = await Promise.allSettled(batch.map(async (stock) => {
       try {
         const symbol = stock.symbol.replace('.IS', '');
         const raw = await liveDataService.fetchHistoricalData(symbol, '6mo', '1d');
@@ -2021,11 +2156,41 @@ app.get('/api/snr/scanner/bist30', async (req, res) => {
           };
         }
         return null;
-      } catch (e) { return null; }
-    });
-    const scanned = await Promise.all(scanPromises);
-    scanned.filter(Boolean).forEach(r => results.push(r));
-    results.sort((a, b) => b.topSignal.score - a.topSignal.score);
+      } catch { return null; }
+    }));
+    batchRes.forEach(r => { if (r.status === 'fulfilled' && r.value) results.push(r.value); });
+    if (i + BATCH < universe.length) await new Promise(r => setTimeout(r, PAUSE));
+  }
+  results.sort((a, b) => b.topSignal.score - a.topSignal.score);
+  return results;
+}
+
+// Genel route — scope query parametreli
+app.get('/api/snr/scanner', async (req, res) => {
+  try {
+    const scope = ['bist30', 'bist100', 'all'].includes(req.query.scope) ? req.query.scope : 'bist100';
+    const ttl = scope === 'all' ? SNR_SCANNER_TTL_ALL : SNR_SCANNER_TTL_FAST;
+    const cached = snrScannerCacheMap.get(scope);
+    if (cached && Date.now() - cached.ts < ttl) {
+      return res.json({ success: true, scope, results: cached.results });
+    }
+    const results = await runSnrScan(scope);
+    snrScannerCacheMap.set(scope, { results, ts: Date.now() });
+    res.json({ success: true, scope, results });
+  } catch (err) {
+    res.status(500).json({ success: false, error: 'Tarama yapilamadi' });
+  }
+});
+
+// Geriye uyumluluk: eski /scanner/bist30 route'u
+app.get('/api/snr/scanner/bist30', async (req, res) => {
+  try {
+    const cached = snrScannerCacheMap.get('bist30');
+    if (cached && Date.now() - cached.ts < SNR_SCANNER_TTL_FAST) {
+      return res.json({ success: true, results: cached.results });
+    }
+    const results = await runSnrScan('bist30');
+    snrScannerCacheMap.set('bist30', { results, ts: Date.now() });
     res.json({ success: true, results });
   } catch (err) {
     res.status(500).json({ success: false, error: 'Tarama yapilamadi' });
@@ -4498,7 +4663,7 @@ app.get('/api/ema34/scan', async (req, res) => {
     if (listParam === 'bist30') symbols = bist30Stocks.map(s => s.symbol || s);
     else if (listParam === 'bist100') symbols = bist100Stocks.map(s => s.symbol || s);
     else if (isCryptoList) symbols = CRYPTO_SCAN_SYMBOLS;
-    else symbols = allBistStocks.slice(0, 80).map(s => s.symbol || s);
+    else symbols = allBistStocks.map(s => s.symbol || s); // 'all' = tüm BIST (~510 hisse)
 
     // Paralel veri çekimi (10'ar batch, kripto için 5'er)
     const results = [];
@@ -4899,15 +5064,27 @@ const AYI_STRATEGIES = [
   { name: 'MACD Ölüm Çaprazı', key: 'macdBearish', type: '1D', success: 55, peak: 8.3, speed: 5.5, riskReward: '3.0:1', avgChange: 5.2 },
 ];
 
+// Strategy-scan cache key'i scope'a göre değişir
+const strategyScanCacheMap = new Map(); // scope -> { data, ts }
+
 app.get('/api/market/strategy-scan', async (req, res) => {
   try {
-    if (strategyScanCache.data && Date.now() - strategyScanCache.ts < STRATEGY_SCAN_TTL) {
-      return res.json(strategyScanCache.data);
+    const scope = ['bist30', 'bist100', 'all'].includes(req.query.scope) ? req.query.scope : 'bist100';
+    const ttl = scope === 'all' ? 30 * 60 * 1000 : STRATEGY_SCAN_TTL;
+    const cached = strategyScanCacheMap.get(scope);
+    if (cached && Date.now() - cached.ts < ttl) {
+      return res.json(cached.data);
     }
 
-    const symbols = bist30Stocks.map(s => s.symbol || s).slice(0, 30);
+    let universe;
+    if (scope === 'bist30') universe = bist30Stocks;
+    else if (scope === 'all') universe = allBistStocks;
+    else universe = bist100Stocks;
+
+    const symbols = universe.map(s => s.symbol || s);
     const stockData = [];
-    const BATCH = 5;
+    const BATCH = scope === 'all' ? 10 : 8;
+    const PAUSE = scope === 'all' ? 200 : 280;
 
     for (let i = 0; i < symbols.length; i += BATCH) {
       const batch = symbols.slice(i, i + BATCH);
@@ -4925,7 +5102,7 @@ app.get('/api/market/strategy-scan', async (req, res) => {
         } catch { return null; }
       }));
       batchRes.forEach(r => { if (r.status === 'fulfilled' && r.value) stockData.push(r.value); });
-      if (i + BATCH < symbols.length) await new Promise(r => setTimeout(r, 350));
+      if (i + BATCH < symbols.length) await new Promise(r => setTimeout(r, PAUSE));
     }
 
     const sorted = [...stockData].sort((a, b) => b.change - a.change);
@@ -4948,6 +5125,9 @@ app.get('/api/market/strategy-scan', async (req, res) => {
       })),
     };
 
+    result.scope = scope;
+    strategyScanCacheMap.set(scope, { data: result, ts: Date.now() });
+    // Geriye uyumluluk: eski tek cache değişkeni de güncel kalsın
     strategyScanCache.data = result;
     strategyScanCache.ts = Date.now();
     res.json(result);
