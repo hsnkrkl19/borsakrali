@@ -106,6 +106,41 @@ class AuthController {
     }
   }
 
+  async google(req, res) {
+    try {
+      const { idToken, id_token, accessToken, access_token } = req.body || {};
+      const token = idToken || id_token;
+      const accToken = accessToken || access_token;
+
+      if (!token) {
+        return res.status(400).json({
+          success: false,
+          error: 'Google ID token gerekli',
+        });
+      }
+
+      const result = await authService.loginWithGoogleIdToken({
+        idToken: token,
+        accessToken: accToken,
+      });
+
+      if (!result.success) {
+        return res.status(401).json(result);
+      }
+
+      return res.json({
+        success: true,
+        token: result.token,
+        refreshToken: result.refreshToken,
+        user: result.user,
+        message: 'Google ile giris basarili!',
+      });
+    } catch (error) {
+      logger.error('Google login error:', error);
+      return res.status(500).json({ success: false, error: error.message });
+    }
+  }
+
   async verifyCode(req, res) {
     try {
       const { email, code } = req.body;

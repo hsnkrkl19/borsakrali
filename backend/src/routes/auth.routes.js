@@ -21,6 +21,7 @@ const authLimiter = rateLimit({
 
 router.post('/register', authLimiter, authController.register);
 router.post('/login', authLimiter, authController.login);
+router.post('/google', authLimiter, authController.google);
 router.post('/verify-code', authLimiter, authController.verifyCode);
 router.post('/send-code', authController.sendCode);
 router.post('/refresh', authController.refreshToken);

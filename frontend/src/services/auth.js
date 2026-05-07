@@ -56,6 +56,16 @@ export async function fetchCurrentUser(token) {
   return parseJsonResponse(response)
 }
 
+export async function loginWithGoogle({ idToken, accessToken } = {}) {
+  const response = await fetch(getAuthEndpoint('google'), {
+    method: 'POST',
+    headers: buildAuthHeaders(),
+    body: JSON.stringify({ idToken, accessToken }),
+  })
+
+  return parseJsonResponse(response)
+}
+
 export async function changePassword({ currentPassword, newPassword }, token) {
   const response = await fetch(getAuthEndpoint('change-password'), {
     method: 'POST',

@@ -176,6 +176,67 @@ async function initiateLogin(emailOrUsername, password) {
   };
 }
 
+/**
+ * Google Sign-In via Supabase: exchanges a Google ID token for a Supabase session.
+ * Auto-creates the auth.users row on first login (Supabase handles it).
+ */
+async function loginWithGoogleIdToken({ idToken, accessToken } = {}) {
+  ensureSupabase();
+
+  if (!idToken) {
+    return { success: false, error: 'Google ID token gerekli' };
+  }
+
+  const { data, error } = await supabaseAdmin.auth.signInWithIdToken({
+    provider: 'google',
+    token: idToken,
+    access_token: accessToken,
+  });
+
+  if (error || !data?.session || !data?.user) {
+    console.error('[AUTH] Google sign-in error:', error?.message || 'unknown');
+    return {
+      success: false,
+      error: error?.message || 'Google ile giris dogrulanamadi',
+    };
+  }
+
+  // Best-effort: ensure profile name fields are populated from Google metadata
+  // on the first sign-in (the profile row is created by a Supabase trigger).
+  try {
+    const meta = data.user.user_metadata || {};
+    const fullName = meta.full_name || meta.name || '';
+    const givenName = meta.given_name || (fullName.split(' ')[0] || '');
+    const familyName = meta.family_name || (fullName.split(' ').slice(1).join(' ') || '');
+
+    const profile = await fetchProfile(data.user.id);
+    const needsUpdate =
+      !profile?.first_name && (givenName || familyName);
+
+    if (profile && needsUpdate) {
+      await supabaseAdmin
+        .from('profiles')
+        .update({
+          first_name: profile.first_name || givenName || '',
+          last_name: profile.last_name || familyName || '',
+        })
+        .eq('id', data.user.id);
+    }
+  } catch (err) {
+    console.warn('[AUTH] Google profile sync skipped:', err?.message || err);
+  }
+
+  const profile = await fetchProfile(data.user.id);
+
+  return {
+    success: true,
+    token: data.session.access_token,
+    refreshToken: data.session.refresh_token,
+    expiresAt: data.session.expires_at,
+    user: buildSafeUser(data.user, profile),
+  };
+}
+
 async function verifyToken(token) {
   ensureSupabase();
 
@@ -391,6 +452,7 @@ async function deleteUserAccount(userId) {
 
 module.exports = {
   initiateLogin,
+  loginWithGoogleIdToken,
   verifyToken,
   findUserByEmail,
   getUserByToken,

@@ -8,6 +8,7 @@ import {
 } from 'lucide-react'
 import { loginWithPassword } from '../services/auth'
 import BrandMark from '../components/BrandMark'
+import GoogleSignInButton from '../components/GoogleSignInButton'
 
 /* ────────────────────────────────────────────────────────────────────────────
    Animated chart backdrop — pure SVG, performant, theme-aware.
@@ -453,6 +454,15 @@ export default function Login() {
                 </span>
               </div>
             </div>
+
+            {/* Google Sign-In */}
+            <GoogleSignInButton
+              onError={(msg) => setError(msg)}
+              redirectTo="/"
+              label="Google ile giriş yap"
+            />
+
+            <div className="my-3" />
 
             {/* Demo */}
             <button

@@ -17,6 +17,7 @@ import {
 } from 'lucide-react'
 import BrandMark from '../components/BrandMark'
 import PasswordChecklist from '../components/PasswordChecklist'
+import GoogleSignInButton from '../components/GoogleSignInButton'
 import { loginWithPassword, registerWithPassword } from '../services/auth'
 import { useAuthStore } from '../store/authStore'
 import { isPasswordValid } from '../utils/passwordPolicy'
@@ -327,6 +328,24 @@ export default function Register() {
                   )}
                 </button>
               </form>
+
+              {/* Divider + Google */}
+              <div className="relative my-5">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full divider-gold" />
+                </div>
+                <div className="relative flex justify-center">
+                  <span className="px-3 text-[10px] uppercase tracking-[0.22em] font-bold text-gold-400/70 bg-[var(--bg-card)]">
+                    veya
+                  </span>
+                </div>
+              </div>
+
+              <GoogleSignInButton
+                onError={(msg) => setError(msg)}
+                redirectTo="/"
+                label="Google ile kayıt ol"
+              />
 
               <div className="mt-6 rounded-2xl border border-green-500/20 bg-green-500/10 p-4">
                 <div className="flex items-start gap-3">
