@@ -34,6 +34,8 @@ import Performans from './pages/Performans'           // Algoritma Performans + 
 import Kripto from './pages/Kripto'                   // YENİ: Kripto piyasa, watchlist, fiyat alarmı
 import EndeksDetay from './pages/EndeksDetay'         // YENİ: Endeks detay grafik sayfası
 import DCFDegerleme from './pages/DCFDegerleme'       // YENİ: dexter DCF değerleme
+import KriptoDegerleme from './pages/KriptoDegerleme' // YENİ: kripto composite valuation
+import Yenilikler from './pages/Yenilikler'           // YENİ: v3.1 değişiklik kataloğu
 
 import { useAuthStore } from './store/authStore'
 import { fetchCurrentUser } from './services/auth'
@@ -139,6 +141,8 @@ function App() {
                   <Route path="/teknik-analiz-ai" element={<TeknikAnalizAI />} />
                   <Route path="/sirket-analizi" element={<SirketAnalizi />} />
                   <Route path="/dcf-degerleme" element={<DCFDegerleme />} />
+                  <Route path="/kripto-degerleme" element={<KriptoDegerleme />} />
+                  <Route path="/yenilikler" element={<Yenilikler />} />
                   <Route path="/tarayicilar" element={<Tarayicilar />} />
                   <Route path="/gunluk-tespitler" element={<GunlukTespitler />} />
                   <Route path="/performans" element={<Performans />} />

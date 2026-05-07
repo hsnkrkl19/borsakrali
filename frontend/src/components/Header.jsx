@@ -141,19 +141,32 @@ export default function Header() {
     setSearchQuery(query)
     if (query.length >= 1) {
       const q = query.toUpperCase()
-      const cryptoMatches = CRYPTO_LIST.filter(c =>
+      const localCrypto = CRYPTO_LIST.filter(c =>
         c.symbol.startsWith(q) || c.name.toUpperCase().includes(q)
       ).slice(0, 4).map(c => ({ ...c, isCrypto: true }))
 
-      try {
-        const response = await apiClient.get(`${API_BASE}/market/stocks/search?q=${query}`)
-        const stockResults = (response.data.stocks || []).map(s => ({ ...s, isCrypto: false }))
-        setSearchResults([...cryptoMatches, ...stockResults])
-        setShowResults(true)
-      } catch (error) {
-        setSearchResults(cryptoMatches)
-        setShowResults(cryptoMatches.length > 0)
-      }
+      // Paralel: BIST search + CoinGecko geniş kripto araması
+      const [stockRes, cryptoRes] = await Promise.allSettled([
+        apiClient.get(`${API_BASE}/market/stocks/search?q=${query}`),
+        apiClient.get(`${API_BASE}/crypto/search?q=${query}`),
+      ])
+
+      const stockResults = stockRes.status === 'fulfilled'
+        ? (stockRes.value.data.stocks || []).map(s => ({ ...s, isCrypto: false }))
+        : []
+
+      // CoinGecko search → 35 sınırın dışındaki coin'leri de getir, top 5
+      const cgCrypto = cryptoRes.status === 'fulfilled'
+        ? (cryptoRes.value.data.coins || [])
+            .filter(c => c.symbol && !localCrypto.find(lc => lc.symbol === c.symbol)) // dedup
+            .slice(0, 4)
+            .map(c => ({ symbol: c.symbol, name: c.name, isCrypto: true, rank: c.rank, fromCoinGecko: true }))
+        : []
+
+      const allCrypto = [...localCrypto, ...cgCrypto]
+      const combined = [...allCrypto, ...stockResults]
+      setSearchResults(combined)
+      setShowResults(combined.length > 0)
     } else {
       setSearchResults([])
       setShowResults(false)

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { Calculator, Search, TrendingUp, TrendingDown, RefreshCw, AlertCircle, Info, Target, Zap } from 'lucide-react'
 import api from '../services/api'
@@ -181,11 +181,37 @@ export default function DCFDegerleme() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
   const [mode, setMode] = useState('usd') // usd | tl
+  const [suggestions, setSuggestions] = useState([])
+  const [showSuggestions, setShowSuggestions] = useState(false)
+  const suggestionAbort = useRef(null)
+  const suggestionTimer = useRef(null)
+  const inputRef = useRef(null)
+
+  // Autocomplete: input değişince debounce'lu arama
+  useEffect(() => {
+    if (suggestionTimer.current) clearTimeout(suggestionTimer.current)
+    if (!inputVal || inputVal.length < 1 || inputVal === symbol) {
+      setSuggestions([])
+      return
+    }
+    suggestionTimer.current = setTimeout(async () => {
+      if (suggestionAbort.current) suggestionAbort.current.abort()
+      const ctrl = new AbortController()
+      suggestionAbort.current = ctrl
+      try {
+        const r = await api.get('/market/stocks/search', { params: { q: inputVal }, signal: ctrl.signal })
+        setSuggestions((r.data?.stocks || []).slice(0, 8))
+      } catch (_) { /* aborted veya hata */ }
+    }, 200)
+    return () => clearTimeout(suggestionTimer.current)
+  }, [inputVal, symbol])
 
   const calculate = async (sym) => {
     const s = (sym || inputVal).trim().toUpperCase().replace('.IS', '')
     if (!s) return
     setSymbol(s)
+    setShowSuggestions(false)
+    setSuggestions([])
     setLoading(true)
     setError(null)
     setData(null)
@@ -243,14 +269,45 @@ export default function DCFDegerleme() {
 
       {/* Search */}
       <div className="card p-4">
-        <div className="flex gap-2">
-          <input
-            className="input flex-1 text-sm"
-            placeholder="Sembol: THYAO, ASELS, GARAN..."
-            value={inputVal}
-            onChange={e => setInputVal(e.target.value.toUpperCase())}
-            onKeyDown={e => e.key === 'Enter' && calculate()}
-          />
+        <div className="flex gap-2 relative">
+          <div className="relative flex-1">
+            <input
+              ref={inputRef}
+              className="input w-full text-sm"
+              placeholder="Sembol: THYAO, ASELS, GARAN..."
+              value={inputVal}
+              onChange={e => { setInputVal(e.target.value.toUpperCase()); setShowSuggestions(true) }}
+              onFocus={() => setShowSuggestions(true)}
+              onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
+              onKeyDown={e => {
+                if (e.key === 'Enter') calculate()
+                if (e.key === 'Escape') setShowSuggestions(false)
+              }}
+              autoComplete="off"
+            />
+            {/* Autocomplete dropdown */}
+            {showSuggestions && suggestions.length > 0 && (
+              <div className="absolute top-full left-0 right-0 mt-1 bg-dark-900 border border-dark-700 rounded-xl shadow-2xl overflow-hidden z-20 max-h-72 overflow-y-auto custom-scrollbar">
+                {suggestions.map(s => (
+                  <button
+                    key={s.symbol}
+                    onMouseDown={(e) => { e.preventDefault(); setInputVal(s.symbol); calculate(s.symbol) }}
+                    className="w-full text-left px-3 py-2 hover:bg-dark-800 border-b border-dark-800 last:border-0 flex items-center justify-between gap-2 transition-colors"
+                  >
+                    <div className="min-w-0">
+                      <div className="text-sm font-bold text-amber-300">{s.symbol}</div>
+                      <div className="text-[10px] text-gray-500 truncate">{s.name || s.companyName || ''}</div>
+                    </div>
+                    {s.sector && (
+                      <div className="text-[10px] text-gray-400 px-1.5 py-0.5 rounded bg-dark-800 border border-dark-700 whitespace-nowrap">
+                        {s.sector}
+                      </div>
+                    )}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
           <button onClick={() => calculate()} disabled={loading} className="btn-primary px-5 flex items-center gap-2">
             {loading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Calculator className="w-4 h-4" />}
             Hesapla

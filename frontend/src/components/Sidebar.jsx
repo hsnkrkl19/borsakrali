@@ -65,6 +65,7 @@ export default function Sidebar({ isOpen, onToggle }) {
   const navItems = [
     // Ana
     { path: '/',                  label: 'Piyasa Kokpiti',   icon: LayoutDashboard, group: 'core' },
+    { path: '/yenilikler',        label: 'Yenilikler',       icon: Sparkles,        group: 'core', highlight: true, badge: 'v3.1' },
     { path: '/canli-heatmap',     label: 'Canlı Heatmap',    icon: Flame,           group: 'core', highlight: true },
     { path: '/kripto',            label: 'Kripto',           icon: Coins,           group: 'core', highlight: true, badge: 'YENİ' },
     { path: '/pro-analiz',        label: 'Pro Analiz',       icon: Gem,             group: 'core', highlight: true, badge: 'PRO' },
@@ -73,6 +74,7 @@ export default function Sidebar({ isOpen, onToggle }) {
     { path: '/teknik-analiz-ai',  label: 'Teknik Analiz',    icon: Activity,        group: 'analiz' },
     { path: '/sirket-analizi',    label: 'Şirket Analizi',   icon: Building2,       group: 'analiz' },
     { path: '/dcf-degerleme',     label: 'DCF Değerleme',    icon: Calculator,      group: 'analiz', highlight: true, badge: 'YENİ' },
+    { path: '/kripto-degerleme',  label: 'Kripto Değerleme', icon: Coins,           group: 'analiz', highlight: true, badge: 'YENİ' },
     { path: '/tarayicilar',       label: 'Tarayıcılar',      icon: Search,          group: 'analiz' },
     { path: '/gunluk-tespitler',  label: 'Günlük Sinyaller', icon: Target,          group: 'analiz' },
     { path: '/performans',        label: 'Performans',       icon: TrendingUp,      group: 'analiz' },

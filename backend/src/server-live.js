@@ -2307,6 +2307,19 @@ app.get('/api/dcf/:symbol', async (req, res) => {
 // ============ CRYPTO QUOTE ROUTES (CoinGecko) ============
 // dexter src/tools/finance/crypto.ts'ten esinli — CoinGecko ücretsiz API
 const cryptoQuoteService = require('./services/cryptoQuoteService');
+const cryptoValuationService = require('./services/cryptoValuationService');
+
+// Composite valuation — DCF mantığında ama crypto için (drawdown + MA + S2F + NVT + volatility)
+app.get('/api/crypto/valuation/:symbol', async (req, res) => {
+  try {
+    const result = await cryptoValuationService.valuateCrypto(req.params.symbol);
+    if (!result.success) return res.status(404).json(result);
+    res.json(result);
+  } catch (err) {
+    console.error('[CryptoValuation] Hata:', err.message);
+    res.status(500).json({ success: false, error: 'Değerleme hesaplanamadı: ' + err.message });
+  }
+});
 
 app.get('/api/crypto/quote/:symbol', async (req, res) => {
   try {

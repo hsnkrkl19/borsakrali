@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { Hash, TrendingUp, TrendingDown, MessageCircle, RefreshCw, AlertCircle, ExternalLink, X as XIcon, Smile, Frown, Meh, Flame, Bitcoin, BarChart3 } from 'lucide-react'
 import api from '../services/api'
 
@@ -283,13 +284,18 @@ function DetailModal({ symbol, assetType, onClose }) {
 }
 
 export default function XGundem() {
-  const [assetType, setAssetType] = useState('stock') // 'stock' | 'crypto'
-  const [scope, setScope] = useState('bist100')
+  const [searchParams, setSearchParams] = useSearchParams()
+  // URL'den initial state — haberden focus=BTC&assetType=crypto ile gelirse hemen modal aç
+  const initialAssetType = searchParams.get('assetType') === 'crypto' ? 'crypto' : 'stock'
+  const initialFocus = searchParams.get('focus')
+
+  const [assetType, setAssetType] = useState(initialAssetType)
+  const [scope, setScope] = useState(initialAssetType === 'crypto' ? 'crypto' : 'bist100')
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
   const [activeTab, setActiveTab] = useState('top')
-  const [selectedSymbol, setSelectedSymbol] = useState(null)
+  const [selectedSymbol, setSelectedSymbol] = useState(initialFocus || null)
 
   const currentScopes = SCOPES_BY_TYPE[assetType] || SCOPES_BY_TYPE.stock
 
