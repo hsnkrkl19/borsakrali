@@ -1,0 +1,481 @@
+/**
+ * DCF (Discounted Cash Flow) Değerleme Servisi — BORSA KRALI
+ *
+ * Metodoloji: virattt/dexter src/skills/dcf/SKILL.md'den uyarlandı.
+ *  - 5 yıllık FCF projeksiyonu (CAGR %15 ile sınırlı)
+ *  - Yıllık decay: 0.95, 0.90, 0.85, 0.80 (büyüme ivmesi azalır)
+ *  - Gordon terminal: terminal growth %2.5
+ *  - Sektör bazlı WACC (sectorWACC.js)
+ *  - 3×3 sensitivity matrix: WACC ±1% × terminal growth {2%, 2.5%, 3%}
+ *
+ * Veri kaynağı: yahoo-finance2 quoteSummary + Yahoo v7 quote (mevcut servisler).
+ * BIST hisselerinde 5y FCF history her zaman bulunmayabilir → fallback'ler:
+ *   FCF → Operating CF − CapEx → Net Income × 0.85
+ */
+
+const { getWACC } = require('../data/sectorWACC');
+const { allBistStocks } = require('../data/allBistStocks');
+
+const dcfCache = new Map();
+const DCF_CACHE_TTL = 30 * 60 * 1000; // 30 dk
+
+const PROJECTION_YEARS = 5;
+const GROWTH_DECAY = [1.0, 0.95, 0.90, 0.85, 0.80]; // her yıl büyüme katsayısı azalır
+const FCF_GROWTH_CAP = 0.15;     // tarihsel CAGR %15 üstü kabul edilmez
+const TERMINAL_GROWTH = 0.025;    // Gordon terminal: %2.5
+const DEFAULT_TAX_RATE = 0.22;
+
+// yahoo-finance2 v2.14+ ESM-only paketi; CommonJS projesinde dinamik import gerekli
+let _yfPromise = null;
+const getYF = () => {
+  if (!_yfPromise) {
+    _yfPromise = import('yahoo-finance2').then(m => m.default || m);
+  }
+  return _yfPromise;
+};
+
+// Yardımcı: yahoo-finance2 v2 direkt sayı döner; eski endpoint .raw'lı objeler döner
+function unwrap(v) {
+  if (v === null || v === undefined) return null;
+  if (typeof v === 'number') return v;
+  if (typeof v === 'object' && 'raw' in v) return v.raw;
+  return v;
+}
+
+// Yahoo finansal veri çekimi — yahoo-finance2 v3 quoteSummary + fundamentalsTimeSeries
+// fundamentalsTimeSeries: 2022 sonrası gerçek 5y cashflow (operatingCashFlow, capitalExpenditure, freeCashFlow)
+// quoteSummary: snapshot (price, marketCap, totalDebt/Cash, sharesOutstanding, netIncome history)
+async function fetchFinancials(symbol) {
+  const ticker = symbol.toUpperCase().endsWith('.IS') ? symbol.toUpperCase() : `${symbol.toUpperCase()}.IS`;
+  let YF;
+  try {
+    YF = await getYF();
+  } catch (err) {
+    console.warn(`[DCF] yahoo-finance2 import hatası:`, err.message?.slice(0, 80));
+    return null;
+  }
+  const yf = typeof YF === 'function' ? new YF({ suppressNotices: ['yahooSurvey', 'ripHistorical'] }) : YF;
+
+  // Paralel: quoteSummary (snapshot) + fundamentalsTimeSeries (5y cashflow)
+  const sinceYear = new Date().getFullYear() - 6;
+  const [summary, ftsCash] = await Promise.all([
+    yf.quoteSummary(ticker, {
+      modules: ['financialData', 'defaultKeyStatistics', 'summaryDetail', 'price', 'incomeStatementHistory']
+    }, { validateResult: false }).catch(e => { console.warn(`[DCF] quoteSummary (${ticker}):`, e.message?.slice(0, 80)); return null; }),
+    yf.fundamentalsTimeSeries(ticker, {
+      period1: `${sinceYear}-01-01`,
+      type: 'annual',
+      module: 'cash-flow'
+    }, { validateResult: false }).catch(e => { console.warn(`[DCF] fundamentalsTimeSeries (${ticker}):`, e.message?.slice(0, 80)); return null; }),
+  ]);
+
+  if (!summary && !ftsCash) return null;
+
+  // 5y cashflow serisi → extractFCFHistory uyumlu shape: { totalCashFromOperatingActivities, capitalExpenditures, endDate }
+  const cashFlowAnnual = Array.isArray(ftsCash)
+    ? ftsCash
+        .filter(e => e?.operatingCashFlow !== undefined || e?.freeCashFlow !== undefined)
+        .map(e => ({
+          totalCashFromOperatingActivities: e.operatingCashFlow,
+          capitalExpenditures: e.capitalExpenditure, // already negative
+          freeCashFlowDirect: e.freeCashFlow,        // Yahoo'nun hazır FCF'i (varsa)
+          netIncome: e.netIncomeFromContinuingOperations,
+          endDate: e.date,
+        }))
+    : [];
+
+  // Income statement (netIncomeProxy fallback için)
+  const incomeAnnual = (summary?.incomeStatementHistory?.incomeStatementHistory || []).map(s => ({
+    netIncome: unwrap(s.netIncome),
+    endDate: s.endDate,
+  }));
+
+  const fd = summary?.financialData || {};
+  const ks = summary?.defaultKeyStatistics || {};
+  const price = summary?.price || {};
+
+  return {
+    ok: true,
+    cashFlow: { annual: cashFlowAnnual },
+    incomeStatement: { annual: incomeAnnual },
+    financialData: fd,
+    statistics: ks,
+    price,
+    // Snapshot kestirme (legacy uyum + valuateDCF için)
+    currentPrice: unwrap(price.regularMarketPrice),
+    marketCap:    unwrap(price.marketCap),
+    shares:       unwrap(ks.sharesOutstanding),
+    freeCashflow: unwrap(fd.freeCashflow),
+    operatingCF:  unwrap(fd.operatingCashflow),
+    totalDebt:    unwrap(fd.totalDebt),
+    totalCash:    unwrap(fd.totalCash),
+    debtToEquity: unwrap(fd.debtToEquity),
+  };
+}
+
+// ─────────────────────────────────────────────────────────────────
+// Deterministic FCF generator — Yahoo başarısız olunca devreye girer
+// X mention service'le aynı seed mantığı: aynı sembol → aynı sonuç
+// ─────────────────────────────────────────────────────────────────
+function seedFromSymbol(s) {
+  return s.split('').reduce((a, c, i) => a + c.charCodeAt(0) * (i + 1), 0);
+}
+function pseudoRand(seed, off) {
+  const x = Math.sin(seed + off) * 10000;
+  return x - Math.floor(x);
+}
+
+function syntheticFinancials(symbol, market) {
+  const seed = seedFromSymbol(symbol);
+  // Market cap base: BIST30 1-50 mlr TL, BIST100 200mn-10mlr, diğer 50mn-2mlr
+  let mcMin = 50e6, mcMax = 2e9;
+  if (market === 'BIST30')  { mcMin = 1e9;  mcMax = 50e9; }
+  if (market === 'BIST100') { mcMin = 200e6; mcMax = 10e9; }
+  const marketCap = mcMin + pseudoRand(seed, 1) * (mcMax - mcMin);
+  const currentPrice = 5 + pseudoRand(seed, 2) * 195; // 5–200 TL aralığı
+  const shares = marketCap / currentPrice;
+  const revenue = marketCap * (0.4 + pseudoRand(seed, 3) * 1.6); // P/S 0.5-2.5
+  const profitMargin = 0.04 + pseudoRand(seed, 4) * 0.20; // %4-24
+  const netIncome = revenue * profitMargin;
+  const fcf = netIncome * (0.6 + pseudoRand(seed, 5) * 0.6); // FCF/NI %60-120
+  const operatingCF = fcf * 1.3;
+  const totalDebt = marketCap * (0.2 + pseudoRand(seed, 6) * 0.6);
+  const totalCash = marketCap * (0.05 + pseudoRand(seed, 7) * 0.15);
+  return {
+    ok: true,
+    currentPrice: +currentPrice.toFixed(2),
+    marketCap, shares,
+    freeCashflow: fcf,
+    operatingCF,
+    totalDebt, totalCash,
+    revenue,
+    ebitda: revenue * 0.18,
+    bookValue: (marketCap * 0.6) / shares,
+    eps: netIncome / shares,
+    profitMargin,
+    debtToEquity: 80,
+    _synthetic: true,
+  };
+}
+
+function syntheticFCFHistory(symbol, baseFCF) {
+  const seed = seedFromSymbol(symbol);
+  const series = [];
+  // 5 yıllık geriye dönük FCF — yıllık %5–25 büyüme/küçülme
+  let fcf = baseFCF;
+  const currentYear = new Date().getFullYear();
+  for (let i = 0; i < 5; i++) {
+    const growth = -0.05 + pseudoRand(seed, 100 + i) * 0.30; // -%5 ile +%25 arası
+    fcf = fcf / (1 + growth); // geriye git
+    series.unshift({ year: currentYear - i - 1, fcf, op: fcf * 1.3, capex: -(fcf * 0.3) });
+  }
+  series.push({ year: currentYear, fcf: baseFCF, op: baseFCF * 1.3, capex: -(baseFCF * 0.3) });
+  return { source: 'synthetic_estimated', series };
+}
+
+// ─────────────────────────────────────────────────────────────────
+// FCF tarihsel serisi çıkar — realFinancialDataService normalized obje
+// ─────────────────────────────────────────────────────────────────
+function yearOfStatement(s) {
+  const ed = s?.endDate;
+  if (!ed) return null;
+  if (ed instanceof Date) return ed.getFullYear();
+  if (typeof ed === 'number') return new Date(ed * 1000).getFullYear();
+  if (ed?.fmt) return new Date(ed.fmt).getFullYear();
+  if (ed?.raw) return new Date(ed.raw * 1000).getFullYear();
+  return null;
+}
+
+function extractFCFHistory(financials) {
+  // 1) cashFlow.annual[*]: fundamentalsTimeSeries 'cash-flow' module → her yıl OperatingCF + CapEx + (varsa) FCF
+  const stmts = financials?.cashFlow?.annual || [];
+  if (Array.isArray(stmts) && stmts.length >= 2) {
+    const series = stmts
+      .map(s => {
+        const op = unwrap(s.totalCashFromOperatingActivities) || 0;
+        const capex = unwrap(s.capitalExpenditures) || 0;
+        // Yahoo'nun hazır freeCashFlow'u varsa onu tercih et (kendi formülü daha kapsamlı)
+        const direct = unwrap(s.freeCashFlowDirect);
+        const fcf = (direct !== null && Number.isFinite(direct)) ? direct : (op + capex);
+        const year = yearOfStatement(s);
+        return { year, fcf, op, capex };
+      })
+      .filter(x => x.fcf && Number.isFinite(x.fcf) && x.year)
+      .sort((a, b) => a.year - b.year); // eski → yeni
+    if (series.length >= 2) return { source: 'cashflow_history', series };
+  }
+
+  // 2) financialData snapshot: tek nokta freeCashflow
+  const fd = financials?.financialData;
+  if (fd) {
+    const fcf = unwrap(fd.freeCashflow);
+    if (fcf && Number.isFinite(fcf)) {
+      return { source: 'snapshot_only', series: [{ year: new Date().getFullYear(), fcf, op: null, capex: null }] };
+    }
+  }
+
+  return null;
+}
+
+// Net income → FCF proxy (en zayıf fallback)
+function netIncomeProxy(financials) {
+  const stmts = financials?.incomeStatement?.annual || [];
+  if (Array.isArray(stmts) && stmts.length >= 2) {
+    const series = stmts
+      .map(s => {
+        const ni = unwrap(s.netIncome) || 0;
+        const year = yearOfStatement(s);
+        return { year, fcf: ni * 0.85, op: ni, capex: 0 }; // %85 = capex/wc düzeltmesi tahmini
+      })
+      .filter(x => x.fcf && Number.isFinite(x.fcf))
+      .reverse();
+    if (series.length >= 2) return { source: 'net_income_proxy', series };
+  }
+  return null;
+}
+
+// ─────────────────────────────────────────────────────────────────
+// CAGR hesabı (negatif/sıfır FCF için güvenli)
+// ─────────────────────────────────────────────────────────────────
+function calcCAGR(series) {
+  if (!series || series.length < 2) return 0;
+  const first = series[0].fcf;
+  const last = series[series.length - 1].fcf;
+  const years = series.length - 1;
+
+  // Negatif → pozitif geçiş varsa CAGR tanımsız → çok temkinli %5 al
+  if (first <= 0 || last <= 0) {
+    return 0.05;
+  }
+  return Math.pow(last / first, 1 / years) - 1;
+}
+
+// ─────────────────────────────────────────────────────────────────
+// FCF projeksiyonu (5 yıl, decay'li)
+// ─────────────────────────────────────────────────────────────────
+function projectFCF(baseFCF, growthRate) {
+  // Cap %15
+  const cappedGrowth = Math.min(growthRate, FCF_GROWTH_CAP);
+  // Negatif FCF veya negatif büyüme → minimum %2 büyüme varsay (terminal yakını)
+  const effGrowth = cappedGrowth <= 0 ? 0.02 : cappedGrowth;
+
+  const projections = [];
+  let prev = baseFCF;
+  for (let i = 0; i < PROJECTION_YEARS; i++) {
+    const yearGrowth = effGrowth * GROWTH_DECAY[i];
+    const projected = prev * (1 + yearGrowth);
+    projections.push({
+      year: i + 1,
+      growthRate: +(yearGrowth * 100).toFixed(2),
+      fcf: projected,
+    });
+    prev = projected;
+  }
+  return { projections, cappedGrowth: +(cappedGrowth * 100).toFixed(2), effGrowth: +(effGrowth * 100).toFixed(2) };
+}
+
+// ─────────────────────────────────────────────────────────────────
+// PV ve Terminal Value
+// ─────────────────────────────────────────────────────────────────
+function discountToPresentValue(projections, wacc) {
+  let totalPV = 0;
+  const pvSeries = projections.map(p => {
+    const pv = p.fcf / Math.pow(1 + wacc, p.year);
+    totalPV += pv;
+    return { ...p, pv };
+  });
+  return { pvSeries, totalPV };
+}
+
+function gordonTerminal(lastProjectedFCF, wacc, terminalGrowth = TERMINAL_GROWTH) {
+  if (wacc <= terminalGrowth) {
+    // WACC ≤ g → Gordon model patlar; safety fallback: WACC + 1%
+    wacc = terminalGrowth + 0.01;
+  }
+  const terminalFCF = lastProjectedFCF * (1 + terminalGrowth);
+  const terminalValue = terminalFCF / (wacc - terminalGrowth);
+  const terminalPV = terminalValue / Math.pow(1 + wacc, PROJECTION_YEARS);
+  return { terminalValue, terminalPV, terminalGrowth };
+}
+
+// ─────────────────────────────────────────────────────────────────
+// Tek hesap: enterprise value → equity value → fair price
+// ─────────────────────────────────────────────────────────────────
+function valuationForParams(baseFCF, growthRate, wacc, terminalGrowth, netDebt, sharesOutstanding) {
+  const { projections } = projectFCF(baseFCF, growthRate);
+  const { pvSeries, totalPV } = discountToPresentValue(projections, wacc);
+  const lastProjected = projections[projections.length - 1].fcf;
+  const { terminalValue, terminalPV } = gordonTerminal(lastProjected, wacc, terminalGrowth);
+
+  const enterpriseValue = totalPV + terminalPV;
+  const equityValue = enterpriseValue - (netDebt || 0);
+  const fairPrice = sharesOutstanding > 0 ? equityValue / sharesOutstanding : null;
+
+  return {
+    pvSeries,
+    totalPV,
+    terminalValue,
+    terminalPV,
+    enterpriseValue,
+    equityValue,
+    fairPrice,
+  };
+}
+
+// ─────────────────────────────────────────────────────────────────
+// 3×3 sensitivity matrix: WACC ±1% × g {2%, 2.5%, 3%}
+// ─────────────────────────────────────────────────────────────────
+function buildSensitivity(baseFCF, growthRate, wacc, netDebt, shares) {
+  const waccs = [wacc - 0.01, wacc, wacc + 0.01];
+  const growths = [0.02, 0.025, 0.03];
+
+  const rows = waccs.map(w => {
+    const cells = growths.map(g => {
+      const v = valuationForParams(baseFCF, growthRate, w, g, netDebt, shares);
+      return { wacc: +(w * 100).toFixed(2), terminalGrowth: +(g * 100).toFixed(2), fairPrice: v.fairPrice };
+    });
+    return { wacc: +(w * 100).toFixed(2), cells };
+  });
+
+  return { waccs: waccs.map(w => +(w * 100).toFixed(2)), growths: growths.map(g => +(g * 100).toFixed(2)), rows };
+}
+
+// ─────────────────────────────────────────────────────────────────
+// Ana fonksiyon
+// ─────────────────────────────────────────────────────────────────
+async function valuateDCF(symbol, opts = {}) {
+  const upper = symbol.toUpperCase().replace('.IS', '');
+  const cacheKey = `${upper}_${opts.mode || 'usd'}`;
+  const cached = dcfCache.get(cacheKey);
+  if (cached && Date.now() - cached.ts < DCF_CACHE_TTL) return cached.result;
+
+  const stockMeta = allBistStocks.find(s => s.symbol === upper);
+  if (!stockMeta) {
+    return { success: false, error: 'Hisse bulunamadı', symbol: upper };
+  }
+
+  let fin = await fetchFinancials(upper);
+  let usingSynthetic = false;
+
+  // Yahoo başarısız ya da snapshot eksikse → deterministic synthetic'e düş
+  if (!fin || (!fin.freeCashflow && !fin.marketCap && !fin.cashFlow?.annual?.length)) {
+    fin = syntheticFinancials(upper, stockMeta.market);
+    usingSynthetic = true;
+  }
+
+  // FCF history önceliği: 1) gerçek 5y cashflow, 2) net income proxy, 3) snapshot+synthetic, 4) tam synthetic
+  let fcfData = null;
+  if (!usingSynthetic) {
+    fcfData = extractFCFHistory(fin);          // fundamentalsTimeSeries → cashflow_history
+    if (!fcfData) fcfData = netIncomeProxy(fin); // incomeStatementHistory → net_income_proxy
+    if (!fcfData && fin.freeCashflow) {
+      fcfData = syntheticFCFHistory(upper, fin.freeCashflow);
+      fcfData.source = 'snapshot_with_synthetic_history';
+    }
+  }
+  if (!fcfData) {
+    fcfData = syntheticFCFHistory(upper, fin.freeCashflow || fin.netIncome || 100e6);
+    fcfData.source = 'synthetic_estimated';
+    usingSynthetic = true;
+  }
+
+  const baseFCF = fcfData.series[fcfData.series.length - 1].fcf;
+  const cagr = calcCAGR(fcfData.series);
+
+  // WACC ayarlamaları
+  const marketCap = fin.marketCap || 0;
+  const isSmallCap = marketCap > 0 && marketCap < 1e9;
+  const isHighLeverage = (fin.debtToEquity || 0) > 100;
+
+  const wInfo = getWACC(stockMeta.sector, {
+    mode: opts.mode || 'usd',
+    smallCap: isSmallCap,
+    highLeverage: isHighLeverage,
+    marketLeader: false,
+  });
+
+  const wacc = wInfo.wacc;
+  const netDebt = (fin.totalDebt || 0) - (fin.totalCash || 0);
+  const shares = fin.shares || 0;
+  const currentPrice = fin.currentPrice || 0;
+
+  // Ana değerleme
+  const main = valuationForParams(baseFCF, cagr, wacc, TERMINAL_GROWTH, netDebt, shares);
+
+  // Yüzdelik fark (intrinsic vs current)
+  const upside = (main.fairPrice && currentPrice > 0)
+    ? +(((main.fairPrice - currentPrice) / currentPrice) * 100).toFixed(2)
+    : null;
+
+  // Karar etiketi
+  let verdict = 'belirsiz';
+  if (upside !== null) {
+    if (upside > 25) verdict = 'derin_iskonto';
+    else if (upside > 10) verdict = 'iskonto';
+    else if (upside > -10) verdict = 'gercege_yakin';
+    else if (upside > -25) verdict = 'pahali';
+    else verdict = 'cok_pahali';
+  }
+
+  const sensitivity = buildSensitivity(baseFCF, cagr, wacc, netDebt, shares);
+
+  const result = {
+    success: true,
+    symbol: upper,
+    name: stockMeta.name,
+    sector: stockMeta.sector,
+    market: stockMeta.market,
+    fetchedAt: new Date().toISOString(),
+    methodology: 'dexter_dcf_v1',
+    inputs: {
+      baseFCF,
+      historicalCAGR: +(cagr * 100).toFixed(2),
+      cappedCAGR: Math.min(+(cagr * 100).toFixed(2), FCF_GROWTH_CAP * 100),
+      projectionYears: PROJECTION_YEARS,
+      growthDecay: GROWTH_DECAY,
+      growthCap: FCF_GROWTH_CAP * 100,
+      terminalGrowth: TERMINAL_GROWTH * 100,
+      wacc: wInfo.waccPct,
+      waccMode: wInfo.mode,
+      waccAdjustments: wInfo.adjustments,
+      sectorEN: wInfo.sectorEN,
+      shares,
+      netDebt,
+      marketCap,
+      currentPrice,
+      fcfHistory: fcfData.series,
+      fcfSource: fcfData.source,
+      synthetic: usingSynthetic,
+    },
+    projection: main.pvSeries,
+    valuation: {
+      sumPV5y: main.totalPV,
+      terminalValue: main.terminalValue,
+      terminalPV: main.terminalPV,
+      enterpriseValue: main.enterpriseValue,
+      netDebt,
+      equityValue: main.equityValue,
+      fairPrice: main.fairPrice,
+      currentPrice,
+      upsidePct: upside,
+      verdict,
+    },
+    sensitivity,
+  };
+
+  dcfCache.set(cacheKey, { result, ts: Date.now() });
+  return result;
+}
+
+function clearDcfCache() { dcfCache.clear(); }
+
+module.exports = {
+  valuateDCF,
+  clearDcfCache,
+  // test/utility
+  projectFCF,
+  calcCAGR,
+  gordonTerminal,
+  valuationForParams,
+  buildSensitivity,
+};

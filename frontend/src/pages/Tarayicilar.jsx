@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { Search, TrendingUp, CandlestickChart, BarChart3, Sparkles, Brain } from 'lucide-react'
+import { Search, TrendingUp, CandlestickChart, BarChart3, Sparkles, Brain, Hash, Newspaper } from 'lucide-react'
 import Taramalar from './Taramalar'
 import EMA34Tarayici from './EMA34Tarayici'
 import MalaysianSNR from './MalaysianSNR'
 import TaramaAnalizMerkezi from './TaramaAnalizMerkezi'
 import StratejiKombolari from './StratejiKombolari'
+import XGundem from './XGundem'
+import HaberAkisi from './HaberAkisi'
 
 const TABS = [
   { id: 'genel',    label: 'Genel Tarama',      icon: Search,           component: Taramalar,           desc: 'Hızlı sembol arama ve filtreleme' },
@@ -13,6 +15,8 @@ const TABS = [
   { id: 'snr',      label: 'Malaysian SNR',     icon: CandlestickChart, component: MalaysianSNR,        desc: 'Destek/direnç bölge analizi' },
   { id: 'merkez',   label: 'Strateji Merkezi',  icon: BarChart3,        component: TaramaAnalizMerkezi, desc: 'Çoklu strateji tarama merkezi' },
   { id: 'kombolar', label: 'Strateji Komboları', icon: Brain,           component: StratejiKombolari,   desc: 'TradingView tarzı çoklu indikatör kombosu — Zincir Bozan, Düşüş Treni, Sessiz Devrim ve daha fazlası', isNew: true },
+  { id: 'x-gundem', label: 'X Gündemi',         icon: Hash,             component: XGundem,             desc: 'BIST hisseleri ve kripto paraların X.com\'da hashtag/cashtag bazlı mention analizi', isNew: true },
+  { id: 'haberler', label: 'Haber Akışı',       icon: Newspaper,        component: HaberAkisi,          desc: 'Türk finans medyası ve kripto kaynaklarından canlı haber kazıma (RSS)', isNew: true },
 ]
 
 export default function Tarayicilar() {

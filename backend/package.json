@@ -51,7 +51,7 @@
     "socket.io": "^4.8.3",
     "tough-cookie": "^6.0.0",
     "winston": "^3.11.0",
-    "yahoo-finance2": "^2.14.0"
+    "yahoo-finance2": "^3.14.0"
   },
   "devDependencies": {
     "eslint": "^8.56.0",

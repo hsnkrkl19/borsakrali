@@ -1,16 +1,18 @@
 import { useState, useEffect } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { Brain, Table, FileText, Star, Building2 } from 'lucide-react'
+import { Brain, Table, FileText, Star, Building2, Calculator } from 'lucide-react'
 import TemelAnalizAI from './TemelAnalizAI'
 import FinancialAnalysis from './FinancialAnalysis'
 import KAPAnalitik from './KAPAnalitik'
 import HisseAISkor from './HisseAISkor'
+import DCFDegerleme from './DCFDegerleme'
 
 const TABS = [
-  { id: 'temel-ai',  label: 'Temel Analiz AI', icon: Brain,    component: TemelAnalizAI,     desc: 'Yapay zekâ destekli temel analiz' },
-  { id: 'mali',      label: 'Mali Tablolar',   icon: Table,    component: FinancialAnalysis, desc: 'Bilanço, gelir tablosu, oran analizi' },
-  { id: 'kap',       label: 'KAP Bültenleri',  icon: FileText, component: KAPAnalitik,       desc: 'Kamuoyu Aydınlatma duyuruları' },
-  { id: 'ai-skor',   label: 'AI Skor',         icon: Star,     component: HisseAISkor,       desc: 'Hisse skor ve öneri kartı' },
+  { id: 'temel-ai',  label: 'Temel Analiz AI', icon: Brain,      component: TemelAnalizAI,     desc: 'Yapay zekâ destekli temel analiz' },
+  { id: 'mali',      label: 'Mali Tablolar',   icon: Table,      component: FinancialAnalysis, desc: 'Bilanço, gelir tablosu, oran analizi' },
+  { id: 'kap',       label: 'KAP Bültenleri',  icon: FileText,   component: KAPAnalitik,       desc: 'Kamuoyu Aydınlatma duyuruları' },
+  { id: 'ai-skor',   label: 'AI Skor',         icon: Star,       component: HisseAISkor,       desc: 'Hisse skor ve öneri kartı' },
+  { id: 'dcf',       label: 'DCF Değerleme',   icon: Calculator, component: DCFDegerleme,      desc: 'İndirgenmiş Nakit Akımı ile içsel değer hesabı (dexter metodolojisi)', isNew: true },
 ]
 
 export default function SirketAnalizi() {
@@ -57,7 +59,7 @@ export default function SirketAnalizi() {
               <button
                 key={t.id}
                 onClick={() => setTab(t.id)}
-                className={`flex items-center gap-2 px-3 sm:px-4 py-2.5 rounded-xl text-xs sm:text-sm font-semibold whitespace-nowrap transition-all
+                className={`relative flex items-center gap-2 px-3 sm:px-4 py-2.5 rounded-xl text-xs sm:text-sm font-semibold whitespace-nowrap transition-all
                   ${isActive
                     ? 'bg-gradient-to-r from-amber-500 to-amber-600 text-dark-950 shadow-lg shadow-amber-500/25'
                     : 'text-gray-400 hover:text-white hover:bg-dark-800'
@@ -65,6 +67,9 @@ export default function SirketAnalizi() {
               >
                 <Icon className="w-4 h-4" />
                 {t.label}
+                {t.isNew && !isActive && (
+                  <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-amber-500/30 text-amber-200 border border-amber-500/40">YENİ</span>
+                )}
               </button>
             )
           })}

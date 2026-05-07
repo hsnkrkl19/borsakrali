@@ -52,6 +52,38 @@ export function calculateEMA(data, period) {
 }
 
 /**
+ * Üçlü Üssel Hareketli Ortalama (TEMA — Triple EMA)
+ * TradingView Pine Script v6 ile aynı formül:
+ *   ema1 = ta.ema(close, length)
+ *   ema2 = ta.ema(ema1,  length)
+ *   ema3 = ta.ema(ema2,  length)
+ *   out  = 3 * (ema1 - ema2) + ema3
+ * @param {number[]} data
+ * @param {number} period
+ * @returns {number[]}
+ */
+export function calculateTEMA(data, period) {
+  const n = data.length
+  if (n === 0) return []
+  const k = 2 / (period + 1)
+  const ema1 = new Array(n)
+  const ema2 = new Array(n)
+  const ema3 = new Array(n)
+  const tema = new Array(n)
+  ema1[0] = data[0]
+  ema2[0] = data[0]
+  ema3[0] = data[0]
+  tema[0] = data[0]
+  for (let i = 1; i < n; i++) {
+    ema1[i] = k * data[i]  + (1 - k) * ema1[i - 1]
+    ema2[i] = k * ema1[i]  + (1 - k) * ema2[i - 1]
+    ema3[i] = k * ema2[i]  + (1 - k) * ema3[i - 1]
+    tema[i] = 3 * (ema1[i] - ema2[i]) + ema3[i]
+  }
+  return tema
+}
+
+/**
  * Ağırlıklı Hareketli Ortalama (WMA)
  * @param {number[]} data - Fiyat verileri
  * @param {number} period - Periyot
@@ -998,16 +1030,15 @@ export function detectTrendZirvesi(data, closes) {
 }
 
 /**
- * EMA34 Değen Hisseler
- * EMA34'e dokunan ve tepki veren hisseler
+ * EMA34 Değen Hisseler — artık TEMA34 (Triple EMA, length=34) kullanıyor.
+ * out = 3*(ema1-ema2) + ema3
  */
 export function detectEMA34Touch(data, closes) {
-  const ema34 = calculateEMA(closes, 34)
+  if (closes.length < 100) return null
+  const ema34 = calculateTEMA(closes, 34)
   const lastIdx = closes.length - 1
 
-  if (lastIdx < 34) return null
-
-  // Son 3 günde EMA34'e dokundu mu?
+  // Son 3 günde TEMA34'e dokundu mu?
   let touched = false
   let touchIdx = -1
 
@@ -1400,6 +1431,7 @@ export function detectMACDBearish(closes) {
 export default {
   calculateSMA,
   calculateEMA,
+  calculateTEMA,
   calculateWMA,
   calculateRSI,
   calculateMACD,

@@ -2206,6 +2206,158 @@ app.get('/api/snr/scanner/bist30', async (req, res) => {
   }
 });
 
+// ============ X (TWITTER) MENTION ROUTES ============
+// dexter (virattt/dexter) src/tools/search/x-search.ts'ten esinli.
+// Şu an mock data; ileride twscrape → RapidAPI → resmi X API v2'ye geçilecek.
+const xMentionService = require('./services/xMentionService');
+
+// Tarayıcı: scope=bist30 | bist100 | all | crypto | crypto_top10 | crypto_all (default: bist100)
+const X_MENTION_SCOPES = ['bist30', 'bist100', 'all', 'crypto', 'crypto_top10', 'crypto_all'];
+app.get('/api/x-mentions/scanner', (req, res) => {
+  try {
+    const scope = X_MENTION_SCOPES.includes(req.query.scope) ? req.query.scope : 'bist100';
+    const result = xMentionService.scanMentions(scope);
+    res.json(result);
+  } catch (err) {
+    console.error('[X-Mentions] Tarayici hata:', err.message);
+    res.status(500).json({ success: false, error: 'X mention tarama yapilamadi' });
+  }
+});
+
+// Tek sembol detayı: ?type=crypto|stock zorunlu değil (auto-detect)
+app.get('/api/x-mentions/:symbol', (req, res) => {
+  try {
+    const assetType = ['crypto', 'stock'].includes(req.query.type) ? req.query.type : undefined;
+    const result = xMentionService.getMentionDetail(req.params.symbol, { assetType });
+    if (!result.success) return res.status(404).json(result);
+    res.json(result);
+  } catch (err) {
+    console.error('[X-Mentions] Detay hata:', err.message);
+    res.status(500).json({ success: false, error: 'X mention detayi alinamadi' });
+  }
+});
+
+// ============ DCF (DISCOUNTED CASH FLOW) ROUTES ============
+// dexter (virattt/dexter) src/skills/dcf/ metodolojisinden uyarlandı.
+// 5y FCF projeksiyonu + Gordon terminal + sektör bazlı WACC + 3×3 sensitivity matrix.
+const dcfService = require('./services/dcfService');
+const { getAllSectorWACC } = require('./data/sectorWACC');
+
+// Sektör WACC referans tablosu — UI'da göstermek için
+app.get('/api/dcf/sector-wacc', (req, res) => {
+  try {
+    const mode = req.query.mode === 'tl' ? 'tl' : 'usd';
+    res.json({ success: true, mode, table: getAllSectorWACC(mode) });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Tek sembol DCF değerleme
+app.get('/api/dcf/:symbol', async (req, res) => {
+  try {
+    const mode = req.query.mode === 'tl' ? 'tl' : 'usd';
+    const result = await dcfService.valuateDCF(req.params.symbol, { mode });
+    if (!result.success) return res.status(404).json(result);
+    res.json(result);
+  } catch (err) {
+    console.error('[DCF] Hata:', err.message);
+    res.status(500).json({ success: false, error: 'DCF hesaplanamadi: ' + err.message });
+  }
+});
+
+// ============ CRYPTO QUOTE ROUTES (CoinGecko) ============
+// dexter src/tools/finance/crypto.ts'ten esinli — CoinGecko ücretsiz API
+const cryptoQuoteService = require('./services/cryptoQuoteService');
+
+app.get('/api/crypto/quote/:symbol', async (req, res) => {
+  try {
+    const result = await cryptoQuoteService.getQuote(req.params.symbol);
+    if (!result.success) return res.status(404).json(result);
+    res.json(result);
+  } catch (err) {
+    console.error('[Crypto] Quote hata:', err.message);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.get('/api/crypto/batch', async (req, res) => {
+  try {
+    const symbols = (req.query.symbols || '').split(',').map(s => s.trim()).filter(Boolean);
+    if (symbols.length === 0) return res.status(400).json({ success: false, error: 'symbols query parametresi gerekli (comma-separated)' });
+    const result = await cryptoQuoteService.getBatchQuotes(symbols);
+    res.json(result);
+  } catch (err) {
+    console.error('[Crypto] Batch hata:', err.message);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.get('/api/crypto/search', async (req, res) => {
+  try {
+    const result = await cryptoQuoteService.search(req.query.q || '');
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.get('/api/crypto/trending', async (req, res) => {
+  try {
+    const result = await cryptoQuoteService.getTrending();
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// ============ WEB SCRAPER ROUTES (axios + cheerio) ============
+// dexter src/tools/browser/browser.ts'ten esinli — TR finansal haber kazıma
+const webScraperService = require('./services/webScraperService');
+
+app.get('/api/scraper/sources', (req, res) => {
+  try {
+    res.json({ success: true, sources: webScraperService.listSources() });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Tüm kaynaklardan birleşik akış. ?category=general|crypto
+app.get('/api/scraper/news', async (req, res) => {
+  try {
+    const category = ['general', 'crypto'].includes(req.query.category) ? req.query.category : null;
+    const result = await webScraperService.fetchMultipleSources(category);
+    res.json(result);
+  } catch (err) {
+    console.error('[Scraper] News hata:', err.message);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.get('/api/scraper/news/:source', async (req, res) => {
+  try {
+    const result = await webScraperService.fetchRSS(req.params.source);
+    if (!result.success) return res.status(404).json(result);
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Sayfa içerik çıkarma (sadece izinli domain) — POST yerine GET ?url= kullanılıyor
+app.get('/api/scraper/extract', async (req, res) => {
+  try {
+    const url = req.query.url;
+    if (!url) return res.status(400).json({ success: false, error: 'url query parametresi gerekli' });
+    const result = await webScraperService.extractPage(url);
+    if (!result.success) return res.status(403).json(result);
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 // ============ KAP ROUTES ============
 app.get('/api/kap/news', (req, res) => {
   const { stockSymbol, sentiment, limit = 20 } = req.query;
@@ -4653,6 +4805,39 @@ function calcEMA(closes, period) {
   return ema;
 }
 
+// TEMA — Triple Exponential Moving Average (TradingView Pine v6 ile aynı)
+//   ema1 = ta.ema(close, length)
+//   ema2 = ta.ema(ema1,  length)
+//   ema3 = ta.ema(ema2,  length)
+//   out  = 3 * (ema1 - ema2) + ema3
+// EMA özyinelemeli olarak ilk barda kaynağın değeri ile başlatılır (Pine Script davranışı).
+function calcTEMASeries(closes, period) {
+  const n = closes.length;
+  if (n === 0) return [];
+  const k = 2 / (period + 1);
+  const ema1 = new Array(n);
+  const ema2 = new Array(n);
+  const ema3 = new Array(n);
+  const tema = new Array(n);
+  ema1[0] = closes[0];
+  ema2[0] = closes[0];
+  ema3[0] = closes[0];
+  tema[0] = closes[0];
+  for (let i = 1; i < n; i++) {
+    ema1[i] = k * closes[i]  + (1 - k) * ema1[i - 1];
+    ema2[i] = k * ema1[i]    + (1 - k) * ema2[i - 1];
+    ema3[i] = k * ema2[i]    + (1 - k) * ema3[i - 1];
+    tema[i] = 3 * (ema1[i] - ema2[i]) + ema3[i];
+  }
+  return tema;
+}
+
+function calcTEMA(closes, period) {
+  if (!closes || closes.length < period) return null;
+  const series = calcTEMASeries(closes, period);
+  return series[series.length - 1];
+}
+
 // EMA34 tarayıcı cache
 const ema34Cache = new Map();
 const EMA34_CACHE_TTL = 10 * 60 * 1000; // 10 dakika
@@ -4685,18 +4870,20 @@ app.get('/api/ema34/scan', async (req, res) => {
             let hist;
             if (isCryptoList) {
               const raw = await fetchCryptoHistorical(sym);
-              if (!raw || raw.length < 40) return null;
+              if (!raw || raw.length < 100) return null;
               hist = raw;
             } else {
-              hist = await liveDataService.fetchHistoricalData(sym, '3mo', '1d');
-              if (!hist || hist.length < 40) return null;
+              hist = await liveDataService.fetchHistoricalData(sym, '1y', '1d');
+              if (!hist || hist.length < 100) return null;
             }
             const closes = hist.map(c => c.close);
-            const ema34_today = calcEMA(closes, 34);
-            const ema34_prev = calcEMA(closes.slice(0, -1), 34);
+            // TEMA34 (Triple EMA) — 3*(ema1-ema2)+ema3, length=34
+            const temaSeries = calcTEMASeries(closes, 34);
+            const ema34_today = temaSeries[temaSeries.length - 1];
+            const ema34_prev  = temaSeries[temaSeries.length - 2];
             const lastClose = closes[closes.length - 1];
             const prevClose = closes[closes.length - 2];
-            if (!ema34_today || !ema34_prev) return null;
+            if (ema34_today == null || ema34_prev == null) return null;
 
             // Durum tespiti
             const aboveNow = lastClose > ema34_today;
@@ -4774,25 +4961,26 @@ app.get('/api/ema34/track/:symbol', async (req, res) => {
     if (isCrypto) {
       hist = await fetchCryptoHistorical(sym);
     } else {
-      hist = await liveDataService.fetchHistoricalData(sym, '6mo', '1d');
+      hist = await liveDataService.fetchHistoricalData(sym, '1y', '1d');
     }
-    if (!hist || hist.length < 40) return res.status(404).json({ error: 'Yetersiz veri' });
+    if (!hist || hist.length < 100) return res.status(404).json({ error: 'Yetersiz veri (TEMA34 için en az 100 mum gerekli)' });
 
     const closes = hist.map(c => c.close);
-    const k = 2 / (34 + 1);
 
-    // EMA34 dizisi hesapla
+    // TEMA34 dizisi hesapla — out = 3*(ema1-ema2) + ema3
+    const temaFull = calcTEMASeries(closes, 34);
+
+    // İlk 34 barı atla (warmup) — sinyal güvenilir değil
     const ema34Series = [];
-    let ema = closes.slice(0, 34).reduce((a, b) => a + b, 0) / 34;
     for (let i = 34; i < closes.length; i++) {
-      ema = closes[i] * k + ema * (1 - k);
-      const dateStr = hist[i].date || (hist[i].time ? new Date(hist[i].time * 1000).toISOString().slice(0, 10) : null)
+      const tema = temaFull[i];
+      const dateStr = hist[i].date || (hist[i].time ? new Date(hist[i].time * 1000).toISOString().slice(0, 10) : null);
       ema34Series.push({
         time: hist[i].time || (dateStr ? Math.floor(new Date(dateStr).getTime() / 1000) : i),
         date: dateStr,
         close: closes[i],
-        ema34: parseFloat(ema.toFixed(2)),
-        above: closes[i] > ema,
+        ema34: parseFloat(tema.toFixed(2)),
+        above: closes[i] > tema,
         signal: null,
       });
     }

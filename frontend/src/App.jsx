@@ -49,6 +49,8 @@ const REDIRECT_MAP = [
   { from: '/malaysian-snr',            to: '/tarayicilar?tab=snr' },
   { from: '/tarama-analiz-merkezi',    to: '/tarayicilar?tab=merkez' },
   { from: '/x-gundem',                 to: '/tarayicilar?tab=x-gundem' },
+  { from: '/haberler',                 to: '/tarayicilar?tab=haberler' },
+  { from: '/haber-akisi',              to: '/tarayicilar?tab=haberler' },
 
   // Notlarım grubu
   { from: '/teknik-notlar',            to: '/notlarim?tab=teknik' },
@@ -59,6 +61,8 @@ const REDIRECT_MAP = [
   { from: '/mali-tablolar',            to: '/sirket-analizi?tab=mali' },
   { from: '/kap-analitik',             to: '/sirket-analizi?tab=kap' },
   { from: '/hisse-ai-skor',            to: '/sirket-analizi?tab=ai-skor' },
+  { from: '/dcf',                      to: '/sirket-analizi?tab=dcf' },
+  { from: '/dcf-degerleme',            to: '/sirket-analizi?tab=dcf' },
 
   // Performans grubu
   { from: '/algoritma-performans',     to: '/performans?tab=algoritma' },

@@ -12,10 +12,10 @@ const SIGNAL_CONFIG = {
 }
 
 const EMA34_TIP = {
-  title: 'EMA34 Takip Sistemi',
-  description: 'Günlük mum grafiğinde EMA34 (34 periyot Üssel Hareketli Ortalama) seviyesine göre hisseleri filtreler. EMA34, orta vadeli trendin teyit indikatörüdür. Fiyat EMA34 üzerindeyken alım trendi devam etmekte; altına geçince trend kırılmaktadır.',
-  formula: 'k = 2 / (34 + 1) = 0.0556\nEMA34(bugün) = Kapanış × k + EMA34(dün) × (1-k)\n\nKesişim yukarı (Cross Above):\n  Dün: Kapanış < EMA34_dün\n  Bugün: Kapanış > EMA34_bugün → AL Sinyali\n\nKesişim aşağı (Cross Below):\n  Dün: Kapanış > EMA34_dün\n  Bugün: Kapanış < EMA34_bugün → ÇIKIŞ Sinyali\n\nSkor hesabı:\n  EMA üzerinde: +20\n  Yeni kesişim yukarı: +20 ek\n  EMA\'ya yakın (%0-3): +10\n  EMA\'ya yakın (%3-8): +5\n  EMA altında: -20\n  Yeni kesişim aşağı: -15 ek',
-  source: 'EMA34 — Standart Wilder EMA formülü'
+  title: 'EMA34 (TEMA) Takip Sistemi',
+  description: 'Günlük mum grafiğinde TEMA34 (34 periyot Triple EMA — Üçlü Üssel Hareketli Ortalama) seviyesine göre hisseleri filtreler. TEMA, klasik EMA\'ya göre gecikmeyi belirgin biçimde azaltır ve orta vadeli trendi daha hızlı teyit eder. Fiyat TEMA34 üzerindeyken alım trendi devam etmekte; altına geçince trend kırılmaktadır.',
+  formula: 'TEMA — Triple Exponential Moving Average (length = 34)\n\nk = 2 / (34 + 1) ≈ 0.0571\n\nema1 = EMA(Kapanış, 34)\nema2 = EMA(ema1,    34)\nema3 = EMA(ema2,    34)\nTEMA = 3 × (ema1 − ema2) + ema3\n\nKesişim yukarı (Cross Above):\n  Dün: Kapanış < TEMA_dün\n  Bugün: Kapanış > TEMA_bugün → AL Sinyali\n\nKesişim aşağı (Cross Below):\n  Dün: Kapanış > TEMA_dün\n  Bugün: Kapanış < TEMA_bugün → ÇIKIŞ Sinyali\n\nSkor hesabı:\n  TEMA üzerinde: +20\n  Yeni kesişim yukarı: +20 ek\n  TEMA\'ya yakın (%0-3): +10\n  TEMA\'ya yakın (%3-8): +5\n  TEMA altında: -20\n  Yeni kesişim aşağı: -15 ek',
+  source: 'TradingView Pine v6 — Triple EMA (TEMA) standart formülü'
 }
 
 export default function EMA34Tarayici() {
