@@ -477,13 +477,50 @@ export default function Login() {
             </p>
           </div>
         </div>
+
+        {/* Sağ kenarda yumuşak alpha fade — sol panelin sağ formla buluştuğu
+             yerdeki keskin sınırı eritir. */}
+        <div
+          aria-hidden="true"
+          className="absolute top-0 right-0 bottom-0 w-32 pointer-events-none z-20"
+          style={{
+            background: isLight
+              ? 'linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.35) 60%, rgba(255, 255, 255, 0.85) 100%)'
+              : 'linear-gradient(90deg, transparent 0%, rgba(3, 6, 13, 0.45) 60%, rgba(3, 6, 13, 0.85) 100%)',
+          }}
+        />
+
+        {/* Hairline gold accent — iki panel arasındaki ortak çizgi. */}
+        <div
+          aria-hidden="true"
+          className="absolute top-[12%] right-0 bottom-[12%] w-px pointer-events-none z-30"
+          style={{
+            background: isLight
+              ? 'linear-gradient(180deg, transparent 0%, rgba(212, 175, 55, 0.55) 30%, rgba(212, 175, 55, 0.55) 70%, transparent 100%)'
+              : 'linear-gradient(180deg, transparent 0%, rgba(212, 175, 55, 0.45) 30%, rgba(212, 175, 55, 0.45) 70%, transparent 100%)',
+            boxShadow: isLight
+              ? '0 0 24px rgba(212, 175, 55, 0.20)'
+              : '0 0 32px rgba(212, 175, 55, 0.25)',
+          }}
+        />
       </div>
 
       {/* ═════════════════════════════════════════════════════════════════════
           RIGHT — LOGIN FORM
           ═════════════════════════════════════════════════════════════════════ */}
       <div className="w-full lg:w-[42%] flex items-center justify-center p-6 sm:p-10 relative z-10">
-        <div className="max-w-[400px] w-full">
+        {/* Sol panelden taşan ışık huzmesi — geçişin "okunmasını" sağlar */}
+        <div
+          aria-hidden="true"
+          className="hidden lg:block absolute inset-y-0 left-0 w-[55%] pointer-events-none"
+          style={{
+            background: isLight
+              ? 'radial-gradient(ellipse 80% 60% at 0% 50%, rgba(254, 243, 199, 0.55) 0%, rgba(254, 243, 199, 0.18) 35%, transparent 70%)'
+              : 'radial-gradient(ellipse 80% 60% at 0% 50%, rgba(212, 175, 55, 0.10) 0%, rgba(212, 175, 55, 0.04) 35%, transparent 70%)',
+          }}
+        />
+
+        <div className="max-w-[400px] w-full relative z-10">
           {/* Mobile brand */}
           <div className="text-center mb-8 lg:hidden">
             <div className="inline-flex mb-4">
