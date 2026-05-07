@@ -48,6 +48,11 @@ const io = socketService.initializeSocket(server);
 app.use(helmet({
   crossOriginEmbedderPolicy: false,
   crossOriginResourcePolicy: { policy: 'cross-origin' },
+  // Google Identity Services popup'ı parent window ile postMessage
+  // üzerinden konuşur. Helmet'in default 'same-origin' değeri bu
+  // iletişimi keser → popup açılır ama callback gelmez (boş ekran).
+  // 'same-origin-allow-popups' ile parent → popup haberleşmesi serbest.
+  crossOriginOpenerPolicy: { policy: 'same-origin-allow-popups' },
   contentSecurityPolicy: {
     directives: {
       defaultSrc: ["'self'", '*'],
