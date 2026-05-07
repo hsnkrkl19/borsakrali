@@ -5,6 +5,7 @@ import UpdatePopup from './components/UpdatePopup'
 import PushNotificationManager from './components/PushNotificationManager'
 import ErrorBoundary from './components/ErrorBoundary'
 import BackButtonHandler from './components/BackButtonHandler'
+import ThemeToggle from './components/ThemeToggle'
 import Dashboard from './pages/Dashboard'
 import GunlukTespitler from './pages/GunlukTespitler'
 import TakipListem from './pages/TakipListem'
@@ -103,6 +104,7 @@ function App() {
     <Router>
       <BackButtonHandler />
       <PushNotificationManager />
+      <ThemeToggle variant="floating" />
       {isAuthenticated && <UpdatePopup />}
       <Routes>
         <Route path="/login" element={<Login />} />
