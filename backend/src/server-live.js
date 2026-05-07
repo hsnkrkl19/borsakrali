@@ -56,11 +56,18 @@ app.use(helmet({
         '*.tradingview.com', 's3.tradingview.com',
         'cdn.tradingview.com', 'cdnjs.cloudflare.com',
         '*.cloudflare.com', 'cdn.jsdelivr.net',
+        // Google Identity Services (Google ile giriş)
+        'accounts.google.com', '*.gstatic.com',
+        'apis.google.com',
       ],
-      frameSrc: ["'self'", '*', '*.tradingview.com', 'data:'],
+      // GIS ve Google OAuth iframe/popup iletişimi için
+      frameSrc: [
+        "'self'", '*', '*.tradingview.com', 'data:',
+        'accounts.google.com', '*.google.com',
+      ],
       imgSrc: ["'self'", 'data:', 'blob:', '*'],
-      connectSrc: ["'self'", '*'],
-      styleSrc: ["'self'", "'unsafe-inline'", '*'],
+      connectSrc: ["'self'", '*', 'accounts.google.com', '*.googleapis.com'],
+      styleSrc: ["'self'", "'unsafe-inline'", '*', 'accounts.google.com'],
       fontSrc: ["'self'", 'data:', '*'],
       workerSrc: ["'self'", 'blob:'],
       mediaSrc: ["'self'", '*'],
