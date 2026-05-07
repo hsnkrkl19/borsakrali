@@ -4,6 +4,7 @@ import Layout from './components/Layout'
 import UpdatePopup from './components/UpdatePopup'
 import PushNotificationManager from './components/PushNotificationManager'
 import ErrorBoundary from './components/ErrorBoundary'
+import BackButtonHandler from './components/BackButtonHandler'
 import Dashboard from './pages/Dashboard'
 import GunlukTespitler from './pages/GunlukTespitler'
 import TakipListem from './pages/TakipListem'
@@ -46,6 +47,7 @@ const REDIRECT_MAP = [
   { from: '/ema34-tarayici',           to: '/tarayicilar?tab=ema34' },
   { from: '/malaysian-snr',            to: '/tarayicilar?tab=snr' },
   { from: '/tarama-analiz-merkezi',    to: '/tarayicilar?tab=merkez' },
+  { from: '/x-gundem',                 to: '/tarayicilar?tab=x-gundem' },
 
   // Notlarım grubu
   { from: '/teknik-notlar',            to: '/notlarim?tab=teknik' },
@@ -99,6 +101,7 @@ function App() {
   return (
     <ErrorBoundary>
     <Router>
+      <BackButtonHandler />
       <PushNotificationManager />
       {isAuthenticated && <UpdatePopup />}
       <Routes>
