@@ -33,6 +33,7 @@ import SirketAnalizi from './pages/SirketAnalizi'     // Temel Analiz AI + Mali 
 import Performans from './pages/Performans'           // Algoritma Performans + İnceleme Kütüphanesi
 import Kripto from './pages/Kripto'                   // YENİ: Kripto piyasa, watchlist, fiyat alarmı
 import EndeksDetay from './pages/EndeksDetay'         // YENİ: Endeks detay grafik sayfası
+import DCFDegerleme from './pages/DCFDegerleme'       // YENİ: dexter DCF değerleme
 
 import { useAuthStore } from './store/authStore'
 import { fetchCurrentUser } from './services/auth'
@@ -61,8 +62,7 @@ const REDIRECT_MAP = [
   { from: '/mali-tablolar',            to: '/sirket-analizi?tab=mali' },
   { from: '/kap-analitik',             to: '/sirket-analizi?tab=kap' },
   { from: '/hisse-ai-skor',            to: '/sirket-analizi?tab=ai-skor' },
-  { from: '/dcf',                      to: '/sirket-analizi?tab=dcf' },
-  { from: '/dcf-degerleme',            to: '/sirket-analizi?tab=dcf' },
+  { from: '/dcf',                      to: '/dcf-degerleme' },
 
   // Performans grubu
   { from: '/algoritma-performans',     to: '/performans?tab=algoritma' },
@@ -138,6 +138,7 @@ function App() {
                   {/* === ANALİZ === */}
                   <Route path="/teknik-analiz-ai" element={<TeknikAnalizAI />} />
                   <Route path="/sirket-analizi" element={<SirketAnalizi />} />
+                  <Route path="/dcf-degerleme" element={<DCFDegerleme />} />
                   <Route path="/tarayicilar" element={<Tarayicilar />} />
                   <Route path="/gunluk-tespitler" element={<GunlukTespitler />} />
                   <Route path="/performans" element={<Performans />} />

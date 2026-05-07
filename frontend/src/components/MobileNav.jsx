@@ -21,6 +21,7 @@ import {
   Calendar,
   ShieldCheck,
   BellRing,
+  Calculator,
 } from 'lucide-react'
 import { useAuthStore } from '../store/authStore'
 import BrandMark from './BrandMark'
@@ -38,6 +39,7 @@ const moreNavItems = [
   { path: '/kripto',           label: 'Kripto',           icon: Coins,         color: 'from-yellow-500 to-orange-500', badge: 'YENİ' },
   { path: '/pro-analiz',       label: 'Pro Analiz',       icon: Gem,           color: 'from-amber-500 to-amber-600' },
   { path: '/sirket-analizi',   label: 'Şirket Analizi',   icon: Building2,     color: 'from-blue-500 to-blue-600' },
+  { path: '/dcf-degerleme',    label: 'DCF Değerleme',    icon: Calculator,    color: 'from-amber-500 to-amber-600', badge: 'YENİ' },
   { path: '/gunluk-tespitler', label: 'Sinyaller',        icon: Target,        color: 'from-red-500 to-red-600' },
   { path: '/performans',       label: 'Performans',       icon: TrendingUp,    color: 'from-emerald-500 to-emerald-600' },
   { path: '/takip-listem',     label: 'Takip Listem',     icon: Briefcase,     color: 'from-purple-500 to-purple-600' },
