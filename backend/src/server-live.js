@@ -227,6 +227,39 @@ app.post('/api/auth/login', authLimiter, async (req, res) => {
   }
 });
 
+// Google ile giris (Supabase ID token akisi)
+app.post('/api/auth/google', authLimiter, async (req, res) => {
+  try {
+    const { idToken, id_token, accessToken, access_token } = req.body || {};
+    const token = idToken || id_token;
+    const accToken = accessToken || access_token;
+
+    if (!token) {
+      return res.status(400).json({ success: false, error: 'Google ID token gerekli' });
+    }
+
+    const result = await authService.loginWithGoogleIdToken({
+      idToken: token,
+      accessToken: accToken,
+    });
+
+    if (!result.success) {
+      return res.status(401).json(result);
+    }
+
+    return res.json({
+      success: true,
+      token: result.token,
+      refreshToken: result.refreshToken,
+      user: result.user,
+      message: 'Google ile giris basarili!',
+    });
+  } catch (error) {
+    console.error('Google login error:', error);
+    return res.status(500).json({ success: false, error: 'Sunucu hatasi' });
+  }
+});
+
 // Sifre degistirme
 app.post('/api/auth/change-password', authLimiter, async (req, res) => {
   try {
