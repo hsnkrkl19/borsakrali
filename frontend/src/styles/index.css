@@ -602,6 +602,28 @@
 [data-theme="light"] input::placeholder,
 [data-theme="light"] textarea::placeholder { color: #94a3b8 !important; }
 
+/* ─────────────────────────────────────────────────────────────────────
+   Text-color overrides for light theme.
+   Pages were originally written assuming a dark background (text-white,
+   text-gray-300 …). Without these overrides those classes stay near-white
+   on a now-light surface and become unreadable. Inline style={} on a
+   component still wins (higher specificity), so authors can opt out per
+   element when they explicitly want a hero or accent.
+   ───────────────────────────────────────────────────────────────────── */
+[data-theme="light"] .text-white     { color: #0f172a !important; }
+[data-theme="light"] .text-gray-100  { color: #1e293b !important; }
+[data-theme="light"] .text-gray-200  { color: #334155 !important; }
+[data-theme="light"] .text-gray-300  { color: #475569 !important; }
+[data-theme="light"] .text-gray-400  { color: #64748b !important; }
+[data-theme="light"] .text-gray-500  { color: #94a3b8 !important; }
+[data-theme="light"] .text-gray-600  { color: #b8c2cc !important; }
+[data-theme="light"] .text-slate-200 { color: #334155 !important; }
+[data-theme="light"] .text-slate-300 { color: #475569 !important; }
+[data-theme="light"] .text-slate-400 { color: #64748b !important; }
+[data-theme="light"] .text-slate-500 { color: #94a3b8 !important; }
+[data-theme="light"] .text-slate-600 { color: #b8c2cc !important; }
+[data-theme="light"] .text-slate-700 { color: #475569 !important; }
+
 /* Tables shell */
 .table-shell {
   width: 100%;

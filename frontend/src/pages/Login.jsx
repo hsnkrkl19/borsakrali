@@ -10,6 +10,27 @@ import { loginWithPassword } from '../services/auth'
 import BrandMark from '../components/BrandMark'
 import GoogleSignInButton from '../components/GoogleSignInButton'
 import { getApiBase } from '../config'
+import { getStoredTheme } from '../utils/theme'
+
+/**
+ * Subscribe the component to the global theme so colors update when the
+ * floating ThemeToggle flips light/dark. Returns 'dark' | 'light'.
+ */
+function useTheme() {
+  const [theme, setTheme] = useState(() => {
+    if (typeof window === 'undefined') return 'dark'
+    return getStoredTheme()
+  })
+  useEffect(() => {
+    const handler = (e) => {
+      const next = e?.detail?.theme
+      if (next === 'light' || next === 'dark') setTheme(next)
+    }
+    window.addEventListener('bk-theme-change', handler)
+    return () => window.removeEventListener('bk-theme-change', handler)
+  }, [])
+  return theme
+}
 
 function formatTr(num, opts = {}) {
   if (num == null || Number.isNaN(num)) return '—'
@@ -180,20 +201,35 @@ function CinematicChartBackdrop() {
 /* ────────────────────────────────────────────────────────────────────────────
    Live ticker chip (animated mock indices for hero)
    ──────────────────────────────────────────────────────────────────────────── */
-function HeroTickerChip({ label, value, change }) {
+function HeroTickerChip({ label, value, change, theme = 'dark' }) {
   const up = change >= 0
+  const isLight = theme === 'light'
   return (
     <div
       className="flex items-center gap-2.5 px-3 py-2 rounded-xl"
       style={{
-        background: 'rgba(255, 255, 255, 0.04)',
-        border: `1px solid ${up ? 'rgba(0, 201, 138, 0.25)' : 'rgba(255, 59, 70, 0.25)'}`,
+        background: isLight ? 'rgba(255, 255, 255, 0.85)' : 'rgba(255, 255, 255, 0.04)',
+        border: `1px solid ${up ? 'rgba(0, 201, 138, 0.30)' : 'rgba(255, 59, 70, 0.30)'}`,
         backdropFilter: 'blur(6px)',
+        boxShadow: isLight ? '0 1px 3px rgba(15, 23, 42, 0.06)' : 'none',
       }}
     >
-      <span className="text-[10px] uppercase tracking-[0.14em] font-semibold text-amber-300/80">{label}</span>
-      <span className="text-white font-bold text-sm num-tabular">{value}</span>
-      <span className={`text-[11px] font-bold num-tabular ${up ? 'text-emerald-400' : 'text-red-400'}`}>
+      <span
+        className="text-[10px] uppercase tracking-[0.14em] font-semibold"
+        style={{ color: isLight ? '#92400e' : 'rgba(252, 211, 77, 0.85)' }}
+      >
+        {label}
+      </span>
+      <span
+        className="font-bold text-sm num-tabular"
+        style={{ color: isLight ? '#0f172a' : '#ffffff' }}
+      >
+        {value}
+      </span>
+      <span
+        className="text-[11px] font-bold num-tabular"
+        style={{ color: up ? (isLight ? '#059669' : '#34d399') : (isLight ? '#dc2626' : '#f87171') }}
+      >
         {up ? '▲' : '▼'} {Math.abs(change).toFixed(2)}%
       </span>
     </div>
@@ -210,6 +246,8 @@ export default function Login() {
   const [error, setError] = useState('')
   const [waking, setWaking] = useState(false)
   const macro = useMacroSnapshot()
+  const theme = useTheme()
+  const isLight = theme === 'light'
 
   if (isAuthenticated) {
     return <Navigate to="/" replace />
@@ -275,7 +313,9 @@ export default function Login() {
       <div
         className="hidden lg:flex lg:w-[58%] relative overflow-hidden flex-col"
         style={{
-          background: 'linear-gradient(135deg, #060a14 0%, #0a1020 35%, #0f172a 70%, #060a14 100%)',
+          background: isLight
+            ? 'linear-gradient(135deg, #fef9f0 0%, #fdf3df 35%, #fff 70%, #fef9f0 100%)'
+            : 'linear-gradient(135deg, #060a14 0%, #0a1020 35%, #0f172a 70%, #060a14 100%)',
         }}
       >
         {/* Animated chart backdrop */}
@@ -287,8 +327,9 @@ export default function Login() {
         <div
           className="absolute inset-0 pointer-events-none"
           style={{
-            background:
-              'radial-gradient(ellipse 80% 60% at 50% 40%, transparent 30%, rgba(3,6,13,0.65) 100%)',
+            background: isLight
+              ? 'radial-gradient(ellipse 80% 60% at 50% 40%, transparent 30%, rgba(254, 243, 199, 0.55) 100%)'
+              : 'radial-gradient(ellipse 80% 60% at 50% 40%, transparent 30%, rgba(3,6,13,0.65) 100%)',
           }}
         />
 
@@ -314,6 +355,7 @@ export default function Login() {
                 label="BIST 100"
                 value={formatTr(macro.bist100.value, { frac: 2 })}
                 change={macro.bist100.change ?? 0}
+                theme={theme}
               />
             )}
             {macro.usdtry && (
@@ -321,6 +363,7 @@ export default function Login() {
                 label="USD/TRY"
                 value={formatTr(macro.usdtry.value, { frac: 2 })}
                 change={macro.usdtry.change ?? 0}
+                theme={theme}
               />
             )}
             {macro.gold && (
@@ -328,6 +371,7 @@ export default function Login() {
                 label="GRAM"
                 value={formatTr(macro.gold.value, { frac: 0 })}
                 change={macro.gold.change ?? 0}
+                theme={theme}
               />
             )}
           </div>
@@ -341,7 +385,10 @@ export default function Login() {
               Premium Analiz Platformu
             </div>
 
-            <h2 className="text-[3.25rem] leading-[1.05] font-black tracking-tight text-white mb-6">
+            <h2
+              className="text-[3.25rem] leading-[1.05] font-black tracking-tight mb-6"
+              style={{ color: isLight ? '#0f172a' : '#ffffff' }}
+            >
               Borsanın
               <br />
               <span className="text-gold-shimmer">Kralı Olmak</span>
@@ -349,7 +396,10 @@ export default function Login() {
               Bir Tıklama Uzakta.
             </h2>
 
-            <p className="text-slate-300 text-base leading-relaxed mb-10 max-w-md">
+            <p
+              className="text-base leading-relaxed mb-10 max-w-md"
+              style={{ color: isLight ? '#475569' : '#cbd5e1' }}
+            >
               Profesyonel BIST analizi · Gerçek zamanlı veri · AI destekli sinyaller.
               Tüm araçlar, tek bir cebinizde.
             </p>
@@ -363,9 +413,12 @@ export default function Login() {
                     key={i}
                     className="group relative overflow-hidden rounded-2xl p-4 transition-all hover:translate-y-[-2px]"
                     style={{
-                      background: 'rgba(255, 255, 255, 0.03)',
-                      border: '1px solid rgba(212, 175, 55, 0.12)',
+                      background: isLight ? 'rgba(255, 255, 255, 0.85)' : 'rgba(255, 255, 255, 0.03)',
+                      border: isLight
+                        ? '1px solid rgba(212, 175, 55, 0.35)'
+                        : '1px solid rgba(212, 175, 55, 0.12)',
                       backdropFilter: 'blur(8px)',
+                      boxShadow: isLight ? '0 1px 4px rgba(15,23,42,0.06)' : 'none',
                     }}
                   >
                     {/* Hover gold sweep */}
@@ -376,10 +429,29 @@ export default function Login() {
                           'linear-gradient(135deg, rgba(212, 175, 55, 0.08), transparent 60%)',
                       }}
                     />
-                    <Icon className="w-5 h-5 text-amber-300 mb-2.5" strokeWidth={2.2} />
-                    <div className="text-amber-300 text-[11px] font-bold uppercase tracking-wider">{f.stat}</div>
-                    <div className="text-white text-sm font-semibold leading-tight mt-0.5">{f.title}</div>
-                    <div className="text-slate-400 text-[11px] mt-1 leading-snug">{f.subtitle}</div>
+                    <Icon
+                      className="w-5 h-5 mb-2.5"
+                      strokeWidth={2.2}
+                      style={{ color: isLight ? '#b45309' : '#fcd34d' }}
+                    />
+                    <div
+                      className="text-[11px] font-bold uppercase tracking-wider"
+                      style={{ color: isLight ? '#92400e' : '#fcd34d' }}
+                    >
+                      {f.stat}
+                    </div>
+                    <div
+                      className="text-sm font-semibold leading-tight mt-0.5"
+                      style={{ color: isLight ? '#0f172a' : '#ffffff' }}
+                    >
+                      {f.title}
+                    </div>
+                    <div
+                      className="text-[11px] mt-1 leading-snug"
+                      style={{ color: isLight ? '#64748b' : '#94a3b8' }}
+                    >
+                      {f.subtitle}
+                    </div>
                   </div>
                 )
               })}
@@ -391,10 +463,18 @@ export default function Login() {
         <div className="relative z-10 px-12 pb-8">
           <div className="divider-gold mb-4 max-w-xl" />
           <div className="flex items-center justify-between max-w-xl">
-            <p className="text-slate-500 text-[11px]">
+            <p
+              className="text-[11px]"
+              style={{ color: isLight ? '#64748b' : '#64748b' }}
+            >
               © {new Date().getFullYear()} Borsa Kralı · Tüm hakları saklıdır.
             </p>
-            <p className="text-slate-600 text-[10px] uppercase tracking-wider">v3.0 · Obsidian</p>
+            <p
+              className="text-[10px] uppercase tracking-wider"
+              style={{ color: isLight ? '#94a3b8' : '#475569' }}
+            >
+              v3.0 · Obsidian
+            </p>
           </div>
         </div>
       </div>
@@ -421,8 +501,18 @@ export default function Login() {
             />
 
             <div className="mb-6">
-              <h2 className="text-2xl font-bold text-white tracking-tight mb-1.5">Tekrar Hoş Geldiniz</h2>
-              <p className="text-slate-400 text-[13px]">Premium hesabınıza giriş yapın</p>
+              <h2
+                className="text-2xl font-bold tracking-tight mb-1.5"
+                style={{ color: isLight ? '#0f172a' : '#ffffff' }}
+              >
+                Tekrar Hoş Geldiniz
+              </h2>
+              <p
+                className="text-[13px]"
+                style={{ color: isLight ? '#64748b' : '#94a3b8' }}
+              >
+                Premium hesabınıza giriş yapın
+              </p>
             </div>
 
             {error && (
@@ -539,21 +629,29 @@ export default function Login() {
               onClick={handleDemoLogin}
               className="w-full relative overflow-hidden rounded-xl py-3 px-4 flex items-center justify-center gap-2.5 font-semibold text-[13px] transition-all group"
               style={{
-                background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.12), rgba(99, 102, 241, 0.06))',
+                background: isLight
+                  ? 'linear-gradient(135deg, rgba(59, 130, 246, 0.10), rgba(99, 102, 241, 0.05))'
+                  : 'linear-gradient(135deg, rgba(59, 130, 246, 0.12), rgba(99, 102, 241, 0.06))',
                 border: '1px solid rgba(59, 130, 246, 0.30)',
-                color: '#bfdbfe',
+                color: isLight ? '#1e40af' : '#bfdbfe',
               }}
             >
               <PlayCircle className="w-4 h-4 text-blue-400 group-hover:text-blue-300" />
               Demo Hesapla Keşfet
               <span className="pill pill-azure ml-1 !text-[9px]">Tam Erişim</span>
             </button>
-            <p className="text-[11px] text-slate-500 text-center mt-2">
+            <p
+              className="text-[11px] text-center mt-2"
+              style={{ color: isLight ? '#64748b' : '#64748b' }}
+            >
               Demo modunda tüm analiz araçlarına gerçek verilerle erişin
             </p>
 
             <div className="mt-6 text-center">
-              <p className="text-slate-400 text-[13px]">
+              <p
+                className="text-[13px]"
+                style={{ color: isLight ? '#475569' : '#94a3b8' }}
+              >
                 Henüz üye değil misiniz?{' '}
                 <Link to="/register" className="text-amber-400 hover:text-amber-300 font-bold transition-colors">
                   Krallığa Katılın →
@@ -562,7 +660,10 @@ export default function Login() {
             </div>
           </div>
 
-          <p className="text-center text-[10px] text-slate-600 mt-5 leading-relaxed">
+          <p
+            className="text-center text-[10px] mt-5 leading-relaxed"
+            style={{ color: isLight ? '#94a3b8' : '#475569' }}
+          >
             Yatırım tavsiyesi değildir · Eğitim amaçlı platform
           </p>
         </div>
