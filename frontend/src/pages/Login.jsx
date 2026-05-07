@@ -42,39 +42,48 @@ function formatTr(num, opts = {}) {
 
 /**
  * Public macro snapshot for the login hero.
- * Returns { bist100, usdtry, gold } from /api/market/macro with a safe
- * static fallback so the UI never renders blank if the backend is sleeping.
+ * Çağrılan iki endpoint:
+ *   - /api/market/bist100   → BIST 100 endeksi
+ *   - /api/market/commodities → USD/TRY ve gram altın (TL/gr)
+ * İkisi paralel çekiliyor; biri sleep'te ise diğeri yine de güncel
+ * değerleri gösterebiliyor. Fallback değerler 2026 makul aralıkları —
+ * yalnızca backend tamamen ulaşılamazsa görünürler.
  */
 function useMacroSnapshot() {
   const [data, setData] = useState({
-    bist100: { value: 10485, change: -0.71 },
-    usdtry: { value: 38.42, change: 0.12 },
-    gold: { value: 4180, change: 0.84 },
+    bist100: { value: 15040, change: 0.82 },
+    usdtry: { value: 45.24, change: 0.08 },
+    gold: { value: 6868, change: 0.66 },
     live: false,
   })
 
   useEffect(() => {
     let active = true
     const ac = new AbortController()
+    const apiBase = getApiBase()
 
-    fetch(`${getApiBase()}/api/market/macro`, { signal: ac.signal })
-      .then((r) => r.ok ? r.json() : Promise.reject(r))
-      .then((d) => {
-        if (!active || !d) return
-        setData({
-          bist100: d.bist100
-            ? { value: d.bist100.price, change: d.bist100.changePercent }
-            : null,
-          usdtry: d.usdtry
-            ? { value: d.usdtry.price, change: d.usdtry.changePercent }
-            : null,
-          gold: d.gold
-            ? { value: d.gold.price, change: d.gold.changePercent }
-            : null,
-          live: true,
-        })
-      })
-      .catch(() => { /* keep fallback */ })
+    const safeJson = (r) => (r.ok ? r.json() : Promise.reject(r))
+
+    const bist = fetch(`${apiBase}/api/market/bist100`, { signal: ac.signal })
+      .then(safeJson).catch(() => null)
+    const commodities = fetch(`${apiBase}/api/market/commodities`, { signal: ac.signal })
+      .then(safeJson).catch(() => null)
+
+    Promise.all([bist, commodities]).then(([b, c]) => {
+      if (!active) return
+      setData((prev) => ({
+        bist100: b
+          ? { value: b.price ?? b.value, change: b.changePercent }
+          : prev.bist100,
+        usdtry: c?.usd_try
+          ? { value: c.usd_try.price, change: c.usd_try.changePercent }
+          : prev.usdtry,
+        gold: c?.gold_try
+          ? { value: c.gold_try.price, change: c.gold_try.changePercent }
+          : prev.gold,
+        live: true,
+      }))
+    })
 
     return () => { active = false; ac.abort() }
   }, [])
@@ -86,8 +95,9 @@ function useMacroSnapshot() {
    Animated chart backdrop — pure SVG, performant, theme-aware.
    Generates a candlestick + gradient sparkline that lives behind the form.
    ──────────────────────────────────────────────────────────────────────────── */
-function CinematicChartBackdrop() {
+function CinematicChartBackdrop({ theme = 'dark' }) {
   const [tick, setTick] = useState(0)
+  const isLight = theme === 'light'
   const points = useMemo(() => {
     // Deterministic pseudo-data so SSR/hydration doesn't flicker
     const seed = 137
@@ -140,21 +150,26 @@ function CinematicChartBackdrop() {
     <svg
       viewBox={`0 0 ${W} ${H}`}
       preserveAspectRatio="xMidYMid slice"
-      className="absolute inset-0 w-full h-full pointer-events-none opacity-[0.55]"
+      className={'absolute inset-0 w-full h-full pointer-events-none ' + (isLight ? 'opacity-[0.35]' : 'opacity-[0.55]')}
       aria-hidden="true"
     >
       <defs>
         <linearGradient id="bk-line" x1="0" y1="0" x2="1" y2="0">
-          <stop offset="0%" stopColor="#d4af37" stopOpacity="0.15" />
-          <stop offset="50%" stopColor="#f0c75a" stopOpacity="0.85" />
-          <stop offset="100%" stopColor="#fef3c7" stopOpacity="1" />
+          <stop offset="0%" stopColor={isLight ? '#b45309' : '#d4af37'} stopOpacity={isLight ? '0.2' : '0.15'} />
+          <stop offset="50%" stopColor={isLight ? '#d4af37' : '#f0c75a'} stopOpacity={isLight ? '0.65' : '0.85'} />
+          <stop offset="100%" stopColor={isLight ? '#92400e' : '#fef3c7'} stopOpacity={isLight ? '0.85' : '1'} />
         </linearGradient>
         <linearGradient id="bk-area" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#d4af37" stopOpacity="0.35" />
+          <stop offset="0%" stopColor="#d4af37" stopOpacity={isLight ? '0.20' : '0.35'} />
           <stop offset="100%" stopColor="#d4af37" stopOpacity="0" />
         </linearGradient>
         <pattern id="bk-grid" width="40" height="40" patternUnits="userSpaceOnUse">
-          <path d="M 40 0 L 0 0 0 40" fill="none" stroke="rgba(212,175,55,0.06)" strokeWidth="1" />
+          <path
+            d="M 40 0 L 0 0 0 40"
+            fill="none"
+            stroke={isLight ? 'rgba(146, 64, 14, 0.05)' : 'rgba(212,175,55,0.06)'}
+            strokeWidth="1"
+          />
         </pattern>
       </defs>
 
@@ -320,7 +335,7 @@ export default function Login() {
       >
         {/* Animated chart backdrop */}
         <div className="absolute inset-0">
-          <CinematicChartBackdrop />
+          <CinematicChartBackdrop theme={theme} />
         </div>
 
         {/* Vignette */}
@@ -333,11 +348,16 @@ export default function Login() {
           }}
         />
 
-        {/* Floating gold particles */}
-        <div className="absolute top-[18%] left-[12%] w-1.5 h-1.5 rounded-full bg-amber-300/50 float-slow" />
-        <div className="absolute top-[35%] right-[18%] w-1 h-1 rounded-full bg-amber-200/60 float-slow" style={{ animationDelay: '1s' }} />
-        <div className="absolute bottom-[28%] left-[22%] w-2 h-2 rounded-full bg-amber-400/40 float-slow" style={{ animationDelay: '2s' }} />
-        <div className="absolute bottom-[18%] right-[10%] w-1 h-1 rounded-full bg-amber-200/50 float-slow" style={{ animationDelay: '3s' }} />
+        {/* Floating gold particles — sadece koyu temada görünür (açık zeminde
+             zaten görünmüyorlar, isteğe bağlı dekoratif) */}
+        {!isLight && (
+          <>
+            <div className="absolute top-[18%] left-[12%] w-1.5 h-1.5 rounded-full bg-amber-300/50 float-slow" />
+            <div className="absolute top-[35%] right-[18%] w-1 h-1 rounded-full bg-amber-200/60 float-slow" style={{ animationDelay: '1s' }} />
+            <div className="absolute bottom-[28%] left-[22%] w-2 h-2 rounded-full bg-amber-400/40 float-slow" style={{ animationDelay: '2s' }} />
+            <div className="absolute bottom-[18%] right-[10%] w-1 h-1 rounded-full bg-amber-200/50 float-slow" style={{ animationDelay: '3s' }} />
+          </>
+        )}
 
         {/* Top bar — brand + ticker chips */}
         <div className="relative z-10 flex items-center justify-between p-8">
@@ -345,7 +365,12 @@ export default function Login() {
             <BrandMark size="lg" />
             <div>
               <h1 className="text-xl font-bold text-gold-shimmer tracking-wider leading-none">BORSA KRALI</h1>
-              <p className="text-amber-300/70 text-[10px] uppercase tracking-[0.22em] font-bold mt-1">Obsidian Edition</p>
+              <p
+                className="text-[10px] uppercase tracking-[0.22em] font-bold mt-1"
+                style={{ color: isLight ? '#92400e' : 'rgba(252, 211, 77, 0.70)' }}
+              >
+                Obsidian Edition
+              </p>
             </div>
           </div>
 
