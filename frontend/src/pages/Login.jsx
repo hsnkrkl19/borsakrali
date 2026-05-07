@@ -9,6 +9,57 @@ import {
 import { loginWithPassword } from '../services/auth'
 import BrandMark from '../components/BrandMark'
 import GoogleSignInButton from '../components/GoogleSignInButton'
+import { getApiBase } from '../config'
+
+function formatTr(num, opts = {}) {
+  if (num == null || Number.isNaN(num)) return '—'
+  return new Intl.NumberFormat('tr-TR', {
+    minimumFractionDigits: opts.frac ?? 2,
+    maximumFractionDigits: opts.frac ?? 2,
+  }).format(num)
+}
+
+/**
+ * Public macro snapshot for the login hero.
+ * Returns { bist100, usdtry, gold } from /api/market/macro with a safe
+ * static fallback so the UI never renders blank if the backend is sleeping.
+ */
+function useMacroSnapshot() {
+  const [data, setData] = useState({
+    bist100: { value: 10485, change: -0.71 },
+    usdtry: { value: 38.42, change: 0.12 },
+    gold: { value: 4180, change: 0.84 },
+    live: false,
+  })
+
+  useEffect(() => {
+    let active = true
+    const ac = new AbortController()
+
+    fetch(`${getApiBase()}/api/market/macro`, { signal: ac.signal })
+      .then((r) => r.ok ? r.json() : Promise.reject(r))
+      .then((d) => {
+        if (!active || !d) return
+        setData({
+          bist100: d.bist100
+            ? { value: d.bist100.price, change: d.bist100.changePercent }
+            : null,
+          usdtry: d.usdtry
+            ? { value: d.usdtry.price, change: d.usdtry.changePercent }
+            : null,
+          gold: d.gold
+            ? { value: d.gold.price, change: d.gold.changePercent }
+            : null,
+          live: true,
+        })
+      })
+      .catch(() => { /* keep fallback */ })
+
+    return () => { active = false; ac.abort() }
+  }, [])
+
+  return data
+}
 
 /* ────────────────────────────────────────────────────────────────────────────
    Animated chart backdrop — pure SVG, performant, theme-aware.
@@ -158,6 +209,7 @@ export default function Login() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [waking, setWaking] = useState(false)
+  const macro = useMacroSnapshot()
 
   if (isAuthenticated) {
     return <Navigate to="/" replace />
@@ -257,9 +309,27 @@ export default function Login() {
           </div>
 
           <div className="hidden xl:flex items-center gap-2">
-            <HeroTickerChip label="BIST 100" value="14.485" change={-0.71} />
-            <HeroTickerChip label="USD/TRY" value="32.41" change={0.12} />
-            <HeroTickerChip label="GRAM" value="2.847" change={0.84} />
+            {macro.bist100 && (
+              <HeroTickerChip
+                label="BIST 100"
+                value={formatTr(macro.bist100.value, { frac: 2 })}
+                change={macro.bist100.change ?? 0}
+              />
+            )}
+            {macro.usdtry && (
+              <HeroTickerChip
+                label="USD/TRY"
+                value={formatTr(macro.usdtry.value, { frac: 2 })}
+                change={macro.usdtry.change ?? 0}
+              />
+            )}
+            {macro.gold && (
+              <HeroTickerChip
+                label="GRAM"
+                value={formatTr(macro.gold.value, { frac: 0 })}
+                change={macro.gold.change ?? 0}
+              />
+            )}
           </div>
         </div>
 

@@ -164,6 +164,71 @@ class YahooFinanceService {
   }
 
   /**
+   * Lightweight macro snapshot for the public landing/login page:
+   * BIST 100 endeksi, USD/TRY, gram altın (USD/oz × USD/TRY ÷ 31.1035)
+   * Tek HTTP cevabıyla dönüyor; cache 60 sn (server-side memoize edilebilir).
+   */
+  async getMacroSnapshot() {
+    try {
+      const yahooFinance = await getYF();
+      const symbols = ['XU100.IS', 'USDTRY=X', 'GC=F'];
+      const quotes = await yahooFinance.quote(symbols, {}, { timeout: this.timeout });
+      const list = Array.isArray(quotes) ? quotes : [quotes];
+
+      const bySymbol = list.reduce((acc, q) => {
+        if (q?.symbol) acc[q.symbol] = q;
+        return acc;
+      }, {});
+
+      const bist = bySymbol['XU100.IS'] || null;
+      const usdtry = bySymbol['USDTRY=X'] || null;
+      const goldOz = bySymbol['GC=F'] || null;
+
+      // Gram altın: ons fiyatı (USD) × USD/TRY / 31.1034768
+      let gramAltin = null;
+      if (goldOz?.regularMarketPrice && usdtry?.regularMarketPrice) {
+        const oz = goldOz.regularMarketPrice
+        const fx = usdtry.regularMarketPrice
+        const prevOz = goldOz.regularMarketPreviousClose ?? oz
+        const prevFx = usdtry.regularMarketPreviousClose ?? fx
+        const price = (oz * fx) / 31.1034768
+        const prev = (prevOz * prevFx) / 31.1034768
+        const change = price - prev
+        const changePercent = prev !== 0 ? (change / prev) * 100 : 0
+        gramAltin = {
+          symbol: 'GRAM',
+          name: 'Gram Altın',
+          price,
+          change,
+          changePercent,
+        }
+      }
+
+      return {
+        bist100: bist ? {
+          symbol: 'BIST 100',
+          name: 'BIST 100',
+          price: bist.regularMarketPrice,
+          change: bist.regularMarketChange,
+          changePercent: bist.regularMarketChangePercent,
+        } : null,
+        usdtry: usdtry ? {
+          symbol: 'USD/TRY',
+          name: 'USD/TRY',
+          price: usdtry.regularMarketPrice,
+          change: usdtry.regularMarketChange,
+          changePercent: usdtry.regularMarketChangePercent,
+        } : null,
+        gold: gramAltin,
+        timestamp: Date.now(),
+      };
+    } catch (error) {
+      logger.error('Error fetching macro snapshot:', error.message);
+      return null;
+    }
+  }
+
+  /**
    * Get financial data for fundamental analysis
    */
   async getFinancialData(symbol) {

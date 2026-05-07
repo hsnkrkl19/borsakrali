@@ -10,6 +10,7 @@ const { authenticate } = require('../middleware/auth');
 
 // Public routes (no auth needed)
 router.get('/bist100', marketController.getBist100);
+router.get('/macro', marketController.getMacroSnapshot);
 router.get('/sectors', marketController.getSectorPerformance);
 router.get('/stocks', marketController.getAllStocks);
 router.get('/stocks/search', marketController.searchStocks);

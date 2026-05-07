@@ -49,6 +49,29 @@ class MarketController {
   }
 
   /**
+   * Public macro snapshot (login/landing): BIST 100, USD/TRY, gram altın.
+   * 60 sn server-side memoize.
+   */
+  async getMacroSnapshot(req, res) {
+    try {
+      const now = Date.now();
+      if (
+        MarketController._macroCache
+        && (now - MarketController._macroCache.t) < 60_000
+      ) {
+        return res.json(MarketController._macroCache.data);
+      }
+      const data = await yahooFinanceService.getMacroSnapshot();
+      if (!data) return res.status(503).json({ error: 'Macro snapshot unavailable' });
+      MarketController._macroCache = { t: now, data };
+      res.json(data);
+    } catch (error) {
+      logger.error('getMacroSnapshot error:', error);
+      res.status(500).json({ error: 'Failed to fetch macro snapshot' });
+    }
+  }
+
+  /**
    * Get ALL stocks
    */
   async getAllStocks(req, res) {
