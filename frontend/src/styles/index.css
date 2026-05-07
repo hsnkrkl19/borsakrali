@@ -569,6 +569,51 @@
 [data-theme="light"] .to-dark-950   { --tw-gradient-to:   var(--bg-base); }
 [data-theme="light"] .to-dark-900   { --tw-gradient-to:   #ffffff; }
 
+/* ─────────────────────────────────────────────────────────────────────
+   Aydınlık tema: yarı saydam koyu kart sınıfları krem zeminde
+   görünmüyordu (white × low alpha = belirsiz). Daha opak krem ton +
+   hafif gölge ile zeminden ayrıştırıyoruz.
+   ───────────────────────────────────────────────────────────────────── */
+[data-theme="light"] .bg-dark-900\/98,
+[data-theme="light"] .bg-dark-900\/80 {
+  background-color: #ffffff !important;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+[data-theme="light"] .bg-dark-900\/60,
+[data-theme="light"] .bg-dark-900\/50 {
+  background-color: rgba(255, 255, 255, 0.92) !important;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
+  border: 1px solid rgba(212, 175, 55, 0.18);
+}
+[data-theme="light"] .bg-dark-800\/80,
+[data-theme="light"] .bg-dark-800\/60,
+[data-theme="light"] .bg-dark-800\/50,
+[data-theme="light"] .bg-dark-800\/40,
+[data-theme="light"] .bg-dark-800\/30 {
+  background-color: rgba(248, 244, 232, 0.85) !important;
+  border-color: rgba(15, 23, 42, 0.08) !important;
+}
+
+/* Açık zeminde divider'lar daha belirgin */
+[data-theme="light"] .divider-gold {
+  opacity: 0.55;
+}
+
+/* Kart border'ları light'ta hafif altın halka — kullanıcı içeriği
+   zeminden ayırt edebilsin (şu an sınır neredeyse görünmüyor) */
+[data-theme="light"] .border-dark-700,
+[data-theme="light"] .border-dark-800 {
+  border-color: rgba(15, 23, 42, 0.10) !important;
+}
+[data-theme="light"] .border-gold-500\/10,
+[data-theme="light"] .border-gold-500\/15,
+[data-theme="light"] .border-gold-500\/20 {
+  border-color: rgba(212, 175, 55, 0.30) !important;
+}
+[data-theme="light"] .border-gold-500\/30 {
+  border-color: rgba(212, 175, 55, 0.45) !important;
+}
+
 /* Pro Analiz hero kartı — tema uyumlu altın aksanlı gradient */
 .pro-hero-card {
   background: linear-gradient(125deg,
