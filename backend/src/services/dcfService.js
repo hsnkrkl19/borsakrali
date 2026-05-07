@@ -42,6 +42,29 @@ function unwrap(v) {
   return v;
 }
 
+// USD/TRY kuru — quote() ile (mode=usd modunda TRY→USD dönüşümü için)
+let _usdTryCache = { rate: null, ts: 0 };
+const USDTRY_TTL = 10 * 60 * 1000; // 10 dk
+async function fetchUsdTryRate() {
+  if (_usdTryCache.rate && Date.now() - _usdTryCache.ts < USDTRY_TTL) {
+    return _usdTryCache.rate;
+  }
+  try {
+    const YF = await getYF();
+    const yf = typeof YF === 'function' ? new YF({ suppressNotices: ['yahooSurvey'] }) : YF;
+    const q = await yf.quote('USDTRY=X');
+    const rate = q?.regularMarketPrice;
+    if (rate && Number.isFinite(rate) && rate > 1) {
+      _usdTryCache = { rate, ts: Date.now() };
+      return rate;
+    }
+  } catch (err) {
+    console.warn('[DCF] USD/TRY kuru alınamadı:', err.message?.slice(0, 80));
+  }
+  // Fallback: makul bir 2026 değeri (kullanıcıyı bloklamaz, eskimiş veri uyarısı UI'da yok)
+  return _usdTryCache.rate || 32.5;
+}
+
 // Yahoo finansal veri çekimi — yahoo-finance2 v3 quoteSummary + fundamentalsTimeSeries
 // fundamentalsTimeSeries: 2022 sonrası gerçek 5y cashflow (operatingCashFlow, capitalExpenditure, freeCashFlow)
 // quoteSummary: snapshot (price, marketCap, totalDebt/Cash, sharesOutstanding, netIncome history)
@@ -395,12 +418,26 @@ async function valuateDCF(symbol, opts = {}) {
   });
 
   const wacc = wInfo.wacc;
-  const netDebt = (fin.totalDebt || 0) - (fin.totalCash || 0);
-  const shares = fin.shares || 0;
-  const currentPrice = fin.currentPrice || 0;
+  const mode = opts.mode || 'usd';
+  const isUSD = mode === 'usd';
 
-  // Ana değerleme
-  const main = valuationForParams(baseFCF, cagr, wacc, TERMINAL_GROWTH, netDebt, shares);
+  // BIST hisseleri TRY denominated; mode=usd ise tüm TRY değerlerini USD/TRY ile böl
+  const usdTryRate = isUSD ? await fetchUsdTryRate() : 1;
+  const div = (v) => Number.isFinite(v) ? v / usdTryRate : v;
+
+  const netDebtRaw = (fin.totalDebt || 0) - (fin.totalCash || 0);
+  const sharesAbs = fin.shares || 0;
+  const currentPriceRaw = fin.currentPrice || 0;
+
+  // FCF ve TRY tutarları için USD dönüşümü; shares ve oranlar (CAGR, WACC, growth) etkilenmez
+  const baseFCFConverted = div(baseFCF);
+  const netDebt = div(netDebtRaw);
+  const currentPrice = div(currentPriceRaw);
+  const marketCapConverted = div(marketCap);
+  const fcfHistoryConverted = fcfData.series.map(h => ({ ...h, fcf: div(h.fcf) }));
+
+  // Ana değerleme — base FCF zaten dönüştürülmüş, share count olduğu gibi
+  const main = valuationForParams(baseFCFConverted, cagr, wacc, TERMINAL_GROWTH, netDebt, sharesAbs);
 
   // Yüzdelik fark (intrinsic vs current)
   const upside = (main.fairPrice && currentPrice > 0)
@@ -417,7 +454,7 @@ async function valuateDCF(symbol, opts = {}) {
     else verdict = 'cok_pahali';
   }
 
-  const sensitivity = buildSensitivity(baseFCF, cagr, wacc, netDebt, shares);
+  const sensitivity = buildSensitivity(baseFCFConverted, cagr, wacc, netDebt, sharesAbs);
 
   const result = {
     success: true,
@@ -427,8 +464,11 @@ async function valuateDCF(symbol, opts = {}) {
     market: stockMeta.market,
     fetchedAt: new Date().toISOString(),
     methodology: 'dexter_dcf_v1',
+    currency: isUSD ? 'USD' : 'TRY',
+    currencySymbol: isUSD ? '$' : '₺',
+    usdTryRate: +usdTryRate.toFixed(4),
     inputs: {
-      baseFCF,
+      baseFCF: baseFCFConverted,
       historicalCAGR: +(cagr * 100).toFixed(2),
       cappedCAGR: Math.min(+(cagr * 100).toFixed(2), FCF_GROWTH_CAP * 100),
       projectionYears: PROJECTION_YEARS,
@@ -439,11 +479,11 @@ async function valuateDCF(symbol, opts = {}) {
       waccMode: wInfo.mode,
       waccAdjustments: wInfo.adjustments,
       sectorEN: wInfo.sectorEN,
-      shares,
+      shares: sharesAbs,
       netDebt,
-      marketCap,
+      marketCap: marketCapConverted,
       currentPrice,
-      fcfHistory: fcfData.series,
+      fcfHistory: fcfHistoryConverted,
       fcfSource: fcfData.source,
       synthetic: usingSynthetic,
     },

@@ -19,13 +19,25 @@ function fmtNum(n, decimals = 0) {
   return Number(n).toLocaleString('tr-TR', { minimumFractionDigits: decimals, maximumFractionDigits: decimals })
 }
 
-function fmtBig(n) {
+// Para birimine göre fiyat: USD modda küçük rakamlar için ondalık otomatik ayarlanır
+function fmtPrice(n, symbol = '₺') {
   if (n === null || n === undefined || !Number.isFinite(n)) return '—'
   const abs = Math.abs(n)
-  if (abs >= 1e9) return `${(n / 1e9).toFixed(2)} mlr`
-  if (abs >= 1e6) return `${(n / 1e6).toFixed(1)} mn`
-  if (abs >= 1e3) return `${(n / 1e3).toFixed(0)}b`
-  return fmtNum(n)
+  let decimals = 2
+  if (symbol === '$' && abs > 0 && abs < 1) decimals = abs < 0.01 ? 6 : 4
+  const formatted = Number(n).toLocaleString('tr-TR', { minimumFractionDigits: decimals, maximumFractionDigits: decimals })
+  return `${formatted} ${symbol}`
+}
+
+function fmtBig(n, symbol = '') {
+  if (n === null || n === undefined || !Number.isFinite(n)) return '—'
+  const abs = Math.abs(n)
+  const suffix = symbol ? ` ${symbol}` : ''
+  if (abs >= 1e9) return `${(n / 1e9).toFixed(2)} mlr${suffix}`
+  if (abs >= 1e6) return `${(n / 1e6).toFixed(1)} mn${suffix}`
+  if (abs >= 1e3) return `${(n / 1e3).toFixed(0)}b${suffix}`
+  if (symbol === '$' && abs > 0 && abs < 1) return `${n.toFixed(abs < 0.01 ? 6 : 4)}${suffix}`
+  return `${fmtNum(n, 2)}${suffix}`
 }
 
 function StatCard({ label, value, sub, color = 'amber' }) {
@@ -37,15 +49,15 @@ function StatCard({ label, value, sub, color = 'amber' }) {
     gray:  'border-gray-500/30 from-gray-500/15',
   }
   return (
-    <div className={`rounded-xl border bg-gradient-to-br to-transparent p-3 ${colors[color]}`}>
-      <div className="text-[10px] uppercase tracking-wider text-gray-400">{label}</div>
-      <div className="text-lg sm:text-xl font-bold text-white mt-0.5">{value}</div>
-      {sub && <div className="text-[10px] text-gray-500 mt-0.5">{sub}</div>}
+    <div className={`rounded-xl border bg-gradient-to-br to-transparent p-3 sm:p-3.5 ${colors[color]}`}>
+      <div className="text-xs uppercase tracking-wider text-gray-400">{label}</div>
+      <div className="text-lg sm:text-xl font-bold text-white mt-1">{value}</div>
+      {sub && <div className="text-xs text-gray-500 mt-1">{sub}</div>}
     </div>
   )
 }
 
-function VerdictCard({ verdict, fairPrice, currentPrice, upside }) {
+function VerdictCard({ verdict, fairPrice, currentPrice, upside, symbol = '₺' }) {
   const v = VERDICT_LABELS[verdict] || VERDICT_LABELS.belirsiz
   const colors = {
     green: 'from-green-500/20 to-green-700/5 border-green-500/40 text-green-300',
@@ -54,46 +66,46 @@ function VerdictCard({ verdict, fairPrice, currentPrice, upside }) {
     gray:  'from-gray-500/20 to-gray-700/5 border-gray-500/40 text-gray-300',
   }
   return (
-    <div className={`rounded-2xl border bg-gradient-to-br p-4 ${colors[v.tone]}`}>
-      <div className="flex items-start justify-between flex-wrap gap-2">
+    <div className={`rounded-2xl border bg-gradient-to-br p-4 sm:p-5 ${colors[v.tone]}`}>
+      <div className="flex items-start justify-between flex-wrap gap-3">
         <div>
           <div className="text-2xl sm:text-3xl font-bold flex items-center gap-2">
             <span>{v.emoji}</span>
             <span className="text-white">{v.label}</span>
           </div>
-          <div className="text-xs opacity-80 mt-0.5">{v.desc}</div>
+          <div className="text-sm opacity-80 mt-1">{v.desc}</div>
         </div>
         {upside !== null && (
           <div className="text-right">
             <div className={`text-2xl sm:text-3xl font-bold ${upside >= 0 ? 'text-green-400' : 'text-red-400'}`}>
               {upside >= 0 ? '+' : ''}{upside}%
             </div>
-            <div className="text-[10px] uppercase tracking-wider text-gray-400">Upside</div>
+            <div className="text-xs uppercase tracking-wider text-gray-400">Upside</div>
           </div>
         )}
       </div>
-      <div className="grid grid-cols-2 gap-3 mt-3 pt-3 border-t border-white/10">
+      <div className="grid grid-cols-2 gap-3 mt-4 pt-3 border-t border-white/10">
         <div>
-          <div className="text-[10px] uppercase tracking-wider text-gray-400">İçsel Değer</div>
-          <div className="text-xl font-bold text-white">{fmtNum(fairPrice, 2)} ₺</div>
+          <div className="text-xs uppercase tracking-wider text-gray-400">İçsel Değer</div>
+          <div className="text-xl sm:text-2xl font-bold text-white mt-0.5">{fmtPrice(fairPrice, symbol)}</div>
         </div>
         <div>
-          <div className="text-[10px] uppercase tracking-wider text-gray-400">Güncel Fiyat</div>
-          <div className="text-xl font-bold text-white">{fmtNum(currentPrice, 2)} ₺</div>
+          <div className="text-xs uppercase tracking-wider text-gray-400">Güncel Fiyat</div>
+          <div className="text-xl sm:text-2xl font-bold text-white mt-0.5">{fmtPrice(currentPrice, symbol)}</div>
         </div>
       </div>
     </div>
   )
 }
 
-function SensitivityMatrix({ sensitivity, currentPrice }) {
+function SensitivityMatrix({ sensitivity, currentPrice, symbol = '₺' }) {
   if (!sensitivity?.rows) return null
   return (
     <div className="overflow-x-auto custom-scrollbar">
-      <table className="w-full text-xs">
+      <table className="w-full text-sm">
         <thead>
           <tr>
-            <th className="text-left p-2 text-gray-500 font-medium">WACC ↓ \ g →</th>
+            <th className="text-left p-2 text-xs text-gray-500 font-medium">WACC ↓ \ g →</th>
             {sensitivity.growths.map(g => (
               <th key={g} className="p-2 text-amber-300 font-semibold text-center">{g}%</th>
             ))}
@@ -116,9 +128,9 @@ function SensitivityMatrix({ sensitivity, currentPrice }) {
                 }
                 return (
                   <td key={idx} className={`p-2 text-center border border-dark-700 ${bg}`}>
-                    <div className="font-semibold text-white">{fair ? fmtNum(fair, 2) : '—'}</div>
+                    <div className="font-semibold text-white">{fair ? fmtPrice(fair, symbol) : '—'}</div>
                     {diff !== null && (
-                      <div className={`text-[10px] ${diff >= 0 ? 'text-green-300' : 'text-red-300'}`}>
+                      <div className={`text-xs ${diff >= 0 ? 'text-green-300' : 'text-red-300'}`}>
                         {diff >= 0 ? '+' : ''}{diff.toFixed(1)}%
                       </div>
                     )}
@@ -133,14 +145,14 @@ function SensitivityMatrix({ sensitivity, currentPrice }) {
   )
 }
 
-function ProjectionTable({ projection, baseFCF }) {
+function ProjectionTable({ projection, baseFCF, symbol = '' }) {
   if (!projection?.length) return null
   const cumPV = projection.reduce((a, p) => a + p.pv, 0)
   return (
     <div className="overflow-x-auto custom-scrollbar">
-      <table className="w-full text-xs">
+      <table className="w-full text-sm">
         <thead>
-          <tr className="text-[10px] uppercase tracking-wider text-gray-500">
+          <tr className="text-xs uppercase tracking-wider text-gray-500">
             <th className="text-left p-2">Yıl</th>
             <th className="text-right p-2">Büyüme</th>
             <th className="text-right p-2">FCF</th>
@@ -151,21 +163,21 @@ function ProjectionTable({ projection, baseFCF }) {
           <tr className="bg-dark-900/40">
             <td className="p-2 text-gray-400">Bugün</td>
             <td className="p-2 text-right text-gray-500">—</td>
-            <td className="p-2 text-right text-white font-semibold">{fmtBig(baseFCF)}</td>
+            <td className="p-2 text-right text-white font-semibold">{fmtBig(baseFCF, symbol)}</td>
             <td className="p-2 text-right text-gray-500">—</td>
           </tr>
           {projection.map(p => (
             <tr key={p.year} className="border-t border-dark-800">
               <td className="p-2 text-gray-400">+{p.year} yıl</td>
               <td className="p-2 text-right text-amber-300">{p.growthRate}%</td>
-              <td className="p-2 text-right text-white">{fmtBig(p.fcf)}</td>
-              <td className="p-2 text-right text-blue-300">{fmtBig(p.pv)}</td>
+              <td className="p-2 text-right text-white">{fmtBig(p.fcf, symbol)}</td>
+              <td className="p-2 text-right text-blue-300">{fmtBig(p.pv, symbol)}</td>
             </tr>
           ))}
           <tr className="border-t border-dark-700 bg-amber-500/5">
             <td className="p-2 text-amber-300 font-semibold">Toplam PV (5y)</td>
             <td colSpan="2"></td>
-            <td className="p-2 text-right text-amber-300 font-bold">{fmtBig(cumPV)}</td>
+            <td className="p-2 text-right text-amber-300 font-bold">{fmtBig(cumPV, symbol)}</td>
           </tr>
         </tbody>
       </table>
@@ -237,6 +249,7 @@ export default function DCFDegerleme() {
 
   const inputs = data?.inputs
   const val = data?.valuation
+  const sym = data?.currencySymbol || '₺'
 
   return (
     <div className="space-y-4 max-w-5xl mx-auto">
@@ -244,10 +257,10 @@ export default function DCFDegerleme() {
       <div className="flex items-start justify-between flex-wrap gap-3">
         <div>
           <div className="flex items-center gap-2">
-            <h1 className="text-xl sm:text-2xl font-bold text-white">DCF Değerleme</h1>
+            <h1 className="text-2xl sm:text-3xl font-bold text-white">DCF Değerleme</h1>
             <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-500/30 text-amber-200 border border-amber-500/40">YENİ</span>
           </div>
-          <p className="text-xs text-gray-500 mt-0.5">İndirgenmiş Nakit Akımı yöntemiyle içsel değer hesabı (5 yıl projeksiyon + Gordon terminal)</p>
+          <p className="text-sm text-gray-400 mt-1">İndirgenmiş Nakit Akımı yöntemiyle içsel değer hesabı (5 yıl projeksiyon + Gordon terminal)</p>
         </div>
         <div className="flex gap-1 bg-dark-900/60 border border-dark-700 rounded-xl p-1">
           {[
@@ -327,9 +340,9 @@ export default function DCFDegerleme() {
       </div>
 
       {/* Methodology hint */}
-      <div className="rounded-xl border border-blue-500/20 bg-blue-500/5 p-3 flex gap-2 items-start">
+      <div className="rounded-xl border border-blue-500/20 bg-blue-500/5 p-3 sm:p-3.5 flex gap-2.5 items-start">
         <Info className="w-4 h-4 text-blue-400 flex-shrink-0 mt-0.5" />
-        <div className="text-xs text-blue-200/90">
+        <div className="text-sm text-blue-200/90 leading-relaxed">
           <span className="font-semibold">Metodoloji:</span> 5 yıllık FCF projeksiyonu (CAGR %15 ile sınırlı, yıllık decay 0.95→0.80),
           Gordon terminal (g=%2.5), sektör bazlı WACC. <span className="opacity-70">Kaynak: virattt/dexter DCF skill</span>
         </div>
@@ -354,16 +367,17 @@ export default function DCFDegerleme() {
       {data && !loading && (
         <>
           {/* Hisse meta */}
-          <div className="rounded-xl border border-dark-700 bg-dark-900/40 p-3">
+          <div className="rounded-xl border border-dark-700 bg-dark-900/40 p-3 sm:p-3.5">
             <div className="flex items-center justify-between flex-wrap gap-2">
               <div>
-                <div className="text-lg font-bold text-white">{data.symbol}</div>
-                <div className="text-xs text-gray-400">{data.name}</div>
-                <div className="text-[10px] text-gray-500 mt-0.5">{data.sector} · {data.market}</div>
+                <div className="text-lg sm:text-xl font-bold text-white">{data.symbol}</div>
+                <div className="text-sm text-gray-300">{data.name}</div>
+                <div className="text-xs text-gray-500 mt-1">{data.sector} · {data.market}</div>
               </div>
-              <div className="text-right text-[10px] text-gray-500">
+              <div className="text-right text-xs text-gray-400 space-y-0.5">
                 <div>FCF kaynağı: <span className="text-amber-300">{inputs?.fcfSource}</span></div>
-                <div>Mod: {inputs?.waccMode?.toUpperCase()}</div>
+                <div>Para birimi: <span className="text-amber-300">{data.currency}</span> {data.currency === 'USD' && data.usdTryRate ? <span className="text-gray-500">(1$={data.usdTryRate}₺)</span> : null}</div>
+                <div>WACC modu: {inputs?.waccMode?.toUpperCase()}</div>
               </div>
             </div>
           </div>
@@ -374,11 +388,12 @@ export default function DCFDegerleme() {
             fairPrice={val.fairPrice}
             currentPrice={val.currentPrice}
             upside={val.upsidePct}
+            symbol={sym}
           />
 
           {/* Key inputs */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-            <StatCard label="Baz FCF" value={fmtBig(inputs.baseFCF)} sub="son yıl" color="amber" />
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
+            <StatCard label="Baz FCF" value={fmtBig(inputs.baseFCF, sym)} sub="son yıl" color="amber" />
             <StatCard label="Tarihsel CAGR" value={`${inputs.historicalCAGR}%`} sub={`%${inputs.cappedCAGR} kullanıldı`} color="blue" />
             <StatCard label="WACC" value={`${inputs.wacc}%`} sub={inputs.sectorEN} color="amber" />
             <StatCard label="Terminal g" value={`${inputs.terminalGrowth}%`} sub="Gordon" color="blue" />
@@ -386,7 +401,7 @@ export default function DCFDegerleme() {
 
           {/* WACC adjustments */}
           {inputs.waccAdjustments?.length > 0 && (
-            <div className="text-[11px] text-gray-400 flex flex-wrap gap-2 px-1">
+            <div className="text-xs text-gray-400 flex flex-wrap gap-2 items-center px-1">
               <span className="text-gray-500">WACC ayarlamaları:</span>
               {inputs.waccAdjustments.map((a, i) => (
                 <span key={i} className="px-2 py-0.5 rounded-md bg-dark-800 border border-dark-700">
@@ -398,23 +413,23 @@ export default function DCFDegerleme() {
 
           {/* FCF history */}
           {inputs.fcfHistory?.length > 1 && (
-            <div className="rounded-xl border border-dark-700 bg-dark-900/40 p-3">
-              <div className="text-xs text-gray-400 mb-2 flex items-center gap-1.5">
-                <TrendingUp className="w-3.5 h-3.5 text-amber-400" />
+            <div className="rounded-xl border border-dark-700 bg-dark-900/40 p-3 sm:p-3.5">
+              <div className="text-sm text-gray-300 mb-3 flex items-center gap-1.5 font-medium">
+                <TrendingUp className="w-4 h-4 text-amber-400" />
                 Tarihsel FCF
               </div>
-              <div className="flex items-end gap-2 h-20">
+              <div className="flex items-end gap-2 h-24">
                 {inputs.fcfHistory.map(h => {
                   const max = Math.max(...inputs.fcfHistory.map(x => Math.abs(x.fcf)))
                   const height = max > 0 ? (Math.abs(h.fcf) / max) * 100 : 0
                   return (
-                    <div key={h.year} className="flex-1 flex flex-col items-center gap-1">
-                      <div className="text-[9px] text-gray-500">{fmtBig(h.fcf)}</div>
+                    <div key={h.year} className="flex-1 flex flex-col items-center gap-1.5">
+                      <div className="text-xs text-gray-400 font-medium">{fmtBig(h.fcf, sym)}</div>
                       <div
                         className={`w-full rounded-sm ${h.fcf >= 0 ? 'bg-amber-500' : 'bg-red-500'}`}
                         style={{ height: `${height}%` }}
                       />
-                      <div className="text-[9px] text-gray-500">{h.year}</div>
+                      <div className="text-xs text-gray-500">{h.year}</div>
                     </div>
                   )
                 })}
@@ -423,63 +438,63 @@ export default function DCFDegerleme() {
           )}
 
           {/* Projection */}
-          <div className="rounded-xl border border-dark-700 bg-dark-900/40 p-3">
-            <div className="text-xs text-gray-400 mb-2 flex items-center gap-1.5">
-              <Target className="w-3.5 h-3.5 text-amber-400" />
+          <div className="rounded-xl border border-dark-700 bg-dark-900/40 p-3 sm:p-3.5">
+            <div className="text-sm text-gray-300 mb-3 flex items-center gap-1.5 font-medium">
+              <Target className="w-4 h-4 text-amber-400" />
               5 Yıllık FCF Projeksiyonu (Bugünkü Değere İndirgenmiş)
             </div>
-            <ProjectionTable projection={data.projection} baseFCF={inputs.baseFCF} />
+            <ProjectionTable projection={data.projection} baseFCF={inputs.baseFCF} symbol={sym} />
           </div>
 
           {/* Bridge to fair price */}
-          <div className="rounded-xl border border-dark-700 bg-dark-900/40 p-3">
-            <div className="text-xs text-gray-400 mb-2">Adil Değere Köprü</div>
-            <div className="text-xs space-y-1.5">
+          <div className="rounded-xl border border-dark-700 bg-dark-900/40 p-3 sm:p-3.5">
+            <div className="text-sm text-gray-300 mb-3 font-medium">Adil Değere Köprü</div>
+            <div className="text-sm space-y-2">
               <div className="flex justify-between">
                 <span className="text-gray-400">5y PV toplamı</span>
-                <span className="text-white">{fmtBig(val.sumPV5y)}</span>
+                <span className="text-white">{fmtBig(val.sumPV5y, sym)}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-400">+ Terminal PV (Gordon)</span>
-                <span className="text-white">{fmtBig(val.terminalPV)}</span>
+                <span className="text-white">{fmtBig(val.terminalPV, sym)}</span>
               </div>
-              <div className="flex justify-between border-t border-dark-700 pt-1.5">
+              <div className="flex justify-between border-t border-dark-700 pt-2">
                 <span className="text-gray-300">= Enterprise Value</span>
-                <span className="text-amber-300 font-semibold">{fmtBig(val.enterpriseValue)}</span>
+                <span className="text-amber-300 font-semibold">{fmtBig(val.enterpriseValue, sym)}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-400">− Net Borç</span>
-                <span className="text-red-300">{fmtBig(val.netDebt)}</span>
+                <span className="text-red-300">{fmtBig(val.netDebt, sym)}</span>
               </div>
-              <div className="flex justify-between border-t border-dark-700 pt-1.5">
+              <div className="flex justify-between border-t border-dark-700 pt-2">
                 <span className="text-gray-300">= Equity Value</span>
-                <span className="text-amber-300 font-semibold">{fmtBig(val.equityValue)}</span>
+                <span className="text-amber-300 font-semibold">{fmtBig(val.equityValue, sym)}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-400">÷ Hisse Sayısı</span>
                 <span className="text-gray-400">{fmtBig(inputs.shares)}</span>
               </div>
-              <div className="flex justify-between border-t border-amber-500/30 pt-1.5">
+              <div className="flex justify-between border-t border-amber-500/30 pt-2">
                 <span className="text-white font-semibold">= Adil Fiyat</span>
-                <span className="text-amber-300 font-bold text-base">{fmtNum(val.fairPrice, 2)} ₺</span>
+                <span className="text-amber-300 font-bold text-lg">{fmtPrice(val.fairPrice, sym)}</span>
               </div>
             </div>
           </div>
 
           {/* Sensitivity matrix */}
-          <div className="rounded-xl border border-dark-700 bg-dark-900/40 p-3">
-            <div className="text-xs text-gray-400 mb-2 flex items-center gap-1.5">
-              <Zap className="w-3.5 h-3.5 text-amber-400" />
+          <div className="rounded-xl border border-dark-700 bg-dark-900/40 p-3 sm:p-3.5">
+            <div className="text-sm text-gray-300 mb-3 flex items-center gap-1.5 font-medium">
+              <Zap className="w-4 h-4 text-amber-400" />
               3×3 Hassasiyet Matrisi (WACC ±%1 × Terminal g)
             </div>
-            <SensitivityMatrix sensitivity={data.sensitivity} currentPrice={val.currentPrice} />
-            <div className="text-[10px] text-gray-500 mt-2">
+            <SensitivityMatrix sensitivity={data.sensitivity} currentPrice={val.currentPrice} symbol={sym} />
+            <div className="text-xs text-gray-500 mt-3 leading-relaxed">
               Yeşil hücreler = adil fiyat güncel fiyatın üstünde (alım fırsatı potansiyeli). Kırmızı = pahalı.
             </div>
           </div>
 
           {/* Disclaimer */}
-          <div className="text-[10px] text-gray-600 px-1">
+          <div className="text-xs text-gray-500 px-1 leading-relaxed">
             DCF teorik bir değerleme yöntemidir; tek başına yatırım kararı için yeterli değildir. Yahoo Finance verileri kullanılır,
             BIST hisselerinde tarihsel FCF eksik olduğunda fallback hesaplar (operating CF − capex veya net income proxy) devreye girer.
           </div>
