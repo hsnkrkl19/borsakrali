@@ -136,65 +136,9 @@ async function fetchFinancials(symbol) {
   };
 }
 
-// ─────────────────────────────────────────────────────────────────
-// Deterministic FCF generator — Yahoo başarısız olunca devreye girer
-// X mention service'le aynı seed mantığı: aynı sembol → aynı sonuç
-// ─────────────────────────────────────────────────────────────────
-function seedFromSymbol(s) {
-  return s.split('').reduce((a, c, i) => a + c.charCodeAt(0) * (i + 1), 0);
-}
-function pseudoRand(seed, off) {
-  const x = Math.sin(seed + off) * 10000;
-  return x - Math.floor(x);
-}
-
-function syntheticFinancials(symbol, market) {
-  const seed = seedFromSymbol(symbol);
-  // Market cap base: BIST30 1-50 mlr TL, BIST100 200mn-10mlr, diğer 50mn-2mlr
-  let mcMin = 50e6, mcMax = 2e9;
-  if (market === 'BIST30')  { mcMin = 1e9;  mcMax = 50e9; }
-  if (market === 'BIST100') { mcMin = 200e6; mcMax = 10e9; }
-  const marketCap = mcMin + pseudoRand(seed, 1) * (mcMax - mcMin);
-  const currentPrice = 5 + pseudoRand(seed, 2) * 195; // 5–200 TL aralığı
-  const shares = marketCap / currentPrice;
-  const revenue = marketCap * (0.4 + pseudoRand(seed, 3) * 1.6); // P/S 0.5-2.5
-  const profitMargin = 0.04 + pseudoRand(seed, 4) * 0.20; // %4-24
-  const netIncome = revenue * profitMargin;
-  const fcf = netIncome * (0.6 + pseudoRand(seed, 5) * 0.6); // FCF/NI %60-120
-  const operatingCF = fcf * 1.3;
-  const totalDebt = marketCap * (0.2 + pseudoRand(seed, 6) * 0.6);
-  const totalCash = marketCap * (0.05 + pseudoRand(seed, 7) * 0.15);
-  return {
-    ok: true,
-    currentPrice: +currentPrice.toFixed(2),
-    marketCap, shares,
-    freeCashflow: fcf,
-    operatingCF,
-    totalDebt, totalCash,
-    revenue,
-    ebitda: revenue * 0.18,
-    bookValue: (marketCap * 0.6) / shares,
-    eps: netIncome / shares,
-    profitMargin,
-    debtToEquity: 80,
-    _synthetic: true,
-  };
-}
-
-function syntheticFCFHistory(symbol, baseFCF) {
-  const seed = seedFromSymbol(symbol);
-  const series = [];
-  // 5 yıllık geriye dönük FCF — yıllık %5–25 büyüme/küçülme
-  let fcf = baseFCF;
-  const currentYear = new Date().getFullYear();
-  for (let i = 0; i < 5; i++) {
-    const growth = -0.05 + pseudoRand(seed, 100 + i) * 0.30; // -%5 ile +%25 arası
-    fcf = fcf / (1 + growth); // geriye git
-    series.unshift({ year: currentYear - i - 1, fcf, op: fcf * 1.3, capex: -(fcf * 0.3) });
-  }
-  series.push({ year: currentYear, fcf: baseFCF, op: baseFCF * 1.3, capex: -(baseFCF * 0.3) });
-  return { source: 'synthetic_estimated', series };
-}
+// NOT: Eski "syntheticFinancials" / "syntheticFCFHistory" fonksiyonları kaldırıldı.
+// Yahoo Finance gerçek veri vermezse artık {success:false} dönüyoruz; uydurma
+// (pseudo-random) DCF değeri ÜRETMİYORUZ. — borsakrali.com fake-data temizliği.
 
 // ─────────────────────────────────────────────────────────────────
 // FCF tarihsel serisi çıkar — realFinancialDataService normalized obje
@@ -377,30 +321,30 @@ async function valuateDCF(symbol, opts = {}) {
     return { success: false, error: 'Hisse bulunamadı', symbol: upper };
   }
 
-  let fin = await fetchFinancials(upper);
-  let usingSynthetic = false;
+  const fin = await fetchFinancials(upper);
 
-  // Yahoo başarısız ya da snapshot eksikse → deterministic synthetic'e düş
+  // Yahoo Finance gerçek veri vermediyse — uydurma sayı üretmek yerine açıkça reddet.
   if (!fin || (!fin.freeCashflow && !fin.marketCap && !fin.cashFlow?.annual?.length)) {
-    fin = syntheticFinancials(upper, stockMeta.market);
-    usingSynthetic = true;
+    return {
+      success: false,
+      symbol: upper,
+      error: 'Yahoo Finance bu hisse için yeterli mali veri (FCF, marketCap, cashflow geçmişi) sağlayamadı. DCF değerlemesi yapılamıyor — sentetik/uydurma rakam üretmiyoruz.',
+      reason: 'no_real_financials',
+    };
   }
 
-  // FCF history önceliği: 1) gerçek 5y cashflow, 2) net income proxy, 3) snapshot+synthetic, 4) tam synthetic
-  let fcfData = null;
-  if (!usingSynthetic) {
-    fcfData = extractFCFHistory(fin);          // fundamentalsTimeSeries → cashflow_history
-    if (!fcfData) fcfData = netIncomeProxy(fin); // incomeStatementHistory → net_income_proxy
-    if (!fcfData && fin.freeCashflow) {
-      fcfData = syntheticFCFHistory(upper, fin.freeCashflow);
-      fcfData.source = 'snapshot_with_synthetic_history';
-    }
-  }
+  // FCF tarihsel serisi: 1) gerçek 5y cashflow, 2) net income proxy. Bunlar başarısızsa reddediyoruz.
+  let fcfData = extractFCFHistory(fin);          // fundamentalsTimeSeries → cashflow_history
+  if (!fcfData) fcfData = netIncomeProxy(fin);   // incomeStatementHistory → net_income_proxy
   if (!fcfData) {
-    fcfData = syntheticFCFHistory(upper, fin.freeCashflow || fin.netIncome || 100e6);
-    fcfData.source = 'synthetic_estimated';
-    usingSynthetic = true;
+    return {
+      success: false,
+      symbol: upper,
+      error: 'Yahoo Finance 5 yıllık FCF / net kâr serisi sağlamadı. DCF için yeterli geçmiş veri yok.',
+      reason: 'no_fcf_history',
+    };
   }
+  const usingSynthetic = false;
 
   const baseFCF = fcfData.series[fcfData.series.length - 1].fcf;
   const cagr = calcCAGR(fcfData.series);

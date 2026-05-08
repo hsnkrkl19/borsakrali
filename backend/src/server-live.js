@@ -18,6 +18,7 @@ const liveDataService = require('./services/liveDataService');
 const telegramService = require('./services/telegramService');
 const socketService = require('./services/socketService');
 const authService = require('./services/authService');
+const fundamentalScoresService = require('./services/fundamentalScoresService');
 const financialsRouter = require('../routes/financials');
 const pushRoutes = require('./routes/push.routes');
 const adminRoutes = require('./routes/admin.routes');
@@ -1225,7 +1226,19 @@ app.get('/api/analysis/ai-score/:symbol', async (req, res) => {
         return res.status(404).json({ error: `${upperSymbol} bulunamadi` });
       }
       historicalData = await liveDataService.fetchHistoricalData(upperSymbol, '1y', '1d');
-      fundamentals = liveDataService.calculateFundamentalScores(stock);
+
+      // Altman/Piotroski/PE — gerçek Yahoo bilanço verisinden. Veri yoksa null
+      // (fundamentalScore'a etki etmez, "Sektörel Tahmin" uydurma değer YOK).
+      try {
+        const fs = await fundamentalScoresService.getFundamentalScores(upperSymbol);
+        // PE için yine quoteSummary'den realRatios çağrılabilir; ama AI score için
+        // sadece Altman/Piotroski yetiyor. PE yi /analysis/fundamental endpoint'i veriyor.
+        fundamentals = fs.success
+          ? { altmanZScore: fs.altmanZScore, piotroskiFScore: fs.piotroskiFScore, priceToEarnings: null }
+          : { altmanZScore: null, piotroskiFScore: null, priceToEarnings: null };
+      } catch (_) {
+        fundamentals = { altmanZScore: null, piotroskiFScore: null, priceToEarnings: null };
+      }
     }
 
     const indicators = historicalData ? liveDataService.calculateIndicators(historicalData) : null;
@@ -1265,14 +1278,19 @@ app.get('/api/analysis/ai-score/:symbol', async (req, res) => {
         else fundamentalScore -= 10;
       }
     } else {
-      if (fundamentals.altmanZScore > 2.99) fundamentalScore += 15;
-      else if (fundamentals.altmanZScore < 1.81) fundamentalScore -= 15;
-
-      if (fundamentals.piotroskiFScore >= 7) fundamentalScore += 15;
-      else if (fundamentals.piotroskiFScore <= 3) fundamentalScore -= 15;
-
-      if (fundamentals.priceToEarnings < 10) fundamentalScore += 10;
-      else if (fundamentals.priceToEarnings > 20) fundamentalScore -= 10;
+      // Sadece GERÇEK skor varsa puanla (null ise nötr 50 kalır — uydurma yapmıyoruz)
+      if (fundamentals.altmanZScore != null) {
+        if (fundamentals.altmanZScore > 2.99) fundamentalScore += 15;
+        else if (fundamentals.altmanZScore < 1.81) fundamentalScore -= 15;
+      }
+      if (fundamentals.piotroskiFScore != null) {
+        if (fundamentals.piotroskiFScore >= 7) fundamentalScore += 15;
+        else if (fundamentals.piotroskiFScore <= 3) fundamentalScore -= 15;
+      }
+      if (fundamentals.priceToEarnings != null && fundamentals.priceToEarnings > 0) {
+        if (fundamentals.priceToEarnings < 10) fundamentalScore += 10;
+        else if (fundamentals.priceToEarnings > 20) fundamentalScore -= 10;
+      }
     }
 
     fundamentalScore = Math.max(0, Math.min(100, fundamentalScore));
@@ -1420,46 +1438,62 @@ app.get('/api/analysis/fundamental/:symbol', async (req, res) => {
     console.warn(`[Fundamental] Yahoo Finance verisi alinamadi: ${upperSymbol} — ${e.message}`);
   }
 
-  // Fallback: deterministik seeded degerler (gercek veri yoksa)
-  const fallback = liveDataService.calculateFundamentalScores(stock);
-
-  // Gercek oranlar varsa onlari kullan, yoksa fallback ile doldur
+  // Yahoo'dan gerçek veri yoksa null bırakıyoruz — uydurma sektörel "fallback" YOK.
   const ratios = {
-    priceToEarnings:    realRatios?.priceToEarnings    ?? fallback.priceToEarnings,
-    priceToBook:        realRatios?.priceToBook         ?? fallback.priceToBook,
-    priceToSales:       realRatios?.priceToSales        ?? fallback.priceToSales,
-    evToEbitda:         realRatios?.evToEbitda          ?? fallback.evToEbitda,
-    debtToEquity:       realRatios?.debtToEquity        ?? fallback.debtToEquity,
-    currentRatio:       realRatios?.currentRatio        ?? fallback.currentRatio,
-    quickRatio:         realRatios?.quickRatio          ?? fallback.quickRatio,
-    returnOnEquity:     realRatios?.returnOnEquity      ?? fallback.returnOnEquity,
-    returnOnAssets:     realRatios?.returnOnAssets      ?? fallback.returnOnAssets,
-    netProfitMargin:    realRatios?.netProfitMargin     ?? fallback.netProfitMargin,
-    grossProfitMargin:  realRatios?.grossProfitMargin   ?? fallback.grossProfitMargin,
-    operatingMargin:    realRatios?.operatingMargin     ?? fallback.operatingMargin,
+    priceToEarnings:    realRatios?.priceToEarnings    ?? null,
+    priceToBook:        realRatios?.priceToBook        ?? null,
+    priceToSales:       realRatios?.priceToSales       ?? null,
+    evToEbitda:         realRatios?.evToEbitda         ?? null,
+    debtToEquity:       realRatios?.debtToEquity       ?? null,
+    currentRatio:       realRatios?.currentRatio       ?? null,
+    quickRatio:         realRatios?.quickRatio         ?? null,
+    returnOnEquity:     realRatios?.returnOnEquity    ?? null,
+    returnOnAssets:     realRatios?.returnOnAssets    ?? null,
+    netProfitMargin:    realRatios?.netProfitMargin   ?? null,
+    grossProfitMargin:  realRatios?.grossProfitMargin ?? null,
+    operatingMargin:    realRatios?.operatingMargin   ?? null,
   };
 
-  // Altman Z-Score, Piotroski F-Score, Beneish M-Score gerçek veri gerektiriyor —
-  // mevcut haliyle sektörel tahmin, gerçek KAP verileri olmadan hesaplanamaz
+  // Altman Z, Piotroski F, Beneish M — Yahoo bilanço verisinden GERÇEK hesaplanır.
+  // Veri eksikse skor null döner (UI null ise göstermez/gösterip "veri yok" yazar).
+  let scores = { altmanZScore: null, piotroskiFScore: null, beneishMScore: null };
+  try {
+    const fs = await fundamentalScoresService.getFundamentalScores(upperSymbol);
+    if (fs.success) {
+      scores = {
+        altmanZScore: fs.altmanZScore,
+        altmanInterpretation: fs.altmanInterpretation,
+        altmanComponents: fs.altmanComponents,
+        altmanReason: fs.altmanReason,
+        piotroskiFScore: fs.piotroskiFScore,
+        piotroskiInterpretation: fs.piotroskiInterpretation,
+        piotroskiChecks: fs.piotroskiChecks,
+        piotroskiReason: fs.piotroskiReason,
+        beneishMScore: fs.beneishMScore,
+        beneishInterpretation: fs.beneishInterpretation,
+        beneishIndices: fs.beneishIndices,
+        beneishReason: fs.beneishReason,
+        fiscalYears: fs.fiscalYears,
+      };
+    }
+  } catch (e) {
+    console.warn(`[Fundamental] Skor hesaplama hatası ${upperSymbol}: ${e.message}`);
+  }
+
   const response = {
     symbol: upperSymbol,
     name: stock.name,
     sector: stock.sector,
     market: stock.market,
     currentPrice: stock.price,
-    dataSource: dataQuality === 'real' ? 'Yahoo Finance (Gerçek)' : 'Sektörel Tahmin',
+    dataSource: dataQuality === 'real' ? 'Yahoo Finance (Gerçek Bilanço)' : 'Veri eksik',
     dataQuality,
     dataNote: dataQuality !== 'real'
-      ? 'Bu değerler gerçek finansal tablo verisi olmadığı için sektörel ortalamalardan tahmin edilmiştir. Kesin veri için Mali Tablolar sayfasını kullanın.'
+      ? 'Yahoo Finance bu hisse için yeterli oran verisi sağlamadı. Sektörel uydurma rakam üretmiyoruz; eksik alanlar boş bırakıldı.'
       : null,
     lastUpdate: new Date().toISOString(),
     ...ratios,
-    altmanZScore: fallback.altmanZScore,
-    altmanInterpretation: fallback.altmanInterpretation,
-    piotroskiFScore: fallback.piotroskiFScore,
-    piotroskiInterpretation: fallback.piotroskiInterpretation,
-    beneishMScore: fallback.beneishMScore,
-    beneishInterpretation: fallback.beneishInterpretation,
+    ...scores,
   };
 
   fundamentalCache.set(upperSymbol, { data: response, ts: Date.now() });
@@ -2409,68 +2443,62 @@ app.get('/api/scraper/extract', async (req, res) => {
   }
 });
 
-// ============ KAP ROUTES ============
-app.get('/api/kap/news', (req, res) => {
-  const { stockSymbol, sentiment, limit = 20 } = req.query;
+// ============ KAP ROUTES — GERÇEK kap.org.tr API ============
+const kapDisclosureService = require('./services/kapDisclosureService');
 
-  const stocks = liveDataService.getAllStocks().slice(0, 30);
+// Stok adı tamamlama (sembol → name) için lookup
+const _stockNameByCode = (() => {
+  const m = new Map();
+  for (const s of allBistStocks) m.set(s.symbol, s.name);
+  return m;
+})();
 
-  const newsTemplates = [
-    { title: 'Ozel Durum Aciklamasi', sentiment: 'neutral' },
-    { title: 'Finansal Tablo Aciklamasi', sentiment: 'neutral' },
-    { title: 'Kar Dagitim Karari', sentiment: 'positive' },
-    { title: 'Yeni Yatirim Duyurusu', sentiment: 'positive' },
-    { title: 'Ihale Kazanimi', sentiment: 'positive' },
-    { title: 'Sermaye Artirimi', sentiment: 'positive' },
-    { title: 'Yonetim Kurulu Degisikligi', sentiment: 'neutral' },
-    { title: 'Bagimsiz Denetim Raporu', sentiment: 'neutral' }
-  ];
-
-  let news = stocks.map((stock, idx) => {
-    const template = newsTemplates[idx % newsTemplates.length];
-    // Deterministik tarih: idx ve sembol harflerinden hesapla (rastgele degismesin)
-    const symbolSeed = stock.symbol.split('').reduce((a, c) => a + c.charCodeAt(0), 0);
-    const hoursAgo = ((symbolSeed + idx * 7) % 72); // 0-72 saat once, deterministik
-    return {
-      id: idx + 1,
-      stockSymbol: stock.symbol,
-      stockName: stock.name,
-      title: `${stock.symbol} - ${template.title}`,
-      summary: `${stock.name} sirketinden ${template.title.toLowerCase()} hakkinda bildirim.`,
-      sentiment: template.sentiment,
-      sentimentScore: template.sentiment === 'positive' ? 0.7 : template.sentiment === 'negative' ? 0.3 : 0.5,
-      publishDate: new Date(Date.now() - hoursAgo * 60 * 60 * 1000).toISOString(),
-      source: 'KAP'
-    };
-  });
-
-  if (stockSymbol) {
-    news = news.filter(n => n.stockSymbol === stockSymbol.toUpperCase());
+app.get('/api/kap/news', async (req, res) => {
+  const { stockSymbol, sentiment, limit = 30 } = req.query;
+  try {
+    const result = await kapDisclosureService.fetchDisclosures({
+      days: 7, pageSize: 200, stockSymbol: stockSymbol || null,
+    });
+    if (!result.success) {
+      return res.status(503).json({ news: [], total: 0, error: result.error, source: result.source });
+    }
+    let items = result.items;
+    if (sentiment) items = items.filter(n => n.sentiment === sentiment);
+    // Frontend uyumu için stockName ekle
+    items = items.map(n => ({ ...n, stockName: n.stockSymbol ? (_stockNameByCode.get(n.stockSymbol) || n.stockSymbol) : null }));
+    res.json({
+      news: items.slice(0, parseInt(limit)),
+      total: items.length,
+      lastUpdate: result.lastUpdate,
+      source: result.source,
+    });
+  } catch (err) {
+    console.error('[KAP /news]', err.message);
+    res.status(500).json({ news: [], error: 'KAP haberleri alınamadı: ' + err.message });
   }
-  if (sentiment) {
-    news = news.filter(n => n.sentiment === sentiment);
-  }
-
-  res.json({ news: news.slice(0, parseInt(limit)) });
 });
 
-app.get('/api/kap/anomalies', (req, res) => {
-  const stocks = liveDataService.getAllStocks().slice(0, 10);
-
-  const anomalies = stocks.map(stock => {
-    // Deterministik: sembol harflerinden seed uret
-    const seed = stock.symbol.split('').reduce((a, c, i) => a + c.charCodeAt(0) * (i + 1), 0);
-    const pseudoRand = (offset) => { const x = Math.sin(seed + offset) * 10000; return x - Math.floor(x); };
-    return {
-      symbol: stock.symbol,
-      name: stock.name,
-      newsCount: Math.floor(pseudoRand(1) * 8) + 3,
-      avgNewsCount: 2,
-      anomalyScore: +(pseudoRand(2) * 0.4 + 0.6).toFixed(2)
-    };
-  });
-
-  res.json({ anomalies });
+app.get('/api/kap/anomalies', async (req, res) => {
+  try {
+    const result = await kapDisclosureService.detectAnomalies({ days: 7, threshold: 3 });
+    if (!result.success) {
+      return res.status(503).json({ anomalies: [], error: result.error, source: 'KAP API' });
+    }
+    const anomalies = result.items.map(a => ({
+      ...a,
+      name: _stockNameByCode.get(a.symbol) || a.symbol,
+    }));
+    res.json({
+      anomalies,
+      total: anomalies.length,
+      days: result.days,
+      lastUpdate: result.lastUpdate,
+      source: result.source,
+    });
+  } catch (err) {
+    console.error('[KAP /anomalies]', err.message);
+    res.status(500).json({ anomalies: [], error: 'KAP anomali tespiti yapılamadı: ' + err.message });
+  }
 });
 
 // ============ USER ROUTES ============
@@ -2734,43 +2762,65 @@ app.get('/api/market/scans/:type', async (req, res) => {
   res.json(result);
 });
 
-// Harmonik paternler
-app.get('/api/market/harmonics', (req, res) => {
-  const patterns = ['Gartley', 'Butterfly', 'Bat', 'Crab', 'Shark', 'Cypher'];
-  const stocks = liveDataService.getAllStocks().slice(0, 12);
+// Harmonik paternler — GERÇEK ZigZag swing detection + Fibonacci ratio matching
+// (harmonicPatternService.js, Scott Carney "Harmonic Trading" oranlarını kullanır)
+const harmonicPatternService = require('./services/harmonicPatternService');
+const HARMONICS_TTL = 10 * 60 * 1000;
+let harmonicsCache = null;
+let harmonicsCacheTs = 0;
 
-  const results = stocks.map((stock, idx) => {
-    // Deterministik: sembol + fiyat bilgisinden hesapla
-    const seed = stock.symbol.split('').reduce((a, c, i) => a + c.charCodeAt(0) * (i + 1), 0);
-    const pseudoRand = (offset) => { const x = Math.sin(seed + offset) * 10000; return x - Math.floor(x); };
+app.get('/api/market/harmonics', async (req, res) => {
+  if (harmonicsCache && (Date.now() - harmonicsCacheTs) < HARMONICS_TTL) {
+    return res.json(harmonicsCache);
+  }
 
-    // Yon: changePercent pozitifse Bullish egimi artar
-    const changeScore = (stock.changePercent || 0);
-    const isBullish = changeScore > 0 ? pseudoRand(1) > 0.25 : pseudoRand(1) > 0.65;
+  const universe = bist30Stocks;
+  const results = [];
+  const BATCH = 5;
+  const DELAY = 250;
 
-    // Hedef: Bullish ise yukari, Bearish ise asagi
-    const targetMultiplier = isBullish
-      ? 1 + (pseudoRand(2) * 0.12 + 0.03)   // +3% ile +15%
-      : 1 - (pseudoRand(2) * 0.08 + 0.02);  // -2% ile -10%
+  for (let i = 0; i < universe.length; i += BATCH) {
+    const batch = universe.slice(i, i + BATCH);
+    await Promise.all(batch.map(async (sm) => {
+      try {
+        const hist = await liveDataService.fetchHistoricalData(sm.symbol, '1y', '1d');
+        if (!hist || hist.length < 60) return;
+        const detected = harmonicPatternService.detectLatestHarmonic(hist, 0.04);
+        if (!detected) return; // patern yoksa hisseyi atla — uydurma yapmıyoruz
 
-    // Stop Loss: Bullish ise asagi, Bearish ise yukari
-    const stopMultiplier = isBullish
-      ? 1 - (pseudoRand(3) * 0.04 + 0.01)   // -1% ile -5%
-      : 1 + (pseudoRand(3) * 0.03 + 0.01);  // +1% ile +4%
+        const live = liveDataService.getStock(sm.symbol) || {};
+        const price = live.price || hist[hist.length - 1].close;
 
-    return {
-      symbol: stock.symbol,
-      name: stock.name,
-      currentPrice: stock.price,
-      pattern: patterns[idx % patterns.length],
-      direction: isBullish ? 'Bullish' : 'Bearish',
-      completion: Math.floor(pseudoRand(4) * 25) + 75, // 75-99
-      targetPrice: stock.price ? +(stock.price * targetMultiplier).toFixed(2) : null,
-      stopLoss: stock.price ? +(stock.price * stopMultiplier).toFixed(2) : null
-    };
-  });
+        results.push({
+          symbol: sm.symbol,
+          name: sm.name,
+          currentPrice: +price.toFixed(2),
+          pattern: detected.pattern,
+          direction: detected.direction,
+          completion: detected.completion,
+          targetPrice: detected.targetPrice,
+          stopLoss: detected.stopLoss,
+          ratios: detected.ratios,
+          points: detected.points,
+        });
+      } catch (e) { /* sessizce atla */ }
+    }));
+    if (i + BATCH < universe.length) await new Promise(r => setTimeout(r, DELAY));
+  }
 
-  res.json({ patterns: results });
+  // Completion skoruna göre sırala (en güçlü patern üstte)
+  results.sort((a, b) => b.completion - a.completion);
+
+  const response = {
+    patterns: results,
+    total: results.length,
+    scanned: universe.length,
+    dataSource: 'Yahoo Finance (1y daily) + ZigZag %4 + Carney harmonic ratios',
+    scannedAt: new Date().toISOString(),
+  };
+  harmonicsCache = response;
+  harmonicsCacheTs = Date.now();
+  res.json(response);
 });
 
 // Fibonacci seviyeleri
@@ -2973,67 +3023,42 @@ app.get('/api/signals/live', (req, res) => {
 
 // ============ KAP REAL DATA ROUTES ============
 
-// KAP haberleri (gercek veri simulasyonu)
+// KAP haberleri — GERÇEK kap.org.tr/tr/api/disclosureSearchResult API'sinden
 app.get('/api/kap/real-news', async (req, res) => {
   const { symbol, limit = 30 } = req.query;
-
-  // Gercek KAP verisi icin scraping veya API gerekir
-  // Simdilik gercekci mock veri uretiyoruz
-  const stocks = symbol
-    ? [allBistStocks.find(s => s.symbol === symbol.toUpperCase())]
-    : allBistStocks.slice(0, 20);
-
-  const newsTypes = [
-    { type: 'ozel_durum', title: 'Özel Durum Açıklaması', sentiment: 'neutral' },
-    { type: 'finansal', title: 'Finansal Tablo Açıklaması', sentiment: 'neutral' },
-    { type: 'kar_dagitim', title: 'Kar Dağıtım Kararı', sentiment: 'positive' },
-    { type: 'yatirim', title: 'Yeni Yatırım Duyurusu', sentiment: 'positive' },
-    { type: 'ihale', title: 'İhale Kazanımı', sentiment: 'positive' },
-    { type: 'sermaye', title: 'Sermaye Artırımı Kararı', sentiment: 'positive' },
-    { type: 'yonetim', title: 'Yönetim Kurulu Değişikliği', sentiment: 'neutral' },
-    { type: 'denetim', title: 'Bağımsız Denetim Raporu', sentiment: 'neutral' },
-    { type: 'analist', title: 'Analist Raporu Güncelleme', sentiment: 'neutral' },
-    { type: 'ortaklik', title: 'Ortaklık Yapısı Değişikliği', sentiment: 'neutral' }
-  ];
-
-  const news = stocks.filter(Boolean).flatMap((stock, stockIdx) => {
-    // Deterministik seed — hisse sembolünden türet
-    const symHash = stock.symbol.split('').reduce((a, c, i) => a + c.charCodeAt(0) * (i + 1), 0);
-    const drand = (offset) => { const x = Math.sin(symHash + offset) * 10000; return x - Math.floor(x); };
-    const newsCount = Math.floor(drand(stockIdx + 1) * 3) + 1;
-    return Array.from({ length: newsCount }, (_, i) => {
-      const newsType = newsTypes[Math.floor(drand(i + stockIdx * 10 + 100) * newsTypes.length)];
-      const hoursAgo = Math.floor(drand(i + stockIdx * 7 + 200) * 72);
-
-      return {
-        id: `${stock.symbol}-${Date.now()}-${i}`,
-        stockSymbol: stock.symbol,
-        stockName: stock.name,
-        type: newsType.type,
-        title: `${stock.symbol} - ${newsType.title}`,
-        summary: `${stock.name} şirketinden ${newsType.title.toLowerCase()} hakkında KAP bildirimi yapıldı.`,
-        content: `${stock.name} (${stock.symbol}) şirketi tarafından Kamuyu Aydınlatma Platformu'na yapılan bildirimde ${newsType.title.toLowerCase()} açıklandı. Detaylar için KAP web sitesini ziyaret ediniz.`,
-        sentiment: newsType.sentiment,
-        sentimentScore: newsType.sentiment === 'positive' ? 0.75 : newsType.sentiment === 'negative' ? 0.25 : 0.5,
-        publishDate: new Date(Date.now() - hoursAgo * 60 * 60 * 1000).toISOString(),
-        source: 'KAP',
-        url: `https://www.kap.org.tr/tr/Bildirim/${stock.symbol}`
-      };
+  try {
+    const result = await kapDisclosureService.fetchDisclosures({
+      days: 14,
+      pageSize: 200,
+      stockSymbol: symbol || null,
     });
-  });
-
-  // Tarihe gore sirala
-  news.sort((a, b) => new Date(b.publishDate) - new Date(a.publishDate));
-
-  res.json({
-    news: news.slice(0, parseInt(limit)),
-    total: news.length,
-    lastUpdate: new Date().toISOString()
-  });
+    if (!result.success) {
+      return res.status(503).json({
+        news: [], total: 0, error: result.error, source: result.source,
+      });
+    }
+    const items = result.items.map(n => ({
+      ...n,
+      stockName: n.stockSymbol ? (_stockNameByCode.get(n.stockSymbol) || n.stockSymbol) : null,
+      content: n.summary, // detay UI'da içerik göstermek için summary'yi kopyala
+    }));
+    res.json({
+      news: items.slice(0, parseInt(limit)),
+      total: items.length,
+      lastUpdate: result.lastUpdate,
+      source: result.source,
+      note: result.note,
+    });
+  } catch (err) {
+    console.error('[KAP /real-news]', err.message);
+    res.status(500).json({ news: [], error: 'KAP haberleri alınamadı: ' + err.message });
+  }
 });
 
-// KAP finansal veriler (bilanço)
-app.get('/api/kap/financials/:symbol', (req, res) => {
+// KAP finansal veriler (bilanço) — TAMAMEN GERÇEK Yahoo Finance verisi.
+// Yahoo'nun fundamentalsTimeSeries'i KAP üzerinden yayımlanan TFRS bilançoları
+// kullanır. Veri eksikse uydurma yapmıyoruz, açık hata mesajı dönüyoruz.
+app.get('/api/kap/financials/:symbol', async (req, res) => {
   const { symbol } = req.params;
   const upperSymbol = symbol.toUpperCase();
 
@@ -3042,228 +3067,307 @@ app.get('/api/kap/financials/:symbol', (req, res) => {
     return res.status(404).json({ error: 'Hisse bulunamadi' });
   }
 
-  // Gercekci finansal veriler (sektorel bazli)
-  const sectorMultipliers = {
-    'Bankacılık': { revenue: 50000, assets: 500000, equity: 50000 },
-    'Holding': { revenue: 30000, assets: 200000, equity: 80000 },
-    'Enerji': { revenue: 20000, assets: 100000, equity: 40000 },
-    'Perakende': { revenue: 40000, assets: 30000, equity: 10000 },
-    'Otomotiv': { revenue: 35000, assets: 50000, equity: 20000 },
-    'default': { revenue: 15000, assets: 50000, equity: 20000 }
-  };
-
-  const mult = sectorMultipliers[stock.sector] || sectorMultipliers.default;
-  // Deterministik varyans — hisse sembolünden seed al
-  const symHash = upperSymbol.split('').reduce((a, c, i) => a + c.charCodeAt(0) * (i + 1), 0);
-  let _varIdx = 0;
-  const variance = () => {
-    const x = Math.sin(symHash + (_varIdx++)) * 10000;
-    return (x - Math.floor(x)) * 0.4 + 0.8;
-  };
-
-  const currentYear = new Date().getFullYear();
-  const quarters = ['Q1', 'Q2', 'Q3', 'Q4'];
-
-  // Son 8 ceyrek finansal veri
-  const financialHistory = [];
-  for (let y = currentYear - 1; y <= currentYear; y++) {
-    for (const q of quarters) {
-      if (y === currentYear && quarters.indexOf(q) > new Date().getMonth() / 3) break;
-
-      financialHistory.push({
-        period: `${y}-${q}`,
-        year: y,
-        quarter: q,
-        revenue: Math.round(mult.revenue * variance()),
-        grossProfit: Math.round(mult.revenue * 0.25 * variance()),
-        operatingProfit: Math.round(mult.revenue * 0.15 * variance()),
-        netProfit: Math.round(mult.revenue * 0.1 * variance()),
-        totalAssets: Math.round(mult.assets * variance()),
-        totalLiabilities: Math.round(mult.assets * 0.6 * variance()),
-        totalEquity: Math.round(mult.equity * variance()),
-        cash: Math.round(mult.equity * 0.3 * variance()),
-        debt: Math.round(mult.assets * 0.4 * variance()),
-        receivables: Math.round(mult.revenue * 0.2 * variance()),
-        payables: Math.round(mult.revenue * 0.15 * variance()),
-        inventory: Math.round(mult.revenue * 0.1 * variance())
+  try {
+    const data = await fundamentalScoresService.fetchAllFundamentals(upperSymbol);
+    if (!data || (!data.ftsBS.length && !data.ftsIS.length)) {
+      return res.status(503).json({
+        success: false,
+        symbol: upperSymbol,
+        error: 'Yahoo Finance bu hisse için bilanço/gelir tablosu verisi sağlamadı. Sentetik rakam üretmiyoruz.',
       });
     }
+
+    const { pickField, latest, prev, unwrap } = fundamentalScoresService;
+    const { ftsBS, ftsIS, ftsCF, summary } = data;
+
+    // ─── Yıllık seriler ───────────────────────────────────────────────────
+    const revArr = pickField(ftsIS, ['totalRevenue']);
+    const grossArr = pickField(ftsIS, ['grossProfit']);
+    const opIncArr = pickField(ftsIS, ['operatingIncome', 'ebit']);
+    const niArr = pickField(ftsIS, ['netIncome', 'netIncomeContinuousOperations']);
+    const cogsArr = pickField(ftsIS, ['costOfRevenue']);
+
+    const taArr = pickField(ftsBS, ['totalAssets']);
+    const tlArr = pickField(ftsBS, ['totalLiabilitiesNetMinorityInterest', 'totalLiab', 'totalLiabilities']);
+    const teArr = pickField(ftsBS, ['stockholdersEquity', 'totalEquityGrossMinorityInterest', 'commonStockEquity']);
+    const cashArr = pickField(ftsBS, ['cashAndCashEquivalents', 'cashCashEquivalentsAndShortTermInvestments']);
+    const debtArr = pickField(ftsBS, ['totalDebt', 'longTermDebt']);
+    const recArr = pickField(ftsBS, ['accountsReceivable', 'netReceivables']);
+    const payArr = pickField(ftsBS, ['accountsPayable']);
+    const invArr = pickField(ftsBS, ['inventory']);
+
+    // ─── Yıllık → "annual" satırlara çevir (en yeni → en eski) ─────────────
+    const yearKeys = new Set();
+    [revArr, taArr, tlArr, teArr, niArr].forEach(arr => arr.forEach(r => yearKeys.add(r.date.getFullYear())));
+    const years = [...yearKeys].sort((a, b) => b - a);
+
+    const findFor = (arr, year) => {
+      const row = arr.find(r => r.date.getFullYear() === year);
+      return row ? row.value : null;
+    };
+
+    const financialHistory = years.map(year => ({
+      period: `${year}`,
+      year,
+      quarter: 'FY',
+      revenue: findFor(revArr, year),
+      grossProfit: findFor(grossArr, year),
+      operatingProfit: findFor(opIncArr, year),
+      netProfit: findFor(niArr, year),
+      totalAssets: findFor(taArr, year),
+      totalLiabilities: findFor(tlArr, year),
+      totalEquity: findFor(teArr, year),
+      cash: findFor(cashArr, year),
+      debt: findFor(debtArr, year),
+      receivables: findFor(recArr, year),
+      payables: findFor(payArr, year),
+      inventory: findFor(invArr, year),
+    })).filter(r => r.revenue != null || r.totalAssets != null);
+
+    if (financialHistory.length === 0) {
+      return res.status(503).json({
+        success: false,
+        symbol: upperSymbol,
+        error: 'Yahoo bilançosu boş döndü.',
+      });
+    }
+
+    const latestRow = financialHistory[0];           // en yeni yıl
+    const prevRow = financialHistory[1] || null;     // önceki yıl
+
+    // ─── Oranlar — yalnızca payda > 0 ise hesapla, aksi halde null ─────────
+    const safeRatio = (a, b) => (a != null && b != null && b !== 0) ? +((a / b) * 100).toFixed(2) : null;
+    const safeDiv = (a, b) => (a != null && b != null && b !== 0) ? +(a / b).toFixed(2) : null;
+
+    // Snapshot (gerçek PE, PB, EV/EBITDA — Yahoo veriyorsa)
+    const fd = summary?.financialData || {};
+    const ks = summary?.defaultKeyStatistics || {};
+    const sd = summary?.summaryDetail || {};
+
+    const peReal = unwrap(ks.trailingPE) || unwrap(sd.trailingPE);
+    const pbReal = unwrap(ks.priceToBook);
+    const psReal = unwrap(ks.priceToSalesTrailing12Months);
+    const evEbitdaReal = unwrap(ks.enterpriseToEbitda);
+
+    const ratios = {
+      // Karlılık
+      grossProfitMargin: safeRatio(latestRow.grossProfit, latestRow.revenue),
+      operatingMargin:   safeRatio(latestRow.operatingProfit, latestRow.revenue),
+      netProfitMargin:   safeRatio(latestRow.netProfit, latestRow.revenue),
+      returnOnEquity:    safeRatio(latestRow.netProfit, latestRow.totalEquity),
+      returnOnAssets:    safeRatio(latestRow.netProfit, latestRow.totalAssets),
+
+      // Likidite
+      currentRatio:      safeDiv(
+        (latestRow.cash || 0) + (latestRow.receivables || 0) + (latestRow.inventory || 0),
+        latestRow.payables
+      ),
+      quickRatio:        safeDiv((latestRow.cash || 0) + (latestRow.receivables || 0), latestRow.payables),
+      cashRatio:         safeDiv(latestRow.cash, latestRow.totalLiabilities),
+
+      // Borç oranları
+      debtToEquity:      safeDiv(latestRow.debt, latestRow.totalEquity),
+      debtToAssets:      safeDiv(latestRow.debt, latestRow.totalAssets),
+
+      // Değerleme — Yahoo snapshot'ından gerçek (yoksa null)
+      priceToEarnings:   peReal != null ? +peReal.toFixed(2) : null,
+      priceToBook:       pbReal != null ? +pbReal.toFixed(2) : null,
+      priceToSales:      psReal != null ? +psReal.toFixed(2) : null,
+      enterpriseToEbitda: evEbitdaReal != null ? +evEbitdaReal.toFixed(2) : null,
+
+      // Büyüme — yıl-üstü-yıl
+      revenueGrowth: prevRow && prevRow.revenue ? +(((latestRow.revenue - prevRow.revenue) / prevRow.revenue) * 100).toFixed(2) : null,
+      profitGrowth:  prevRow && prevRow.netProfit ? +(((latestRow.netProfit - prevRow.netProfit) / prevRow.netProfit) * 100).toFixed(2) : null,
+      assetGrowth:   prevRow && prevRow.totalAssets ? +(((latestRow.totalAssets - prevRow.totalAssets) / prevRow.totalAssets) * 100).toFixed(2) : null,
+    };
+
+    res.json({
+      success: true,
+      symbol: upperSymbol,
+      name: stock.name,
+      sector: stock.sector,
+      financialHistory,
+      currentPeriod: latestRow,
+      ratios,
+      lastUpdate: new Date().toISOString(),
+      dataSource: 'Yahoo Finance fundamentalsTimeSeries (yıllık) + quoteSummary snapshot',
+      source: 'Yahoo Finance (KAP TFRS bilançoları)',
+      note: 'Yahoo Finance, KAP üzerinden yayımlanan TFRS bilançolarını kullanır. Çeyreklik veri yoksa yıllık serisi gösterilir.',
+    });
+  } catch (err) {
+    console.error(`[KAP financials] ${upperSymbol}:`, err.message);
+    res.status(500).json({ success: false, symbol: upperSymbol, error: 'Bilanço alınamadı: ' + err.message });
   }
-
-  // Finansal oranlar hesapla
-  const latest = financialHistory[financialHistory.length - 1];
-  const previousYear = financialHistory.find(f => f.year === currentYear - 1 && f.quarter === latest.quarter);
-
-  const ratios = {
-    // Karlılık Oranları
-    grossProfitMargin: +((latest.grossProfit / latest.revenue) * 100).toFixed(2),
-    operatingMargin: +((latest.operatingProfit / latest.revenue) * 100).toFixed(2),
-    netProfitMargin: +((latest.netProfit / latest.revenue) * 100).toFixed(2),
-    returnOnEquity: +((latest.netProfit / latest.totalEquity) * 100).toFixed(2),
-    returnOnAssets: +((latest.netProfit / latest.totalAssets) * 100).toFixed(2),
-
-    // Likidite Oranları
-    currentRatio: +((latest.cash + latest.receivables) / latest.payables).toFixed(2),
-    quickRatio: +(latest.cash / latest.payables).toFixed(2),
-    cashRatio: +(latest.cash / latest.totalLiabilities).toFixed(2),
-
-    // Borç Oranları
-    debtToEquity: +(latest.debt / latest.totalEquity).toFixed(2),
-    debtToAssets: +(latest.debt / latest.totalAssets).toFixed(2),
-    interestCoverage: +(latest.operatingProfit / (latest.debt * 0.08)).toFixed(2),
-
-    // Değerleme Oranları — hisse fiyatı ve finansal veriden hesaplanır
-    // Tahmini dolaşımdaki pay sayısı: piyasa değeri / hisse fiyatı
-    // Önce stockFromService'tan fiyat al
-    priceToEarnings: (() => {
-      const liveStock = liveDataService.getStock(upperSymbol);
-      const price = liveStock?.price || stock.price || 0;
-      if (price > 0 && latest.netProfit > 0) {
-        const estShares = latest.totalEquity / price;
-        const eps = estShares > 0 ? latest.netProfit / estShares : 0;
-        return eps > 0 ? +(price / eps).toFixed(2) : null;
-      }
-      // Deterministik fallback
-      const dr = (o) => { const x = Math.sin(symHash + 50 + o) * 10000; return x - Math.floor(x); };
-      return +(5 + dr(1) * 15).toFixed(2);
-    })(),
-    priceToBook: (() => {
-      const liveStock = liveDataService.getStock(upperSymbol);
-      const price = liveStock?.price || stock.price || 0;
-      if (price > 0 && latest.totalEquity > 0) {
-        const estShares = latest.totalEquity / price;
-        const bvps = estShares > 0 ? latest.totalEquity / estShares : 0;
-        return bvps > 0 ? +(price / bvps).toFixed(2) : null;
-      }
-      const dr = (o) => { const x = Math.sin(symHash + 60 + o) * 10000; return x - Math.floor(x); };
-      return +(0.5 + dr(1) * 2).toFixed(2);
-    })(),
-    priceToSales: (() => {
-      const liveStock = liveDataService.getStock(upperSymbol);
-      const price = liveStock?.price || stock.price || 0;
-      if (price > 0 && latest.revenue > 0 && latest.totalEquity > 0) {
-        const estShares = latest.totalEquity / price;
-        const sps = estShares > 0 ? latest.revenue / estShares : 0;
-        return sps > 0 ? +(price / sps).toFixed(2) : null;
-      }
-      const dr = (o) => { const x = Math.sin(symHash + 70 + o) * 10000; return x - Math.floor(x); };
-      return +(0.5 + dr(1) * 3).toFixed(2);
-    })(),
-    enterpriseToEbitda: (() => {
-      const ebitda = latest.operatingProfit * 1.15; // EBITDA ≈ EBIT + tahmini amortisman
-      if (ebitda > 0 && latest.totalEquity > 0) {
-        const liveStock = liveDataService.getStock(upperSymbol);
-        const price = liveStock?.price || stock.price || 0;
-        const estShares = price > 0 ? latest.totalEquity / price : 0;
-        const mv = price * estShares;
-        const ev = mv + latest.debt - latest.cash;
-        return ev > 0 ? +(ev / ebitda).toFixed(2) : null;
-      }
-      const dr = (o) => { const x = Math.sin(symHash + 80 + o) * 10000; return x - Math.floor(x); };
-      return +(3 + dr(1) * 10).toFixed(2);
-    })(),
-
-    // Büyüme Oranları
-    revenueGrowth: previousYear ? +(((latest.revenue - previousYear.revenue) / previousYear.revenue) * 100).toFixed(2) : null,
-    profitGrowth: previousYear ? +(((latest.netProfit - previousYear.netProfit) / previousYear.netProfit) * 100).toFixed(2) : null,
-    assetGrowth: previousYear ? +(((latest.totalAssets - previousYear.totalAssets) / previousYear.totalAssets) * 100).toFixed(2) : null
-  };
-
-  res.json({
-    symbol: upperSymbol,
-    name: stock.name,
-    sector: stock.sector,
-    financialHistory,
-    currentPeriod: latest,
-    ratios,
-    lastUpdate: new Date().toISOString(),
-    source: 'KAP Finansal Tablolar'
-  });
 });
 
 // ============ TEKNIK NOTLAR ROUTES ============
+// Tüm notlar BIST30'un gerçek Yahoo Finance verisinden + canlı hesaplanan
+// indikatörlerden (RSI, MACD, EMA, Bollinger, pivot S/R) üretilir.
+// Hardcoded/sabit not yok — koşullara uyan her hisse için bir not oluşur.
 
-// Teknik notlar listesi
-app.get('/api/technical-notes', (req, res) => {
-  const notes = [
-    {
-      id: 1,
-      symbol: 'THYAO',
-      title: 'THY Teknik Görünüm Analizi',
-      content: 'THYAO hissesi son dönemde güçlü bir yükseliş trendi içinde. RSI 65 seviyelerinde, MACD pozitif bölgede. 280 TL direnci aşılması halinde 300 TL hedeflenebilir.',
-      category: 'Trend Analizi',
-      author: 'Borsa Kralı AI',
-      date: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
-      indicators: { rsi: 65, macd: 'Pozitif', trend: 'Yükseliş' }
-    },
-    {
-      id: 2,
-      symbol: 'GARAN',
-      title: 'Garanti BBVA Destek/Direnç Analizi',
-      content: 'GARAN için kritik destek seviyesi 155 TL. Bu seviyenin altında 145 TL test edilebilir. Direnç bölgesi 165-170 TL aralığında.',
-      category: 'Destek/Direnç',
-      author: 'Borsa Kralı AI',
-      date: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
-      indicators: { support: 155, resistance: 170, trend: 'Yatay' }
-    },
-    {
-      id: 3,
-      symbol: 'ASELS',
-      title: 'ASELSAN Momentum Değerlendirmesi',
-      content: 'ASELS güçlü momentum gösteriyor. ADX 30 üzerinde, trend güçlü. EMA 21 üzerinde kapanışlar olumlu.',
-      category: 'Momentum',
-      author: 'Borsa Kralı AI',
-      date: new Date().toISOString(),
-      indicators: { adx: 32, momentum: 'Güçlü', trend: 'Yükseliş' }
-    },
-    {
-      id: 4,
-      symbol: 'SISE',
-      title: 'Şişecam Formasyonu İncelemesi',
-      content: 'SISE hissesinde çanak formasyonu oluşumu izleniyor. Boyun çizgisi 42 TL seviyesinde. Kırılım halinde hedef 48 TL.',
-      category: 'Formasyon',
-      author: 'Borsa Kralı AI',
-      date: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
-      indicators: { pattern: 'Çanak', neckline: 42, target: 48 }
-    },
-    {
-      id: 5,
-      symbol: 'EREGL',
-      title: 'Ereğli Demir Çelik Bollinger Analizi',
-      content: 'EREGL Bollinger alt bandına yaklaştı. RSI 35 ile aşırı satım bölgesine yakın. Teknik olarak alım fırsatı olabilir.',
-      category: 'Bollinger',
-      author: 'Borsa Kralı AI',
-      date: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000).toISOString(),
-      indicators: { rsi: 35, bollinger: 'Alt Bant', signal: 'Potansiyel Alım' }
-    }
-  ];
+const TECHNICAL_NOTES_TTL = 10 * 60 * 1000; // 10 dk cache
+let technicalNotesCache = null;
+let technicalNotesCacheTs = 0;
 
-  // Dinamik olarak gercek verilerle notlar olustur
-  const stocks = liveDataService.getAllStocks().slice(0, 10);
+app.get('/api/technical-notes', async (req, res) => {
+  // Cache
+  if (technicalNotesCache && (Date.now() - technicalNotesCacheTs) < TECHNICAL_NOTES_TTL) {
+    return res.json(technicalNotesCache);
+  }
 
-  stocks.forEach((stock, idx) => {
-    if (stock.price && stock.changePercent !== null) {
-      notes.push({
-        id: notes.length + 1,
-        symbol: stock.symbol,
-        title: `${stock.symbol} - ${stock.name} Güncel Analiz`,
-        content: `${stock.name} hissesi ${stock.changePercent >= 0 ? 'yükseliş' : 'düşüş'} eğiliminde. Güncel fiyat ${stock.price?.toFixed(2)} TL. ${stock.changePercent >= 0 ? 'Pozitif momentum devam ediyor.' : 'Kısa vadeli baskı görülüyor.'}`,
-        category: 'Günlük Analiz',
-        author: 'Borsa Kralı AI',
-        date: new Date().toISOString(),
-        indicators: {
-          price: stock.price,
-          change: stock.changePercent,
-          trend: stock.changePercent >= 0 ? 'Yükseliş' : 'Düşüş'
+  const notes = [];
+  let nextId = 1;
+  const universe = bist30Stocks;
+  const BATCH = 5;
+  const DELAY = 250;
+
+  for (let i = 0; i < universe.length; i += BATCH) {
+    const batch = universe.slice(i, i + BATCH);
+    await Promise.all(batch.map(async (sm) => {
+      try {
+        const hist = await liveDataService.fetchHistoricalData(sm.symbol, '6mo', '1d');
+        if (!hist || hist.length < 50) return;
+        const ind = liveDataService.calculateIndicators(hist);
+        if (!ind) return;
+
+        const live = liveDataService.getStock(sm.symbol) || {};
+        const price = live.price || ind.currentPrice;
+        if (!price) return;
+        const changePct = live.changePercent != null ? live.changePercent : ind.priceChange24h;
+        const now = new Date().toISOString();
+
+        // 1) Trend Analizi: EMA50/EMA200 dizilimi + fiyat konumu
+        if (ind.ema50 != null && ind.ema200 != null) {
+          const golden = ind.ema50 > ind.ema200;
+          const aboveBoth = price > ind.ema50 && price > ind.ema200;
+          const belowBoth = price < ind.ema50 && price < ind.ema200;
+          if (golden && aboveBoth) {
+            notes.push({
+              id: nextId++, symbol: sm.symbol,
+              title: `${sm.symbol} - Güçlü Yükseliş Trendi (EMA Dizilimi)`,
+              content: `${sm.name} hissesinde EMA50 (${ind.ema50.toFixed(2)} TL) > EMA200 (${ind.ema200.toFixed(2)} TL) "golden" dizilimi mevcut. Güncel fiyat ${price.toFixed(2)} TL her iki ortalamanın da üzerinde — uzun vadeli yükseliş trendi koruyor.`,
+              category: 'Trend Analizi', author: 'Borsa Kralı (Canlı Veri)', date: now,
+              indicators: { ema50: +ind.ema50.toFixed(2), ema200: +ind.ema200.toFixed(2), price: +price.toFixed(2), trend: 'Yükseliş' }
+            });
+          } else if (!golden && belowBoth) {
+            notes.push({
+              id: nextId++, symbol: sm.symbol,
+              title: `${sm.symbol} - Aşağı Trend (EMA Dizilimi)`,
+              content: `${sm.name} hissesinde EMA50 (${ind.ema50.toFixed(2)} TL) < EMA200 (${ind.ema200.toFixed(2)} TL) "death" dizilimi var. Fiyat ${price.toFixed(2)} TL her iki ortalamanın altında — uzun vadeli düşüş baskısı sürüyor.`,
+              category: 'Trend Analizi', author: 'Borsa Kralı (Canlı Veri)', date: now,
+              indicators: { ema50: +ind.ema50.toFixed(2), ema200: +ind.ema200.toFixed(2), price: +price.toFixed(2), trend: 'Düşüş' }
+            });
+          }
         }
-      });
-    }
-  });
 
-  res.json({
-    notes: notes.sort((a, b) => new Date(b.date) - new Date(a.date)),
-    total: notes.length
-  });
+        // 2) Momentum: RSI aşırı bölgeler + MACD durumu
+        if (ind.rsi != null) {
+          if (ind.rsi < 32) {
+            notes.push({
+              id: nextId++, symbol: sm.symbol,
+              title: `${sm.symbol} - RSI Aşırı Satım Bölgesinde`,
+              content: `${sm.name} RSI ${ind.rsi.toFixed(1)} ile aşırı satım bölgesinde (RSI<30 sınırı yakın). MACD ${ind.macd != null ? ind.macd.toFixed(3) : '-'}, sinyal ${ind.macdSignal != null ? ind.macdSignal.toFixed(3) : '-'}. Mean reversion (ortalamaya dönüş) ihtimali izlenebilir.`,
+              category: 'Momentum', author: 'Borsa Kralı (Canlı Veri)', date: now,
+              indicators: { rsi: +ind.rsi.toFixed(1), macd: ind.macd != null ? +ind.macd.toFixed(3) : null, momentum: 'Aşırı Satım' }
+            });
+          } else if (ind.rsi > 70) {
+            notes.push({
+              id: nextId++, symbol: sm.symbol,
+              title: `${sm.symbol} - RSI Aşırı Alım Bölgesinde`,
+              content: `${sm.name} RSI ${ind.rsi.toFixed(1)} ile aşırı alım bölgesinde (RSI>70). Kâr realizasyonu/düzeltme ihtimali gözlenebilir. MACD ${ind.macd != null ? ind.macd.toFixed(3) : '-'}.`,
+              category: 'Momentum', author: 'Borsa Kralı (Canlı Veri)', date: now,
+              indicators: { rsi: +ind.rsi.toFixed(1), macd: ind.macd != null ? +ind.macd.toFixed(3) : null, momentum: 'Aşırı Alım' }
+            });
+          } else if (ind.macd != null && ind.macdSignal != null && ind.macdHistogram != null && ind.macdHistogram > 0 && ind.macd > ind.macdSignal) {
+            notes.push({
+              id: nextId++, symbol: sm.symbol,
+              title: `${sm.symbol} - MACD Pozitif Kesişim`,
+              content: `${sm.name} hissesinde MACD (${ind.macd.toFixed(3)}) sinyalin (${ind.macdSignal.toFixed(3)}) üzerine çıktı, histogram +${ind.macdHistogram.toFixed(3)}. Yukarı yönlü momentum başlangıcı olabilir. RSI ${ind.rsi.toFixed(1)}.`,
+              category: 'Momentum', author: 'Borsa Kralı (Canlı Veri)', date: now,
+              indicators: { rsi: +ind.rsi.toFixed(1), macd: +ind.macd.toFixed(3), histogram: +ind.macdHistogram.toFixed(3), momentum: 'Pozitif' }
+            });
+          }
+        }
+
+        // 3) Destek/Direnç: pivot + 20-günlük S/R yakınlığı
+        if (ind.support != null && ind.resistance != null && ind.support > 0) {
+          const distSupport = ((price - ind.support) / price) * 100;
+          const distResistance = ((ind.resistance - price) / price) * 100;
+          if (distSupport >= 0 && distSupport < 2) {
+            notes.push({
+              id: nextId++, symbol: sm.symbol,
+              title: `${sm.symbol} - Destek Seviyesinde Test`,
+              content: `${sm.name} fiyatı ${price.toFixed(2)} TL ile 20 günlük destek (${ind.support.toFixed(2)} TL) seviyesine sadece %${distSupport.toFixed(2)} uzakta. Kırılırsa bir alt destek ${ind.pivotS1.toFixed(2)} TL test edilebilir; tutarsa toparlanma görülebilir.`,
+              category: 'Destek/Direnç', author: 'Borsa Kralı (Canlı Veri)', date: now,
+              indicators: { support: +ind.support.toFixed(2), resistance: +ind.resistance.toFixed(2), price: +price.toFixed(2), trend: 'Yatay' }
+            });
+          } else if (distResistance >= 0 && distResistance < 2) {
+            notes.push({
+              id: nextId++, symbol: sm.symbol,
+              title: `${sm.symbol} - Direnç Seviyesinde Test`,
+              content: `${sm.name} fiyatı ${price.toFixed(2)} TL ile 20 günlük direnç (${ind.resistance.toFixed(2)} TL) seviyesine yaklaştı (%${distResistance.toFixed(2)} kala). Kırılım halinde pivot R1 ${ind.pivotR1.toFixed(2)} TL ve R2 ${ind.pivotR2.toFixed(2)} TL hedeflenebilir.`,
+              category: 'Destek/Direnç', author: 'Borsa Kralı (Canlı Veri)', date: now,
+              indicators: { support: +ind.support.toFixed(2), resistance: +ind.resistance.toFixed(2), price: +price.toFixed(2), pivotR1: +ind.pivotR1.toFixed(2) }
+            });
+          }
+        }
+
+        // 4) Formasyon: Bollinger sıkışması (squeeze) — düşük bandwidth = volatilite sıkışması
+        if (ind.bollingerUpper != null && ind.bollingerLower != null && ind.bollingerMiddle != null && ind.bollingerMiddle > 0) {
+          const bw = ((ind.bollingerUpper - ind.bollingerLower) / ind.bollingerMiddle) * 100;
+          if (bw < 6) {
+            notes.push({
+              id: nextId++, symbol: sm.symbol,
+              title: `${sm.symbol} - Bollinger Sıkışma (Squeeze)`,
+              content: `${sm.name} Bollinger bant genişliği %${bw.toFixed(2)} ile dar bölgede. Volatilite düşük — yakında kırılım (yön belirsiz) ihtimali yüksek. Üst bant ${ind.bollingerUpper.toFixed(2)} TL, alt bant ${ind.bollingerLower.toFixed(2)} TL.`,
+              category: 'Formasyon', author: 'Borsa Kralı (Canlı Veri)', date: now,
+              indicators: { bollingerUpper: +ind.bollingerUpper.toFixed(2), bollingerLower: +ind.bollingerLower.toFixed(2), bandwidth: +bw.toFixed(2), pattern: 'Squeeze' }
+            });
+          } else if (price > ind.bollingerUpper) {
+            notes.push({
+              id: nextId++, symbol: sm.symbol,
+              title: `${sm.symbol} - Bollinger Üst Bant Kırıldı`,
+              content: `${sm.name} fiyatı ${price.toFixed(2)} TL ile Bollinger üst bandı (${ind.bollingerUpper.toFixed(2)} TL) üzerinde kapandı. Güçlü momentum veya aşırı alım sinyali olabilir; teyit için RSI ${ind.rsi != null ? ind.rsi.toFixed(1) : '-'}.`,
+              category: 'Formasyon', author: 'Borsa Kralı (Canlı Veri)', date: now,
+              indicators: { bollingerUpper: +ind.bollingerUpper.toFixed(2), price: +price.toFixed(2), pattern: 'Üst Bant Kırılımı' }
+            });
+          } else if (price < ind.bollingerLower) {
+            notes.push({
+              id: nextId++, symbol: sm.symbol,
+              title: `${sm.symbol} - Bollinger Alt Bant Kırıldı`,
+              content: `${sm.name} fiyatı ${price.toFixed(2)} TL ile Bollinger alt bandının (${ind.bollingerLower.toFixed(2)} TL) altına geriledi. Aşırı satım veya devam eden düşüş sinyali olabilir; RSI ${ind.rsi != null ? ind.rsi.toFixed(1) : '-'}.`,
+              category: 'Formasyon', author: 'Borsa Kralı (Canlı Veri)', date: now,
+              indicators: { bollingerLower: +ind.bollingerLower.toFixed(2), price: +price.toFixed(2), pattern: 'Alt Bant Kırılımı' }
+            });
+          }
+        }
+
+        // 5) Günlük Analiz: gerçek günlük değişim (sadece anlamlı hareketler için)
+        if (changePct != null && Math.abs(changePct) >= 2) {
+          notes.push({
+            id: nextId++, symbol: sm.symbol,
+            title: `${sm.symbol} - Günlük ${changePct >= 0 ? 'Yükseliş' : 'Düşüş'} %${Math.abs(changePct).toFixed(2)}`,
+            content: `${sm.name} bugün %${Math.abs(changePct).toFixed(2)} ${changePct >= 0 ? 'yükselişle' : 'düşüşle'} ${price.toFixed(2)} TL'den işlem görüyor. RSI ${ind.rsi != null ? ind.rsi.toFixed(1) : '-'}, EMA21 ${ind.ema21 != null ? ind.ema21.toFixed(2) : '-'} TL.`,
+            category: 'Günlük Analiz', author: 'Borsa Kralı (Canlı Veri)', date: now,
+            indicators: { price: +price.toFixed(2), change: +changePct.toFixed(2), trend: changePct >= 0 ? 'Yükseliş' : 'Düşüş', rsi: ind.rsi != null ? +ind.rsi.toFixed(1) : null }
+          });
+        }
+      } catch (e) { /* sessizce atla */ }
+    }));
+    if (i + BATCH < universe.length) await new Promise(r => setTimeout(r, DELAY));
+  }
+
+  notes.sort((a, b) => new Date(b.date) - new Date(a.date));
+  const result = {
+    notes,
+    total: notes.length,
+    dataSource: 'Yahoo Finance (Canlı) + Hesaplanan İndikatörler',
+    scannedAt: new Date().toISOString(),
+    universe: 'BIST30',
+  };
+  technicalNotesCache = result;
+  technicalNotesCacheTs = Date.now();
+  res.json(result);
 });
 
 // ============ ALGORITMA PERFORMANS ROUTES ============
