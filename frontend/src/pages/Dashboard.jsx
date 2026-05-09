@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import {
   TrendingUp, TrendingDown, Activity, Flame, ChevronRight,
   RefreshCw, Target, Brain, Gem, Search, Briefcase, Coins, Building2,
-  Calendar, Clock, Command,
+  Calendar, Clock, Command, Sparkles, ArrowRight,
 } from 'lucide-react'
 import apiClient from '../services/api'
 
@@ -150,12 +150,94 @@ function StatChip({ label, value, tone = 'neutral' }) {
   )
 }
 
+/**
+ * Bugünün Sinyalleri özet kartı — Dashboard'da BIST endeks kartlarının altında
+ * boşluğu doldurur. Top 3 trend sinyali gösterir, kart tıklanınca tam panele
+ * yönlendirir. Snapshot yoksa "borsa açılışı bekleniyor" mesajı gösterir.
+ */
+function DailySignalsSummary({ snapshot, navigate, loading }) {
+  const phase = snapshot?.revision || snapshot?.premarket
+  const trendSignals = phase?.trend?.signals || []
+  const reversionSignals = phase?.reversion?.signals || []
+  const top3 = trendSignals.slice(0, 3)
+  const phaseLabel = snapshot?.revision ? '11:00 Revize' : snapshot?.premarket ? '09:55 Pre-Market' : null
+
+  return (
+    <div
+      onClick={() => navigate('/gunluk-tespitler?tab=bugun')}
+      className="rounded-2xl p-3 sm:p-4 border cursor-pointer hover-lift transition-all relative overflow-hidden"
+      style={{
+        background: 'linear-gradient(135deg, rgba(212,175,55,0.06), rgba(212,175,55,0.02))',
+        borderColor: 'var(--border-gold)',
+      }}
+    >
+      {/* Sol üst köşe gold parıltı */}
+      <div className="absolute -top-12 -right-12 w-32 h-32 rounded-full opacity-30 pointer-events-none"
+        style={{ background: 'radial-gradient(circle, var(--gold-400), transparent 70%)' }} />
+
+      <div className="flex items-start justify-between gap-3 relative">
+        <div className="flex items-center gap-2 min-w-0">
+          <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
+            style={{ background: 'linear-gradient(135deg, var(--gold-300), var(--gold-500))', color: '#1a1208' }}>
+            <Sparkles className="w-4 h-4" strokeWidth={2.4} />
+          </div>
+          <div className="min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>Bugünün Sinyalleri</span>
+              {phaseLabel && (
+                <span className="text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded-full font-semibold"
+                  style={{ background: 'rgba(212,175,55,0.15)', color: 'var(--gold-400)', border: '1px solid var(--border-gold)' }}>
+                  {phaseLabel}
+                </span>
+              )}
+            </div>
+            <p className="text-[11px] mt-0.5" style={{ color: 'var(--text-muted)' }}>
+              {phase
+                ? `Trend: ${trendSignals.length} · Reversion: ${reversionSignals.length} aktif sinyal`
+                : 'Borsa açılışı (09:55) bekleniyor — sinyaller hazırlandığında bildirim alacaksın'}
+            </p>
+          </div>
+        </div>
+        <ArrowRight className="w-4 h-4 flex-shrink-0 mt-1" style={{ color: 'var(--gold-400)' }} />
+      </div>
+
+      {/* Top 3 mini liste */}
+      {top3.length > 0 && (
+        <div className="grid grid-cols-3 gap-2 mt-3 relative">
+          {top3.map((sig) => (
+            <div key={sig.symbol} className="rounded-lg p-2 text-center"
+              style={{ background: 'var(--bg-card)', border: '1px solid var(--border-main)' }}>
+              <div className="flex items-center justify-center gap-1">
+                <span className="font-bold text-[12px]" style={{ color: 'var(--text-primary)' }}>{sig.symbol}</span>
+                <span className={`text-[9px] px-1 rounded ${sig.direction === 'long' ? 'bg-emerald-500/20 text-emerald-300' : 'bg-red-500/20 text-red-300'}`}>
+                  {sig.direction === 'long' ? '↑' : '↓'}
+                </span>
+              </div>
+              <div className="text-[10px] mt-0.5" style={{ color: 'var(--text-muted)' }}>
+                {sig.totalScore}/{sig.applicableMax} koşul
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {!phase && !loading && (
+        <div className="mt-3 flex items-center gap-2 text-[11px]" style={{ color: 'var(--text-muted)' }}>
+          <Clock className="w-3 h-3" />
+          <span>Pre-market sinyalleri her gün 09:55'te otomatik üretilir</span>
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function Dashboard() {
   const navigate = useNavigate()
   const [bist100, setBist100] = useState(null)
   const [bist30,  setBist30]  = useState(null)
   const [gainers, setGainers] = useState([])
   const [losers,  setLosers]  = useState([])
+  const [dailySnapshot, setDailySnapshot] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error,   setError]   = useState(null)
   const [refreshTick, setRefreshTick] = useState(0)
@@ -171,12 +253,14 @@ export default function Dashboard() {
       apiClient.get('/market/bist30'),
       apiClient.get('/market/gainers'),
       apiClient.get('/market/losers'),
-    ]).then(([b100, b30, gn, ls]) => {
+      apiClient.get('/daily-signals/today'),
+    ]).then(([b100, b30, gn, ls, ds]) => {
       if (!active) return
       if (b100.status === 'fulfilled') setBist100(b100.value.data)
       if (b30.status  === 'fulfilled') setBist30(b30.value.data)
       if (gn.status   === 'fulfilled') setGainers((gn.value.data?.stocks || gn.value.data || []).slice(0, 5))
       if (ls.status   === 'fulfilled') setLosers((ls.value.data?.stocks || ls.value.data || []).slice(0, 5))
+      if (ds.status   === 'fulfilled') setDailySnapshot(ds.value.data)
       const allRejected = [b100, b30].every(r => r.status === 'rejected')
       if (allRejected) setError('Veriler şu an yüklenemedi. Birkaç saniye sonra tekrar deneyin.')
       else setError(null)
@@ -318,6 +402,9 @@ export default function Dashboard() {
           onClick={() => navigate('/endeks/XU030')}
         />
       </div>
+
+      {/* Bugünün Sinyalleri Özeti — boşluğu doldurur, daily-signals'e atlar */}
+      <DailySignalsSummary snapshot={dailySnapshot} navigate={navigate} loading={loading && !dailySnapshot} />
 
       {/* Hızlı Erişim Kartları */}
       <div>
