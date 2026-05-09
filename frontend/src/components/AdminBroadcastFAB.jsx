@@ -40,16 +40,22 @@ export default function AdminBroadcastFAB() {
     } catch { /* ignore */ }
   }, [isAdmin])
 
-  // Pozisyonu ekran sınırları içinde tut (resize / döndürme sonrası)
+  // Pozisyonu ekran içinde tut + ortada kalmışsa kenara snap.
+  // (Eski sürümde drag bittiğinde snap yoktu, kullanıcılar ortada bırakmış
+  // olabilir; init'te otomatik en yakın kenara çekiyoruz.)
   useEffect(() => {
     if (!pos || typeof window === 'undefined') return
     const w = window.innerWidth, h = window.innerHeight
-    const buttonW = 160, buttonH = 44 // tahmini
-    const clamped = {
-      x: Math.max(8, Math.min(pos.x, w - buttonW - 8)),
-      y: Math.max(8, Math.min(pos.y, h - buttonH - 8)),
+    const btnW = btnRef.current?.getBoundingClientRect().width || 160
+    const btnH = btnRef.current?.getBoundingClientRect().height || 44
+    const margin = 12
+    const centerX = pos.x + btnW / 2
+    const snappedX = centerX < w / 2 ? margin : (w - btnW - margin)
+    const clampedY = Math.max(margin, Math.min(pos.y, h - btnH - margin))
+    if (snappedX !== pos.x || clampedY !== pos.y) {
+      setPos({ x: snappedX, y: clampedY })
+      try { localStorage.setItem(STORAGE_KEY, JSON.stringify({ x: snappedX, y: clampedY })) } catch { /* ignore */ }
     }
-    if (clamped.x !== pos.x || clamped.y !== pos.y) setPos(clamped)
   }, [pos])
 
   const onPointerDown = useCallback((e) => {
@@ -88,12 +94,20 @@ export default function AdminBroadcastFAB() {
     dragState.current = null
     setDragging(false)
     if (wasMoved) {
-      // Sürükleme bitti — pozisyonu kaydet
+      // Sürükleme bitti — buton ekranın hangi yarısında? Yakın kenara snap.
+      // (Y ekseni serbest, kullanıcı yüksekliği seçer; X ekseni kenara yapışır.)
       setPos((p) => {
-        if (p) {
-          try { localStorage.setItem(STORAGE_KEY, JSON.stringify(p)) } catch { /* ignore */ }
-        }
-        return p
+        if (!p || typeof window === 'undefined') return p
+        const btnW = btnRef.current?.getBoundingClientRect().width || 160
+        const btnH = btnRef.current?.getBoundingClientRect().height || 44
+        const w = window.innerWidth, h = window.innerHeight
+        const centerX = p.x + btnW / 2
+        const margin = 12
+        const snappedX = centerX < w / 2 ? margin : (w - btnW - margin)
+        const clampedY = Math.max(margin, Math.min(p.y, h - btnH - margin))
+        const snapped = { x: snappedX, y: clampedY }
+        try { localStorage.setItem(STORAGE_KEY, JSON.stringify(snapped)) } catch { /* ignore */ }
+        return snapped
       })
     } else {
       // Sadece tıklama (sürükleme değil) → modal aç
