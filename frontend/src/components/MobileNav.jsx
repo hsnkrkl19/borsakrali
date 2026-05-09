@@ -222,6 +222,15 @@ export default function MobileNav() {
                 <p className="text-[10px] text-gray-700 mt-1">
                   Eğitim amaçlı platform — Yatırım tavsiyesi değildir
                 </p>
+                <div className="mt-3 flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-[10px] text-gray-500">
+                  <button onClick={() => handleNavClick('/hakkimizda')} className="hover:text-gold-400">Hakkımızda</button>
+                  <span>·</span>
+                  <button onClick={() => handleNavClick('/iletisim')} className="hover:text-gold-400">İletişim</button>
+                  <span>·</span>
+                  <button onClick={() => handleNavClick('/privacy-policy')} className="hover:text-gold-400">Gizlilik</button>
+                  <span>·</span>
+                  <button onClick={() => handleNavClick('/terms-of-use')} className="hover:text-gold-400">Kullanım Koşulları</button>
+                </div>
               </div>
             </div>
           </div>

@@ -19,7 +19,9 @@ export default function TermsOfUse() {
             <BrandMark size="sm" />
             Borsa Krali
           </Link>
-          <div className="flex gap-4 text-sm">
+          <div className="flex flex-wrap gap-4 text-sm">
+            <Link to="/hakkimizda" className="text-gray-400 hover:text-white">Hakkimizda</Link>
+            <Link to="/iletisim" className="text-gray-400 hover:text-white">Iletisim</Link>
             <Link to="/privacy-policy" className="text-gray-400 hover:text-white">Gizlilik</Link>
             <Link to="/account-deletion" className="text-gray-400 hover:text-white">Hesap Silme</Link>
           </div>

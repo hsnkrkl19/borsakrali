@@ -4,6 +4,7 @@ import Sidebar from './Sidebar'
 import Header from './Header'
 import MobileNav from './MobileNav'
 import BrandMark from './BrandMark'
+import AdSlot from './AdSlot'
 
 export default function Layout({ children }) {
   const [sidebarOpen, setSidebarOpen] = useState(true)
@@ -128,11 +129,32 @@ export default function Layout({ children }) {
             </header>
           )}
 
+          {!isMobile && (
+            <AdSlot
+              placement="desktopTop"
+              className="mx-auto w-full max-w-5xl px-4 pt-3"
+            />
+          )}
+
+          {isMobile && (
+            <AdSlot
+              placement="mobileTop"
+              className="w-full px-3 pt-2"
+            />
+          )}
+
           <main className={`flex-1 w-full min-w-0 max-w-full overflow-x-hidden p-4 md:p-6 ${isMobile ? 'main-mobile-pb' : ''}`}>
             <div className="w-full min-w-0 max-w-full">
               {children}
             </div>
           </main>
+
+          {!isMobile && (
+            <AdSlot
+              placement="desktopBottom"
+              className="mx-auto w-full max-w-5xl px-4 pb-3"
+            />
+          )}
 
           {!isMobile && (
             <footer className="bg-dark-900 border-t border-gold-500/10 px-6 py-4">
@@ -141,6 +163,8 @@ export default function Layout({ children }) {
                   Tum haklari saklidir. Yatirim tavsiyesi degildir. Yalnizca egitim amaclidir.
                 </p>
                 <div className="flex flex-wrap items-center justify-center gap-4 text-xs text-gray-400">
+                  <Link to="/hakkimizda" className="hover:text-white">Hakkimizda</Link>
+                  <Link to="/iletisim" className="hover:text-white">Iletisim</Link>
                   <Link to="/privacy-policy" className="hover:text-white">Gizlilik Politikasi</Link>
                   <Link to="/terms-of-use" className="hover:text-white">Kullanim Kosullari</Link>
                   <Link to="/account-deletion" className="hover:text-white">Hesap Silme</Link>
@@ -150,6 +174,15 @@ export default function Layout({ children }) {
           )}
         </div>
       </div>
+
+      {isMobile && (
+        <div
+          className="fixed bottom-16 left-0 right-0 z-40 px-2 pb-1"
+          style={{ paddingBottom: 'max(env(safe-area-inset-bottom, 0px), 4px)' }}
+        >
+          <AdSlot placement="mobileBottom" />
+        </div>
+      )}
 
       {isMobile && <MobileNav />}
     </div>

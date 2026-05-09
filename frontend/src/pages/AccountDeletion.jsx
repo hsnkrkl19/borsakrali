@@ -48,7 +48,9 @@ export default function AccountDeletion() {
             <BrandMark size="sm" />
             Borsa Krali
           </Link>
-          <div className="flex gap-4 text-sm">
+          <div className="flex flex-wrap gap-4 text-sm">
+            <Link to="/hakkimizda" className="text-gray-400 hover:text-white">Hakkimizda</Link>
+            <Link to="/iletisim" className="text-gray-400 hover:text-white">Iletisim</Link>
             <Link to="/privacy-policy" className="text-gray-400 hover:text-white">Gizlilik</Link>
             <Link to="/terms-of-use" className="text-gray-400 hover:text-white">Kullanim Kosullari</Link>
           </div>

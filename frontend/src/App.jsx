@@ -9,6 +9,7 @@ import ThemeToggle from './components/ThemeToggle'
 import CommandPalette from './components/CommandPalette'
 import AnnouncementsManager from './components/AnnouncementsManager'
 import AdminBroadcastFAB from './components/AdminBroadcastFAB'
+import CookieConsent from './components/CookieConsent'
 import Dashboard from './pages/Dashboard'
 import GunlukTespitler from './pages/GunlukTespitler'
 import TakipListem from './pages/TakipListem'
@@ -20,6 +21,8 @@ import ChangePassword from './pages/ChangePassword'
 import PrivacyPolicy from './pages/PrivacyPolicy'
 import TermsOfUse from './pages/TermsOfUse'
 import AccountDeletion from './pages/AccountDeletion'
+import Hakkimizda from './pages/Hakkimizda'
+import Iletisim from './pages/Iletisim'
 import PlayStorePreviewAuth from './pages/PlayStorePreviewAuth'
 import LiveHeatmap from './pages/LiveHeatmap'
 import ProAnaliz from './pages/ProAnaliz'
@@ -118,6 +121,7 @@ function App() {
       {isAuthenticated && <AnnouncementsManager />}
       {isAuthenticated && <AdminBroadcastFAB />}
       {isAuthenticated && <UpdatePopup />}
+      <CookieConsent />
       <Routes>
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
@@ -128,6 +132,10 @@ function App() {
         <Route path="/kullanim-kosullari" element={<TermsOfUse />} />
         <Route path="/account-deletion" element={<AccountDeletion />} />
         <Route path="/hesap-silme" element={<AccountDeletion />} />
+        <Route path="/hakkimizda" element={<Hakkimizda />} />
+        <Route path="/about" element={<Hakkimizda />} />
+        <Route path="/iletisim" element={<Iletisim />} />
+        <Route path="/contact" element={<Iletisim />} />
 
         <Route
           path="/*"

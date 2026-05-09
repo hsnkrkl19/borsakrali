@@ -728,6 +728,21 @@ export default function Login() {
           >
             Yatırım tavsiyesi değildir · Eğitim amaçlı platform
           </p>
+
+          <div
+            className="mt-3 flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-[10px]"
+            style={{ color: isLight ? '#94a3b8' : '#64748b' }}
+          >
+            <Link to="/hakkimizda" className="hover:text-amber-400">Hakkımızda</Link>
+            <span>·</span>
+            <Link to="/iletisim" className="hover:text-amber-400">İletişim</Link>
+            <span>·</span>
+            <Link to="/privacy-policy" className="hover:text-amber-400">Gizlilik</Link>
+            <span>·</span>
+            <Link to="/terms-of-use" className="hover:text-amber-400">Kullanım Koşulları</Link>
+            <span>·</span>
+            <Link to="/account-deletion" className="hover:text-amber-400">Hesap Silme</Link>
+          </div>
         </div>
       </div>
     </div>
