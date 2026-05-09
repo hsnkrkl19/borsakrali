@@ -12,10 +12,13 @@ function safeTrim(value, maxLength = 500) {
   return String(value || '').trim().slice(0, maxLength);
 }
 
+const HISTORY_LIMIT = 50;
+
 function ensureStoreShape(parsed) {
   return {
     devices: parsed?.devices && typeof parsed.devices === 'object' ? parsed.devices : {},
     lastBroadcast: parsed?.lastBroadcast || null,
+    history: Array.isArray(parsed?.history) ? parsed.history.slice(-HISTORY_LIMIT) : [],
   };
 }
 
@@ -202,6 +205,23 @@ async function unregisterDevice(payload) {
   }
 }
 
+function persistBroadcastEntry(store, entry) {
+  store.lastBroadcast = entry;
+  store.history = [...(store.history || []), entry].slice(-HISTORY_LIMIT);
+  writeStore(store);
+  return entry;
+}
+
+let broadcastEmitter = null;
+function setBroadcastEmitter(fn) {
+  broadcastEmitter = typeof fn === 'function' ? fn : null;
+}
+function emitBroadcast(entry) {
+  if (broadcastEmitter) {
+    try { broadcastEmitter(entry); } catch (e) { console.error('[PUSH] emit error:', e.message); }
+  }
+}
+
 async function broadcastNotification(payload) {
   const title = safeTrim(payload.title, 120);
   const body = safeTrim(payload.body, 500);
@@ -214,74 +234,100 @@ async function broadcastNotification(payload) {
     };
   }
 
+  const topic = safeTrim(payload.topic, 120) || DEFAULT_TOPIC;
+  const channelId = safeTrim(payload.channelId, 120) || DEFAULT_CHANNEL_ID;
+  const pathValue = normalizePath(payload.path);
+  const externalUrl = safeTrim(payload.url, 500);
+
+  const sentAt = new Date().toISOString();
+  const broadcastEntry = {
+    id: `b_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+    title,
+    body,
+    topic,
+    channelId,
+    path: pathValue && !/^https?:\/\//i.test(pathValue) ? pathValue : (externalUrl || pathValue || ''),
+    dryRun: Boolean(payload.dryRun),
+    sentBy: payload.sender?.email || null,
+    sentAt,
+    messageId: null,
+    fcmStatus: 'pending',
+  };
+
+  // FCM (Firebase) — phones with the app
   const firebaseState = ensureFirebaseApp();
-  if (!firebaseState.success) {
-    return firebaseState;
-  }
+  let fcmError = null;
+  let messageId = null;
 
-  try {
-    const topic = safeTrim(payload.topic, 120) || DEFAULT_TOPIC;
-    const channelId = safeTrim(payload.channelId, 120) || DEFAULT_CHANNEL_ID;
-    const pathValue = normalizePath(payload.path);
-    const externalUrl = safeTrim(payload.url, 500);
+  if (firebaseState.success) {
+    try {
+      const data = Object.fromEntries(
+        Object.entries({
+          path: pathValue && !/^https?:\/\//i.test(pathValue) ? pathValue : '',
+          url: /^https?:\/\//i.test(pathValue) ? pathValue : externalUrl,
+          senderEmail: safeTrim(payload.sender?.email, 200),
+          sentAt,
+          broadcastId: broadcastEntry.id,
+        }).filter(([, value]) => value)
+      );
 
-    const data = Object.fromEntries(
-      Object.entries({
-        path: pathValue && !/^https?:\/\//i.test(pathValue) ? pathValue : '',
-        url: /^https?:\/\//i.test(pathValue) ? pathValue : externalUrl,
-        senderEmail: safeTrim(payload.sender?.email, 200),
-        sentAt: new Date().toISOString(),
-      }).filter(([, value]) => value)
-    );
-
-    const admin = getFirebaseAdmin();
-    const message = {
-      topic,
-      notification: { title, body },
-      data,
-      android: {
-        priority: 'high',
-        notification: {
-          channelId,
-          sound: 'default',
+      const admin = getFirebaseAdmin();
+      const message = {
+        topic,
+        notification: { title, body },
+        data,
+        android: {
+          priority: 'high',
+          notification: { channelId, sound: 'default' },
         },
-      },
-    };
+      };
 
-    const messageId = await admin.messaging().send(message, Boolean(payload.dryRun));
-
-    const store = readStore();
-    store.lastBroadcast = {
-      title,
-      body,
-      topic,
-      channelId,
-      path: data.path || data.url || '',
-      dryRun: Boolean(payload.dryRun),
-      sentBy: payload.sender?.email || null,
-      sentAt: new Date().toISOString(),
-      messageId,
-    };
-    writeStore(store);
-
-    return {
-      success: true,
-      message: Boolean(payload.dryRun)
-        ? 'Deneme bildirimi basariyla hazirlandi'
-        : 'Bildirim tum uygulamalara gonderildi',
-      messageId,
-      topic,
-      channelId,
-      registeredDeviceCount: Object.keys(store.devices).length,
-    };
-  } catch (error) {
-    console.error('[PUSH] Broadcast error:', error.message);
-    return {
-      success: false,
-      error: `Bildirim gonderilemedi: ${error.message}`,
-      statusCode: 500,
-    };
+      messageId = await admin.messaging().send(message, Boolean(payload.dryRun));
+      broadcastEntry.messageId = messageId;
+      broadcastEntry.fcmStatus = 'sent';
+    } catch (error) {
+      console.error('[PUSH] Broadcast FCM error:', error.message);
+      fcmError = error.message;
+      broadcastEntry.fcmStatus = 'error';
+      broadcastEntry.fcmError = fcmError;
+    }
+  } else {
+    broadcastEntry.fcmStatus = 'unconfigured';
+    broadcastEntry.fcmError = firebaseState.error;
   }
+
+  // Persist + emit IN-APP broadcast regardless of FCM availability,
+  // so users using the website still see the announcement.
+  const store = readStore();
+  persistBroadcastEntry(store, broadcastEntry);
+  if (!broadcastEntry.dryRun) emitBroadcast(broadcastEntry);
+
+  const inAppNote = 'Web kullanicilarina anlik olarak iletildi.';
+  const successMsg = broadcastEntry.dryRun
+    ? `Deneme bildirimi hazirlandi. ${inAppNote}`
+    : (broadcastEntry.fcmStatus === 'sent'
+        ? `Bildirim tum uygulamalara gonderildi. ${inAppNote}`
+        : `Bildirim web kullanicilarina iletildi. (Telefon: ${fcmError || firebaseState.error || 'yapilandirma eksik'})`);
+
+  return {
+    success: true,
+    message: successMsg,
+    messageId,
+    topic,
+    channelId,
+    registeredDeviceCount: Object.keys(store.devices).length,
+    broadcast: broadcastEntry,
+  };
+}
+
+function listAnnouncements({ limit = 20, since } = {}) {
+  const store = readStore();
+  let history = (store.history || []).slice().reverse(); // newest first
+  if (since) {
+    const idx = history.findIndex((b) => b.id === since || b.sentAt === since);
+    if (idx > 0) history = history.slice(0, idx);
+  }
+  return history.slice(0, Math.min(50, Math.max(1, limit)));
 }
 
 function getSummary() {
@@ -314,4 +360,6 @@ module.exports = {
   registerDevice,
   unregisterDevice,
   broadcastNotification,
+  listAnnouncements,
+  setBroadcastEmitter,
 };

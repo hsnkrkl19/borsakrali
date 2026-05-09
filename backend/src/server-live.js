@@ -22,6 +22,7 @@ const fundamentalScoresService = require('./services/fundamentalScoresService');
 const financialsRouter = require('../routes/financials');
 const pushRoutes = require('./routes/push.routes');
 const adminRoutes = require('./routes/admin.routes');
+const pushNotificationService = require('./services/pushNotificationService');
 const { allBistStocks, bist30Stocks, bist100Stocks, sectors } = require('./data/allBistStocks');
 
 // Sinyal cache - tespit edilen sinyalleri sakla
@@ -44,6 +45,11 @@ const authLimiter = rateLimit({
 
 // Socket.IO başlat
 const io = socketService.initializeSocket(server);
+
+// Admin broadcast → live in-app delivery to all connected clients
+pushNotificationService.setBroadcastEmitter((entry) => {
+  socketService.broadcastAnnouncement(entry);
+});
 
 // Middleware
 app.use(helmet({
@@ -147,6 +153,20 @@ app.get('/api/debug/invalid-symbols', (req, res) => {
 app.use('/api/financials', financialsRouter);
 app.use('/api/push', pushRoutes);
 app.use('/api/admin', adminRoutes);
+
+// Tüm kullanicilara açik duyuru listesi (admin tarafindan gönderilen
+// broadcast bildirimlerinin geçmişi). Header bell + Duyurular paneli
+// tarafindan kullanılır.
+app.get('/api/notifications/announcements', (req, res) => {
+  try {
+    const limit = parseInt(req.query.limit, 10) || 20;
+    const since = req.query.since;
+    const announcements = pushNotificationService.listAnnouncements({ limit, since });
+    res.json({ success: true, announcements });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
 
 // ============ AUTH ROUTES ============
 

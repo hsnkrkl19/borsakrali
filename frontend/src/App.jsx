@@ -6,6 +6,9 @@ import PushNotificationManager from './components/PushNotificationManager'
 import ErrorBoundary from './components/ErrorBoundary'
 import BackButtonHandler from './components/BackButtonHandler'
 import ThemeToggle from './components/ThemeToggle'
+import CommandPalette from './components/CommandPalette'
+import AnnouncementsManager from './components/AnnouncementsManager'
+import AdminBroadcastFAB from './components/AdminBroadcastFAB'
 import Dashboard from './pages/Dashboard'
 import GunlukTespitler from './pages/GunlukTespitler'
 import TakipListem from './pages/TakipListem'
@@ -111,6 +114,9 @@ function App() {
       <BackButtonHandler />
       <PushNotificationManager />
       <ThemeToggle variant="floating" />
+      {isAuthenticated && <CommandPalette />}
+      {isAuthenticated && <AnnouncementsManager />}
+      {isAuthenticated && <AdminBroadcastFAB />}
       {isAuthenticated && <UpdatePopup />}
       <Routes>
         <Route path="/login" element={<Login />} />

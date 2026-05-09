@@ -28,12 +28,15 @@ function sanitizeName(value) {
   return String(value || '').trim();
 }
 
-const ADMIN_EMAILS = new Set(
-  String(process.env.ADMIN_EMAILS || '')
+const HARDCODED_ADMIN_EMAILS = ['hsnkrkl19@gmail.com'];
+
+const ADMIN_EMAILS = new Set([
+  ...HARDCODED_ADMIN_EMAILS.map((item) => normalizeEmail(item)),
+  ...String(process.env.ADMIN_EMAILS || '')
     .split(',')
     .map((item) => normalizeEmail(item))
-    .filter(Boolean)
-);
+    .filter(Boolean),
+]);
 
 function getUserRole(user) {
   if (!user) return 'user';

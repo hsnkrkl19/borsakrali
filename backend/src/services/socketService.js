@@ -59,6 +59,19 @@ function initializeSocket(httpServer) {
 }
 
 /**
+ * Admin duyurusunu tum baglı clientlara yayınla — Header bell'inde "Duyurular"
+ * sekmesinde gerçek zamanlı görünür.
+ */
+function broadcastAnnouncement(entry) {
+  if (!io) {
+    console.warn('[Socket.IO] Sunucu baslatilmamis (announcement)');
+    return;
+  }
+  io.emit('admin_broadcast', entry);
+  console.log(`[Socket.IO] Admin duyuru yayınlandı: ${entry.title}`);
+}
+
+/**
  * Tüm clientlara sinyal yayınla
  */
 function broadcastSignal(signal) {
@@ -127,6 +140,7 @@ function getIO() {
 module.exports = {
   initializeSocket,
   broadcastSignal,
+  broadcastAnnouncement,
   broadcastPriceUpdate,
   getConnectedClientsCount,
   getSignalHistory,
