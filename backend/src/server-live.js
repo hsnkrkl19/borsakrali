@@ -695,6 +695,29 @@ app.get('/api/market/stocks/bist100', (req, res) => {
   });
 });
 
+// Piyasa nefesi (market breadth) — BIST100 içinde gün içi yükselen / düşen sayısı.
+// Dashboard üst stat chip'leri için kullanılır. Top-5 listesi değil, gerçek
+// piyasa genişliği göstergesidir.
+app.get('/api/market/breadth', (req, res) => {
+  const stocks = liveDataService.getBist100Stocks();
+  let up = 0, down = 0, unchanged = 0;
+  for (const s of stocks) {
+    const cp = s.changePercent;
+    if (typeof cp !== 'number' || isNaN(cp)) continue;
+    if (cp > 0) up++;
+    else if (cp < 0) down++;
+    else unchanged++;
+  }
+  const total = up + down + unchanged;
+  const ratio = (up + down) > 0 ? Math.round((up / (up + down)) * 100) : 50;
+  res.json({
+    universe: 'BIST100',
+    up, down, unchanged, total,
+    ratio, // yükselen / (yükselen + düşen) — yatay piyasada %50
+    lastUpdate: liveDataService.getLastUpdateTime()?.toISOString(),
+  });
+});
+
 // En cok kazananlar
 app.get('/api/market/gainers', (req, res) => {
   const { limit = 10 } = req.query;

@@ -134,15 +134,16 @@ function QuickAccess({ to, icon: Icon, label, sub, color, navigate }) {
 }
 
 /* ─── Stat chip — hızlı bakış için ─────────────────────────────────────── */
-function StatChip({ label, value, tone = 'neutral' }) {
+function StatChip({ label, value, tone = 'neutral', title }) {
   const toneStyle = tone === 'up'
     ? { color: 'var(--jade)', bg: 'rgba(0, 201, 138, 0.10)', border: 'rgba(0, 201, 138, 0.28)' }
     : tone === 'down'
       ? { color: 'var(--ember)', bg: 'rgba(255, 59, 70, 0.10)', border: 'rgba(255, 59, 70, 0.28)' }
       : { color: 'var(--text-secondary)', bg: 'var(--bg-input)', border: 'var(--border-main)' }
   return (
-    <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg"
+    <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg cursor-help"
       style={{ background: toneStyle.bg, border: `1px solid ${toneStyle.border}` }}
+      title={title}
     >
       <span className="text-[10px] uppercase tracking-wider font-semibold" style={{ color: 'var(--text-faint)' }}>{label}</span>
       <span className="text-[12.5px] font-bold num-tabular" style={{ color: toneStyle.color }}>{value}</span>
@@ -237,6 +238,7 @@ export default function Dashboard() {
   const [bist30,  setBist30]  = useState(null)
   const [gainers, setGainers] = useState([])
   const [losers,  setLosers]  = useState([])
+  const [breadth, setBreadth] = useState(null)
   const [dailySnapshot, setDailySnapshot] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error,   setError]   = useState(null)
@@ -253,13 +255,15 @@ export default function Dashboard() {
       apiClient.get('/market/bist30'),
       apiClient.get('/market/gainers'),
       apiClient.get('/market/losers'),
+      apiClient.get('/market/breadth'),
       apiClient.get('/daily-signals/today'),
-    ]).then(([b100, b30, gn, ls, ds]) => {
+    ]).then(([b100, b30, gn, ls, br, ds]) => {
       if (!active) return
       if (b100.status === 'fulfilled') setBist100(b100.value.data)
       if (b30.status  === 'fulfilled') setBist30(b30.value.data)
       if (gn.status   === 'fulfilled') setGainers((gn.value.data?.stocks || gn.value.data || []).slice(0, 5))
       if (ls.status   === 'fulfilled') setLosers((ls.value.data?.stocks || ls.value.data || []).slice(0, 5))
+      if (br.status   === 'fulfilled') setBreadth(br.value.data)
       if (ds.status   === 'fulfilled') setDailySnapshot(ds.value.data)
       const allRejected = [b100, b30].every(r => r.status === 'rejected')
       if (allRejected) setError('Veriler şu an yüklenemedi. Birkaç saniye sonra tekrar deneyin.')
@@ -283,13 +287,9 @@ export default function Dashboard() {
   }, [])
 
   const market = useMemo(() => getMarketStatus(now), [now])
-  const breadth = useMemo(() => {
-    if (!gainers.length && !losers.length) return null
-    const up = gainers.length
-    const down = losers.length
-    const ratio = up + down > 0 ? Math.round((up / (up + down)) * 100) : 50
-    return { up, down, ratio }
-  }, [gainers, losers])
+  // breadth artık doğrudan /api/market/breadth'ten geliyor (BIST100'de gerçek
+  // yükselen / düşen sayısı). Eskiden top-5 listelerin uzunluğunu sayıyordu —
+  // o yüzden hep "5 / 5 / %50" gösteriyordu.
 
   return (
     <div className="space-y-5">
@@ -339,13 +339,18 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Quick stat chips */}
+      {/* Quick stat chips — anlık piyasa durumu özeti
+          • BIST100/BIST30 = endeks gün içi yüzdesel değişim
+          • Yükselen/Düşen  = BIST100'deki yön sayıları (gerçek breadth)
+          • Oran            = Yükselen / (Yükselen + Düşen) — piyasa nefesi
+              ≥%60 alıcılı, %40-60 yatay, ≤%40 satıcılı piyasa */}
       <div className="flex flex-wrap items-center gap-2">
         {bist100 != null && (
           <StatChip
             label="BIST100"
             value={bist100?.changePercent != null ? `${bist100.changePercent >= 0 ? '+' : ''}${bist100.changePercent.toFixed(2)}%` : '—'}
             tone={bist100?.changePercent >= 0 ? 'up' : 'down'}
+            title="BIST100 endeksinin gün içi yüzdesel değişimi"
           />
         )}
         {bist30 != null && (
@@ -353,13 +358,29 @@ export default function Dashboard() {
             label="BIST30"
             value={bist30?.changePercent != null ? `${bist30.changePercent >= 0 ? '+' : ''}${bist30.changePercent.toFixed(2)}%` : '—'}
             tone={bist30?.changePercent >= 0 ? 'up' : 'down'}
+            title="BIST30 endeksinin gün içi yüzdesel değişimi"
           />
         )}
-        {breadth && (
+        {breadth && breadth.total > 0 && (
           <>
-            <StatChip label="Yükselen" value={breadth.up} tone="up" />
-            <StatChip label="Düşen" value={breadth.down} tone="down" />
-            <StatChip label="Oran" value={`${breadth.ratio}%`} tone={breadth.ratio >= 50 ? 'up' : 'down'} />
+            <StatChip
+              label="Yükselen"
+              value={breadth.up}
+              tone="up"
+              title={`BIST100'deki ${breadth.up} hisse bugün artıda kapanıyor (${breadth.total} aktif hisse içinde)`}
+            />
+            <StatChip
+              label="Düşen"
+              value={breadth.down}
+              tone="down"
+              title={`BIST100'deki ${breadth.down} hisse bugün eksideki kapanıyor (${breadth.total} aktif hisse içinde)`}
+            />
+            <StatChip
+              label="Nefes"
+              value={`%${breadth.ratio}`}
+              tone={breadth.ratio >= 60 ? 'up' : breadth.ratio <= 40 ? 'down' : 'neutral'}
+              title={`Piyasa nefesi (breadth) = Yükselen / (Yükselen + Düşen). ${breadth.ratio >= 60 ? 'Alıcılı tablo' : breadth.ratio <= 40 ? 'Satıcılı tablo' : 'Yatay piyasa'} — ${breadth.up} yukarı, ${breadth.down} aşağı.`}
+            />
           </>
         )}
         <div className="flex items-center gap-1.5 ml-auto text-[11px]" style={{ color: 'var(--text-faint)' }}>
