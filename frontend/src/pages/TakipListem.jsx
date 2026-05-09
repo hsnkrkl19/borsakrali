@@ -1,8 +1,8 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import {
   Briefcase, Plus, Trash2, TrendingUp, TrendingDown, RefreshCw,
   X, Calendar, DollarSign, Hash, FileText, AlertCircle, Edit3,
-  ChevronDown, ChevronRight, ShoppingCart, Receipt,
+  ChevronDown, ChevronRight, ShoppingCart, Receipt, Search, Check,
 } from 'lucide-react'
 import api from '../services/api'
 
@@ -28,6 +28,14 @@ export default function TakipListem() {
   const [formType, setFormType]       = useState('buy')
   const [formNote, setFormNote]       = useState('')
   const [submitting, setSubmitting]   = useState(false)
+
+  // Sembol autocomplete: kullanıcı kafasına göre kod yazmasın diye
+  // /api/market/stocks/search ile gerçek BIST sembollerini öneriyoruz.
+  const [symbolQuery, setSymbolQuery]       = useState('')
+  const [symbolResults, setSymbolResults]   = useState([])
+  const [symbolFocused, setSymbolFocused]   = useState(false)
+  const [symbolValid, setSymbolValid]       = useState(false)
+  const symbolDebounceRef = useRef(null)
 
   const fetchPortfolio = async () => {
     setLoading(true)
@@ -58,11 +66,42 @@ export default function TakipListem() {
     setFormType('buy')
     setFormNote('')
     setEditingLot(null)
+    setSymbolQuery('')
+    setSymbolResults([])
+    setSymbolValid(false)
+  }
+
+  // Autocomplete arama — debounced 200ms
+  useEffect(() => {
+    if (symbolDebounceRef.current) clearTimeout(symbolDebounceRef.current)
+    const q = symbolQuery.trim()
+    if (q.length < 1) { setSymbolResults([]); return }
+    symbolDebounceRef.current = setTimeout(async () => {
+      try {
+        const r = await api.get(`/market/stocks/search?q=${encodeURIComponent(q)}`)
+        setSymbolResults(r.data?.stocks || [])
+      } catch {
+        setSymbolResults([])
+      }
+    }, 200)
+    return () => symbolDebounceRef.current && clearTimeout(symbolDebounceRef.current)
+  }, [symbolQuery])
+
+  const pickSymbol = (s) => {
+    setFormSymbol(s.symbol)
+    setSymbolQuery(`${s.symbol} — ${s.name}`)
+    setSymbolValid(true)
+    setSymbolFocused(false)
   }
 
   const handleAdd = async (e) => {
     e?.preventDefault()
     if (!formSymbol || !formQty || !formPrice) return
+    // Yeni eklemede sembol mutlaka listeden seçilmiş olmalı.
+    if (!editingLot && !symbolValid) {
+      alert('Lütfen listeden geçerli bir hisse seçin.')
+      return
+    }
     setSubmitting(true)
     try {
       if (editingLot) {
@@ -111,6 +150,9 @@ export default function TakipListem() {
     setFormDate(lot.buyDate)
     setFormType(lot.type)
     setFormNote(lot.note || '')
+    // Edit modunda sembol değişmiyor — input disabled, valid kabul ediyoruz.
+    setSymbolQuery(lot.symbol)
+    setSymbolValid(true)
     setShowAdd(true)
   }
 
@@ -339,6 +381,8 @@ export default function TakipListem() {
                       onClick={() => {
                         resetForm()
                         setFormSymbol(p.symbol)
+                        setSymbolQuery(p.symbol)
+                        setSymbolValid(true)
                         setFormType('buy')
                         setFormPrice(p.currentPrice?.toString() || '')
                         setShowAdd(true)
@@ -351,6 +395,8 @@ export default function TakipListem() {
                       onClick={() => {
                         resetForm()
                         setFormSymbol(p.symbol)
+                        setSymbolQuery(p.symbol)
+                        setSymbolValid(true)
                         setFormType('sell')
                         setFormPrice(p.currentPrice?.toString() || '')
                         setShowAdd(true)
@@ -414,18 +460,73 @@ export default function TakipListem() {
             </div>
 
             <div className="space-y-3">
-              {/* Sembol */}
-              <FormField label="Hisse Sembolü" icon={Hash}>
-                <input
-                  type="text"
-                  required
-                  disabled={!!editingLot}
-                  value={formSymbol}
-                  onChange={e => setFormSymbol(e.target.value.toUpperCase())}
-                  placeholder="THYAO, AKBNK, ASELS..."
-                  className="w-full bg-transparent border-none outline-none text-white placeholder-gray-600 disabled:opacity-50"
-                />
-              </FormField>
+              {/* Sembol — autocomplete */}
+              <div className="relative">
+                <div className="text-[10px] uppercase tracking-wider text-gray-500 mb-1 font-semibold">
+                  Hisse Sembolü
+                </div>
+                <div className={`flex items-center gap-2 px-3 py-2 bg-dark-800 border rounded-xl transition-colors ${
+                  editingLot
+                    ? 'border-dark-700 opacity-60'
+                    : symbolValid
+                      ? 'border-emerald-500/50'
+                      : symbolQuery && !symbolFocused
+                        ? 'border-red-500/40'
+                        : 'border-dark-700 focus-within:border-amber-500/50'
+                }`}>
+                  <Search className="w-4 h-4 text-gray-500 flex-shrink-0" />
+                  <input
+                    type="text"
+                    required
+                    disabled={!!editingLot}
+                    value={symbolQuery}
+                    onChange={e => {
+                      const v = e.target.value.toUpperCase()
+                      setSymbolQuery(v)
+                      // Yazıyı değiştirince seçim sıfırlanır.
+                      if (symbolValid) {
+                        setFormSymbol('')
+                        setSymbolValid(false)
+                      }
+                    }}
+                    onFocus={() => setSymbolFocused(true)}
+                    onBlur={() => setTimeout(() => setSymbolFocused(false), 150)}
+                    placeholder="Hisse ara: THYAO, akbank, savunma..."
+                    autoComplete="off"
+                    className="w-full bg-transparent border-none outline-none text-white placeholder-gray-600 disabled:opacity-50"
+                  />
+                  {symbolValid && <Check className="w-4 h-4 text-emerald-400 flex-shrink-0" />}
+                </div>
+
+                {/* Öneri dropdown */}
+                {symbolFocused && symbolResults.length > 0 && !editingLot && (
+                  <div className="absolute z-10 left-0 right-0 mt-1 bg-dark-800 border border-amber-500/30 rounded-xl shadow-2xl max-h-56 overflow-y-auto">
+                    {symbolResults.slice(0, 10).map(s => (
+                      <button
+                        type="button"
+                        key={s.symbol}
+                        onMouseDown={(e) => { e.preventDefault(); pickSymbol(s) }}
+                        className="w-full px-3 py-2 flex items-center gap-3 hover:bg-amber-500/10 text-left border-b border-dark-700 last:border-b-0"
+                      >
+                        <div className="w-12 text-center text-[10px] font-bold tracking-wider px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-400 flex-shrink-0">
+                          {s.symbol}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="text-xs text-white truncate">{s.name}</div>
+                          {s.sector && <div className="text-[10px] text-gray-500 truncate">{s.sector}</div>}
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                {/* Eşleşmeyen serbest yazı uyarısı */}
+                {symbolQuery && !symbolValid && !symbolFocused && !editingLot && (
+                  <div className="text-[10px] text-red-400 mt-1 flex items-center gap-1">
+                    <AlertCircle className="w-3 h-3" /> Listeden bir hisse seçin.
+                  </div>
+                )}
+              </div>
 
               {/* Adet */}
               <FormField label="Adet" icon={Hash}>
@@ -499,7 +600,7 @@ export default function TakipListem() {
               </button>
               <button
                 type="submit"
-                disabled={submitting || !formSymbol || !formQty || !formPrice}
+                disabled={submitting || !formSymbol || !formQty || !formPrice || (!editingLot && !symbolValid)}
                 className="flex-1 py-2.5 bg-amber-500 hover:bg-amber-600 disabled:opacity-50 text-dark-950 font-bold rounded-xl text-sm flex items-center justify-center gap-2"
               >
                 {submitting ? <RefreshCw className="w-4 h-4 animate-spin" /> : (editingLot ? 'Güncelle' : 'Kaydet')}

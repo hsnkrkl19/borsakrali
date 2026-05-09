@@ -125,7 +125,7 @@ export default function Register() {
         password: form.password,
       })
 
-      login(session.user, session.token)
+      login(session.user, session.token, session.refreshToken || null)
       navigate('/')
     } catch (err) {
       setError(err.message || 'Kayit islemi basarisiz')

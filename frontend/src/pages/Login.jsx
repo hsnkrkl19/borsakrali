@@ -280,7 +280,7 @@ export default function Login() {
       const data = await loginWithPassword({ email, password })
 
       if (data.user && data.token) {
-        login(data.user, data.token)
+        login(data.user, data.token, data.refreshToken || null)
         navigate('/')
         return
       }

@@ -42,7 +42,7 @@ export default function GoogleSignInButton({
     try {
       const data = await loginWithGoogle({ idToken, accessToken })
       if (data?.user && data?.token) {
-        login(data.user, data.token)
+        login(data.user, data.token, data.refreshToken || null)
         navigate(redirectTo)
       } else {
         throw new Error(data?.error || 'Google girişi başarısız')

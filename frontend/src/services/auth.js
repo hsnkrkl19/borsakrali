@@ -1,4 +1,5 @@
 import { getApiBase } from '../config'
+import api from './api'
 
 function getAuthEndpoint(path) {
   return `${getApiBase()}/api/auth/${path}`
@@ -19,6 +20,24 @@ function buildAuthHeaders(token) {
     'Content-Type': 'application/json',
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
   }
+}
+
+// Auth-protected çağrılar için axios sarmalayıcısı — interceptor'daki refresh
+// akışından faydalansın diye. Eski Error.message imzasını koruyoruz.
+function unwrapAxios(promise) {
+  return promise.then((r) => {
+    const data = r.data || {}
+    if (data.success === false) {
+      throw new Error(data.error || data.message || 'Islem basarisiz')
+    }
+    return data
+  }).catch((err) => {
+    if (err?.response) {
+      const data = err.response.data || {}
+      throw new Error(data.error || data.message || 'Islem basarisiz')
+    }
+    throw err
+  })
 }
 
 export async function loginWithPassword({ email, password }) {
@@ -48,9 +67,20 @@ export async function registerWithPassword(payload) {
   return parseJsonResponse(response)
 }
 
-export async function fetchCurrentUser(token) {
-  const response = await fetch(getAuthEndpoint('me'), {
-    headers: buildAuthHeaders(token),
+// token parametresi geriye uyumluluk için duruyor — apiClient interceptor
+// store'dan otomatik ekliyor ve 401'de refresh deniyor.
+export async function fetchCurrentUser(_token) {
+  return unwrapAxios(api.get('/auth/me'))
+}
+
+// Refresh akışı api.js interceptor tarafından 401 görüldüğünde çağrılıyor.
+// Token süresi dolmuş kullanıcı yeniden login'e atılmadan önce burada bir
+// kez refresh denenmeli — başarısızsa logout.
+export async function refreshAccessToken(refreshToken) {
+  const response = await fetch(getAuthEndpoint('refresh'), {
+    method: 'POST',
+    headers: buildAuthHeaders(),
+    body: JSON.stringify({ refreshToken }),
   })
 
   return parseJsonResponse(response)
@@ -66,15 +96,6 @@ export async function loginWithGoogle({ idToken, accessToken } = {}) {
   return parseJsonResponse(response)
 }
 
-export async function changePassword({ currentPassword, newPassword }, token) {
-  const response = await fetch(getAuthEndpoint('change-password'), {
-    method: 'POST',
-    headers: buildAuthHeaders(token),
-    body: JSON.stringify({
-      currentPassword,
-      newPassword,
-    }),
-  })
-
-  return parseJsonResponse(response)
+export async function changePassword({ currentPassword, newPassword }, _token) {
+  return unwrapAxios(api.post('/auth/change-password', { currentPassword, newPassword }))
 }

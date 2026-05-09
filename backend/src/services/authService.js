@@ -255,6 +255,36 @@ async function verifyToken(token) {
   };
 }
 
+/**
+ * Refresh an expired access token using the long-lived refresh token.
+ * Supabase access tokens have a ~1h TTL; without this, every auth-protected
+ * call starts failing an hour after login (admin broadcast, /portfolio, etc.)
+ */
+async function refreshSession(refreshToken) {
+  ensureSupabase();
+
+  if (!refreshToken) {
+    return { success: false, error: 'Refresh token gerekli' };
+  }
+
+  const { data, error } = await supabaseAdmin.auth.refreshSession({
+    refresh_token: refreshToken,
+  });
+
+  if (error || !data?.session || !data?.user) {
+    return { success: false, error: error?.message || 'Oturum yenilenemedi' };
+  }
+
+  const profile = await fetchProfile(data.user.id);
+  return {
+    success: true,
+    token: data.session.access_token,
+    refreshToken: data.session.refresh_token,
+    expiresAt: data.session.expires_at,
+    user: buildSafeUser(data.user, profile),
+  };
+}
+
 async function findUserByEmail(email) {
   ensureSupabase();
   const normalized = normalizeEmail(email);
@@ -457,6 +487,7 @@ module.exports = {
   initiateLogin,
   loginWithGoogleIdToken,
   verifyToken,
+  refreshSession,
   findUserByEmail,
   getUserByToken,
   getAllUsers,

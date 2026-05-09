@@ -61,13 +61,68 @@ const isRetryable = (error) => {
   return status === 502 || status === 503 || status === 504 || status === 408
 }
 
+// Aynı anda birden fazla istek 401 yerse hepsini tek bir refresh promise'ine
+// bağlıyoruz — yoksa Supabase her refresh_token'ı tek kullanımlık döndürür ve
+// peş peşe gelen refresh çağrıları birbirini geçersiz kılar.
+let refreshPromise = null
+
+async function tryRefreshAccessToken() {
+  if (refreshPromise) return refreshPromise
+
+  const { refreshToken } = useAuthStore.getState()
+  if (!refreshToken) return null
+
+  refreshPromise = (async () => {
+    try {
+      // services/auth.js'i import etmek yerine doğrudan fetch — döngüsel
+      // bağımlılığı önlüyor.
+      const res = await fetch(`${API_BASE_URL}/auth/refresh`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refreshToken }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok || !data?.success || !data?.token) return null
+      useAuthStore.getState().updateTokens({
+        token: data.token,
+        refreshToken: data.refreshToken,
+      })
+      return data.token
+    } catch (_) {
+      return null
+    } finally {
+      refreshPromise = null
+    }
+  })()
+
+  return refreshPromise
+}
+
 apiClient.interceptors.response.use(
   (response) => response,
   async (error) => {
     const config = error.config
 
-    // 401 → logout
-    if (error.response?.status === 401) {
+    // 401 → önce refresh dene, başarısızsa logout
+    if (error.response?.status === 401 && config && !config.__refreshAttempted) {
+      // /auth/refresh çağrısının kendisi 401 dönerse sonsuz döngüye girmesin
+      if (typeof config.url === 'string' && config.url.includes('/auth/refresh')) {
+        if (typeof window !== 'undefined' && window.location.pathname !== '/login') {
+          try { useAuthStore.getState().logout() } catch (_) {}
+          window.location.href = '/login'
+        }
+        return Promise.reject(error)
+      }
+
+      config.__refreshAttempted = true
+      const newToken = await tryRefreshAccessToken()
+      if (newToken) {
+        config.headers = config.headers || {}
+        config.headers.Authorization = `Bearer ${newToken}`
+        return apiClient(config)
+      }
+
+      // Refresh başarısız — kullanıcıyı login'e yönlendir
       if (typeof window !== 'undefined' && window.location.pathname !== '/login') {
         try { useAuthStore.getState().logout() } catch (_) {}
         window.location.href = '/login'
