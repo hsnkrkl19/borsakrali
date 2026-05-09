@@ -4,7 +4,7 @@ import {
   Sparkles, RefreshCw, Search, TrendingUp, TrendingDown, Pause, Filter,
   Unlock, Rocket, Zap, Activity, Crosshair, ShieldCheck, Crown,
   Skull, CloudRain, AlertTriangle, ChevronsDown, ChevronDown, ChevronUp,
-  Brain, Target, Award, Flame
+  Brain, Target, Award, Flame, Clock, Calendar, CalendarDays, Timer, Info
 } from 'lucide-react'
 import { getApiBase } from '../config'
 
@@ -15,6 +15,14 @@ const ICONS = {
   Unlock, Rocket, Sparkles, Zap, Activity, Crosshair, ShieldCheck, Crown,
   TrendingUp, TrendingDown, Skull, CloudRain, AlertTriangle, ChevronsDown, Pause,
 }
+
+// Zaman dilimi seçenekleri — backend ile senkron (comboStrategyService.TIMEFRAMES)
+const TIMEFRAME_OPTIONS = [
+  { id: 'daily',   label: 'Günlük',   shortLabel: '1G',   icon: CalendarDays, desc: 'Günlük kapanış — swing' },
+  { id: 'weekly',  label: 'Haftalık', shortLabel: '1H',   icon: Calendar,     desc: 'Haftalık kapanış — uzun vade' },
+  { id: 'hourly',  label: 'Saatlik',  shortLabel: '1S',   icon: Clock,        desc: 'Saatlik mum — gün içi' },
+  { id: 'fifteen', label: '15 Dk',    shortLabel: '15D',  icon: Timer,        desc: '15 dakikalık — scalp' },
+]
 
 const TIER_BADGE = {
   S: { label: 'S', cls: 'bg-amber-500/20 text-amber-300 border-amber-500/40' },
@@ -61,13 +69,14 @@ export default function StratejiKombolari() {
   const [expandedCombo, setExpandedCombo] = useState(null)
   const [view, setView] = useState('combo') // combo | symbol | catalog
   const [scope, setScope] = useState('bist100')
+  const [timeframe, setTimeframe] = useState('daily') // daily | weekly | hourly | fifteen
 
-  useEffect(() => { load(scope) }, [scope])
+  useEffect(() => { load(scope, timeframe) }, [scope, timeframe])
 
-  const load = async (s = scope) => {
+  const load = async (s = scope, tf = timeframe) => {
     try {
       setRefreshing(true)
-      const res = await axios.get(`${API_BASE}/combo-strategies/scan`, { params: { scope: s } })
+      const res = await axios.get(`${API_BASE}/combo-strategies/scan`, { params: { scope: s, timeframe: tf } })
       setData(res.data)
     } catch (e) {
       console.error('Combo scan error:', e)
@@ -76,6 +85,8 @@ export default function StratejiKombolari() {
       setRefreshing(false)
     }
   }
+
+  const activeTf = TIMEFRAME_OPTIONS.find(t => t.id === timeframe) || TIMEFRAME_OPTIONS[0]
 
   const filteredCombos = useMemo(() => {
     if (!data?.byCombo) return []
@@ -115,31 +126,78 @@ export default function StratejiKombolari() {
           </button>
         </div>
 
+        {/* Aktif zaman dilimi — büyük ve net etiket. Hangi mum periyodunda çalıştığı kullanıcı için kritik. */}
+        <div className="mt-4 rounded-xl border border-amber-500/30 bg-amber-500/[0.06] px-3 py-2.5 flex items-center gap-3 flex-wrap">
+          <activeTf.icon className="w-5 h-5 text-amber-300 shrink-0" />
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-[10px] uppercase tracking-wider text-amber-400/80 font-bold">Zaman Dilimi</span>
+            <span className="text-base font-bold text-white">{activeTf.label}</span>
+            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-500/25 text-amber-200 border border-amber-500/40">{activeTf.shortLabel}</span>
+          </div>
+          <div className="hidden sm:flex items-center gap-1.5 text-[11px] text-gray-400 ml-auto">
+            <Info className="w-3 h-3" />
+            <span>Tüm sinyaller {data?.timeframeBarLabel || activeTf.label.toLowerCase() + ' mum'} bazında hesaplanır</span>
+          </div>
+        </div>
+
+        {/* Timeframe selector */}
+        <div className="mt-3">
+          <div className="text-[10px] uppercase tracking-wider text-gray-500 font-bold mb-1.5">Mum Periyodu</div>
+          <div className="flex flex-wrap gap-2">
+            {TIMEFRAME_OPTIONS.map(opt => {
+              const isActive = timeframe === opt.id
+              const I = opt.icon
+              return (
+                <button
+                  key={opt.id}
+                  onClick={() => setTimeframe(opt.id)}
+                  disabled={refreshing}
+                  className={`relative px-3 py-2 rounded-xl text-xs font-semibold border transition disabled:opacity-50 ${
+                    isActive
+                      ? 'bg-amber-500/20 border-amber-500/50 text-amber-200 shadow-lg shadow-amber-500/10'
+                      : 'bg-dark-800/60 border-dark-700 text-gray-400 hover:text-white hover:border-dark-600'
+                  }`}
+                >
+                  <div className="flex items-center gap-1.5">
+                    <I className="w-3.5 h-3.5" />
+                    <span className="text-sm font-bold">{opt.label}</span>
+                    <span className={`text-[9px] font-bold px-1 py-0.5 rounded ${isActive ? 'bg-amber-500/30 text-amber-200' : 'bg-dark-700 text-gray-500'}`}>{opt.shortLabel}</span>
+                  </div>
+                  <div className="text-[9px] mt-0.5 opacity-80">{opt.desc}</div>
+                </button>
+              )
+            })}
+          </div>
+        </div>
+
         {/* Scope selector */}
-        <div className="mt-4 flex flex-wrap gap-2">
-          {SCOPE_OPTIONS.map(opt => {
-            const isActive = scope === opt.id
-            return (
-              <button
-                key={opt.id}
-                onClick={() => setScope(opt.id)}
-                disabled={refreshing}
-                className={`relative px-3 py-2 rounded-xl text-xs font-semibold border transition disabled:opacity-50 ${
-                  isActive
-                    ? 'bg-amber-500/20 border-amber-500/50 text-amber-200 shadow-lg shadow-amber-500/10'
-                    : 'bg-dark-800/60 border-dark-700 text-gray-400 hover:text-white hover:border-dark-600'
-                }`}
-              >
-                <div className="flex items-center gap-1.5">
-                  <span className="text-sm font-bold">{opt.label}</span>
-                  {opt.recommended && !isActive && (
-                    <span className="text-[8px] font-bold px-1 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">ÖNERİ</span>
-                  )}
-                </div>
-                <div className="text-[9px] mt-0.5 opacity-80">{opt.desc} · {opt.hint}</div>
-              </button>
-            )
-          })}
+        <div className="mt-3">
+          <div className="text-[10px] uppercase tracking-wider text-gray-500 font-bold mb-1.5">Tarama Kapsamı</div>
+          <div className="flex flex-wrap gap-2">
+            {SCOPE_OPTIONS.map(opt => {
+              const isActive = scope === opt.id
+              return (
+                <button
+                  key={opt.id}
+                  onClick={() => setScope(opt.id)}
+                  disabled={refreshing}
+                  className={`relative px-3 py-2 rounded-xl text-xs font-semibold border transition disabled:opacity-50 ${
+                    isActive
+                      ? 'bg-amber-500/20 border-amber-500/50 text-amber-200 shadow-lg shadow-amber-500/10'
+                      : 'bg-dark-800/60 border-dark-700 text-gray-400 hover:text-white hover:border-dark-600'
+                  }`}
+                >
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-sm font-bold">{opt.label}</span>
+                    {opt.recommended && !isActive && (
+                      <span className="text-[8px] font-bold px-1 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">ÖNERİ</span>
+                    )}
+                  </div>
+                  <div className="text-[9px] mt-0.5 opacity-80">{opt.desc} · {opt.hint}</div>
+                </button>
+              )
+            })}
+          </div>
         </div>
 
         {/* Stats */}
@@ -216,7 +274,7 @@ export default function StratejiKombolari() {
         <div className="bg-dark-900/60 border border-dark-700 rounded-2xl p-8 text-center">
           <RefreshCw className="w-8 h-8 text-amber-400 animate-spin mx-auto mb-3" />
           <p className="text-sm text-gray-400">
-            {SCOPE_OPTIONS.find(s => s.id === scope)?.label || 'Liste'} taranıyor — her sembol 15 strateji + 5 indikatör birleşiminde değerlendiriliyor...
+            {SCOPE_OPTIONS.find(s => s.id === scope)?.label || 'Liste'} <span className="text-amber-300 font-semibold">{activeTf.label.toLowerCase()} mum</span> bazında taranıyor — her sembol 15 strateji + 5 indikatör birleşiminde değerlendiriliyor...
           </p>
           {scope === 'all' && (
             <p className="text-xs text-amber-400/70 mt-2">İlk taramada 2-3 dakika sürebilir. Sonuç 30 dk cache'lenir.</p>
@@ -231,13 +289,15 @@ export default function StratejiKombolari() {
             <ComboCard
               key={c.key}
               combo={c}
+              timeframeLabel={data?.timeframeLabel || activeTf.label}
+              timeframeShort={data?.timeframeShort || activeTf.shortLabel}
               expanded={expandedCombo === c.key}
               onToggle={() => setExpandedCombo(expandedCombo === c.key ? null : c.key)}
             />
           ))}
           {filteredCombos.length === 0 && (
             <div className="bg-dark-900/40 border border-dark-700 rounded-xl p-6 text-center text-sm text-gray-500">
-              Bu filtreyle eşleşen strateji yok.
+              Bu filtreyle eşleşen strateji yok ({activeTf.label.toLowerCase()} mum bazında).
             </div>
           )}
         </div>
@@ -247,11 +307,11 @@ export default function StratejiKombolari() {
       {!loading && view === 'symbol' && (
         <div className="grid gap-3">
           {filteredSymbols.map(s => (
-            <SymbolCard key={s.symbol} sym={s} />
+            <SymbolCard key={s.symbol} sym={s} timeframeLabel={data?.timeframeLabel || activeTf.label} timeframeShort={data?.timeframeShort || activeTf.shortLabel} />
           ))}
           {filteredSymbols.length === 0 && (
             <div className="bg-dark-900/40 border border-dark-700 rounded-xl p-6 text-center text-sm text-gray-500">
-              Sinyal tetikleyen sembol yok.
+              Sinyal tetikleyen sembol yok ({activeTf.label.toLowerCase()} mum bazında).
             </div>
           )}
         </div>
@@ -288,7 +348,7 @@ function Stat({ icon: Icon, label, value, color }) {
   )
 }
 
-function ComboCard({ combo, expanded, onToggle }) {
+function ComboCard({ combo, expanded, onToggle, timeframeLabel, timeframeShort }) {
   const style = SIDE_STYLE[combo.side] || SIDE_STYLE.notr
   const tier = TIER_BADGE[combo.tier] || TIER_BADGE.B
   const Icon = ICONS[combo.icon] || Sparkles
@@ -306,6 +366,11 @@ function ComboCard({ combo, expanded, onToggle }) {
               <h3 className="text-base font-bold text-white">{combo.name}</h3>
               <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded border ${tier.cls}`}>{tier.label}</span>
               <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${style.chip} border`}>{style.label}</span>
+              {timeframeShort && (
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-sky-500/15 text-sky-300 border border-sky-500/30 flex items-center gap-1">
+                  <Clock className="w-2.5 h-2.5" /> {timeframeLabel}
+                </span>
+              )}
               {combo.matchCount > 0 && (
                 <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-white/10 text-white border border-white/20">
                   {combo.matchCount} EŞLEŞME
@@ -334,8 +399,11 @@ function ComboCard({ combo, expanded, onToggle }) {
 
       {expanded && combo.matches && combo.matches.length > 0 && (
         <div className="border-t border-dark-700 p-3 space-y-2">
-          <div className="text-[10px] uppercase tracking-wider text-amber-400/80 font-bold flex items-center gap-1.5">
-            <Flame className="w-3 h-3" /> Tetikleyen Semboller
+          <div className="text-[10px] uppercase tracking-wider text-amber-400/80 font-bold flex items-center justify-between gap-1.5">
+            <span className="flex items-center gap-1.5"><Flame className="w-3 h-3" /> Tetikleyen Semboller</span>
+            <span className="text-sky-400/80 flex items-center gap-1 normal-case tracking-normal text-[10px] font-semibold">
+              <Clock className="w-3 h-3" /> {timeframeLabel} mum bazında
+            </span>
           </div>
           {combo.matches.map(m => (
             <MatchRow key={m.symbol} match={m} side={combo.side} />
@@ -344,7 +412,7 @@ function ComboCard({ combo, expanded, onToggle }) {
       )}
       {expanded && (!combo.matches || combo.matches.length === 0) && (
         <div className="border-t border-dark-700 p-4 text-xs text-gray-500 text-center">
-          Şu anda BIST30'da bu kriteri karşılayan sembol yok.
+          Şu anda bu kriteri {timeframeLabel ? timeframeLabel.toLowerCase() + ' mum bazında' : ''} karşılayan sembol yok.
         </div>
       )}
     </div>
@@ -387,7 +455,7 @@ function MatchRow({ match, side }) {
   )
 }
 
-function SymbolCard({ sym }) {
+function SymbolCard({ sym, timeframeLabel, timeframeShort }) {
   const style = SIDE_STYLE[sym.bias] || SIDE_STYLE.notr
   const dayChangeColor = sym.dayChange >= 0 ? 'text-emerald-400' : 'text-rose-400'
   const [open, setOpen] = useState(false)
@@ -400,9 +468,14 @@ function SymbolCard({ sym }) {
               {sym.symbol.slice(0, 4)}
             </div>
             <div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <h3 className="text-base font-bold text-white">{sym.symbol}</h3>
                 <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${style.chip} border`}>{style.label}</span>
+                {timeframeShort && (
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-sky-500/15 text-sky-300 border border-sky-500/30 flex items-center gap-1">
+                    <Clock className="w-2.5 h-2.5" /> {timeframeLabel}
+                  </span>
+                )}
               </div>
               <div className="flex items-center gap-2 mt-0.5">
                 <span className="text-xs text-gray-400">₺{sym.lastPrice?.toFixed(2)}</span>

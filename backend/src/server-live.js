@@ -1913,15 +1913,26 @@ const comboStrategyService = require('./services/comboStrategyService');
 // ============ COMBO STRATEJİ TARAYICI ============
 // 15+ TradingView tarzı çoklu indikatör kombosu — catchy Türkçe isimli (Zincir Bozan, Düşüş Treni vb.)
 // Scope-aware: bist30 (hızlı), bist100 (varsayılan), all (~510 hisse — uzun)
-const comboScanCacheMap = new Map(); // scope -> { data, ts }
+// Timeframe-aware: daily (varsayılan), weekly, hourly, fifteen
+const comboScanCacheMap = new Map(); // `${scope}:${timeframe}` -> { data, ts }
 const COMBO_SCAN_TTL_FAST = 10 * 60 * 1000; // 10 dk (bist30/bist100)
 const COMBO_SCAN_TTL_ALL = 30 * 60 * 1000;  // 30 dk (all — pahalı)
+// İntraday timeframe'ler daha hızlı bayatlar — daha kısa cache
+const COMBO_SCAN_TTL_INTRADAY = 5 * 60 * 1000; // 5 dk
+
+function comboCacheTtl(scope, timeframe) {
+  if (timeframe === 'hourly' || timeframe === 'fifteen') return COMBO_SCAN_TTL_INTRADAY;
+  return scope === 'all' ? COMBO_SCAN_TTL_ALL : COMBO_SCAN_TTL_FAST;
+}
 
 // Combo katalog (sembolsüz, sadece liste — "neler tarıyor?" sayfası için)
 app.get('/api/combo-strategies/catalog', (req, res) => {
   try {
     const catalog = comboStrategyService.getCatalog();
-    res.json({ success: true, total: catalog.length, catalog });
+    const timeframes = Object.values(comboStrategyService.TIMEFRAMES).map(t => ({
+      id: t.id, label: t.label, shortLabel: t.shortLabel, barLabel: t.barLabel, desc: t.desc,
+    }));
+    res.json({ success: true, total: catalog.length, catalog, timeframes });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
@@ -1931,23 +1942,27 @@ app.get('/api/combo-strategies/catalog', (req, res) => {
 app.get('/api/combo-strategies/analyze/:symbol', async (req, res) => {
   try {
     const symbol = req.params.symbol.toUpperCase().replace('.IS', '');
-    const raw = await liveDataService.fetchHistoricalData(symbol, '1y', '1d');
-    if (!raw || raw.length < 60) {
-      return res.json({ success: false, error: 'Yetersiz tarihsel veri' });
+    const tfId = req.query.timeframe || 'daily';
+    const tf = comboStrategyService.resolveTimeframe(tfId);
+    const raw = await liveDataService.fetchHistoricalData(symbol, tf.yahooRange, tf.yahooInterval);
+    if (!raw || raw.length < tf.minBars) {
+      return res.json({ success: false, error: `Yetersiz ${tf.barLabel} verisi` });
     }
     const candles = raw.map(r => ({
       time: Math.floor(new Date(r.date || r.timestamp).getTime() / 1000),
       open: r.open, high: r.high, low: r.low, close: r.close, volume: r.volume || 0,
     }));
-    const result = comboStrategyService.analyzeSymbol(symbol, candles);
+    const result = comboStrategyService.analyzeSymbol(symbol, candles, tf.id);
     res.json({ success: true, result });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
 });
 
-// Toplu tarama — scope ile BIST30/BIST100/Tümü destekler
-async function runComboScan(scope) {
+// Toplu tarama — scope (BIST30/BIST100/Tümü) + timeframe (daily/weekly/hourly/fifteen) destekler
+async function runComboScan(scope, timeframeId) {
+  const tf = comboStrategyService.resolveTimeframe(timeframeId);
+
   let symbolList;
   if (scope === 'bist30') symbolList = bist30Stocks;
   else if (scope === 'all') symbolList = allBistStocks;
@@ -1962,13 +1977,13 @@ async function runComboScan(scope) {
     const batch = symbols.slice(i, i + BATCH);
     const batchRes = await Promise.allSettled(batch.map(async (sym) => {
       try {
-        const raw = await liveDataService.fetchHistoricalData(sym, '1y', '1d');
-        if (!raw || raw.length < 60) return null;
+        const raw = await liveDataService.fetchHistoricalData(sym, tf.yahooRange, tf.yahooInterval);
+        if (!raw || raw.length < tf.minBars) return null;
         const candles = raw.map(r => ({
           time: Math.floor(new Date(r.date || r.timestamp).getTime() / 1000),
           open: r.open, high: r.high, low: r.low, close: r.close, volume: r.volume || 0,
         }));
-        const analysis = comboStrategyService.analyzeSymbol(sym, candles);
+        const analysis = comboStrategyService.analyzeSymbol(sym, candles, tf.id);
         return analysis.hits.length > 0 ? analysis : null;
       } catch { return null; }
     }));
@@ -1991,6 +2006,11 @@ async function runComboScan(scope) {
   return {
     success: true,
     scope,
+    timeframe: tf.id,
+    timeframeLabel: tf.label,
+    timeframeShort: tf.shortLabel,
+    timeframeBarLabel: tf.barLabel,
+    timeframeDesc: tf.desc,
     scannedAt: new Date().toISOString(),
     totalScanned: symbols.length,
     withSignals: results.length,
@@ -2002,29 +2022,32 @@ async function runComboScan(scope) {
   };
 }
 
-// Yeni route — scope query parametreli (default: bist100)
+// Yeni route — scope + timeframe query parametreli (default: bist100, daily)
 app.get('/api/combo-strategies/scan', async (req, res) => {
   try {
     const scope = ['bist30', 'bist100', 'all'].includes(req.query.scope) ? req.query.scope : 'bist100';
-    const ttl = scope === 'all' ? COMBO_SCAN_TTL_ALL : COMBO_SCAN_TTL_FAST;
-    const cached = comboScanCacheMap.get(scope);
+    const timeframe = ['daily', 'weekly', 'hourly', 'fifteen'].includes(req.query.timeframe) ? req.query.timeframe : 'daily';
+    const cacheKey = `${scope}:${timeframe}`;
+    const ttl = comboCacheTtl(scope, timeframe);
+    const cached = comboScanCacheMap.get(cacheKey);
     if (cached && Date.now() - cached.ts < ttl) return res.json(cached.data);
 
-    const payload = await runComboScan(scope);
-    comboScanCacheMap.set(scope, { data: payload, ts: Date.now() });
+    const payload = await runComboScan(scope, timeframe);
+    comboScanCacheMap.set(cacheKey, { data: payload, ts: Date.now() });
     res.json(payload);
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
 });
 
-// Geriye uyumluluk: eski /scan/bist30 route'u korunur
+// Geriye uyumluluk: eski /scan/bist30 route'u korunur (her zaman daily)
 app.get('/api/combo-strategies/scan/bist30', async (req, res) => {
   try {
-    const cached = comboScanCacheMap.get('bist30');
+    const cacheKey = 'bist30:daily';
+    const cached = comboScanCacheMap.get(cacheKey);
     if (cached && Date.now() - cached.ts < COMBO_SCAN_TTL_FAST) return res.json(cached.data);
-    const payload = await runComboScan('bist30');
-    comboScanCacheMap.set('bist30', { data: payload, ts: Date.now() });
+    const payload = await runComboScan('bist30', 'daily');
+    comboScanCacheMap.set(cacheKey, { data: payload, ts: Date.now() });
     res.json(payload);
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });

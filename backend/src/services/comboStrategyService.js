@@ -453,9 +453,27 @@ function buildContext(closes, ohlcv, volumes) {
   };
 }
 
+// ===================== Timeframe metadata =====================
+// Frontend bu listeden seçer; backend Yahoo Finance'a bunlarla istek atar.
+// Her timeframe'in kendi range'i var çünkü EMA200 / ADX gibi indikatörler
+// yeterli sayıda mum ister.
+const TIMEFRAMES = {
+  daily:   { id: 'daily',   label: 'Günlük',   shortLabel: '1G',   barLabel: 'günlük mum',   yahooRange: '1y',  yahooInterval: '1d',  minBars: 60,  desc: 'Günlük kapanışlara göre — en sağlıklı sinyaller, swing trade odaklı' },
+  weekly:  { id: 'weekly',  label: 'Haftalık', shortLabel: '1H',   barLabel: 'haftalık mum', yahooRange: '10y', yahooInterval: '1wk', minBars: 60,  desc: 'Haftalık kapanış — uzun vadeli trend, gürültüden uzak' },
+  hourly:  { id: 'hourly',  label: 'Saatlik',  shortLabel: '1S',   barLabel: 'saatlik mum',  yahooRange: '60d', yahooInterval: '60m', minBars: 80,  desc: 'Saat bazında — gün-içi takip, daha gürültülü' },
+  fifteen: { id: 'fifteen', label: '15 Dk',    shortLabel: '15D',  barLabel: '15 dakikalık mum', yahooRange: '7d', yahooInterval: '15m', minBars: 80, desc: '15 dakikalık — scalp / kısa vade, çok gürültülü' },
+};
+
+function resolveTimeframe(tf) {
+  return TIMEFRAMES[tf] || TIMEFRAMES.daily;
+}
+
 // ===================== Public: scan one symbol =====================
-function analyzeSymbol(symbol, candles) {
-  if (!candles || candles.length < 60) return { symbol, hits: [], summary: null, error: 'Yetersiz veri' };
+function analyzeSymbol(symbol, candles, timeframe = 'daily') {
+  const tf = resolveTimeframe(timeframe);
+  if (!candles || candles.length < tf.minBars) {
+    return { symbol, hits: [], summary: null, error: 'Yetersiz veri', timeframe: tf.id, timeframeLabel: tf.label };
+  }
   const closes = candles.map(c => c.close);
   const volumes = candles.map(c => c.volume || 0);
   const ohlcv = candles.map(c => ({ high: c.high, low: c.low, close: c.close, open: c.open, volume: c.volume || 0 }));
@@ -470,13 +488,14 @@ function analyzeSymbol(symbol, candles) {
     try {
       const r = combo.check(ctx);
       if (r && r.hit) {
-        const narrative = buildNarrative(combo, r, ctx, lastPrice);
+        const narrative = buildNarrative(combo, r, ctx, lastPrice, tf);
         hits.push({
           key: combo.key, name: combo.name, side: combo.side, tier: combo.tier,
           emoji: combo.emoji, color: combo.color, icon: combo.icon,
           desc: combo.desc, indicators: combo.indicators,
           success: combo.success, avgChange: combo.avgChange, riskReward: combo.riskReward, peak: combo.peak,
           score: r.score || 50, reasons: r.reasons || [], narrative,
+          timeframe: tf.id, timeframeLabel: tf.label, timeframeShort: tf.shortLabel,
         });
       }
     } catch { /* ignore individual combo errors */ }
@@ -496,18 +515,23 @@ function analyzeSymbol(symbol, candles) {
       rsi: ctx.rsi, ema21: ctx.ema21, ema50: ctx.ema50,
       adx: ctx.adx?.adx, macd: ctx.macd?.histogram,
     },
+    timeframe: tf.id,
+    timeframeLabel: tf.label,
+    timeframeShort: tf.shortLabel,
+    barsAnalyzed: candles.length,
     scannedAt: new Date().toISOString(),
   };
 }
 
 // ===================== Narrative generator (dexter-style brief reasoning) =====================
-function buildNarrative(combo, result, ctx, price) {
+function buildNarrative(combo, result, ctx, price, tf) {
   const reasonsTxt = (result.reasons || []).slice(0, 3).map(r => `• ${r}`).join('\n');
+  const tfLabel = tf?.barLabel || 'günlük mum';
   const sideTxt = combo.side === 'boga'
-    ? `Yükseliş sinyali. Tarihsel olarak bu kombo %${combo.success} oranında devam etmiş, ortalama %${combo.avgChange} hareket beklenir.`
+    ? `Yükseliş sinyali (${tfLabel} bazında). Tarihsel olarak bu kombo %${combo.success} oranında devam etmiş, ortalama %${combo.avgChange} hareket beklenir.`
     : combo.side === 'ayi'
-      ? `Düşüş sinyali. Bu kombo %${combo.success} oranında izleyen barlarda düşüş getirmiş, ortalama %${combo.avgChange} aşağı baskı.`
-      : 'Yatay/kararsız sinyal. Tetikleyici beklemek mantıklı.';
+      ? `Düşüş sinyali (${tfLabel} bazında). Bu kombo %${combo.success} oranında izleyen barlarda düşüş getirmiş, ortalama %${combo.avgChange} aşağı baskı.`
+      : `Yatay/kararsız sinyal (${tfLabel} bazında). Tetikleyici beklemek mantıklı.`;
   return `${sideTxt}\nMevcut fiyat ₺${price.toFixed(2)}, RSI ${ctx.rsi}.\n${reasonsTxt}`;
 }
 
@@ -521,4 +545,4 @@ function getCatalog() {
   }));
 }
 
-module.exports = { analyzeSymbol, getCatalog, COMBO_STRATEGIES };
+module.exports = { analyzeSymbol, getCatalog, COMBO_STRATEGIES, TIMEFRAMES, resolveTimeframe };
