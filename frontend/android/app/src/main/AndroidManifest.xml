@@ -35,19 +35,11 @@
                 android:name="android.support.FILE_PROVIDER_PATHS"
                 android:resource="@xml/file_paths"></meta-data>
         </provider>
-        <!-- AdMob & Firebase meta-data devre dışı:
-             google-services.json eklenmediği için Firebase init NATIVE CRASH veriyor.
-             AdMob test ID de Google Play Services'i tetikleyip plugin yüklenmediyse çökmeye sebep.
-             Gerçek ID + google-services.json eklendikten sonra geri açılabilir.
-        -->
-        <!--
-        <meta-data
-            android:name="com.google.android.gms.ads.APPLICATION_ID"
-            android:value="ca-app-pub-3940256099942544~3347511713"/>
+        <!-- Firebase Cloud Messaging (FCM) — push notification kanalı.
+             google-services.json eklendi, plugin aktif. -->
         <meta-data
             android:name="com.google.firebase.messaging.default_notification_channel_id"
-            android:value="@string/default_notification_channel_id" />
-        -->
+            android:value="bk_default_channel" />
 
     </application>
 

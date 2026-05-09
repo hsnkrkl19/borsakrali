@@ -32,6 +32,19 @@ router.get('/status', (req, res) => {
   res.json(pushNotificationService.getSummary());
 });
 
+// GEÇİCİ — frontend push akışını debug etmek için. Production'da kaldırılacak.
+const debugLogs = [];
+router.post('/debug-log', (req, res) => {
+  const entry = { ...req.body, ip: req.ip, at: new Date().toISOString() };
+  debugLogs.push(entry);
+  if (debugLogs.length > 50) debugLogs.shift();
+  console.log('[PUSH DEBUG]', JSON.stringify(entry));
+  res.json({ success: true });
+});
+router.get('/debug-log', (req, res) => {
+  res.json({ logs: debugLogs.slice(-30) });
+});
+
 router.post('/register', registerLimiter, async (req, res) => {
   const result = await pushNotificationService.registerDevice({
     ...req.body,
