@@ -1484,6 +1484,145 @@ img[alt="Borsa Krali"] {
   box-shadow: inset 0 -1px 0 var(--border-main);
 }
 
+/* ─── BROADCAST TOAST (admin duyuru pop-up) ──────────────────────────── */
+@keyframes broadcast-toast-in {
+  0%   { opacity: 0; transform: translate(-50%, -16px) scale(0.96); }
+  60%  { opacity: 1; transform: translate(-50%, 4px) scale(1.02); }
+  100% { opacity: 1; transform: translate(-50%, 0) scale(1); }
+}
+@keyframes broadcast-toast-out {
+  0%   { opacity: 1; transform: translate(-50%, 0) scale(1); }
+  100% { opacity: 0; transform: translate(-50%, -16px) scale(0.96); }
+}
+@keyframes broadcast-toast-progress {
+  0%   { transform: scaleX(1); }
+  100% { transform: scaleX(0); }
+}
+@keyframes broadcast-toast-pulse {
+  0%, 100% { box-shadow: 0 12px 32px rgba(212, 175, 55, 0.30), 0 0 0 1px rgba(212, 175, 55, 0.45); }
+  50%      { box-shadow: 0 16px 40px rgba(212, 175, 55, 0.45), 0 0 0 1px rgba(212, 175, 55, 0.70); }
+}
+
+.broadcast-toast {
+  position: fixed;
+  top: max(env(safe-area-inset-top, 0px), 14px);
+  left: 50%;
+  transform: translate(-50%, 0);
+  z-index: 250;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  width: min(440px, calc(100vw - 32px));
+  padding: 0.85rem 1rem;
+  padding-right: 2.5rem;
+  border-radius: 14px;
+  background: var(--bg-card);
+  color: var(--text-primary);
+  text-align: left;
+  cursor: pointer;
+  border: 1px solid var(--border-gold);
+  animation:
+    broadcast-toast-in 380ms cubic-bezier(0.22, 1, 0.36, 1) both,
+    broadcast-toast-pulse 2.4s ease-in-out 380ms infinite;
+  overflow: hidden;
+  isolation: isolate;
+}
+.broadcast-toast.is-leaving {
+  animation: broadcast-toast-out 320ms ease-in forwards;
+}
+.broadcast-toast::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(212, 175, 55, 0.10), transparent 60%);
+  pointer-events: none;
+  z-index: -1;
+}
+
+.broadcast-toast-icon {
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(212, 175, 55, 0.15);
+  color: var(--gold-400);
+  border: 1px solid var(--border-gold);
+}
+[data-theme="light"] .broadcast-toast-icon {
+  background: rgba(180, 83, 9, 0.13);
+}
+
+.broadcast-toast-body {
+  flex: 1;
+  min-width: 0;
+}
+.broadcast-toast-title {
+  font-size: 13.5px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--text-primary);
+  line-height: 1.2;
+}
+.broadcast-toast-text {
+  font-size: 12.5px;
+  color: var(--text-secondary);
+  line-height: 1.4;
+  margin-top: 3px;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.broadcast-toast-cta {
+  margin-top: 5px;
+  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--gold-400);
+  letter-spacing: 0.02em;
+}
+
+.broadcast-toast-close {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: background 120ms ease, color 120ms ease;
+}
+.broadcast-toast-close:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.broadcast-toast-progress {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, var(--gold-300), var(--gold-500));
+  transform-origin: left;
+  animation: broadcast-toast-progress 6000ms linear forwards;
+}
+
+/* Mobil: tam genişliğe yakın */
+@media (max-width: 480px) {
+  .broadcast-toast {
+    width: calc(100vw - 16px);
+    padding: 0.75rem 0.85rem;
+    padding-right: 2.25rem;
+  }
+}
+
 /* ─── NOTIFICATIONS DROPDOWN ──────────────────────────────────────────── */
 .notif-panel {
   background: var(--bg-card);
