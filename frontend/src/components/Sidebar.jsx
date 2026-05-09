@@ -22,6 +22,7 @@ import {
   LogOut,
   KeyRound,
   Calculator,
+  Map as MapIcon,
 } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { useAuthStore } from '../store/authStore'
@@ -65,7 +66,7 @@ export default function Sidebar({ isOpen, onToggle }) {
   const navItems = [
     // Ana
     { path: '/',                  label: 'Piyasa Kokpiti',   icon: LayoutDashboard, group: 'core' },
-    { path: '/yenilikler',        label: 'Yenilikler',       icon: Sparkles,        group: 'core', highlight: true, badge: 'v3.1' },
+    { path: '/site-haritasi',     label: 'Site Haritası',    icon: MapIcon,         group: 'core', highlight: true },
     { path: '/canli-heatmap',     label: 'Canlı Heatmap',    icon: Flame,           group: 'core', highlight: true },
     { path: '/kripto',            label: 'Kripto',           icon: Coins,           group: 'core', highlight: true, badge: 'YENİ' },
     { path: '/pro-analiz',        label: 'Pro Analiz',       icon: Gem,             group: 'core', highlight: true, badge: 'PRO' },

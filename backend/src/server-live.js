@@ -1149,6 +1149,84 @@ app.get('/api/market/commodities', async (req, res) => {
   }
 });
 
+// Macro snapshot — BIST100, BIST30, USD/TRY, EUR/TRY, Gram Altin
+let macroCache = null;
+let macroLastUpdate = 0;
+const MACRO_CACHE_TTL = 60 * 1000;
+
+app.get('/api/market/macro', async (req, res) => {
+  try {
+    const now = Date.now();
+    if (macroCache && (now - macroLastUpdate) < MACRO_CACHE_TTL) {
+      return res.json(macroCache);
+    }
+
+    const bist100Local = liveDataService.getBist100();
+    const bist30Local = liveDataService.getBist30();
+
+    const [usdtry, eurtry, goldOz] = await Promise.all([
+      fetchCommodityPrice('USDTRY=X'),
+      fetchCommodityPrice('EURTRY=X'),
+      fetchCommodityPrice('GC=F'),
+    ]);
+
+    let gramAltin = null;
+    if (goldOz?.price && usdtry?.price) {
+      const oz = goldOz.price;
+      const fx = usdtry.price;
+      const prevOz = goldOz.previousClose ?? oz;
+      const prevFx = usdtry.previousClose ?? fx;
+      const price = (oz * fx) / GRAMS_PER_TROY_OUNCE;
+      const prev = (prevOz * prevFx) / GRAMS_PER_TROY_OUNCE;
+      const change = price - prev;
+      const changePercent = prev !== 0 ? (change / prev) * 100 : 0;
+      gramAltin = {
+        symbol: 'GRAM',
+        name: 'Gram Altin',
+        price: +price.toFixed(2),
+        change: +change.toFixed(2),
+        changePercent: +changePercent.toFixed(2),
+      };
+    }
+
+    const payload = {
+      bist100: bist100Local ? {
+        symbol: 'BIST 100', name: 'BIST 100',
+        price: bist100Local.value ?? bist100Local.price,
+        change: bist100Local.change,
+        changePercent: bist100Local.changePercent,
+      } : null,
+      bist30: bist30Local ? {
+        symbol: 'BIST 30', name: 'BIST 30',
+        price: bist30Local.value ?? bist30Local.price,
+        change: bist30Local.change,
+        changePercent: bist30Local.changePercent,
+      } : null,
+      usdtry: usdtry ? {
+        symbol: 'USD/TRY', name: 'USD/TRY',
+        price: usdtry.price,
+        change: usdtry.change,
+        changePercent: usdtry.changePercent,
+      } : null,
+      eurtry: eurtry ? {
+        symbol: 'EUR/TRY', name: 'EUR/TRY',
+        price: eurtry.price,
+        change: eurtry.change,
+        changePercent: eurtry.changePercent,
+      } : null,
+      gold: gramAltin,
+      timestamp: new Date().toISOString(),
+    };
+
+    macroCache = payload;
+    macroLastUpdate = now;
+    res.json(payload);
+  } catch (err) {
+    console.error('Macro snapshot hatasi:', err.message);
+    res.status(500).json({ error: 'Veri alinamadi' });
+  }
+});
+
 app.get('/api/market/commodity/:symbol/historical', async (req, res) => {
   try {
     const { symbol } = req.params; // 'gold_usd', 'silver_usd', 'gold_try', 'usd_try'

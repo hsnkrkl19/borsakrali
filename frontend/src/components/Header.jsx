@@ -74,6 +74,9 @@ export default function Header() {
   const remaining = getRemaining()
   const [bist100, setBist100] = useState(null)
   const [bist30, setBist30] = useState(null)
+  const [usdtry, setUsdtry] = useState(null)
+  const [eurtry, setEurtry] = useState(null)
+  const [gram, setGram] = useState(null)
   const [tickerData, setTickerData] = useState([])
   const [time, setTime] = useState(new Date())
   const [userMenuOpen, setUserMenuOpen] = useState(false)
@@ -129,13 +132,26 @@ export default function Header() {
   useEffect(() => {
     const fetchMarketData = async () => {
       try {
-        const [res100, res30, resTicker] = await Promise.all([
-          apiClient.get(`${API_BASE}/market/bist100`),
-          apiClient.get(`${API_BASE}/market/bist30`),
+        const [resMacro, resTicker] = await Promise.all([
+          apiClient.get(`${API_BASE}/market/macro`),
           apiClient.get(`${API_BASE}/market/stocks?limit=20&sort=volume`)
         ])
-        setBist100(res100.data)
-        setBist30(res30.data)
+        const macro = resMacro.data || {}
+        if (macro.bist100) {
+          setBist100({ value: macro.bist100.price, changePercent: macro.bist100.changePercent })
+        }
+        if (macro.bist30) {
+          setBist30({ value: macro.bist30.price, changePercent: macro.bist30.changePercent })
+        }
+        if (macro.usdtry) {
+          setUsdtry({ value: macro.usdtry.price, changePercent: macro.usdtry.changePercent })
+        }
+        if (macro.eurtry) {
+          setEurtry({ value: macro.eurtry.price, changePercent: macro.eurtry.changePercent })
+        }
+        if (macro.gold) {
+          setGram({ value: macro.gold.price, changePercent: macro.gold.changePercent })
+        }
         setTickerData(resTicker.data.stocks || [])
       } catch (error) {
         console.error('Piyasa veri hatası:', error)
@@ -227,9 +243,9 @@ export default function Header() {
             />
           )}
           {bist30 && <IndexCell label="BIST 30" value={bist30.value} change={bist30.changePercent} />}
-          <IndexCell label="USD/TRY" value="32.41" change={0.12} />
-          <IndexCell label="EUR/TRY" value="35.18" change={-0.08} />
-          <IndexCell label="GRAM" value="2.847" change={0.84} />
+          {usdtry && <IndexCell label="USD/TRY" value={usdtry.value} change={usdtry.changePercent} />}
+          {eurtry && <IndexCell label="EUR/TRY" value={eurtry.value} change={eurtry.changePercent} />}
+          {gram && <IndexCell label="GRAM" value={gram.value} change={gram.changePercent} />}
         </div>
 
         <div className="flex items-center gap-3 text-[10px]">
@@ -518,7 +534,7 @@ export default function Header() {
                 </div>
 
                 <button
-                  onClick={() => { setNotifOpen(false); navigate(notifTab === 'announcements' ? '/yenilikler' : '/gunluk-tespitler') }}
+                  onClick={() => { setNotifOpen(false); navigate(notifTab === 'announcements' ? '/site-haritasi' : '/gunluk-tespitler') }}
                   className="px-3.5 py-2.5 border-t text-[12px] font-semibold flex items-center justify-center gap-1.5 hover:opacity-80 transition-opacity"
                   style={{
                     borderColor: 'var(--border-main)',

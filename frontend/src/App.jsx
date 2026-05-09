@@ -38,7 +38,7 @@ import Kripto from './pages/Kripto'                   // YENİ: Kripto piyasa, w
 import EndeksDetay from './pages/EndeksDetay'         // YENİ: Endeks detay grafik sayfası
 import DCFDegerleme from './pages/DCFDegerleme'       // YENİ: dexter DCF değerleme
 import KriptoDegerleme from './pages/KriptoDegerleme' // YENİ: kripto composite valuation
-import Yenilikler from './pages/Yenilikler'           // YENİ: v3.1 değişiklik kataloğu
+import SiteHaritasi from './pages/SiteHaritasi'       // Site haritasi (eski Yenilikler yerine)
 
 import { useAuthStore } from './store/authStore'
 import { fetchCurrentUser } from './services/auth'
@@ -148,7 +148,8 @@ function App() {
                   <Route path="/sirket-analizi" element={<SirketAnalizi />} />
                   <Route path="/dcf-degerleme" element={<DCFDegerleme />} />
                   <Route path="/kripto-degerleme" element={<KriptoDegerleme />} />
-                  <Route path="/yenilikler" element={<Yenilikler />} />
+                  <Route path="/site-haritasi" element={<SiteHaritasi />} />
+                  <Route path="/yenilikler" element={<Navigate to="/site-haritasi" replace />} />
                   <Route path="/tarayicilar" element={<Tarayicilar />} />
                   <Route path="/gunluk-tespitler" element={<GunlukTespitler />} />
                   <Route path="/performans" element={<Performans />} />

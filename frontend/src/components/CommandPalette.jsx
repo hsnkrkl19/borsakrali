@@ -29,7 +29,7 @@ const PAGE_ITEMS = [
   { kind: 'page', label: 'Ayarlar',            to: '/ayarlar',           icon: Settings },
   { kind: 'page', label: 'Şifre Değiştir',     to: '/sifre-degistir',    icon: KeyRound },
   { kind: 'page', label: 'İstek Paneli',       to: '/istek-paneli',      icon: MessageCircle },
-  { kind: 'page', label: 'Yenilikler',         to: '/yenilikler',        icon: Sparkles, hint: 'v3.1 değişiklikler' },
+  { kind: 'page', label: 'Site Haritası',      to: '/site-haritasi',     icon: Sparkles, hint: 'Tüm sayfalar' },
 ]
 
 const POPULAR_STOCKS = [

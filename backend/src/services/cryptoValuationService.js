@@ -18,7 +18,13 @@ const axios = require('axios');
 
 const CG_BASE = 'https://api.coingecko.com/api/v3';
 const cache = new Map();
-const TTL = 10 * 60 * 1000; // 10 dk
+const TTL = 30 * 60 * 1000; // 30 dk fresh
+const STALE_TTL = 6 * 60 * 60 * 1000; // 6 saat stale fallback (429 vs.)
+
+let lastCgCall = 0;
+const MIN_CG_GAP_MS = 1500; // CoinGecko free tier ~30 req/min — 1.5s gap
+
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
 // Aynı eşleme cryptoQuoteService'tekiyle senkron tutuluyor — kopya/değiştirme
 const SYMBOL_TO_ID = {
@@ -39,11 +45,31 @@ const SYMBOL_TO_ID = {
 };
 
 async function cgGet(path, params = {}) {
-  const r = await axios.get(`${CG_BASE}${path}`, {
-    params, timeout: 15000,
-    headers: { 'User-Agent': 'BorsaKrali/1.0', Accept: 'application/json' },
-  });
-  return r.data;
+  // Rate-limit guard
+  const gap = Date.now() - lastCgCall;
+  if (gap < MIN_CG_GAP_MS) await sleep(MIN_CG_GAP_MS - gap);
+
+  let lastErr;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      lastCgCall = Date.now();
+      const r = await axios.get(`${CG_BASE}${path}`, {
+        params, timeout: 15000,
+        headers: { 'User-Agent': 'BorsaKrali/1.0', Accept: 'application/json' },
+      });
+      return r.data;
+    } catch (err) {
+      lastErr = err;
+      const status = err.response?.status;
+      if (status === 429 && attempt < 2) {
+        // Exponential backoff: 4s, 12s
+        await sleep(4000 * Math.pow(3, attempt));
+        continue;
+      }
+      throw err;
+    }
+  }
+  throw lastErr;
 }
 
 function getCoinGeckoId(symbol) {
@@ -291,8 +317,23 @@ async function valuateCrypto(symbol) {
     cache.set(cacheKey, { data: result, ts: Date.now() });
     return result;
   } catch (err) {
-    console.warn(`[CryptoValuation] ${upper} hata:`, err.message?.slice(0, 100));
-    return { success: false, error: 'Değerleme hesaplanamadı: ' + err.message, symbol: upper };
+    const status = err.response?.status;
+    console.warn(`[CryptoValuation] ${upper} hata (${status || 'no-status'}):`, err.message?.slice(0, 100));
+
+    // Stale cache fallback — bayat veriyi 429/timeout sonrasi geri don (kullanici bos sayfa gormesin)
+    if (cached && Date.now() - cached.ts < STALE_TTL) {
+      return { ...cached.data, stale: true, staleReason: status === 429 ? 'rate_limited' : 'fetch_error' };
+    }
+
+    if (status === 429) {
+      return {
+        success: false,
+        error: 'CoinGecko anlik istek limitine takildi. Birkaç dakika sonra tekrar deneyin.',
+        rateLimited: true,
+        symbol: upper,
+      };
+    }
+    return { success: false, error: 'Degerleme hesaplanamadi: ' + err.message, symbol: upper };
   }
 }
 

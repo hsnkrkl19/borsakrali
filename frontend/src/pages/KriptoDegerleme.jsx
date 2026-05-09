@@ -167,9 +167,19 @@ export default function KriptoDegerleme() {
     setData(null)
     try {
       const r = await api.get(`/crypto/valuation/${s}`)
-      setData(r.data)
+      // Backend stale-fallback ile success: true ama stale: true donebilir → bunu da goster
+      if (r.data?.success === false) {
+        setError(r.data.error || 'Degerleme hesaplanamadi')
+      } else {
+        setData(r.data)
+      }
     } catch (e) {
-      setError(e.response?.data?.error || 'Değerleme hesaplanamadı')
+      const data = e.response?.data
+      if (data?.rateLimited) {
+        setError('CoinGecko anlik istek limitine takildi. Lutfen 1-2 dakika sonra tekrar deneyin.')
+      } else {
+        setError(data?.error || 'Degerleme hesaplanamadi')
+      }
     } finally {
       setLoading(false)
     }
@@ -242,6 +252,17 @@ export default function KriptoDegerleme() {
         <div className="p-4 bg-red-500/10 border border-red-500/30 rounded-xl flex items-center gap-3 text-red-400">
           <AlertCircle className="w-5 h-5" />
           <span className="text-sm">{error}</span>
+        </div>
+      )}
+
+      {/* Stale-data uyarisi (CoinGecko 429 sonrasi cache donecegini bildir) */}
+      {data?.stale && (
+        <div className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-xl flex items-center gap-3 text-amber-300">
+          <Info className="w-4 h-4" />
+          <span className="text-xs">
+            CoinGecko anlik istek limitine takildi — onbellekteki son hesaplanan deger gosteriliyor.
+            Bu deger {new Date(data.fetchedAt).toLocaleString('tr-TR')} itibariyle hesaplandi.
+          </span>
         </div>
       )}
 

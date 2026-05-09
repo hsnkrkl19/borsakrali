@@ -4,7 +4,7 @@ import { useAuthStore } from '../store/authStore'
 import { sendBroadcastNotification } from '../services/adminNotifications'
 
 const TEMPLATES = [
-  { label: 'Güncelleme yolda', title: 'Yeni güncelleme yolda', body: 'Borsa Krali için yeni özellikler hazırlanıyor. Yakında uygulamayı güncellemeyi unutmayın.', path: '/yenilikler' },
+  { label: 'Güncelleme yolda', title: 'Yeni güncelleme yolda', body: 'Borsa Krali için yeni özellikler hazırlanıyor. Yakında uygulamayı güncellemeyi unutmayın.', path: '/site-haritasi' },
   { label: 'Yeni sinyal',     title: 'Yeni günlük sinyaller hazır', body: 'Algoritma yeni AL/SAT fırsatları tespit etti. Sinyal listesini hemen kontrol edin.',                  path: '/gunluk-tespitler' },
   { label: 'Pro Analiz',       title: 'Pro analizler güncellendi',    body: 'Bugün için Pro Analiz raporları yayınlandı. Premium üyeliğinizle erişebilirsiniz.',                  path: '/pro-analiz' },
   { label: 'Pazar haberi',     title: 'Önemli pazar gelişmesi',       body: 'BIST için takip etmeniz gereken bir gelişme yaşandı. Detaylar için Ekonomik Takvim sayfasına bakın.', path: '/ekonomik-takvim' },
@@ -14,7 +14,7 @@ export default function QuickBroadcastModal({ open, onClose }) {
   const { token, user } = useAuthStore()
   const [title, setTitle] = useState('')
   const [body, setBody] = useState('')
-  const [path, setPath] = useState('/yenilikler')
+  const [path, setPath] = useState('/site-haritasi')
   const [sending, setSending] = useState(false)
   const [result, setResult] = useState(null)
   const [error, setError] = useState('')
@@ -193,7 +193,7 @@ export default function QuickBroadcastModal({ open, onClose }) {
               <input
                 value={path}
                 onChange={(e) => setPath(e.target.value)}
-                placeholder="/yenilikler"
+                placeholder="/site-haritasi"
                 className="w-full px-3 py-2 rounded-lg text-[13px] outline-none font-mono"
                 style={{
                   background: 'var(--bg-input)',

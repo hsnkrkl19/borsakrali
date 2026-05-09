@@ -171,7 +171,7 @@ class YahooFinanceService {
   async getMacroSnapshot() {
     try {
       const yahooFinance = await getYF();
-      const symbols = ['XU100.IS', 'USDTRY=X', 'GC=F'];
+      const symbols = ['XU100.IS', 'XU030.IS', 'USDTRY=X', 'EURTRY=X', 'GC=F'];
       const quotes = await yahooFinance.quote(symbols, {}, { timeout: this.timeout });
       const list = Array.isArray(quotes) ? quotes : [quotes];
 
@@ -181,7 +181,9 @@ class YahooFinanceService {
       }, {});
 
       const bist = bySymbol['XU100.IS'] || null;
+      const bist30 = bySymbol['XU030.IS'] || null;
       const usdtry = bySymbol['USDTRY=X'] || null;
+      const eurtry = bySymbol['EURTRY=X'] || null;
       const goldOz = bySymbol['GC=F'] || null;
 
       // Gram altın: ons fiyatı (USD) × USD/TRY / 31.1034768
@@ -212,12 +214,26 @@ class YahooFinanceService {
           change: bist.regularMarketChange,
           changePercent: bist.regularMarketChangePercent,
         } : null,
+        bist30: bist30 ? {
+          symbol: 'BIST 30',
+          name: 'BIST 30',
+          price: bist30.regularMarketPrice,
+          change: bist30.regularMarketChange,
+          changePercent: bist30.regularMarketChangePercent,
+        } : null,
         usdtry: usdtry ? {
           symbol: 'USD/TRY',
           name: 'USD/TRY',
           price: usdtry.regularMarketPrice,
           change: usdtry.regularMarketChange,
           changePercent: usdtry.regularMarketChangePercent,
+        } : null,
+        eurtry: eurtry ? {
+          symbol: 'EUR/TRY',
+          name: 'EUR/TRY',
+          price: eurtry.regularMarketPrice,
+          change: eurtry.regularMarketChange,
+          changePercent: eurtry.regularMarketChangePercent,
         } : null,
         gold: gramAltin,
         timestamp: Date.now(),
