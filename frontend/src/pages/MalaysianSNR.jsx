@@ -95,24 +95,32 @@ function SnrChart({ symbol, assetType, data }) {
     cs.setData(candles)
 
     // Destek/Direnç zone çizgileri — zone top/bottom olarak
+    // Sadece menzilde + son 4 ay içindeki zone'lar parlak; eskiler grileştirilir.
     if (data?.zones) {
       data.zones.slice(0, 10).forEach(z => {
-        const col = z.type === 'support' ? '#22c55e' : '#ef4444'
-        cs.createPriceLine({ price: z.top, color: col + '90', lineWidth: 1, lineStyle: LineStyle.Dashed, axisLabelVisible: false, title: '' })
-        cs.createPriceLine({ price: z.bottom, color: col + '60', lineWidth: 1, lineStyle: LineStyle.Dashed, axisLabelVisible: false, title: '' })
+        const isStale = z.isActionable === false
+        const baseCol = z.type === 'support' ? '#22c55e' : '#ef4444'
+        const col = isStale ? '#6b7280' : baseCol
+        const alphaTop = isStale ? '40' : '90'
+        const alphaBot = isStale ? '25' : '60'
+        cs.createPriceLine({ price: z.top, color: col + alphaTop, lineWidth: 1, lineStyle: LineStyle.Dashed, axisLabelVisible: false, title: '' })
+        cs.createPriceLine({ price: z.bottom, color: col + alphaBot, lineWidth: 1, lineStyle: LineStyle.Dashed, axisLabelVisible: false, title: '' })
       })
     }
 
     // En güçlü sinyal: Giriş / Stop / TP seviyeleri
+    // NOT: data.signals backend tarafından zaten "menzilde + güncel" olarak filtrelendi.
     if (data?.signals?.length > 0) {
       const sig = data.signals[0]
-      cs.createPriceLine({ price: sig.entry, color: '#3b82f6', lineWidth: 2, lineStyle: LineStyle.Solid, axisLabelVisible: true, title: `▶ GİRİŞ ${sig.entry?.toFixed(2)}` })
+      const ageTag = sig.daysAgo != null ? ` · ${sig.daysAgo}g` : ''
+      cs.createPriceLine({ price: sig.entry, color: '#3b82f6', lineWidth: 2, lineStyle: LineStyle.Solid, axisLabelVisible: true, title: `▶ GİRİŞ ${sig.entry?.toFixed(2)}${ageTag}` })
       cs.createPriceLine({ price: sig.stop,  color: '#ef4444', lineWidth: 2, lineStyle: LineStyle.LargeDashed, axisLabelVisible: true, title: `✕ STOP ${sig.stop?.toFixed(2)}` })
       cs.createPriceLine({ price: sig.target,color: '#22c55e', lineWidth: 2, lineStyle: LineStyle.LargeDashed, axisLabelVisible: true, title: `★ TP ${sig.target?.toFixed(2)}` })
       // 2. sinyal varsa onu da ekle
       if (data.signals[1]) {
         const s2 = data.signals[1]
-        cs.createPriceLine({ price: s2.entry,  color: '#8b5cf6', lineWidth: 1, lineStyle: LineStyle.Dotted, axisLabelVisible: true, title: `▶ GİRİŞ2 ${s2.entry?.toFixed(2)}` })
+        const ageTag2 = s2.daysAgo != null ? ` · ${s2.daysAgo}g` : ''
+        cs.createPriceLine({ price: s2.entry,  color: '#8b5cf6', lineWidth: 1, lineStyle: LineStyle.Dotted, axisLabelVisible: true, title: `▶ GİRİŞ2 ${s2.entry?.toFixed(2)}${ageTag2}` })
         cs.createPriceLine({ price: s2.target, color: '#a78bfa', lineWidth: 1, lineStyle: LineStyle.Dotted, axisLabelVisible: true, title: `★ TP2 ${s2.target?.toFixed(2)}` })
       }
     }
@@ -583,11 +591,28 @@ export default function MalaysianSNR() {
         const freshCount = data.zones?.filter(z => z.freshness === 'fresh').length || 0
         const candleCount = data.candleCount || data.zones?.length * 5 || '~180'
         const rr = topSig ? Math.abs((topSig.target - topSig.entry) / (topSig.entry - topSig.stop)).toFixed(1) : null
+        const analyzedDate = data.analyzedAt ? new Date(data.analyzedAt).toLocaleString('tr-TR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : null
         return (
           <div className="card p-5 space-y-4 border border-dark-600">
-            <div className="flex items-center gap-2 pb-3 border-b border-dark-700">
+            <div className="flex items-center gap-2 pb-3 border-b border-dark-700 flex-wrap">
               <Shield className="w-5 h-5 text-gold-400" />
               <h3 className="font-bold text-white text-sm">Malaysian SNR Analiz Raporu — {symbol}</h3>
+              {analyzedDate && (
+                <span className="ml-auto text-[10px] text-gray-500 bg-dark-800 px-2 py-1 rounded-md flex items-center gap-1">
+                  📅 Analiz tarihi: <span className="text-gray-300">{analyzedDate}</span>
+                </span>
+              )}
+            </div>
+
+            {/* Geçerlilik kuralı bilgi şeridi */}
+            <div className="bg-blue-500/5 border border-blue-500/20 rounded-lg p-2.5 text-[11px] text-gray-400 flex items-start gap-2">
+              <span className="text-blue-400 text-sm mt-0.5">ℹ️</span>
+              <p className="leading-relaxed">
+                Aktif sinyaller her gün son fiyat verisiyle yeniden hesaplanır.
+                Sadece <span className="text-white">güncel fiyata ≤%{data.maxReachPct ?? 8}</span> mesafedeki ve
+                {' '}<span className="text-white">son {data.maxAgeDays ?? 120} gün</span> içinde oluşan sinyaller "aktif" sayılır.
+                Eski/uzak zone'lar referans için gri gösterilir.
+              </p>
             </div>
 
             {/* Ne analiz edildi */}
@@ -632,6 +657,28 @@ export default function MalaysianSNR() {
                     {topSig.grade && <span className={`ml-2 text-xs px-1.5 py-0.5 rounded border ${GRADE_COLORS[topSig.grade]}`}>{topSig.grade}</span>}
                   </p>
                   {rr && <span className="text-xs text-gray-400">Risk/Ödül: <span className="text-gold-400 font-bold">1:{rr}</span></span>}
+                </div>
+
+                {/* Sinyal geçerlilik şeridi: tarih + mesafe + güncellik */}
+                <div className="flex items-center gap-3 flex-wrap text-[11px]">
+                  {topSig.pivotDate && (
+                    <span className="flex items-center gap-1 text-gray-400">
+                      <span className="text-gray-500">📅 Tespit tarihi:</span>
+                      <span className="text-white font-medium">{topSig.pivotDate}</span>
+                      {topSig.daysAgo != null && <span className="text-gray-500">({topSig.daysAgo} gün önce)</span>}
+                    </span>
+                  )}
+                  {topSig.priceDistancePct != null && (
+                    <span className="flex items-center gap-1 text-gray-400">
+                      <span className="text-gray-500">🎯 Fiyata uzaklık:</span>
+                      <span className={`font-bold ${topSig.priceDistancePct < 3 ? 'text-green-400' : topSig.priceDistancePct < 6 ? 'text-yellow-400' : 'text-orange-400'}`}>
+                        %{topSig.priceDistancePct}
+                      </span>
+                    </span>
+                  )}
+                  <span className="ml-auto text-[10px] text-emerald-400 bg-emerald-500/10 border border-emerald-500/30 px-2 py-0.5 rounded-full">
+                    ✓ Aktif (güncel)
+                  </span>
                 </div>
                 <div className="grid grid-cols-3 gap-2 text-xs">
                   <div className="text-center bg-blue-500/10 border border-blue-500/20 rounded-lg p-2 min-w-0">
@@ -757,9 +804,32 @@ export default function MalaysianSNR() {
 
           {tab === 'signals' && (
             <div className="space-y-3">
-              {signals.length === 0
-                ? <div className="text-center py-8 text-gray-500 text-sm">Aktif sinyal yok</div>
-                : signals.map((sig, i) => <SignalCard key={sig.id} sig={sig} rank={i + 1} />)}
+              {signals.length === 0 ? (
+                <div className="card border border-yellow-500/20 bg-yellow-500/5 p-5 text-center space-y-2">
+                  <p className="text-sm text-yellow-300 font-medium">Şu an aktif sinyal yok</p>
+                  <p className="text-xs text-gray-400 leading-relaxed max-w-md mx-auto">
+                    {symbol} için fiyata yeterince yakın (≤%{data.maxReachPct ?? 8}) ve yeterince yeni (son {data.maxAgeDays ?? 120} gün) bir SNR zone'u bulunamadı.
+                    Aşağıda geçmişte tespit edilmiş referans zone'ları görebilirsiniz, ancak bunlar artık aktif giriş tavsiyesi değildir.
+                  </p>
+                </div>
+              ) : (
+                signals.map((sig, i) => <SignalCard key={sig.id} sig={sig} rank={i + 1} />)
+              )}
+
+              {/* Geçmiş / artık aktif olmayan zone'lar — referans amaçlı */}
+              {data.historicalZones?.length > 0 && (
+                <div className="mt-6 space-y-3">
+                  <div className="flex items-center gap-2 px-1">
+                    <div className="h-px flex-1 bg-dark-700" />
+                    <p className="text-[11px] text-gray-500 uppercase tracking-wider">Geçmiş Sinyaller (Referans)</p>
+                    <div className="h-px flex-1 bg-dark-700" />
+                  </div>
+                  <p className="text-[11px] text-gray-500 px-1 leading-relaxed">
+                    Bu zone'lar geçmişte oluştu ama fiyat artık çok uzakta veya çok eskiler. Sadece hisseyi tanımak için referans amaçlıdır — aktif giriş tavsiyesi değildir.
+                  </p>
+                  {data.historicalZones.map((sig, i) => <SignalCard key={`hist-${sig.id}`} sig={sig} rank={i + 1} stale />)}
+                </div>
+              )}
             </div>
           )}
         </>
@@ -854,9 +924,16 @@ export default function MalaysianSNR() {
 // ─── ZoneCard ─────────────────────────────────────────────────────────────────
 function ZoneCard({ zone }) {
   const isSupport = zone.type === 'support'
+  const dist = zone.priceDistancePct
+  const distColor = dist == null ? 'text-gray-500'
+    : dist < 3 ? 'text-green-400'
+    : dist < 6 ? 'text-yellow-400'
+    : dist < 15 ? 'text-orange-400'
+    : 'text-gray-500'
+  const isStale = zone.isActionable === false
   return (
-    <div className={`card flex items-center gap-3 ${zone.freshness === 'fresh' ? (isSupport ? 'border-green-500/30' : 'border-red-500/30') : 'opacity-60'}`}>
-      <div className={`w-2 h-10 rounded-full flex-shrink-0 ${isSupport ? 'bg-green-500' : 'bg-red-500'}`} />
+    <div className={`card flex items-center gap-3 ${isStale ? 'opacity-50 border-gray-700' : (zone.freshness === 'fresh' ? (isSupport ? 'border-green-500/30' : 'border-red-500/30') : 'opacity-60')}`}>
+      <div className={`w-2 h-10 rounded-full flex-shrink-0 ${isStale ? 'bg-gray-600' : (isSupport ? 'bg-green-500' : 'bg-red-500')}`} />
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 flex-wrap">
           <span className={`text-xs font-bold ${isSupport ? 'text-green-400' : 'text-red-400'}`}>
@@ -874,11 +951,15 @@ function ZoneCard({ zone }) {
             {zone.freshness}
             <InfoTooltip {...TIPS.freshness} />
           </span>
+          {isStale && (
+            <span className="text-[10px] px-1.5 py-0.5 bg-gray-700/50 text-gray-400 rounded-full border border-gray-600/40">eski</span>
+          )}
         </div>
-        <div className="text-xs text-gray-400 mt-0.5 flex items-center gap-1">
-          Dokunma: {zone.touchCount}
-          <InfoTooltip {...TIPS.touchCount} />
-          {zone.validated && <span className="ml-2 flex items-center gap-1 text-blue-400">Onaylı<InfoTooltip {...TIPS.validated} /></span>}
+        <div className="text-xs text-gray-400 mt-0.5 flex items-center gap-2 flex-wrap">
+          <span className="flex items-center gap-1">Dokunma: {zone.touchCount}<InfoTooltip {...TIPS.touchCount} /></span>
+          {zone.pivotDate && <span className="text-gray-500">📅 {zone.pivotDate}{zone.daysAgo != null && ` (${zone.daysAgo}g)`}</span>}
+          {dist != null && <span className={distColor}>🎯 %{dist}</span>}
+          {zone.validated && <span className="flex items-center gap-1 text-blue-400">Onaylı<InfoTooltip {...TIPS.validated} /></span>}
         </div>
       </div>
       <div className="text-right">
@@ -901,7 +982,7 @@ function ZoneCard({ zone }) {
 }
 
 // ─── SignalCard ───────────────────────────────────────────────────────────────
-function SignalCard({ sig, rank }) {
+function SignalCard({ sig, rank, stale = false }) {
   const isSupport = sig.type === 'support'
   const risk      = Math.abs((sig.entry || 0) - (sig.stop || 0))
   const atrBuffer = isSupport
@@ -916,8 +997,41 @@ function SignalCard({ sig, rank }) {
     sig.zoneType === 'gap'     && 'Gap zone (+10)',
   ].filter(Boolean)
 
+  // Mesafe rengini belirle (yakın = yeşil, orta = sarı, uzak = turuncu)
+  const dist = sig.priceDistancePct
+  const distColor = dist == null ? 'text-gray-400'
+    : dist < 3 ? 'text-green-400'
+    : dist < 6 ? 'text-yellow-400'
+    : 'text-orange-400'
+
   return (
-    <div className={`card border-2 ${isSupport ? 'border-green-500/30' : 'border-red-500/30'}`}>
+    <div className={`card border-2 ${stale ? 'border-gray-700 opacity-70' : (isSupport ? 'border-green-500/30' : 'border-red-500/30')}`}>
+
+      {/* ── Geçerlilik şeridi: tarih + mesafe + aktif/eski rozeti ─────────── */}
+      <div className="flex items-center gap-2 mb-2 pb-2 border-b border-dark-700/60 flex-wrap text-[11px]">
+        {sig.pivotDate && (
+          <span className="flex items-center gap-1 text-gray-400">
+            <span className="text-gray-500">📅</span>
+            <span className="text-white font-medium">{sig.pivotDate}</span>
+            {sig.daysAgo != null && <span className="text-gray-500">({sig.daysAgo}g önce)</span>}
+          </span>
+        )}
+        {dist != null && (
+          <span className="flex items-center gap-1 text-gray-400">
+            <span className="text-gray-500">🎯 Mesafe:</span>
+            <span className={`font-bold ${distColor}`}>%{dist}</span>
+          </span>
+        )}
+        {stale ? (
+          <span className="ml-auto text-[10px] text-gray-400 bg-gray-700/40 border border-gray-600/40 px-2 py-0.5 rounded-full">
+            ⚠ Eski sinyal — fiyat uzaklaştı
+          </span>
+        ) : (
+          <span className="ml-auto text-[10px] text-emerald-400 bg-emerald-500/10 border border-emerald-500/30 px-2 py-0.5 rounded-full">
+            ✓ Aktif
+          </span>
+        )}
+      </div>
 
       {/* ── Başlık ─────────────────────────────────────────────────────────── */}
       <div className="flex items-start justify-between mb-3">

@@ -8,6 +8,13 @@
 const snrCache = new Map();
 const SNR_CACHE_TTL = 5 * 60 * 1000; // 5 dakika
 
+// ── Geçerlilik eşikleri ──────────────────────────────────────────────────────
+// Bir sinyalin "hâlâ aktif" sayılabilmesi için fiyata yakın ve yeni olması gerekir.
+// Aksi halde kullanıcıya 232 TL'de "Giriş" gösterilirken hisse 428 TL'de seyrediyor olur.
+const MAX_REACH_PCT_STOCK  = 8;   // hisseler için %8 mesafe sınırı (günlük TF)
+const MAX_REACH_PCT_CRYPTO = 15;  // kripto için %15 (volatilite yüksek)
+const MAX_AGE_DAYS         = 120; // 4 ay öncesi pivotlar artık aktif sinyal değil
+
 // ---- ATR hesaplama ----
 function calcATR(candles, period = 14) {
   if (candles.length < 2) return 0;
@@ -203,7 +210,12 @@ function detectLiquiditySweeps(zones, candles) {
 }
 
 // ---- Skor hesapla ----
-function scoreZones(zones, engulfing, sweeps, storyline, candles, atr) {
+function scoreZones(zones, engulfing, sweeps, storyline, candles, atr, opts = {}) {
+  const lastCandle = candles[candles.length - 1];
+  const lastClose  = lastCandle?.close || 0;
+  const lastTime   = lastCandle?.time;
+  const maxReachPct = opts.assetType === 'crypto' ? MAX_REACH_PCT_CRYPTO : MAX_REACH_PCT_STOCK;
+
   return zones.map(zone => {
     let score = 40; // Base
 
@@ -249,7 +261,6 @@ function scoreZones(zones, engulfing, sweeps, storyline, candles, atr) {
     else if (score >= 50) grade = 'B';
 
     // Entry/Stop/Target hesapla
-    const lastClose = candles[candles.length - 1]?.close || 0;
     let entry, stop, target;
     if (zone.type === 'support') {
       entry = zone.top;
@@ -261,13 +272,57 @@ function scoreZones(zones, engulfing, sweeps, storyline, candles, atr) {
       target = entry - 2 * (stop - entry);
     }
 
-    return { ...zone, score, grade, entry, stop, target };
+    // ── Geçerlilik metadata ──────────────────────────────────────────────
+    // Pivot tarihi (zone'un oluştuğu mum zamanı) — Unix sn → ISO + Türkçe
+    const pivotTimeSec = typeof zone.pivotTime === 'number'
+      ? zone.pivotTime
+      : (typeof zone.pivotTime === 'string' ? Math.floor(new Date(zone.pivotTime).getTime() / 1000) : null);
+    const pivotDateISO = pivotTimeSec ? new Date(pivotTimeSec * 1000).toISOString().slice(0, 10) : null;
+    const daysAgo = (pivotTimeSec && lastTime)
+      ? Math.max(0, Math.round((lastTime - pivotTimeSec) / 86400))
+      : null;
+
+    // Şu anki fiyatın giriş seviyesine mesafesi (%)
+    const priceDistancePct = lastClose > 0
+      ? +(Math.abs(entry - lastClose) / lastClose * 100).toFixed(2)
+      : null;
+
+    // Sinyal hâlâ ulaşılabilir mi? (fiyata yakın + son 4 ay)
+    const inRange = priceDistancePct !== null && priceDistancePct <= maxReachPct;
+    const isRecent = daysAgo === null || daysAgo <= MAX_AGE_DAYS;
+    const isActionable = inRange && isRecent;
+
+    // Yön sapması: fiyat zone'u zaten geçtiyse eski sinyal
+    // (destek girişi şu anki fiyatın ÇOK altındaysa veya direnç girişi çok üstündeyse)
+    let priceMoved = false;
+    if (lastClose > 0) {
+      if (zone.type === 'support' && lastClose > entry * 1.03) {
+        // fiyat support girişin %3'ten fazla üstünde → support zaten teyit etti, eski sinyal
+        priceMoved = priceDistancePct > maxReachPct;
+      }
+      if (zone.type === 'resistance' && lastClose < entry * 0.97) {
+        priceMoved = priceDistancePct > maxReachPct;
+      }
+    }
+
+    return {
+      ...zone,
+      score, grade, entry, stop, target,
+      pivotDate: pivotDateISO,
+      daysAgo,
+      priceDistancePct,
+      inRange,
+      isRecent,
+      isActionable,
+      priceMoved,
+      currentPrice: lastClose,
+    };
   });
 }
 
 // ---- Ana fonksiyon ----
-async function analyzeSNR(symbol, historicalData) {
-  const cacheKey = symbol;
+async function analyzeSNR(symbol, historicalData, opts = {}) {
+  const cacheKey = `${symbol}::${opts.assetType || 'stock'}`;
   const cached = snrCache.get(cacheKey);
   if (cached && Date.now() - cached.ts < SNR_CACHE_TTL) {
     return cached.result;
@@ -284,25 +339,39 @@ async function analyzeSNR(symbol, historicalData) {
   const validZones = validateZones(rawZones, candles);
   const engulfing = detectEngulfing(candles);
   const sweeps = detectLiquiditySweeps(validZones, candles);
-  const scoredZones = scoreZones(validZones, engulfing, sweeps, storyline, candles, atr);
+  const scoredZones = scoreZones(validZones, engulfing, sweeps, storyline, candles, atr, opts);
 
-  // Sinyaller: skor >= 50
-  const signals = scoredZones
-    .filter(z => z.grade !== null)
+  // Aktif sinyaller: skor >= 50 VE fiyata ulaşılabilir VE son 4 ay içinde
+  // Eski/uzak zone'lar `historicalZones`'a düşer, ana sinyal listesinde görünmez.
+  const allGraded = scoredZones.filter(z => z.grade !== null);
+  const activeSignals = allGraded
+    .filter(z => z.isActionable)
     .sort((a, b) => b.score - a.score)
     .slice(0, 10);
+  const historicalZones = allGraded
+    .filter(z => !z.isActionable)
+    .sort((a, b) => (b.daysAgo == null ? 0 : -b.daysAgo) - (a.daysAgo == null ? 0 : -a.daysAgo))
+    .slice(0, 5);
 
+  const lastCandle = candles[candles.length - 1];
   const result = {
     symbol,
     storyline,
     atr,
     zones: scoredZones,
-    signals,
+    signals: activeSignals,
+    historicalZones,
     engulfing: engulfing.slice(-10),
     sweeps,
-    lastClose: candles[candles.length - 1]?.close,
-    lastTime: candles[candles.length - 1]?.time,
+    lastClose: lastCandle?.close,
+    lastTime: lastCandle?.time,
+    analyzedAt: new Date().toISOString(),
+    lastCandleDate: lastCandle?.time
+      ? new Date(lastCandle.time * 1000).toISOString().slice(0, 10)
+      : null,
     candleCount: candles.length,
+    maxReachPct: opts.assetType === 'crypto' ? MAX_REACH_PCT_CRYPTO : MAX_REACH_PCT_STOCK,
+    maxAgeDays: MAX_AGE_DAYS,
   };
 
   snrCache.set(cacheKey, { result, ts: Date.now() });

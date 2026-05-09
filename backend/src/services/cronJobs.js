@@ -7,7 +7,62 @@ const cron = require('node-cron');
 const bulkDataUpdater = require('./bulkDataUpdaterService');
 const signalDetectionService = require('./signalDetectionService');
 const kapService = require('./kapService');
+const dailySignalsService = require('./dailySignalsService');
+const socketService = require('./socketService');
+const pushNotificationService = require('./pushNotificationService');
 const logger = require('../utils/logger');
+
+// Türkiye saat dilimi — BIST takvimi
+const TR_TZ = { timezone: 'Europe/Istanbul' };
+
+// Daily signal cron'u sadece bir kere üretsin diye (manuel + cron çakışması olmasın)
+async function runDailyPhase(phase, options = {}) {
+  try {
+    logger.info(`⏰ Daily signals (${phase}) başlatıldı`);
+    const result = await dailySignalsService.runAndStore(phase);
+
+    const trendCount     = result.trend?.signals?.length || 0;
+    const reversionCount = result.reversion?.signals?.length || 0;
+    const trendDiff      = result.trend?.diff?.length || 0;
+    const reversionDiff  = result.reversion?.diff?.length || 0;
+
+    // Socket.IO — frontend real-time tepki versin
+    socketService.broadcastSignal({
+      strategy: 'daily_signals', phase,
+      generatedAt: result.generatedAt,
+      trendCount, reversionCount,
+      trendDiff, reversionDiff,
+      stockSymbol: 'BIST_DAILY',
+    });
+
+    // FCM push (sadece premarket + revision; intraday sessiz)
+    if (!options.silent && (phase === 'premarket' || phase === 'revision')) {
+      const trendTop     = (result.trend?.signals     || []).slice(0, 3).map(s => `${s.symbol}(${s.totalScore})`).join(', ');
+      const reversionTop = (result.reversion?.signals || []).slice(0, 3).map(s => `${s.symbol}(${s.totalScore})`).join(', ');
+      const title = phase === 'premarket'
+        ? '📊 Borsa Açılış Sinyalleri (09:55)'
+        : '🔄 Sinyal Revizyonu (11:00)';
+      const body = phase === 'premarket'
+        ? `Trend: ${trendTop || '—'} · Reversion: ${reversionTop || '—'}`
+        : `Trend ${trendDiff} · Reversion ${reversionDiff} değişiklik. Trend: ${trendTop} · Rev: ${reversionTop}`;
+      try {
+        await pushNotificationService.broadcastNotification({
+          title, body,
+          path: '/gunluk-tespitler?tab=bugun',
+          topic: 'all',
+        });
+      } catch (e) {
+        logger.error(`[DailySignals] FCM push hata (${phase}): ${e.message}`);
+      }
+    }
+
+    logger.info(`✅ Daily signals (${phase}) tamamlandı — Trend: ${trendCount}, Reversion: ${reversionCount}`);
+    return result;
+  } catch (e) {
+    logger.error(`Daily signals (${phase}) hata: ${e.message}`, e.stack);
+    return null;
+  }
+}
 
 class CronJobsService {
   constructor() {
@@ -104,6 +159,30 @@ class CronJobsService {
       { scheduled: false }
     );
 
+    // 7. Pre-market top-10 sinyal üretimi — 09:55 (BIST açılmadan 5 dk önce)
+    //    Pazartesi-Cuma. Türkiye saat dilimi.
+    const preMarketJob = cron.schedule(
+      '55 9 * * 1-5',
+      () => runDailyPhase('premarket'),
+      { scheduled: false, ...TR_TZ }
+    );
+
+    // 8. Revize taraması — 11:00 (borsa açıldıktan 1 saat sonra)
+    //    Pazartesi-Cuma. 09:55 snapshot ile diff alır.
+    const revisionJob = cron.schedule(
+      '0 11 * * 1-5',
+      () => runDailyPhase('revision'),
+      { scheduled: false, ...TR_TZ }
+    );
+
+    // 9. Intraday refresh — borsa saatlerinde 30 dk'da bir sessiz güncelleme
+    //    Bildirim atmaz; UI canlı veri göstersin diye snapshot tazelenir.
+    const intradayJob = cron.schedule(
+      '15,45 10-17 * * 1-5',
+      () => runDailyPhase('intraday', { silent: true }),
+      { scheduled: false, ...TR_TZ }
+    );
+
     // Start jobs only during market hours (9 AM - 6 PM, Monday-Friday)
     const marketHoursJob = cron.schedule(
       '* 9-18 * * 1-5', // Mon-Fri, 9 AM - 6 PM
@@ -136,6 +215,9 @@ class CronJobsService {
       signalDetectionJob,
       kapUpdateJob,
       signalUpdateJob,
+      preMarketJob,
+      revisionJob,
+      intradayJob,
       marketHoursJob,
       afterHoursJob
     ];
@@ -162,6 +244,13 @@ class CronJobsService {
       total: this.jobs.length,
       running: this.jobs.filter(job => job.running).length
     };
+  }
+
+  /**
+   * Manuel tetikleme — admin paneli ve test için
+   */
+  async triggerDailyPhase(phase) {
+    return runDailyPhase(phase, { silent: true });
   }
 }
 

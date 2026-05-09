@@ -238,7 +238,13 @@ app.post('/api/auth/login', authLimiter, async (req, res) => {
     const result = await authService.initiateLogin(email, password);
 
     if (result.success) {
-      res.json({ success: true, token: result.token, user: result.user });
+      res.json({
+        success: true,
+        token: result.token,
+        refreshToken: result.refreshToken,
+        expiresAt: result.expiresAt,
+        user: result.user,
+      });
     } else {
       res.status(400).json(result);
     }
@@ -341,19 +347,24 @@ app.get('/api/auth/me', async (req, res) => {
   }
 });
 
-// Token yenileme
+// Token yenileme — Supabase refresh_token ile yeni access_token al
 app.post('/api/auth/refresh', async (req, res) => {
-  const authHeader = req.headers.authorization;
+  const refreshToken = req.body?.refreshToken || req.body?.refresh_token;
 
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return res.status(401).json({ success: false, error: 'Token gerekli' });
+  if (!refreshToken) {
+    return res.status(400).json({ success: false, error: 'Refresh token gerekli' });
   }
 
-  const token = authHeader.split(' ')[1];
-  const result = await authService.verifyToken(token);
+  const result = await authService.refreshSession(refreshToken);
 
   if (result.success) {
-    res.json({ success: true, user: result.user });
+    res.json({
+      success: true,
+      token: result.token,
+      refreshToken: result.refreshToken,
+      expiresAt: result.expiresAt,
+      user: result.user,
+    });
   } else {
     res.status(401).json(result);
   }
@@ -484,6 +495,27 @@ app.get('/api/subscription/plans', (req, res) => {
   res.json({ success: true, plans: SUBSCRIPTION_PLANS });
 });
 
+// Demo kullanıcı için sabit kimlik — Login.jsx'teki "Demo Hesapla Keşfet"
+// butonu 'demo-token-full-access' token'ı ile login() çağırıyor.
+// Bu token Supabase tarafında geçerli değil, bu yüzden burada özel olarak
+// karşılayıp /portfolio, /notes, /requests gibi korumalı uçların çalışmasını
+// sağlıyoruz (aksi halde 401 → frontend interceptor /login'e atıyor).
+// 'demo-token' eski sürümlerden kalmış kullanıcıların localStorage'ında hâlâ
+// olabiliyor — ikisini de kabul ediyoruz, yoksa eski demo'yla giriş yapmış
+// kullanıcılar /takip-listem'e tıklayınca 401 alıp /login'e atılıyor.
+const DEMO_TOKENS = new Set(['demo-token-full-access', 'demo-token']);
+const DEMO_USER = {
+  id: 'demo',
+  email: 'demo@borsakrali.com',
+  firstName: 'Demo',
+  lastName: 'Kullanıcı',
+  phone: null,
+  plan: 'pro',
+  planExpiry: null,
+  role: 'demo',
+  isDemo: true,
+};
+
 // Auth middleware for subscription
 async function requireAuth(req, res, next) {
   const authHeader = req.headers.authorization;
@@ -491,6 +523,10 @@ async function requireAuth(req, res, next) {
     return res.status(401).json({ success: false, error: 'Token gerekli' });
   }
   const token = authHeader.split(' ')[1];
+  if (DEMO_TOKENS.has(token)) {
+    req.user = DEMO_USER;
+    return next();
+  }
   const result = await authService.verifyToken(token);
   if (!result.success) return res.status(401).json(result);
   req.user = result.user;
@@ -2313,7 +2349,7 @@ app.get('/api/snr/:symbol', async (req, res, next) => {
       return res.status(503).json({ success: false, error: 'Yeterli veri alinamadi' });
     }
 
-    const analysis = await snrService.analyzeSNR(symbol, historicalData);
+    const analysis = await snrService.analyzeSNR(symbol, historicalData, { assetType });
     res.json({ success: true, ...analysis });
   } catch (err) {
     console.error('[SNR] Hata:', err.message);
@@ -2396,6 +2432,103 @@ app.get('/api/snr/scanner/bist30', async (req, res) => {
     res.json({ success: true, results });
   } catch (err) {
     res.status(500).json({ success: false, error: 'Tarama yapilamadi' });
+  }
+});
+
+// ============ DAILY SIGNALS (09:55 pre-market + 11:00 revision) ============
+const dailySignalsService = require('./services/dailySignalsService');
+const snapshotStore = require('./services/snapshotStore');
+const cronJobsService = require('./services/cronJobs');
+
+// Bugünün snapshot'ı — premarket + revision + intraday hepsi tek payload'da
+app.get('/api/daily-signals/today', (req, res) => {
+  try {
+    const date = snapshotStore.dateKey();
+    const data = snapshotStore.read(date) || { date, premarket: null, revision: null, intraday: [] };
+    res.json({
+      success: true,
+      ...data,
+      reasons: dailySignalsService.REVISION_REASONS,
+    });
+  } catch (e) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
+// Belirli bir tarihin snapshot'ı (backtest için)
+app.get('/api/daily-signals/by-date/:date', (req, res) => {
+  try {
+    const date = req.params.date;
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+      return res.status(400).json({ success: false, error: 'Geçersiz tarih formatı (YYYY-MM-DD)' });
+    }
+    const data = snapshotStore.read(date);
+    if (!data) return res.status(404).json({ success: false, error: 'Bu tarihte kayıt yok' });
+    res.json({ success: true, ...data, reasons: dailySignalsService.REVISION_REASONS });
+  } catch (e) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
+// Mevcut tarihler (geçmiş arşivi)
+app.get('/api/daily-signals/history', (req, res) => {
+  try {
+    const limit = Math.min(parseInt(req.query.days || '30', 10), 90);
+    const dates = snapshotStore.listAvailableDates(limit);
+    const summaries = dates.map(d => {
+      const snap = snapshotStore.read(d);
+      return {
+        date: d,
+        premarketCount: snap?.premarket?.signals?.length || 0,
+        revisionCount: snap?.revision?.signals?.length || 0,
+        diffCount: snap?.revision?.diff?.length || 0,
+        topSymbols: (snap?.revision?.signals || snap?.premarket?.signals || []).slice(0, 5).map(s => s.symbol),
+      };
+    });
+    res.json({ success: true, dates: summaries });
+  } catch (e) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
+// Manuel tetikleme — admin/test (production'da auth eklenecek)
+app.post('/api/daily-signals/generate', async (req, res) => {
+  try {
+    const phase = ['premarket', 'revision', 'intraday'].includes(req.body?.phase)
+      ? req.body.phase
+      : 'premarket';
+    const result = await cronJobsService.triggerDailyPhase(phase);
+    if (!result) return res.status(500).json({ success: false, error: 'Üretim başarısız' });
+    res.json({ success: true, phase, ...result });
+  } catch (e) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
+// Selftest — bugünkü snapshot vs canlı fiyat
+app.get('/api/daily-signals/selftest', (req, res) => {
+  try {
+    const result = dailySignalsService.selftest();
+    res.json({ success: true, ...result });
+  } catch (e) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
+// Backtest — geçmiş tarih bazlı simülasyon (gelecek veriyi sızdırmadan)
+//   ?asOf=YYYY-MM-DD     (geçmiş trade günü)
+//   ?horizon=5           (varsayılan 5 mum, max 30)
+app.get('/api/daily-signals/backtest', async (req, res) => {
+  try {
+    const asOf = req.query.asOf;
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(asOf || '')) {
+      return res.status(400).json({ success: false, error: 'asOf zorunlu (YYYY-MM-DD)' });
+    }
+    const horizon = Math.min(Math.max(parseInt(req.query.horizon || '5', 10), 1), 30);
+    const result = await dailySignalsService.backtestAsOf(asOf, horizon);
+    res.json({ success: true, ...result });
+  } catch (e) {
+    res.status(500).json({ success: false, error: e.message });
   }
 });
 
@@ -2912,6 +3045,23 @@ app.get('/api/market/harmonics', async (req, res) => {
         const live = liveDataService.getStock(sm.symbol) || {};
         const price = live.price || hist[hist.length - 1].close;
 
+        // ── Geçerlilik metadata (SNR ile aynı kural) ──────────────────────
+        // Harmonic paterni D noktasından girilir; D çok eski veya çok uzaksa
+        // patern artık aktif sayılmaz (kullanıcıya yanıltıcı eski sinyal verme).
+        const dDate = detected.points?.D?.date;
+        const dPrice = detected.points?.D?.price || 0;
+        const daysAgo = dDate
+          ? Math.max(0, Math.round((Date.now() - new Date(dDate).getTime()) / 86400000))
+          : null;
+        const priceDistancePct = price > 0 && dPrice > 0
+          ? +(Math.abs(dPrice - price) / price * 100).toFixed(2)
+          : null;
+        const MAX_REACH_PCT_HARMONIC = 8;
+        const MAX_AGE_DAYS_HARMONIC  = 60;
+        const inRange    = priceDistancePct != null && priceDistancePct <= MAX_REACH_PCT_HARMONIC;
+        const isRecent   = daysAgo == null || daysAgo <= MAX_AGE_DAYS_HARMONIC;
+        const isActionable = inRange && isRecent;
+
         results.push({
           symbol: sm.symbol,
           name: sm.name,
@@ -2923,21 +3073,32 @@ app.get('/api/market/harmonics', async (req, res) => {
           stopLoss: detected.stopLoss,
           ratios: detected.ratios,
           points: detected.points,
+          daysAgo,
+          priceDistancePct,
+          isActionable,
+          isRecent,
+          inRange,
+          detectedDate: dDate || null,
         });
       } catch (e) { /* sessizce atla */ }
     }));
     if (i + BATCH < universe.length) await new Promise(r => setTimeout(r, DELAY));
   }
 
-  // Completion skoruna göre sırala (en güçlü patern üstte)
-  results.sort((a, b) => b.completion - a.completion);
+  // Aktif paternler önce + completion skoruna göre sırala
+  results.sort((a, b) => {
+    if (!!a.isActionable !== !!b.isActionable) return a.isActionable ? -1 : 1;
+    return b.completion - a.completion;
+  });
 
   const response = {
     patterns: results,
     total: results.length,
+    activeCount: results.filter(r => r.isActionable).length,
     scanned: universe.length,
     dataSource: 'Yahoo Finance (1y daily) + ZigZag %4 + Carney harmonic ratios',
     scannedAt: new Date().toISOString(),
+    rule: 'Aktif patern: D noktası ≤%8 mesafede ve ≤60 gün öncesi',
   };
   harmonicsCache = response;
   harmonicsCacheTs = Date.now();
@@ -2954,24 +3115,40 @@ app.get('/api/market/fibonacci', (req, res) => {
     const high = stock.high;
     const low = stock.low;
     const diff = high - low;
+    const price = stock.price;
+
+    // Hangi seviye fiyata en yakın? Aktif olarak gözlenecek seviye o.
+    const levels = {
+      '0%':    +low.toFixed(2),
+      '23.6%': +(low + diff * 0.236).toFixed(2),
+      '38.2%': +(low + diff * 0.382).toFixed(2),
+      '50%':   +(low + diff * 0.5).toFixed(2),
+      '61.8%': +(low + diff * 0.618).toFixed(2),
+      '78.6%': +(low + diff * 0.786).toFixed(2),
+      '100%':  +high.toFixed(2),
+    };
+    let nearestLevel = null;
+    let nearestPct = Infinity;
+    for (const [k, v] of Object.entries(levels)) {
+      const distPct = Math.abs(v - price) / price * 100;
+      if (distPct < nearestPct) { nearestPct = distPct; nearestLevel = k; }
+    }
 
     return {
       symbol: stock.symbol,
       name: stock.name,
-      currentPrice: stock.price,
-      levels: {
-        '0%': +low.toFixed(2),
-        '23.6%': +(low + diff * 0.236).toFixed(2),
-        '38.2%': +(low + diff * 0.382).toFixed(2),
-        '50%': +(low + diff * 0.5).toFixed(2),
-        '61.8%': +(low + diff * 0.618).toFixed(2),
-        '78.6%': +(low + diff * 0.786).toFixed(2),
-        '100%': +high.toFixed(2)
-      }
+      currentPrice: price,
+      levels,
+      nearestLevel,
+      nearestLevelDistancePct: +nearestPct.toFixed(2),
     };
   }).filter(Boolean);
 
-  res.json({ stocks: results });
+  res.json({
+    stocks: results,
+    calculatedAt: new Date().toISOString(),
+    note: 'Fibonacci seviyeleri günlük yüksek/düşük baz alınarak hesaplanır — her gün otomatik yenilenir.',
+  });
 });
 
 // Manuel guncelleme endpoint
@@ -4455,6 +4632,10 @@ app.get('/api/pro-analiz/crypto-list', (req, res) => {
 // Lot şekli: { id, symbol, quantity, buyPrice, buyDate, type: 'buy'|'sell', note }
 const portfolioStore = new Map(); // userId -> [lot, ...]
 
+// O(1) sembol doğrulaması — kullanıcı kafasından "THYAOOO" gibi bir şey yazsa
+// backend reddediyor. allBistStocks zaten yukarıda import edilmiş (510 hisse).
+const VALID_BIST_SYMBOLS = new Set(allBistStocks.map((s) => s.symbol));
+
 function getUserKey(req) {
   // requireAuth middleware'den geçtiyse req.user.id var, yoksa demo
   return req.user?.id || req.headers['x-portfolio-user'] || 'demo';
@@ -4566,12 +4747,19 @@ app.post('/api/portfolio', requireAuth, (req, res) => {
     return res.status(400).json({ error: 'symbol, quantity, buyPrice gerekli' });
   }
 
+  const cleanSymbol = String(symbol).toUpperCase().trim();
+  if (!VALID_BIST_SYMBOLS.has(cleanSymbol)) {
+    return res.status(400).json({
+      error: `${cleanSymbol} BIST'te işlem gören bir hisse değil. Listeden seçin.`,
+    });
+  }
+
   const userId = getUserKey(req);
   const lots = portfolioStore.get(userId) || [];
 
   const newLot = {
     id: `lot_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
-    symbol: String(symbol).toUpperCase().trim(),
+    symbol: cleanSymbol,
     quantity: Math.abs(parseFloat(quantity)),
     buyPrice: parseFloat(buyPrice),
     buyDate: buyDate || new Date().toISOString().slice(0, 10),

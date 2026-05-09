@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef, Fragment } from 'react'
-import { Search, Filter, TrendingUp, TrendingDown, Target, Activity, Bell, BellRing, RefreshCw, X, Volume2, Star, Clock, Zap, Wifi, WifiOff, Info, CheckCircle, BookOpen, ChevronDown, ChevronUp, HelpCircle } from 'lucide-react'
+import { useSearchParams } from 'react-router-dom'
+import { Search, Filter, TrendingUp, TrendingDown, Target, Activity, Bell, BellRing, RefreshCw, X, Volume2, Star, Clock, Zap, Wifi, WifiOff, Info, CheckCircle, BookOpen, ChevronDown, ChevronUp, HelpCircle, Sparkles } from 'lucide-react'
 import { io } from 'socket.io-client'
 
 import { getApiBase, getSocketBase } from '../config'
@@ -7,11 +8,19 @@ import { getStrategyMeta, formatRelativeTime } from '../lib/strategyMeta'
 import SignalGuide from '../components/SignalGuide'
 import TradePlanCard from '../components/TradePlanCard'
 import InfoTooltip from '../components/InfoTooltip'
+import BugununSinyalleri from '../components/BugununSinyalleri'
+import BacktestPanel from '../components/BacktestPanel'
 const API_BASE = getApiBase() + '/api'
 const SOCKET_URL = getSocketBase()
 
 export default function GunlukTespitler() {
-  const [activeTab, setActiveTab] = useState('akilli-suzgec')
+  const [searchParams, setSearchParams] = useSearchParams()
+  const initialTab = ['bugun', 'today', 'backtest', 'akilli-suzgec', 'canli-takip', 'detayli-analiz'].includes(searchParams.get('tab'))
+    ? (searchParams.get('tab') === 'today' ? 'bugun' : searchParams.get('tab'))
+    : 'bugun'  // varsayılan: Bugünün Sinyalleri (yeni özellik)
+  const [activeTab, setActiveTab] = useState(initialTab)
+  // Tab değiştikçe URL'i güncelle ki kullanıcı yer imi yapabilsin
+  useEffect(() => { setSearchParams({ tab: activeTab }, { replace: true }) }, [activeTab])  // eslint-disable-line react-hooks/exhaustive-deps
   const [showInfo, setShowInfo] = useState(false)
   const [showGuide, setShowGuide] = useState(false)
   const [expandedSignal, setExpandedSignal] = useState(null)
@@ -221,9 +230,11 @@ export default function GunlukTespitler() {
   }, [loadData, loadWatchlist])
 
   const tabs = [
-    { id: 'akilli-suzgec', label: 'Akıllı Süzgeç', icon: Filter },
-    { id: 'canli-takip', label: 'Canlı Alarmlar', icon: BellRing, badge: unreadCount },
-    { id: 'detayli-analiz', label: 'Detaylı Analiz', icon: Target }
+    { id: 'bugun',         label: 'Bugünün Sinyalleri', icon: Sparkles },
+    { id: 'backtest',      label: 'Backtest',           icon: Activity },
+    { id: 'akilli-suzgec', label: 'Akıllı Süzgeç',      icon: Filter },
+    { id: 'canli-takip',   label: 'Canlı Alarmlar',     icon: BellRing, badge: unreadCount },
+    { id: 'detayli-analiz', label: 'Detaylı Analiz',    icon: Target }
   ]
 
   // Filtrelenmis sinyaller
@@ -434,6 +445,12 @@ export default function GunlukTespitler() {
           </button>
         ))}
       </div>
+
+      {/* Bugünün Sinyalleri Tab — pre-market 09:55 + revize 11:00 */}
+      {activeTab === 'bugun' && <BugununSinyalleri />}
+
+      {/* Backtest Tab — geçmiş tarih + horizon ile sinyal performans testi */}
+      {activeTab === 'backtest' && <BacktestPanel />}
 
       {/* Akilli Suzgec Tab */}
       {activeTab === 'akilli-suzgec' && (
