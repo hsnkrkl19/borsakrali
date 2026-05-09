@@ -801,24 +801,60 @@
 [data-theme="light"] .text-yellow-200 { color: #a16207 !important; }
 [data-theme="light"] .text-yellow-300 { color: #a16207 !important; }
 
-/* Light mode'da gradient backdrop opacity'li dark renkleri çok karartıyor;
-   yeni eklenen sayfalarda from-dark-900/80 vs kullanımı için */
+/* Light mode'da gradient stop'lar opak beyaz olmalı — yarı saydam beyaz krem
+   zeminin üstünde "buğulu" görünüm yaratıyordu (kart sınırı belirsiz, metin yıkanmış).
+   Şimdi tüm via/to/from gradient'leri solid #ffffff'e çevriliyor; from-amber-* gibi
+   renk stop'lar aksent olarak kalıyor, sonuçta "amber tint → temiz beyaz kart" çıkıyor.
+
+   ÖNEMLİ — Tailwind v3.4+ `via-*` class'ı `--tw-gradient-stops`'u doğrudan hardcode'lu
+   renk ile yazar (CSS değişkeni kullanmaz). Bu yüzden `--tw-gradient-via` override'ı
+   YETMİYOR; via için `--tw-gradient-stops`'u tam olarak yeniden yazmamız lazım.
+   from ve to için sadece kendi renk değişkenlerini override etmek yeterli — Tailwind
+   class'larının cascade'ini bozmadan yalın kalsın. */
 [data-theme="light"] .from-dark-900\/80,
 [data-theme="light"] .from-dark-900\/70,
 [data-theme="light"] .from-dark-900\/60,
 [data-theme="light"] .from-dark-900\/50,
 [data-theme="light"] .from-dark-900\/40,
-[data-theme="light"] .from-dark-900\/30 { --tw-gradient-from: rgba(255, 255, 255, 0.95); }
+[data-theme="light"] .from-dark-900\/30 { --tw-gradient-from: #ffffff var(--tw-gradient-from-position); }
 
 [data-theme="light"] .to-dark-900\/80,
 [data-theme="light"] .to-dark-900\/70,
 [data-theme="light"] .to-dark-900\/60,
 [data-theme="light"] .to-dark-900\/50,
 [data-theme="light"] .to-dark-900\/40,
-[data-theme="light"] .to-dark-900\/30 { --tw-gradient-to: rgba(255, 255, 255, 0.5); }
+[data-theme="light"] .to-dark-900\/30 { --tw-gradient-to: #ffffff var(--tw-gradient-to-position); }
 
+[data-theme="light"] .via-dark-900\/80,
+[data-theme="light"] .via-dark-900\/70,
 [data-theme="light"] .via-dark-900\/60,
-[data-theme="light"] .via-dark-900\/30 { --tw-gradient-via: rgba(255, 255, 255, 0.7); }
+[data-theme="light"] .via-dark-900\/50,
+[data-theme="light"] .via-dark-900\/40,
+[data-theme="light"] .via-dark-900\/30 {
+  --tw-gradient-stops: var(--tw-gradient-from), #ffffff var(--tw-gradient-via-position), var(--tw-gradient-to);
+}
+
+/* Dark-950 gradient stop'ları da krem zeminde okunsun — bunlar genelde
+   sayfa hero arka planlarında kullanılıyor, beyazdan biraz daha ılık olsun */
+[data-theme="light"] .from-dark-950\/80,
+[data-theme="light"] .from-dark-950\/60,
+[data-theme="light"] .from-dark-950\/40 { --tw-gradient-from: var(--bg-elevated); }
+[data-theme="light"] .to-dark-950\/80,
+[data-theme="light"] .to-dark-950\/60,
+[data-theme="light"] .to-dark-950\/40 { --tw-gradient-to: var(--bg-elevated); }
+[data-theme="light"] .via-dark-950\/80,
+[data-theme="light"] .via-dark-950\/60,
+[data-theme="light"] .via-dark-950\/40 { --tw-gradient-via: var(--bg-elevated); }
+
+/* Gradient kart border'ı — light'ta from-amber-500/[0.08] gibi düşük opacity'li
+   amber stop'lar tek başına hissedilmiyor; kart kenarına hafif gold halka verelim
+   ki "kart başlıyor" sinyali güçlü olsun. */
+[data-theme="light"] .bg-gradient-to-br.from-amber-500\/\[0\.08\],
+[data-theme="light"] .bg-gradient-to-br.from-amber-500\/10,
+[data-theme="light"] .bg-gradient-to-br.from-amber-500\/15,
+[data-theme="light"] .bg-gradient-to-br.from-amber-500\/20 {
+  box-shadow: inset 0 0 0 1px rgba(184, 144, 30, 0.18), 0 1px 3px rgba(60, 45, 15, 0.06);
+}
 
 /* Tables shell */
 .table-shell {
