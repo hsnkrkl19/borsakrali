@@ -8,11 +8,15 @@ const DEFAULT_API_URL = stripApiSuffix(
   || import.meta.env.VITE_API_URL
   || '',
 )
+// Native (Android/iOS) için canonical URL kullan: Cloudflare borsakrali.com'dan
+// www.borsakrali.com'a 307 ile yönlendiriyor; CapacitorHttp plugin'i POST body'i
+// 307 redirect'te düşürüyor (Google login bunda kalıyordu). Doğrudan canonical
+// URL'e gidersek redirect zinciri yok, body korunur.
 const DEFAULT_NATIVE_API_URL = stripApiSuffix(
   import.meta.env.VITE_NATIVE_API_BASE_URL
   || import.meta.env.VITE_API_URL
   || DEFAULT_API_URL
-  || 'https://borsakrali.com',
+  || 'https://www.borsakrali.com',
 )
 
 function normalizeUrl(url) {
