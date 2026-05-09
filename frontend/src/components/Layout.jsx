@@ -43,7 +43,9 @@ export default function Layout({ children }) {
   }, [mobileMenuOpen])
 
   return (
-    <div className="min-h-screen w-full bg-dark-950 overflow-x-hidden antialiased selection:bg-gold-500/30 selection:text-gold-200">
+    <div className="min-h-screen w-full overflow-x-hidden antialiased selection:bg-gold-500/30 selection:text-gold-200"
+      style={{ background: 'var(--bg-base)', color: 'var(--text-primary)' }}
+    >
       <div className="flex min-h-screen w-full min-w-0">
         {!isMobile && (
           <div
@@ -82,15 +84,23 @@ export default function Layout({ children }) {
           {!isMobile && <Header />}
 
           {isMobile && (
-            <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-gold-500/10 bg-gradient-to-r from-dark-900 to-dark-950 px-4">
+            <header
+              className="sticky top-0 z-30 flex h-14 items-center justify-between px-4"
+              style={{
+                background: 'linear-gradient(180deg, var(--bg-card) 0%, var(--bg-base) 100%)',
+                borderBottom: '1px solid var(--border-main)',
+              }}
+            >
               <div className="flex items-center gap-3">
                 <button
                   onClick={() => setMobileMenuOpen(true)}
-                  className="rounded-lg p-1 active:bg-dark-800"
+                  className="rounded-lg p-1.5 transition-colors"
+                  style={{ color: 'var(--gold-400)' }}
+                  aria-label="Menü"
                 >
-                  <div className="mb-1 h-0.5 w-6 bg-gold-400"></div>
-                  <div className="mb-1 h-0.5 w-6 bg-gold-400"></div>
-                  <div className="h-0.5 w-6 bg-gold-400"></div>
+                  <div className="mb-1 h-0.5 w-6" style={{ background: 'currentColor' }}></div>
+                  <div className="mb-1 h-0.5 w-6" style={{ background: 'currentColor' }}></div>
+                  <div className="h-0.5 w-6" style={{ background: 'currentColor' }}></div>
                 </button>
 
                 <div className="flex items-center gap-2">
@@ -100,6 +110,21 @@ export default function Layout({ children }) {
                   </span>
                 </div>
               </div>
+
+              <button
+                onClick={() => window.dispatchEvent(new CustomEvent('bk-open-cmdk'))}
+                aria-label="Ara"
+                className="flex h-9 w-9 items-center justify-center rounded-xl transition-all"
+                style={{
+                  background: 'rgba(212, 175, 55, 0.10)',
+                  border: '1px solid var(--border-gold)',
+                  color: 'var(--gold-400)',
+                }}
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
+                  <circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>
+                </svg>
+              </button>
             </header>
           )}
 

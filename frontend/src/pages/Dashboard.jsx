@@ -1,13 +1,32 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   TrendingUp, TrendingDown, Activity, Flame, ChevronRight,
   RefreshCw, Target, Brain, Gem, Search, Briefcase, Coins, Building2,
-  BarChart3, Calendar,
+  Calendar, Clock, Command,
 } from 'lucide-react'
 import apiClient from '../services/api'
 
 const fmt = (n, d = 2) => n == null ? '—' : n.toLocaleString('tr-TR', { minimumFractionDigits: d, maximumFractionDigits: d })
+
+/* ─── Borsa açık/kapalı durumu ─────────────────────────────────────────── */
+function getMarketStatus(now = new Date()) {
+  const day = now.getDay()           // 0 Sun, 6 Sat
+  const h = now.getHours()
+  const m = now.getMinutes()
+  const t = h * 60 + m
+  const open = 10 * 60               // 10:00
+  const close = 18 * 60              // 18:00
+  const isWeekday = day >= 1 && day <= 5
+  if (isWeekday && t >= open && t < close) {
+    return { open: true, label: 'Borsa açık', sub: `Kapanışa ${Math.floor((close - t) / 60)}sa ${(close - t) % 60}dk` }
+  }
+  // next open
+  let daysUntil = 0
+  if (!isWeekday) daysUntil = day === 0 ? 1 : 2
+  else if (t >= close) daysUntil = day === 5 ? 3 : 1
+  return { open: false, label: 'Borsa kapalı', sub: daysUntil === 0 ? 'Bugün 10:00\'da açılır' : `${daysUntil} gün sonra açılır` }
+}
 
 /* ─── Tıklanabilir endeks kartı (tema uyumlu) ───────────────────────────── */
 function IndexCard({ symbol, label, value, change, changePct, onClick, loading }) {
@@ -96,29 +115,38 @@ function QuickAccess({ to, icon: Icon, label, sub, color, navigate }) {
   return (
     <button
       onClick={() => navigate(to)}
-      className="group flex flex-col sm:flex-row items-center sm:items-center gap-2 sm:gap-3 p-3 sm:p-4 rounded-2xl transition-all text-center sm:text-left border h-full min-h-[110px] sm:min-h-[72px]"
+      className="group hover-lift flex flex-col sm:flex-row items-center sm:items-center gap-2 sm:gap-3 p-3 sm:p-4 rounded-2xl text-center sm:text-left h-full min-h-[110px] sm:min-h-[72px]"
       style={{
         background: 'var(--bg-card)',
-        borderColor: 'var(--border-main)',
-      }}
-      onMouseEnter={e => {
-        e.currentTarget.style.background = 'var(--bg-hover)'
-        e.currentTarget.style.borderColor = 'var(--border-gold)'
-      }}
-      onMouseLeave={e => {
-        e.currentTarget.style.background = 'var(--bg-card)'
-        e.currentTarget.style.borderColor = 'var(--border-main)'
+        border: '1px solid var(--border-main)',
       }}
     >
-      <div className={`flex-shrink-0 w-11 h-11 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-br ${color} flex items-center justify-center shadow-md`}>
+      <div className={`flex-shrink-0 w-11 h-11 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-br ${color} flex items-center justify-center shadow-md transition-transform group-hover:scale-110`}>
         <Icon className="w-5 h-5 text-white" />
       </div>
       <div className="min-w-0 flex-1">
         <div className="text-xs sm:text-sm font-semibold leading-tight" style={{ color: 'var(--text-primary)' }}>{label}</div>
         <div className="text-[10px] sm:text-[11px] truncate hidden sm:block" style={{ color: 'var(--text-muted)' }}>{sub}</div>
       </div>
-      <ChevronRight className="w-4 h-4 group-hover:text-amber-400 transition-colors hidden sm:block" style={{ color: 'var(--text-faint)' }} />
+      <ChevronRight className="w-4 h-4 transition-all group-hover:translate-x-1 hidden sm:block" style={{ color: 'var(--text-faint)' }} />
     </button>
+  )
+}
+
+/* ─── Stat chip — hızlı bakış için ─────────────────────────────────────── */
+function StatChip({ label, value, tone = 'neutral' }) {
+  const toneStyle = tone === 'up'
+    ? { color: 'var(--jade)', bg: 'rgba(0, 201, 138, 0.10)', border: 'rgba(0, 201, 138, 0.28)' }
+    : tone === 'down'
+      ? { color: 'var(--ember)', bg: 'rgba(255, 59, 70, 0.10)', border: 'rgba(255, 59, 70, 0.28)' }
+      : { color: 'var(--text-secondary)', bg: 'var(--bg-input)', border: 'var(--border-main)' }
+  return (
+    <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg"
+      style={{ background: toneStyle.bg, border: `1px solid ${toneStyle.border}` }}
+    >
+      <span className="text-[10px] uppercase tracking-wider font-semibold" style={{ color: 'var(--text-faint)' }}>{label}</span>
+      <span className="text-[12.5px] font-bold num-tabular" style={{ color: toneStyle.color }}>{value}</span>
+    </div>
   )
 }
 
@@ -131,6 +159,8 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true)
   const [error,   setError]   = useState(null)
   const [refreshTick, setRefreshTick] = useState(0)
+  const [now, setNow] = useState(new Date())
+  const isMac = typeof navigator !== 'undefined' && navigator.platform.toUpperCase().includes('MAC')
 
   useEffect(() => {
     let active = true
@@ -155,31 +185,116 @@ export default function Dashboard() {
     return () => { active = false }
   }, [refreshTick])
 
-  // Auto refresh 60sn
+  // Auto refresh 60sn + manual via Ctrl+K command
   useEffect(() => {
     const i = setInterval(() => setRefreshTick(t => t + 1), 60_000)
-    return () => clearInterval(i)
+    const onRefresh = () => setRefreshTick(t => t + 1)
+    window.addEventListener('bk-refresh-market', onRefresh)
+    return () => { clearInterval(i); window.removeEventListener('bk-refresh-market', onRefresh) }
   }, [])
+
+  useEffect(() => {
+    const t = setInterval(() => setNow(new Date()), 30_000)
+    return () => clearInterval(t)
+  }, [])
+
+  const market = useMemo(() => getMarketStatus(now), [now])
+  const breadth = useMemo(() => {
+    if (!gainers.length && !losers.length) return null
+    const up = gainers.length
+    const down = losers.length
+    const ratio = up + down > 0 ? Math.round((up / (up + down)) * 100) : 50
+    return { up, down, ratio }
+  }, [gainers, losers])
 
   return (
     <div className="space-y-5">
       {/* Header */}
-      <div className="flex items-center justify-between gap-3">
-        <div className="min-w-0">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0 flex-1">
           <h1 className="text-xl sm:text-2xl font-bold tracking-tight" style={{ color: 'var(--text-primary)' }}>Piyasa Kokpiti</h1>
-          <p className="text-xs sm:text-sm mt-0.5" style={{ color: 'var(--text-muted)' }}>BIST anlık verileri · 60 sn auto-refresh</p>
+          <p className="text-xs sm:text-sm mt-0.5" style={{ color: 'var(--text-muted)' }}>
+            BIST anlık verileri · 60 sn otomatik yenileme
+          </p>
         </div>
-        <button
-          onClick={() => setRefreshTick(t => t + 1)}
-          className="p-2 sm:px-3 sm:py-2 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-400 rounded-xl flex items-center gap-2"
-        >
-          <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-          <span className="hidden sm:inline text-sm font-medium">Yenile</span>
-        </button>
+        <div className="flex items-center gap-2 flex-shrink-0">
+          <div className={`market-status ${market.open ? 'is-open' : 'is-closed'}`}>
+            <span className={`status-dot ${market.open ? 'status-dot-live' : 'status-dot-off'}`} />
+            <span>{market.label}</span>
+            <span className="hidden sm:inline" style={{ color: 'var(--text-muted)', fontWeight: 500 }}>· {market.sub}</span>
+          </div>
+          <button
+            onClick={() => window.dispatchEvent(new CustomEvent('bk-open-cmdk'))}
+            title={`Komut Paleti — ${isMac ? '⌘' : 'Ctrl'}+K`}
+            className="hidden md:flex items-center gap-1.5 h-9 px-3 rounded-xl transition-all hover-lift"
+            style={{
+              background: 'var(--bg-card)',
+              border: '1px solid var(--border-main)',
+              color: 'var(--text-secondary)',
+            }}
+          >
+            <Command className="w-3.5 h-3.5" style={{ color: 'var(--gold-400)' }} />
+            <span className="text-[12px] font-semibold">Hızlı git</span>
+            <span className="kbd ml-1">{isMac ? '⌘' : 'Ctrl'}</span>
+            <span className="kbd">K</span>
+          </button>
+          <button
+            onClick={() => setRefreshTick(t => t + 1)}
+            className="h-9 px-3 rounded-xl flex items-center gap-2 transition-all"
+            style={{
+              background: 'rgba(212, 175, 55, 0.10)',
+              border: '1px solid var(--border-gold)',
+              color: 'var(--gold-400)',
+            }}
+            onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(212, 175, 55, 0.18)'}
+            onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(212, 175, 55, 0.10)'}
+          >
+            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+            <span className="hidden sm:inline text-[12.5px] font-semibold">Yenile</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Quick stat chips */}
+      <div className="flex flex-wrap items-center gap-2">
+        {bist100 != null && (
+          <StatChip
+            label="BIST100"
+            value={bist100?.changePercent != null ? `${bist100.changePercent >= 0 ? '+' : ''}${bist100.changePercent.toFixed(2)}%` : '—'}
+            tone={bist100?.changePercent >= 0 ? 'up' : 'down'}
+          />
+        )}
+        {bist30 != null && (
+          <StatChip
+            label="BIST30"
+            value={bist30?.changePercent != null ? `${bist30.changePercent >= 0 ? '+' : ''}${bist30.changePercent.toFixed(2)}%` : '—'}
+            tone={bist30?.changePercent >= 0 ? 'up' : 'down'}
+          />
+        )}
+        {breadth && (
+          <>
+            <StatChip label="Yükselen" value={breadth.up} tone="up" />
+            <StatChip label="Düşen" value={breadth.down} tone="down" />
+            <StatChip label="Oran" value={`${breadth.ratio}%`} tone={breadth.ratio >= 50 ? 'up' : 'down'} />
+          </>
+        )}
+        <div className="flex items-center gap-1.5 ml-auto text-[11px]" style={{ color: 'var(--text-faint)' }}>
+          <Clock className="w-3 h-3" />
+          {now.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })}
+        </div>
       </div>
 
       {error && (
-        <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-3 text-sm text-red-400">⚠ {error}</div>
+        <div className="rounded-xl p-3 text-sm flex items-start gap-2"
+          style={{
+            background: 'rgba(255, 59, 70, 0.08)',
+            border: '1px solid rgba(255, 59, 70, 0.28)',
+            color: 'var(--ember)',
+          }}
+        >
+          <span>⚠</span>
+          <span>{error}</span>
+        </div>
       )}
 
       {/* Endeks Kartları (TIKLANINCA DETAY GRAFIK SAYFASI AÇILIR) */}

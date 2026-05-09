@@ -87,44 +87,67 @@
 [data-theme="light"] {
   color-scheme: light;
 
-  --bg-base:        #f6f3ed;
-  --bg-canvas:      #ffffff;
+  /* Warm paper backgrounds — slight warmth so it doesn't feel sterile */
+  --bg-base:        #f4efe4;
+  --bg-canvas:      #fbf8f1;
   --bg-card:        #ffffff;
-  --bg-elevated:    #f8fafc;
-  --bg-input:       #f1f5f9;
-  --bg-subtle:      #e7ecf3;
-  --bg-hover:       #d8dfeb;
+  --bg-elevated:    #fdfbf6;
+  --bg-input:       #f1ece0;
+  --bg-subtle:      #e9e3d3;
+  --bg-hover:       #d9d2bf;
 
-  --border-main:    rgba(15, 23, 42, 0.08);
-  --border-subtle:  rgba(15, 23, 42, 0.14);
-  --border-strong:  rgba(15, 23, 42, 0.22);
-  --border-gold:    rgba(184, 144, 30, 0.25);
-  --border-gold-strong: rgba(184, 144, 30, 0.55);
+  /* Borders — slightly warmer + more visible for separation */
+  --border-main:    rgba(60, 45, 15, 0.10);
+  --border-subtle:  rgba(60, 45, 15, 0.18);
+  --border-strong:  rgba(60, 45, 15, 0.28);
+  --border-gold:    rgba(184, 144, 30, 0.30);
+  --border-gold-strong: rgba(184, 144, 30, 0.60);
 
+  /* Text — high contrast on warm paper */
   --text-primary:   #0b1220;
   --text-secondary: #1e293b;
   --text-muted:     #475569;
-  --text-faint:     #64748b;
+  --text-faint:     #6b7589;
 
-  --gold-400: #b8901e;
-  --gold-300: #d4af37;
-  --champagne: #c9a14a;
+  /* Gold spectrum — darker / richer in light to keep contrast */
+  --gold-50:  #fff8e1;
+  --gold-100: #f5e7a8;
+  --gold-200: #e6c66f;
+  --gold-300: #c9a14a;
+  --gold-400: #a8801a;   /* primary on light */
+  --gold-500: #8a6810;
+  --gold-600: #6b5108;
+  --gold-700: #4d3a05;
+  --champagne: #b8901e;
+  --bronze:    #6b5108;
 
-  --bg-base-rgb:    246, 243, 237;
-  --bg-canvas-rgb:  255, 255, 255;
+  --jade:    #047857;
+  --jade-dim:#065f46;
+  --ember:   #b91c1c;
+  --ember-dim:#991b1b;
+  --azure:   #1d4ed8;
+
+  --bg-base-rgb:    244, 239, 228;
+  --bg-canvas-rgb:  251, 248, 241;
   --bg-card-rgb:    255, 255, 255;
-  --bg-elev-rgb:    248, 250, 252;
-  --bg-input-rgb:   241, 245, 249;
+  --bg-elev-rgb:    253, 251, 246;
+  --bg-input-rgb:   241, 236, 224;
 
-  --shadow-sm:   0 1px 2px rgba(15, 23, 42, 0.05);
-  --shadow-md:   0 4px 14px rgba(15, 23, 42, 0.07), 0 2px 4px rgba(15, 23, 42, 0.04);
-  --shadow-lg:   0 14px 36px rgba(15, 23, 42, 0.10), 0 4px 12px rgba(15, 23, 42, 0.06);
-  --shadow-xl:   0 24px 56px rgba(15, 23, 42, 0.14), 0 10px 22px rgba(15, 23, 42, 0.08);
-  --shadow-card: 0 1px 2px rgba(15, 23, 42, 0.04), 0 8px 22px rgba(15, 23, 42, 0.06);
-  --shadow-hover:0 1px 2px rgba(15, 23, 42, 0.06), 0 18px 40px rgba(15, 23, 42, 0.10);
+  --shadow-sm:   0 1px 2px rgba(60, 45, 15, 0.06);
+  --shadow-md:   0 4px 14px rgba(60, 45, 15, 0.08), 0 2px 4px rgba(60, 45, 15, 0.05);
+  --shadow-lg:   0 14px 36px rgba(60, 45, 15, 0.11), 0 4px 12px rgba(60, 45, 15, 0.07);
+  --shadow-xl:   0 24px 56px rgba(60, 45, 15, 0.15), 0 10px 22px rgba(60, 45, 15, 0.09);
+  --shadow-card: 0 1px 2px rgba(60, 45, 15, 0.05), 0 8px 22px rgba(60, 45, 15, 0.07);
+  --shadow-hover:0 1px 2px rgba(60, 45, 15, 0.07), 0 18px 40px rgba(60, 45, 15, 0.12);
 
-  --grad-canvas:    radial-gradient(ellipse 1200px 700px at 12% -8%, rgba(212, 175, 55, 0.10), transparent 55%),
-                    radial-gradient(ellipse 900px 600px at 100% 100%, rgba(59, 130, 246, 0.05), transparent 60%);
+  /* Light-mode glow tokens — gold halos must be visible on cream */
+  --glow-gold:   0 0 0 1px rgba(184, 144, 30, 0.35), 0 8px 28px rgba(184, 144, 30, 0.22);
+  --glow-jade:   0 0 0 1px rgba(4, 120, 87, 0.35),  0 6px 22px rgba(4, 120, 87, 0.18);
+  --glow-ember:  0 0 0 1px rgba(185, 28, 28, 0.35), 0 6px 22px rgba(185, 28, 28, 0.18);
+
+  --grad-canvas:    radial-gradient(ellipse 1200px 700px at 12% -8%, rgba(212, 175, 55, 0.16), transparent 55%),
+                    radial-gradient(ellipse 1000px 700px at 95% 105%, rgba(212, 175, 55, 0.08), transparent 60%),
+                    radial-gradient(ellipse 700px 500px at 60% 50%, rgba(59, 130, 246, 0.04), transparent 60%);
 }
 
 /* ─── BASE ─────────────────────────────────────────────────────────────────── */
@@ -140,10 +163,8 @@
 
   body {
     @apply font-sans antialiased;
-    background-color: var(--bg-base);
     background-image: var(--grad-canvas);
     background-attachment: fixed;
-    color: var(--text-primary);
     overflow-x: hidden;
     width: 100%;
     max-width: 100%;
@@ -156,6 +177,16 @@
     -moz-osx-font-smoothing: grayscale;
     font-feature-settings: "cv11", "ss01", "ss03";
     letter-spacing: -0.005em;
+  }
+  /* Theme-specific body bg/color — using hardcoded values because the
+     var(--bg-base) cascade was being shadowed somewhere in the resolved style. */
+  :root body, [data-theme="dark"] body {
+    background-color: #03060d;
+    color: #f1f5f9;
+  }
+  [data-theme="light"] body {
+    background-color: #f4efe4;
+    color: #0b1220;
   }
 
   #root { min-height: 100%; width: 100%; overflow-x: hidden; }
@@ -687,6 +718,108 @@
 [data-theme="light"] .text-slate-600 { color: #b8c2cc !important; }
 [data-theme="light"] .text-slate-700 { color: #475569 !important; }
 
+/* Aksent text renkleri — açık tonlar (200/300) light bg'de kontrast vermiyor;
+   light mode'da koyu varyantlarla swap. Karanlık tonlar (700/800) zaten okunur. */
+[data-theme="light"] .text-amber-100  { color: #92400e !important; }
+[data-theme="light"] .text-amber-200  { color: #92400e !important; }
+[data-theme="light"] .text-amber-200\/90 { color: #92400e !important; }
+[data-theme="light"] .text-amber-200\/80 { color: #92400e !important; }
+[data-theme="light"] .text-amber-200\/70 { color: #78350f !important; }
+[data-theme="light"] .text-amber-300  { color: #92400e !important; }
+[data-theme="light"] .text-amber-400  { color: #92400e !important; }
+[data-theme="light"] .text-amber-400\/80 { color: #92400e !important; }
+[data-theme="light"] .text-amber-400\/70 { color: #78350f !important; }
+[data-theme="light"] .text-amber-400\/60 { color: #92400ec0 !important; }
+[data-theme="light"] .text-amber-500  { color: #92400e !important; }
+[data-theme="light"] .text-amber-600  { color: #78350f !important; }
+[data-theme="light"] .text-gold-400   { color: #92400e !important; }
+
+/* Amber background tints — açık zeminde çok soluk kalmasın */
+[data-theme="light"] .bg-amber-500\/8,
+[data-theme="light"] .bg-amber-500\/10,
+[data-theme="light"] .bg-amber-500\/12,
+[data-theme="light"] .bg-amber-500\/15 { background-color: rgba(180, 83, 9, 0.13) !important; }
+[data-theme="light"] .bg-amber-500\/20 { background-color: rgba(180, 83, 9, 0.18) !important; }
+[data-theme="light"] .border-amber-500\/15,
+[data-theme="light"] .border-amber-500\/20,
+[data-theme="light"] .border-amber-500\/25 { border-color: rgba(180, 83, 9, 0.32) !important; }
+[data-theme="light"] .border-amber-500\/30 { border-color: rgba(180, 83, 9, 0.42) !important; }
+
+/* Hover states — light için koyu beyaz/5 görünmüyordu, krem ton ekliyoruz */
+[data-theme="light"] .hover\:bg-white\/5:hover    { background-color: rgba(60, 45, 15, 0.06) !important; }
+[data-theme="light"] .hover\:bg-white\/10:hover   { background-color: rgba(60, 45, 15, 0.10) !important; }
+[data-theme="light"] .hover\:text-white:hover     { color: #0b1220 !important; }
+
+/* Emerald + red tints — light zeminde daha okunur tonlara */
+[data-theme="light"] .bg-emerald-500\/10,
+[data-theme="light"] .bg-emerald-500\/12,
+[data-theme="light"] .bg-emerald-500\/15,
+[data-theme="light"] .bg-emerald-500\/20 { background-color: rgba(4, 120, 87, 0.12) !important; }
+[data-theme="light"] .bg-red-500\/10,
+[data-theme="light"] .bg-red-500\/12,
+[data-theme="light"] .bg-red-500\/15,
+[data-theme="light"] .bg-red-500\/20    { background-color: rgba(185, 28, 28, 0.10) !important; }
+[data-theme="light"] .bg-green-500\/10,
+[data-theme="light"] .bg-green-500\/15,
+[data-theme="light"] .bg-green-500\/20  { background-color: rgba(4, 120, 87, 0.12) !important; }
+[data-theme="light"] .border-emerald-500\/25,
+[data-theme="light"] .border-emerald-500\/30,
+[data-theme="light"] .border-green-500\/30 { border-color: rgba(4, 120, 87, 0.35) !important; }
+[data-theme="light"] .border-red-500\/25,
+[data-theme="light"] .border-red-500\/30 { border-color: rgba(185, 28, 28, 0.35) !important; }
+
+[data-theme="light"] .text-blue-200   { color: #1d4ed8 !important; }
+[data-theme="light"] .text-blue-300   { color: #1d4ed8 !important; }
+[data-theme="light"] .text-blue-400   { color: #1d4ed8 !important; }
+
+[data-theme="light"] .text-orange-200 { color: #c2410c !important; }
+[data-theme="light"] .text-orange-300 { color: #c2410c !important; }
+[data-theme="light"] .text-orange-400 { color: #c2410c !important; }
+
+[data-theme="light"] .text-green-200  { color: #15803d !important; }
+[data-theme="light"] .text-green-300  { color: #15803d !important; }
+[data-theme="light"] .text-green-400  { color: #15803d !important; }
+
+[data-theme="light"] .text-red-200    { color: #b91c1c !important; }
+[data-theme="light"] .text-red-300    { color: #b91c1c !important; }
+[data-theme="light"] .text-red-400    { color: #b91c1c !important; }
+
+[data-theme="light"] .text-purple-200 { color: #6d28d9 !important; }
+[data-theme="light"] .text-purple-300 { color: #6d28d9 !important; }
+
+[data-theme="light"] .text-cyan-200   { color: #0e7490 !important; }
+[data-theme="light"] .text-cyan-300   { color: #0e7490 !important; }
+[data-theme="light"] .text-cyan-400   { color: #0e7490 !important; }
+
+[data-theme="light"] .text-emerald-200 { color: #047857 !important; }
+[data-theme="light"] .text-emerald-300 { color: #047857 !important; }
+[data-theme="light"] .text-emerald-400 { color: #047857 !important; }
+
+[data-theme="light"] .text-pink-300   { color: #be185d !important; }
+[data-theme="light"] .text-pink-400   { color: #be185d !important; }
+
+[data-theme="light"] .text-yellow-200 { color: #a16207 !important; }
+[data-theme="light"] .text-yellow-300 { color: #a16207 !important; }
+
+/* Light mode'da gradient backdrop opacity'li dark renkleri çok karartıyor;
+   yeni eklenen sayfalarda from-dark-900/80 vs kullanımı için */
+[data-theme="light"] .from-dark-900\/80,
+[data-theme="light"] .from-dark-900\/70,
+[data-theme="light"] .from-dark-900\/60,
+[data-theme="light"] .from-dark-900\/50,
+[data-theme="light"] .from-dark-900\/40,
+[data-theme="light"] .from-dark-900\/30 { --tw-gradient-from: rgba(255, 255, 255, 0.95); }
+
+[data-theme="light"] .to-dark-900\/80,
+[data-theme="light"] .to-dark-900\/70,
+[data-theme="light"] .to-dark-900\/60,
+[data-theme="light"] .to-dark-900\/50,
+[data-theme="light"] .to-dark-900\/40,
+[data-theme="light"] .to-dark-900\/30 { --tw-gradient-to: rgba(255, 255, 255, 0.5); }
+
+[data-theme="light"] .via-dark-900\/60,
+[data-theme="light"] .via-dark-900\/30 { --tw-gradient-via: rgba(255, 255, 255, 0.7); }
+
 /* Tables shell */
 .table-shell {
   width: 100%;
@@ -711,6 +844,102 @@
 
 .grid > * { min-width: 0; }
 .flex > * { min-width: 0; }
+
+/* ─── UPDATE POPUP — WOW EFEKTLERİ ─────────────────────────────────────────── */
+
+/* Modal entrance: scale + opacity, soft elastic */
+@keyframes popup-entrance {
+  0%   { opacity: 0; transform: translateY(20px) scale(0.92); }
+  60%  { opacity: 1; transform: translateY(-6px) scale(1.02); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* Backdrop fade */
+@keyframes popup-backdrop {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+/* Altın border glow nabzı */
+@keyframes popup-gold-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.4), 0 25px 50px -12px rgba(0, 0, 0, 0.5); }
+  50%      { box-shadow: 0 0 0 12px rgba(245, 158, 11, 0), 0 25px 50px -12px rgba(0, 0, 0, 0.5); }
+}
+
+/* Sparkle parıltı dönüyor */
+@keyframes popup-sparkle-spin {
+  0%   { transform: rotate(0deg) scale(1); opacity: 1; }
+  50%  { transform: rotate(180deg) scale(1.3); opacity: 0.6; }
+  100% { transform: rotate(360deg) scale(1); opacity: 1; }
+}
+
+/* Crown bounce on entrance */
+@keyframes popup-crown-bounce {
+  0%   { transform: scale(0) rotate(-12deg); }
+  60%  { transform: scale(1.15) rotate(8deg); }
+  80%  { transform: scale(0.95) rotate(-3deg); }
+  100% { transform: scale(1) rotate(0deg); }
+}
+
+/* Feature card stagger — sequential entrance */
+@keyframes popup-card-in {
+  from { opacity: 0; transform: translateX(-12px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+/* Version badge gold shimmer */
+@keyframes popup-shimmer {
+  0%   { background-position: -200% center; }
+  100% { background-position: 200% center; }
+}
+
+/* Confetti dots floating up */
+@keyframes popup-confetti {
+  0%   { opacity: 0; transform: translateY(0) scale(0); }
+  20%  { opacity: 1; transform: translateY(-10px) scale(1); }
+  100% { opacity: 0; transform: translateY(-60px) scale(0.5); }
+}
+
+.popup-modal {
+  animation: popup-entrance 600ms cubic-bezier(0.34, 1.56, 0.64, 1) both,
+             popup-gold-pulse 2.4s ease-in-out 700ms infinite;
+}
+
+.popup-backdrop {
+  animation: popup-backdrop 300ms ease-out both;
+}
+
+.popup-crown {
+  animation: popup-crown-bounce 700ms cubic-bezier(0.34, 1.56, 0.64, 1) 100ms both;
+}
+
+.popup-sparkle {
+  animation: popup-sparkle-spin 2.5s ease-in-out infinite;
+}
+
+.popup-version {
+  background: linear-gradient(90deg, #f59e0b 0%, #fde68a 25%, #f59e0b 50%, #fde68a 75%, #f59e0b 100%);
+  background-size: 200% auto;
+  animation: popup-shimmer 3s linear infinite;
+}
+
+.popup-card {
+  animation: popup-card-in 500ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  transition: transform 200ms ease, border-color 200ms ease, box-shadow 200ms ease;
+}
+.popup-card:hover {
+  transform: translateX(2px) scale(1.015);
+  box-shadow: 0 8px 20px rgba(245, 158, 11, 0.15);
+}
+
+.popup-confetti-dot {
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  animation: popup-confetti 1.8s ease-out infinite;
+  pointer-events: none;
+}
 
 /* ─── PREMIUM PRIMITIVES ───────────────────────────────────────────────────── */
 
@@ -1131,4 +1360,224 @@ select.premium:hover, select.premium:focus { border-color: var(--border-gold-str
 /* Crisp logo rendering at small sizes */
 img[alt="Borsa Krali"] {
   image-rendering: -webkit-optimize-contrast;
+}
+
+/* ─── SIDEBAR LINKS — theme-aware ───────────────────────────────────────── */
+.sb-link-default {
+  color: var(--text-muted);
+}
+.sb-link-default:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+.sb-link-highlight {
+  color: var(--gold-400);
+}
+.sb-link-highlight:hover {
+  background: rgba(212, 175, 55, 0.10);
+  color: var(--gold-300);
+}
+[data-theme="light"] .sb-link-highlight:hover {
+  background: rgba(180, 83, 9, 0.12);
+  color: var(--gold-500);
+}
+.sb-link-active {
+  background: linear-gradient(135deg, #fcd34d 0%, #f59e0b 50%, #d4940a 100%);
+  color: #1a1208;
+  box-shadow: 0 4px 14px rgba(245, 158, 11, 0.35);
+}
+[data-theme="light"] .sb-link-active {
+  background: linear-gradient(135deg, #f0c94f 0%, #c98911 50%, #8a6810 100%);
+  color: #1a1208;
+  box-shadow: 0 4px 14px rgba(184, 144, 30, 0.35);
+}
+.sb-tooltip {
+  background: var(--bg-card);
+  color: var(--text-primary);
+  border: 1px solid var(--border-gold);
+  box-shadow: var(--shadow-md);
+}
+
+/* ─── DATA BAND (header top strip) ─────────────────────────────────────────
+   Bloomberg-style top band that holds index quotes.
+   Dark theme: deep ink for cinematic feel. Light theme: warm parchment.
+   ────────────────────────────────────────────────────────────────────────── */
+.data-band {
+  background: rgba(0, 0, 0, 0.20);
+  border-bottom: 1px solid var(--border-main);
+}
+[data-theme="light"] .data-band {
+  background: linear-gradient(180deg, #fbf8f1 0%, #f4efe4 100%);
+  border-bottom: 1px solid rgba(60, 45, 15, 0.10);
+}
+
+/* ─── COMMAND PALETTE & MODALS ─────────────────────────────────────────── */
+@keyframes cmdk-in {
+  0%   { opacity: 0; transform: translateY(-8px) scale(0.98); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes cmdk-backdrop-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+.cmdk-backdrop {
+  animation: cmdk-backdrop-in 180ms ease-out;
+  background: rgba(3, 6, 13, 0.70);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+[data-theme="light"] .cmdk-backdrop {
+  background: rgba(60, 45, 15, 0.30);
+}
+.cmdk-panel {
+  animation: cmdk-in 220ms cubic-bezier(0.22, 1, 0.36, 1);
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  box-shadow: var(--shadow-xl), 0 0 0 1px rgba(212, 175, 55, 0.20);
+}
+[data-theme="light"] .cmdk-panel {
+  box-shadow: var(--shadow-xl), 0 0 0 1px rgba(184, 144, 30, 0.30);
+}
+.cmdk-input {
+  background: transparent;
+  color: var(--text-primary);
+  border: none;
+  outline: none;
+  width: 100%;
+  font-size: 15px;
+  padding: 1rem 1.25rem 1rem 3rem;
+}
+.cmdk-input::placeholder { color: var(--text-faint); }
+.cmdk-row {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  padding: 0.65rem 1rem;
+  border-radius: 0.6rem;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: background 120ms ease, border-color 120ms ease;
+}
+.cmdk-row:hover, .cmdk-row.is-active {
+  background: rgba(212, 175, 55, 0.10);
+  border-color: rgba(212, 175, 55, 0.25);
+}
+[data-theme="light"] .cmdk-row:hover,
+[data-theme="light"] .cmdk-row.is-active {
+  background: rgba(180, 83, 9, 0.10);
+  border-color: rgba(180, 83, 9, 0.30);
+}
+.cmdk-kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.5rem;
+  height: 1.4rem;
+  padding: 0 0.35rem;
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 10px;
+  font-weight: 700;
+  border-radius: 0.35rem;
+  background: var(--bg-input);
+  color: var(--text-muted);
+  border: 1px solid var(--border-main);
+  box-shadow: inset 0 -1px 0 var(--border-main);
+}
+
+/* ─── NOTIFICATIONS DROPDOWN ──────────────────────────────────────────── */
+.notif-panel {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  box-shadow: var(--shadow-xl);
+  border-radius: 14px;
+}
+.notif-row {
+  display: flex;
+  gap: 0.7rem;
+  padding: 0.7rem 0.85rem;
+  border-radius: 0.6rem;
+  transition: background 120ms ease;
+  cursor: pointer;
+}
+.notif-row:hover { background: var(--bg-hover); }
+
+/* ─── MARKET STATUS BANNER ─────────────────────────────────────────────── */
+.market-status {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  padding: 0.55rem 0.95rem;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  background: var(--bg-card);
+  border: 1px solid var(--border-main);
+  box-shadow: var(--shadow-sm);
+}
+.market-status.is-open {
+  background: linear-gradient(135deg, rgba(0, 201, 138, 0.12), rgba(0, 201, 138, 0.04));
+  border-color: rgba(0, 201, 138, 0.30);
+  color: var(--jade);
+}
+[data-theme="light"] .market-status.is-open {
+  background: linear-gradient(135deg, rgba(4, 120, 87, 0.10), rgba(4, 120, 87, 0.02));
+  border-color: rgba(4, 120, 87, 0.35);
+  color: #047857;
+}
+.market-status.is-closed {
+  background: linear-gradient(135deg, rgba(148, 163, 184, 0.10), rgba(148, 163, 184, 0.02));
+  border-color: var(--border-main);
+  color: var(--text-muted);
+}
+
+/* ─── HOVER LIFT (used on cards, quick-access tiles) ────────────────────── */
+.hover-lift {
+  transition: transform 200ms cubic-bezier(0.22, 1, 0.36, 1),
+              box-shadow 240ms ease,
+              border-color 200ms ease;
+}
+.hover-lift:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-hover);
+  border-color: var(--border-gold);
+}
+
+/* ─── KEYBOARD SHORTCUT KBD ─────────────────────────────────────────────── */
+kbd, .kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.4rem;
+  height: 1.3rem;
+  padding: 0 0.4rem;
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 10.5px;
+  font-weight: 600;
+  border-radius: 0.35rem;
+  background: var(--bg-input);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-main);
+  box-shadow: inset 0 -1px 0 var(--border-main);
+  letter-spacing: 0;
+}
+
+/* Number flash animations — faster + more readable */
+@keyframes num-pulse-up {
+  0%   { color: inherit; }
+  20%  { color: var(--jade); }
+  100% { color: inherit; }
+}
+@keyframes num-pulse-down {
+  0%   { color: inherit; }
+  20%  { color: var(--ember); }
+  100% { color: inherit; }
+}
+
+/* Reduced motion — respect user preference */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }

@@ -22,6 +22,9 @@ export function applyTheme(theme) {
   }
 
   document.documentElement.setAttribute('data-theme', resolvedTheme)
+  if (typeof document !== 'undefined' && document.body) {
+    document.body.setAttribute('data-theme', resolvedTheme)
+  }
   window.dispatchEvent(new CustomEvent('bk-theme-change', { detail: { theme: resolvedTheme } }))
 
   return resolvedTheme

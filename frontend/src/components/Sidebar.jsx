@@ -120,16 +120,19 @@ export default function Sidebar({ isOpen, onToggle }) {
       <div className="absolute top-0 right-0 bottom-0 w-px bg-gradient-to-b from-transparent via-amber-500/25 to-transparent pointer-events-none" />
 
       {/* Header */}
-      <div className="h-16 flex items-center justify-between px-4 border-b border-amber-500/15 relative flex-shrink-0">
+      <div
+        className="h-16 flex items-center justify-between px-4 relative flex-shrink-0"
+        style={{ borderBottom: '1px solid var(--border-main)' }}
+      >
         {isOpen && (
           <div className="flex items-center space-x-2.5 min-w-0">
             <div className="relative flex-shrink-0">
               <BrandMark size="md" className="glow-gold rounded-xl" />
-              <Crown className="absolute -top-1.5 -right-1.5 w-3.5 h-3.5 text-amber-400 drop-shadow-lg" />
+              <Crown className="absolute -top-1.5 -right-1.5 w-3.5 h-3.5 drop-shadow-lg" style={{ color: 'var(--gold-400)' }} />
             </div>
             <div className="flex flex-col min-w-0">
               <span className="font-bold text-[15px] text-gold-shimmer truncate leading-tight tracking-wide">BORSA KRALI</span>
-              <span className="text-[9px] uppercase tracking-[0.12em] text-amber-400/80 font-medium -mt-0.5">Premium Edition</span>
+              <span className="text-[9px] uppercase tracking-[0.12em] font-medium -mt-0.5" style={{ color: 'var(--gold-400)' }}>Premium Edition</span>
             </div>
           </div>
         )}
@@ -138,8 +141,17 @@ export default function Sidebar({ isOpen, onToggle }) {
 
         <button
           onClick={onToggle}
-          className="flex-shrink-0 p-1.5 hover:bg-amber-500/10 rounded-lg transition-all text-amber-400 hover:text-amber-300 border border-transparent hover:border-amber-500/25"
+          className="flex-shrink-0 p-1.5 rounded-lg transition-all border border-transparent"
           aria-label={isOpen ? 'Menüyü daralt' : 'Menüyü genişlet'}
+          style={{ color: 'var(--gold-400)' }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.background = 'rgba(212, 175, 55, 0.12)'
+            e.currentTarget.style.borderColor = 'rgba(212, 175, 55, 0.30)'
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.background = 'transparent'
+            e.currentTarget.style.borderColor = 'transparent'
+          }}
         >
           {isOpen ? <ChevronLeft className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
         </button>
@@ -151,11 +163,13 @@ export default function Sidebar({ isOpen, onToggle }) {
           {groupedItems.map((g, gIdx) => (
             <li key={g.group} className="space-y-0.5">
               {isOpen && (
-                <div className="px-3 pt-1 pb-1.5 text-[10px] uppercase tracking-[0.14em] font-semibold text-amber-400/60">
+                <div className="px-3 pt-1 pb-1.5 text-[10px] uppercase tracking-[0.14em] font-semibold"
+                  style={{ color: 'var(--text-faint)' }}
+                >
                   {g.label}
                 </div>
               )}
-              {!isOpen && gIdx > 0 && <div className="mx-3 my-1 border-t border-amber-500/10" />}
+              {!isOpen && gIdx > 0 && <div className="mx-3 my-1" style={{ borderTop: '1px solid var(--border-main)' }} />}
               <ul className="space-y-0.5">
                 {g.items.map((item) => {
                   const Icon = item.icon
@@ -165,12 +179,12 @@ export default function Sidebar({ isOpen, onToggle }) {
                         to={item.path}
                         end={item.path === '/'}
                         className={({ isActive }) =>
-                          `group relative flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200
+                          `sb-link group relative flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200
                           ${isActive
-                            ? 'bg-gradient-to-r from-amber-500/90 via-amber-500/85 to-amber-600/80 text-slate-950 shadow-[0_4px_14px_rgba(245,158,11,0.35)] font-semibold'
+                            ? 'sb-link-active font-semibold'
                             : item.highlight
-                              ? 'text-amber-400 hover:bg-amber-500/10 hover:text-amber-300'
-                              : 'text-gray-400 hover:bg-white/5 hover:text-white'
+                              ? 'sb-link-highlight'
+                              : 'sb-link-default'
                           }`
                         }
                       >
@@ -181,12 +195,7 @@ export default function Sidebar({ isOpen, onToggle }) {
                               <span className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-7 bg-white/60 rounded-r-full" />
                             )}
 
-                            <Icon
-                              className={`w-[18px] h-[18px] flex-shrink-0 transition-transform duration-200
-                                ${isActive ? 'text-slate-950' : item.highlight ? 'text-amber-400' : ''}
-                                group-hover:scale-110
-                              `}
-                            />
+                            <Icon className="w-[18px] h-[18px] flex-shrink-0 transition-transform duration-200 group-hover:scale-110" />
 
                             {isOpen && (
                               <span className={`text-[13px] truncate flex-1 ${isActive ? 'font-semibold' : 'font-medium'}`}>
@@ -217,7 +226,7 @@ export default function Sidebar({ isOpen, onToggle }) {
 
                             {/* Collapsed-mode tooltip on hover */}
                             {!isOpen && (
-                              <span className="invisible group-hover:visible absolute left-full ml-3 px-3 py-1.5 bg-slate-900 border border-amber-500/30 text-white text-xs font-medium rounded-lg shadow-premium whitespace-nowrap z-50 pointer-events-none">
+                              <span className="sb-tooltip invisible group-hover:visible absolute left-full ml-3 px-3 py-1.5 text-xs font-medium rounded-lg whitespace-nowrap z-50 pointer-events-none">
                                 {item.label}
                               </span>
                             )}
@@ -234,34 +243,42 @@ export default function Sidebar({ isOpen, onToggle }) {
       </nav>
 
       {/* Footer card */}
-      <div ref={profileMenuRef} className="flex-shrink-0 p-2 border-t border-amber-500/15 relative">
+      <div
+        ref={profileMenuRef}
+        className="flex-shrink-0 p-2 relative"
+        style={{ borderTop: '1px solid var(--border-main)' }}
+      >
         <button
           type="button"
           onClick={() => setProfileMenuOpen((v) => !v)}
           aria-expanded={profileMenuOpen}
           aria-haspopup="menu"
           aria-label="Profil menüsü"
-          className={`relative overflow-hidden rounded-xl p-3 w-full text-left transition-all hover:brightness-110 ${isOpen ? '' : 'flex items-center justify-center'}`}
+          className={`relative overflow-hidden rounded-xl p-3 w-full text-left transition-all hover:brightness-105 ${isOpen ? '' : 'flex items-center justify-center'}`}
           style={{
-            background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.08), rgba(245, 158, 11, 0.02))',
-            border: '1px solid rgba(245, 158, 11, 0.2)',
+            background: 'linear-gradient(135deg, rgba(212, 175, 55, 0.10), rgba(212, 175, 55, 0.02))',
+            border: '1px solid var(--border-gold)',
           }}
         >
           {/* Subtle shimmer overlay */}
-          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-amber-500/5 to-transparent pointer-events-none" />
+          <div className="absolute inset-0 pointer-events-none"
+            style={{ background: 'linear-gradient(90deg, transparent, rgba(212, 175, 55, 0.06), transparent)' }}
+          />
 
           {isOpen ? (
             <div className="relative flex items-center space-x-2.5">
               <div className="relative">
                 <BrandMark size="md" className="rounded-full glow-gold" imageClassName="rounded-full" />
-                <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-emerald-500 border-2 border-[var(--bg-card)] rounded-full" />
+                <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full"
+                  style={{ background: 'var(--jade)', border: '2px solid var(--bg-card)' }}
+                />
               </div>
               <div className="flex-1 min-w-0">
-                <div className="text-[13px] font-semibold text-white truncate flex items-center gap-1">
+                <div className="text-[13px] font-semibold truncate flex items-center gap-1" style={{ color: 'var(--text-primary)' }}>
                   {user?.firstName || 'Borsa Kralı'}
-                  <Sparkles className="w-3 h-3 text-amber-400" />
+                  <Sparkles className="w-3 h-3" style={{ color: 'var(--gold-400)' }} />
                 </div>
-                <div className="text-[10px] text-amber-400 font-medium tracking-wide truncate">
+                <div className="text-[10px] font-medium tracking-wide truncate" style={{ color: 'var(--gold-400)' }}>
                   {user?.plan === 'lifetime' ? 'Lifetime Üyelik' :
                    user?.plan === 'pro_monthly' ? 'Pro Aylık' :
                    user?.plan === 'starter_monthly' ? 'Starter' :
@@ -269,7 +286,8 @@ export default function Sidebar({ isOpen, onToggle }) {
                 </div>
               </div>
               <ChevronRight
-                className={`w-4 h-4 text-amber-400/70 flex-shrink-0 transition-transform ${profileMenuOpen ? 'rotate-90' : ''}`}
+                className={`w-4 h-4 flex-shrink-0 transition-transform ${profileMenuOpen ? 'rotate-90' : ''}`}
+                style={{ color: 'var(--gold-400)' }}
               />
             </div>
           ) : (
@@ -280,43 +298,43 @@ export default function Sidebar({ isOpen, onToggle }) {
         {profileMenuOpen && (
           <div
             role="menu"
-            className="absolute bottom-full left-2 right-2 mb-2 rounded-xl surface-glass shadow-xl z-50"
+            className="notif-panel absolute bottom-full left-2 right-2 mb-2 z-50"
           >
             <div className="p-1.5">
               {user?.email && (
-                <div className="px-3 py-2 border-b border-amber-500/15 mb-1">
-                  <div className="text-[11.5px] font-medium text-slate-300 truncate">{user.email}</div>
+                <div className="px-3 py-2 mb-1" style={{ borderBottom: '1px solid var(--border-main)' }}>
+                  <div className="text-[11.5px] font-medium truncate" style={{ color: 'var(--text-secondary)' }}>{user.email}</div>
                 </div>
               )}
-              <button
-                role="menuitem"
-                onClick={() => goTo('/ayarlar')}
-                className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg hover:bg-amber-500/10 transition-colors text-left text-[13px] text-slate-200"
-              >
-                <Settings className="w-4 h-4 text-amber-400" />
-                Ayarlar
-              </button>
-              <button
-                role="menuitem"
-                onClick={() => goTo('/sifre-degistir')}
-                className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg hover:bg-amber-500/10 transition-colors text-left text-[13px] text-slate-200"
-              >
-                <KeyRound className="w-4 h-4 text-amber-400" />
-                Şifre Değiştir
-              </button>
-              <button
-                role="menuitem"
-                onClick={() => goTo('/abonelik')}
-                className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg hover:bg-amber-500/10 transition-colors text-left text-[13px] text-slate-200"
-              >
-                <Sparkles className="w-4 h-4 text-amber-400" />
-                Abonelik
-              </button>
-              <div className="my-1 h-px bg-amber-500/15" />
+              {[
+                { icon: Settings, label: 'Ayarlar', to: '/ayarlar' },
+                { icon: KeyRound, label: 'Şifre Değiştir', to: '/sifre-degistir' },
+                { icon: Sparkles, label: 'Abonelik', to: '/abonelik' },
+              ].map(item => {
+                const Icon = item.icon
+                return (
+                  <button
+                    key={item.to}
+                    role="menuitem"
+                    onClick={() => goTo(item.to)}
+                    className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg transition-colors text-left text-[13px]"
+                    style={{ color: 'var(--text-secondary)' }}
+                    onMouseEnter={(e) => e.currentTarget.style.background = 'var(--bg-hover)'}
+                    onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                  >
+                    <Icon className="w-4 h-4" style={{ color: 'var(--gold-400)' }} />
+                    {item.label}
+                  </button>
+                )
+              })}
+              <div className="my-1 h-px" style={{ background: 'var(--border-main)' }} />
               <button
                 role="menuitem"
                 onClick={handleLogout}
-                className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg hover:bg-red-500/10 transition-colors text-left text-[13px] text-red-400 font-medium"
+                className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg transition-colors text-left text-[13px] font-medium"
+                style={{ color: 'var(--ember)' }}
+                onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255, 59, 70, 0.10)'}
+                onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
               >
                 <LogOut className="w-4 h-4" />
                 Çıkış Yap
