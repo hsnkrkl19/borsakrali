@@ -126,7 +126,7 @@ export default function BugununSinyalleri() {
             <p className="text-xs text-gray-400">09:55'te pre-market sinyalleri otomatik üretilir. Şimdi manuel başlatabilirsin.</p>
           </div>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
           <button onClick={() => triggerGenerate('premarket')} disabled={generating}
             className="btn-primary flex items-center gap-2 text-sm disabled:opacity-50">
             {generating ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
@@ -185,16 +185,19 @@ export default function BugununSinyalleri() {
                     : 'bg-dark-800 border-dark-700 hover:border-dark-600'
                 }`}
               >
-                <div className="flex items-center justify-between mb-1">
-                  <div className="flex items-center gap-2">
-                    <Icon className={`w-4 h-4 ${isActive ? `text-${meta.color}-400` : 'text-gray-400'}`} />
-                    <span className={`text-sm font-bold ${isActive ? 'text-white' : 'text-gray-300'}`}>{meta.label}</span>
+                <div className="flex items-center justify-between gap-2 mb-1">
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    <Icon className={`w-4 h-4 flex-shrink-0 ${isActive ? `text-${meta.color}-400` : 'text-gray-400'}`} />
+                    <span className={`text-sm font-bold whitespace-nowrap ${isActive ? 'text-white' : 'text-gray-300'}`}>{meta.label}</span>
                     {meta.isExperimental && (
-                      <span className="text-[9px] px-1.5 py-0.5 bg-amber-500/20 text-amber-300 rounded-full border border-amber-500/30 uppercase">deney</span>
+                      <span className="hidden sm:inline-block text-[9px] px-1.5 py-0.5 bg-amber-500/20 text-amber-300 rounded-full border border-amber-500/30 uppercase flex-shrink-0">deney</span>
                     )}
                   </div>
-                  <span className={`text-lg font-bold ${isActive ? `text-${meta.color}-300` : 'text-gray-500'}`}>{count}</span>
+                  <span className={`text-lg font-bold flex-shrink-0 ${isActive ? `text-${meta.color}-300` : 'text-gray-500'}`}>{count}</span>
                 </div>
+                {meta.isExperimental && (
+                  <span className="sm:hidden inline-block text-[9px] px-1.5 py-0.5 bg-amber-500/20 text-amber-300 rounded-full border border-amber-500/30 uppercase mb-1">deney</span>
+                )}
                 <p className="text-[10px] text-gray-500 leading-relaxed">{meta.sub}</p>
               </button>
             )
@@ -313,21 +316,36 @@ function SignalCard({ sig, rank, diff, reasonsCatalog, expanded, onToggle }) {
 
   return (
     <div className={`card border-2 ${expanded ? 'border-gold-500/40' : 'border-dark-700'} transition-colors`}>
-      <div className="flex items-center gap-3 cursor-pointer" onClick={onToggle}>
-        <span className="text-gray-500 font-bold w-6 text-center">#{rank}</span>
+      <div className="cursor-pointer" onClick={onToggle}>
+        {/* Üst satır — sembol, aksiyon, puan */}
+        <div className="flex items-center gap-2 sm:gap-3">
+          <span className="text-gray-500 font-bold w-6 text-center text-sm flex-shrink-0">#{rank}</span>
 
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-base font-bold text-white">{sig.symbol}</span>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-base font-bold text-white">{sig.symbol}</span>
+              <span className={`text-xs px-2 py-0.5 rounded-full border font-bold ${dir.bg} ${dir.border} ${dir.color}`}>
+                {dir.label}
+              </span>
+              <span className={`text-[10px] px-2 py-0.5 rounded-full border font-bold ${gradeColor}`}>
+                {sig.grade}
+              </span>
+            </div>
             {sig.name && sig.name !== sig.symbol && (
-              <span className="text-[10px] text-gray-500 truncate max-w-[200px]">{sig.name}</span>
+              <p className="text-[10px] text-gray-500 truncate mt-0.5">{sig.name}</p>
             )}
-            <span className={`text-xs px-2 py-0.5 rounded-full border font-bold ${dir.bg} ${dir.border} ${dir.color}`}>
-              {dir.label}
-            </span>
-            <span className={`text-[10px] px-2 py-0.5 rounded-full border font-bold ${gradeColor}`}>
-              {sig.grade}
-            </span>
+          </div>
+
+          <div className="text-right flex-shrink-0">
+            <div className="text-xl sm:text-2xl font-bold text-white leading-none">{sig.totalScore}</div>
+            <div className="text-[9px] sm:text-[10px] text-gray-500 mt-0.5">/ {sig.applicableMax} koşul</div>
+          </div>
+          {expanded ? <ChevronUp className="w-4 h-4 text-gray-400 flex-shrink-0" /> : <ChevronDown className="w-4 h-4 text-gray-400 flex-shrink-0" />}
+        </div>
+
+        {/* İkincil satır — sekonder rozetler */}
+        {(fillBadge.label || (reasonStyle && reasonLabel)) && (
+          <div className="flex items-center gap-1.5 flex-wrap mt-2 ml-8">
             <span className={`text-[10px] px-2 py-0.5 rounded-full border ${fillBadge.cls}`} title={fillBadge.desc}>
               {fillBadge.label}
             </span>
@@ -340,34 +358,29 @@ function SignalCard({ sig, rank, diff, reasonsCatalog, expanded, onToggle }) {
               </span>
             )}
           </div>
+        )}
 
-          <div className="flex items-center gap-3 mt-1 text-[11px] text-gray-400 flex-wrap">
-            {sig.entry != null && (
-              <span className="flex items-center gap-1">
-                <Target className="w-3 h-3" />
-                Giriş: <span className="text-white font-mono">{sig.entry?.toFixed(2)}</span>
-              </span>
-            )}
-            {sig.stop != null && (
-              <span className="text-red-300">Stop: <span className="font-mono">{sig.stop.toFixed(2)}</span></span>
-            )}
-            {sig.target != null && (
-              <span className="text-emerald-300">Hedef: <span className="font-mono">{sig.target.toFixed(2)}</span></span>
-            )}
-            {sig.bestZone?.priceDistancePct != null && (
-              <span>🎯 %{sig.bestZone.priceDistancePct} uzakta</span>
-            )}
-            {sig.bestZone?.pivotDate && (
-              <span className="text-gray-500">📅 {sig.bestZone.pivotDate}{sig.bestZone.daysAgo != null && ` (${sig.bestZone.daysAgo}g)`}</span>
-            )}
-          </div>
+        {/* Fiyat satırı */}
+        <div className="flex items-center gap-x-3 gap-y-1 mt-2 ml-8 text-[11px] text-gray-400 flex-wrap">
+          {sig.entry != null && (
+            <span className="flex items-center gap-1">
+              <Target className="w-3 h-3" />
+              Giriş: <span className="text-white font-mono">{sig.entry?.toFixed(2)}</span>
+            </span>
+          )}
+          {sig.stop != null && (
+            <span className="text-red-300">Stop: <span className="font-mono">{sig.stop.toFixed(2)}</span></span>
+          )}
+          {sig.target != null && (
+            <span className="text-emerald-300">Hedef: <span className="font-mono">{sig.target.toFixed(2)}</span></span>
+          )}
+          {sig.bestZone?.priceDistancePct != null && (
+            <span>🎯 %{sig.bestZone.priceDistancePct} uzakta</span>
+          )}
+          {sig.bestZone?.pivotDate && (
+            <span className="text-gray-500">📅 {sig.bestZone.pivotDate}{sig.bestZone.daysAgo != null && ` (${sig.bestZone.daysAgo}g)`}</span>
+          )}
         </div>
-
-        <div className="text-right">
-          <div className="text-2xl font-bold text-white">{sig.totalScore}</div>
-          <div className="text-[10px] text-gray-500">/ {sig.applicableMax} koşul</div>
-        </div>
-        {expanded ? <ChevronUp className="w-4 h-4 text-gray-400" /> : <ChevronDown className="w-4 h-4 text-gray-400" />}
       </div>
 
       {expanded && (

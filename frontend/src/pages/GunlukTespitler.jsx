@@ -425,12 +425,12 @@ export default function GunlukTespitler() {
       )}
 
       {/* Tabs */}
-      <div className="flex overflow-x-auto pb-1 border-b border-dark-700">
+      <div className="flex overflow-x-auto pb-1 border-b border-dark-700 -mx-1 px-1 scrollbar-thin">
         {tabs.map((tab) => (
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
-            className={`flex items-center space-x-1 md:space-x-2 px-3 md:px-4 py-2 md:py-3 border-b-2 transition-colors relative whitespace-nowrap ${activeTab === tab.id
+            className={`flex-shrink-0 flex items-center space-x-1 md:space-x-2 px-3 md:px-4 py-2 md:py-3 border-b-2 transition-colors relative whitespace-nowrap ${activeTab === tab.id
               ? 'border-primary-600 text-white'
               : 'border-transparent text-gray-400 hover:text-white'
               }`}

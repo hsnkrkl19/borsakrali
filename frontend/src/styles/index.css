@@ -207,13 +207,8 @@
     font-feature-settings: "tnum";
   }
 
-  /* Safe areas */
-  .pb-safe   { padding-bottom: max(env(safe-area-inset-bottom, 0px), 8px); }
-  .mb-safe   { margin-bottom:  max(env(safe-area-inset-bottom, 0px), 8px); }
-  .bottom-safe { bottom:       max(env(safe-area-inset-bottom, 0px), 0px); }
-  .mobile-nav-height { height: calc(64px + env(safe-area-inset-bottom, 0px)); }
-  /* Mobile: alt nav (64px) + ekstra boşluk + safe area = 110px+ */
-  .main-mobile-pb    { padding-bottom: calc(110px + env(safe-area-inset-bottom, 0px)); }
+  /* Safe area utilities moved to @layer utilities below — needs to override
+     Tailwind's p-4 shorthand on the same element (Layout.jsx main). */
 
   /* Tüm görüntüler taşma korumalı */
   html, body, #root {
@@ -1755,4 +1750,16 @@ kbd, .kbd {
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
   }
+}
+
+/* Safe area + mobile chrome helpers
+   Must live in @layer utilities so .main-mobile-pb's padding-bottom wins
+   over Tailwind's p-4 shorthand on the same element (Layout.jsx <main>).
+   Buffer accounts for: 64px MobileNav + floating AdSlot above nav + safe-area. */
+@layer utilities {
+  .pb-safe        { padding-bottom: max(env(safe-area-inset-bottom, 0px), 8px); }
+  .mb-safe        { margin-bottom:  max(env(safe-area-inset-bottom, 0px), 8px); }
+  .bottom-safe    { bottom:         max(env(safe-area-inset-bottom, 0px), 0px); }
+  .mobile-nav-height { height: calc(64px + env(safe-area-inset-bottom, 0px)); }
+  .main-mobile-pb { padding-bottom: calc(140px + env(safe-area-inset-bottom, 0px)); }
 }
