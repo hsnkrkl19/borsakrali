@@ -14,13 +14,15 @@
  *          GET /api/market/crypto/mtf/confluence
  */
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   RefreshCw, ChevronDown, ChevronUp, TrendingUp, TrendingDown, Minus,
   Coins, Layers, Target, Shield, Zap, AlertTriangle, CheckCircle2,
-  Sparkles, Clock, ExternalLink, Activity, Info, BarChart3,
+  Sparkles, Clock, ExternalLink, Activity, Info, BarChart3, Wifi, WifiOff,
 } from 'lucide-react'
+import { io } from 'socket.io-client'
 import api from '../services/api'
+import { getSocketBase } from '../config'
 
 // ── Yapılandırma ──────────────────────────────────────────────────────────
 const TF_LIST = [
@@ -90,6 +92,11 @@ export default function MTFSinyalleri() {
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [expandedSymbol, setExpandedSymbol] = useState(null)
+  const [socketConnected, setSocketConnected] = useState(false)
+  const [lastTickAt, setLastTickAt] = useState(null)   // mtf_tick event geliş zamanı
+  const socketRef = useRef(null)
+  const activeTFRef = useRef(activeTF)
+  useEffect(() => { activeTFRef.current = activeTF }, [activeTF])
 
   const loadScanner = useCallback(async (tf) => {
     try {
@@ -127,7 +134,33 @@ export default function MTFSinyalleri() {
       .finally(() => setLoading(false))
   }, [activeTF, loadScanner, loadConfluence])
 
-  // Polling cadence — TF'ye göre farklı tempo:
+  // Socket.IO bağlantısı — backend mtfLiveLoop tick event'lerini dinle
+  useEffect(() => {
+    const sock = io(getSocketBase(), {
+      transports: ['websocket', 'polling'],
+      reconnection: true,
+      reconnectionAttempts: 5,
+      reconnectionDelay: 1000,
+    })
+    socketRef.current = sock
+
+    sock.on('connect',    () => setSocketConnected(true))
+    sock.on('disconnect', () => setSocketConnected(false))
+
+    // Backend mtfLiveLoop her 10sn tick atar — strategy='crypto_mtf_tick'
+    sock.on('new_signal', (msg) => {
+      if (msg?.strategy !== 'crypto_mtf_tick') return
+      setLastTickAt(new Date().toISOString())
+      // Aktif TF tick'in TF'siyle eşleşiyorsa tarayıcı verisini tazele
+      if (msg.timeframe === activeTFRef.current) {
+        loadScanner(msg.timeframe)
+      }
+    })
+
+    return () => { sock.disconnect() }
+  }, [loadScanner])
+
+  // Polling cadence — Socket.IO yedeği olarak (bağlantı düşerse veya 1m dışı TF'de):
   //   1m  → 10sn (kullanıcı isteği: dakikalık her 10sn güncellensin)
   //   5m  → 30sn
   //   15m → 60sn
@@ -185,6 +218,20 @@ export default function MTFSinyalleri() {
             </div>
           </div>
           <div className="flex items-center gap-2">
+            {/* Socket bağlantı durumu */}
+            <span
+              className={`flex items-center gap-1 text-[10px] px-2 py-1 rounded-full border ${
+                socketConnected
+                  ? 'bg-emerald-500/10 text-emerald-300 border-emerald-500/30'
+                  : 'bg-rose-500/10 text-rose-300 border-rose-500/30'
+              }`}
+              title={socketConnected
+                ? (lastTickAt ? `Son tick: ${new Date(lastTickAt).toLocaleTimeString('tr-TR')}` : 'Socket bağlandı, tick bekleniyor')
+                : 'Socket bağlantısı kopuk — polling kullanılıyor'}
+            >
+              {socketConnected ? <Wifi className="w-3 h-3" /> : <WifiOff className="w-3 h-3" />}
+              {socketConnected ? 'Canlı' : 'Polling'}
+            </span>
             <button
               onClick={() => setView(view === 'scanner' ? 'confluence' : 'scanner')}
               className="btn-secondary text-xs px-3 py-1.5 flex items-center gap-1"
@@ -464,6 +511,17 @@ function SignalCard({ sig, rank, direction, tf, expanded, onToggle, confluenceFo
               {volStyle && (
                 <span className={`text-[10px] px-2 py-0.5 rounded-full ${volStyle.bg} ${volStyle.color}`}>
                   {volStyle.label}
+                </span>
+              )}
+              {sig.winProbability && (
+                <span
+                  className={`text-[10px] px-2 py-0.5 rounded-full border bg-purple-500/10 text-purple-300 border-purple-500/30`}
+                  title={`Bayesian win probability — bucket: ${sig.winProbability.bucket}, prior: ${(sig.winProbability.prior * 100).toFixed(0)}%, ${sig.winProbability.samples > 0 ? sig.winProbability.samples + ' örneklem' : 'henüz backtest verisi yok'}`}
+                >
+                  %{(sig.winProbability.probability * 100).toFixed(0)} kazanma
+                  {sig.winProbability.samples > 0 && (
+                    <span className="text-[8px] opacity-70 ml-0.5">·n{sig.winProbability.samples}</span>
+                  )}
                 </span>
               )}
               {confluenceForCoin && (

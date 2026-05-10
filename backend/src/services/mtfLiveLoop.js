@@ -36,9 +36,29 @@ async function tick() {
   try {
     // Lazy require — circular import'ları önler
     const multiTimeframeService = require('./multiTimeframeService');
-    await multiTimeframeService.runAndStore('1m');
+    const result = await multiTimeframeService.runAndStore('1m');
     lastSuccessAt = new Date().toISOString();
     lastError = null;
+
+    // Frontend'e Socket.IO event gönder — polling beklemeden anlık tepki
+    try {
+      const socketService = require('./socketService');
+      const longCount  = result?.scanner?.long?.signals?.length  || 0;
+      const shortCount = result?.scanner?.short?.signals?.length || 0;
+      socketService.broadcastSignal({
+        strategy: 'crypto_mtf_tick',
+        timeframe: '1m',
+        generatedAt: result?.generatedAt,
+        longCount, shortCount,
+        topLong:  (result?.scanner?.long?.signals  || []).slice(0, 3).map(s => s.symbol),
+        topShort: (result?.scanner?.short?.signals || []).slice(0, 3).map(s => s.symbol),
+        cycleCount,
+        stockSymbol: 'CRYPTO_MTF_1M',
+      });
+    } catch (e) {
+      // socket emit başarısız olsa loop devam etsin
+      logger.warn(`[MTFLoop] socket emit başarısız: ${e.message}`);
+    }
 
     // Her 6 cycle'da bir (yaklaşık 1 dk) log — gürültü kontrol
     if (cycleCount % 6 === 0) {

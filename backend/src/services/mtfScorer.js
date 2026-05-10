@@ -19,6 +19,7 @@
  */
 
 const patterns = require('./mtfPatternDetection');
+const calibration = require('./mtfCalibrationService');
 
 // ───────────────────────────────────────────────────────────────────────────
 // SPOT / FUTURES_LONG koşul kataloğu (12 koşul, max 12 puan)
@@ -380,6 +381,7 @@ function scoreDirection(catalog, ctx, direction, currentTF) {
     conditions,
     ...levels,
     leverage_suggest: suggestLeverage(currentTF, totalScore, direction),
+    winProbability: calibration.getWinProbability(currentTF, totalScore, applicableMax, direction),
     indicators: {
       current_rsi: ctx.current?.rsi,
       current_macdHist: ctx.current?.macdHist,
