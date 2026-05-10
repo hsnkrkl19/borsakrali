@@ -178,11 +178,11 @@ RSI < 30 -> asiri satim bolgesi`}
               <h3 className="mb-2 mt-4 text-lg font-semibold text-gold-200">RSI Yorumu</h3>
               <ul className="mt-2 list-disc space-y-2 pl-6">
                 <li>
-                  <strong className="text-white">Asiri alim:</strong> RSI > 70. Fiyatin kisa vadede tepe
+                  <strong className="text-white">Asiri alim:</strong> RSI &gt; 70. Fiyatin kisa vadede tepe
                   yapma olasiligi yukselir; ancak guclu trendde uzun sure 70 uzerinde kalabilir.
                 </li>
                 <li>
-                  <strong className="text-white">Asiri satim:</strong> RSI < 30. Fiyatin kisa vadede dipten
+                  <strong className="text-white">Asiri satim:</strong> RSI &lt; 30. Fiyatin kisa vadede dipten
                   donme olasiligi yukselir.
                 </li>
                 <li>
