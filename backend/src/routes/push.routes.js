@@ -45,6 +45,52 @@ router.get('/debug-log', (req, res) => {
   res.json({ logs: debugLogs.slice(-30) });
 });
 
+// FCM canlı test — admin SDK auth durumunu net görmek için
+router.get('/diagnose', async (req, res) => {
+  const result = { ok: false, steps: [] };
+  try {
+    const summary = pushNotificationService.getSummary();
+    result.steps.push({ step: 'getSummary', ok: summary.success, configured: summary.configured });
+
+    // Service account'ın project_id'sini açığa çıkar
+    let saProjectId = null;
+    try {
+      const inline = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
+      const b64 = process.env.FIREBASE_SERVICE_ACCOUNT_BASE64;
+      if (inline) saProjectId = JSON.parse(inline).project_id;
+      else if (b64) saProjectId = JSON.parse(Buffer.from(b64, 'base64').toString('utf8')).project_id;
+    } catch { /* ignore */ }
+    result.steps.push({ step: 'serviceAccount.projectId', value: saProjectId });
+
+    // Cihaz olmadan FCM auth'ı test eden minimum çağrı: dryRun mesaj
+    const admin = require('firebase-admin');
+    if (!admin.apps.length) {
+      return res.json({ ...result, error: 'admin app yok' });
+    }
+    const messaging = admin.messaging();
+    try {
+      // Dummy token ile dryRun: token geçersiz olsa bile auth başarısızsa farklı hata gelir
+      await messaging.send({
+        token: 'dummy_token_for_auth_test',
+        notification: { title: 'diagnose', body: 'test' },
+      }, true /* dryRun */);
+      result.steps.push({ step: 'fcm.send(dryRun)', ok: true });
+      result.ok = true;
+    } catch (e) {
+      result.steps.push({
+        step: 'fcm.send(dryRun)',
+        ok: false,
+        code: e?.code,
+        errorInfo: e?.errorInfo,
+        message: (e?.message || String(e)).slice(0, 500),
+      });
+    }
+    res.json(result);
+  } catch (e) {
+    res.status(500).json({ ok: false, fatal: e?.message || String(e), steps: result.steps });
+  }
+});
+
 router.post('/register', registerLimiter, async (req, res) => {
   const result = await pushNotificationService.registerDevice({
     ...req.body,
