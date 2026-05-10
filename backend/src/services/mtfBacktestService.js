@@ -375,7 +375,7 @@ async function calibrateFromHistory(opts = {}) {
   const doSave = opts.save !== false;
 
   const today = new Date();
-  // En son kapanmış gün başlangıç: today - 1 gün (bugünün açık candle'ı sayılmaz)
+  // En son kapanmış gün başlangıç: today - 1 gün
   const startDay = new Date(today.getTime() - 24 * 3600 * 1000);
 
   const asOfDates = [];
@@ -384,11 +384,34 @@ async function calibrateFromHistory(opts = {}) {
     asOfDates.push(d.toISOString().slice(0, 10));
   }
 
-  logger.info(`[MTFCalib] Başlatıldı — TFs: ${tfs.join(',')}, days: ${asOfDates.length}, total backtests: ${tfs.length * asOfDates.length}`);
+  const totalSteps = tfs.length * asOfDates.length;
+  logger.info(`[MTFCalib] Başlatıldı — TFs: ${tfs.join(',')}, days: ${asOfDates.length}, total backtests: ${totalSteps}`);
+
+  // Socket.IO progress publisher (lazy require — circular import yok)
+  let socket = null;
+  try { socket = require('./socketService'); } catch (_) {}
+
+  const startedAt = Date.now();
+  const emit = (payload) => {
+    if (!socket?.broadcastSignal) return;
+    try {
+      socket.broadcastSignal({
+        strategy: 'mtf_calibration_progress',
+        ...payload,
+        elapsedMs: Date.now() - startedAt,
+        stockSymbol: 'MTF_CALIB',
+      });
+    } catch (_) {}
+  };
+
+  emit({ phase: 'started', totalSteps, completedSteps: 0, tfs, asOfDates });
 
   const summary = [];
+  let stepIndex = 0;
   for (const tf of tfs) {
     for (const asOf of asOfDates) {
+      stepIndex += 1;
+      emit({ phase: 'running', currentTF: tf, currentDate: asOf, completedSteps: stepIndex - 1, totalSteps });
       try {
         const result = await backtestTFAsOf(tf, asOf, TF_DEFAULT_HORIZON[tf]);
         const allSignals = [...result.longResults, ...result.shortResults].map(s => ({
@@ -398,7 +421,7 @@ async function calibrateFromHistory(opts = {}) {
           outcome: s.outcome,
         }));
         const upd = calibration.updateFromBacktest(tf, allSignals);
-        summary.push({
+        const stepRow = {
           tf, asOfDate: asOf,
           longCount: result.longResults.length,
           shortCount: result.shortResults.length,
@@ -406,11 +429,15 @@ async function calibrateFromHistory(opts = {}) {
           shortWinRate: result.stats.short.winRate,
           updated: upd.updated,
           skipped: upd.skipped,
-        });
+        };
+        summary.push(stepRow);
+        emit({ phase: 'step_done', completedSteps: stepIndex, totalSteps, step: stepRow });
         logger.info(`[MTFCalib] ${tf}@${asOf}: long ${result.stats.long.winRate}% (${result.stats.long.total}) · short ${result.stats.short.winRate}% (${result.stats.short.total}) · updated ${upd.updated}`);
       } catch (e) {
         logger.error(`[MTFCalib] ${tf}@${asOf} hata: ${e.message}`);
-        summary.push({ tf, asOfDate: asOf, error: e.message });
+        const stepRow = { tf, asOfDate: asOf, error: e.message };
+        summary.push(stepRow);
+        emit({ phase: 'step_error', completedSteps: stepIndex, totalSteps, step: stepRow });
       }
     }
   }
@@ -419,6 +446,8 @@ async function calibrateFromHistory(opts = {}) {
     const ok = calibration.save();
     logger.info(`[MTFCalib] Calibration tablosu diske ${ok ? 'yazıldı' : 'YAZILAMADI'}`);
   }
+
+  emit({ phase: 'completed', completedSteps: totalSteps, totalSteps, summary });
 
   return {
     completedAt: new Date().toISOString(),

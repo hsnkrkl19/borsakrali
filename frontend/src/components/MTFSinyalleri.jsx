@@ -18,7 +18,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   RefreshCw, ChevronDown, ChevronUp, TrendingUp, TrendingDown, Minus,
   Coins, Layers, Target, Shield, Zap, AlertTriangle, CheckCircle2,
-  Sparkles, Clock, ExternalLink, Activity, Info, BarChart3, Wifi, WifiOff,
+  Sparkles, Clock, ExternalLink, Activity, Info, BarChart3, Wifi, WifiOff, Star,
 } from 'lucide-react'
 import { io } from 'socket.io-client'
 import api from '../services/api'
@@ -93,6 +93,9 @@ export default function MTFSinyalleri() {
   const [calibrationRunning, setCalibrationRunning] = useState(false)
   const [backtestData, setBacktestData] = useState(null)
   const [backtestRunning, setBacktestRunning] = useState(false)
+  const [calibrationProgress, setCalibrationProgress] = useState(null)  // { phase, completedSteps, totalSteps, currentTF, currentDate }
+  const [watchlistOnly, setWatchlistOnly] = useState(false)
+  const [watchlistSymbols, setWatchlistSymbols] = useState(new Set())
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [expandedSymbol, setExpandedSymbol] = useState(null)
@@ -139,6 +142,7 @@ export default function MTFSinyalleri() {
 
   const triggerCalibrationRun = useCallback(async () => {
     setCalibrationRunning(true)
+    setCalibrationProgress({ phase: 'starting', completedSteps: 0, totalSteps: 0 })
     try {
       // Hafif: sadece aktif TF × 3 gün — UI bloklamasın
       await api.post('/market/crypto/mtf/calibrate', { tfs: [activeTF], daysBack: 3, save: true })
@@ -147,8 +151,22 @@ export default function MTFSinyalleri() {
       // sessiz
     } finally {
       setCalibrationRunning(false)
+      // Progress'i 3 sn sonra temizle (kullanıcı son durumu görsün)
+      setTimeout(() => setCalibrationProgress(null), 3000)
     }
   }, [activeTF, loadCalibration])
+
+  // Watchlist'i yükle (kullanıcı takip listesi)
+  const loadWatchlist = useCallback(async () => {
+    try {
+      const r = await api.get('/user/watchlist')
+      const symbols = (r.data?.watchlist || []).map(s => (s.symbol || s).toUpperCase())
+      setWatchlistSymbols(new Set(symbols))
+    } catch (e) {
+      // takip listesi yoksa sessiz; toggle disabled olur
+    }
+  }, [])
+  useEffect(() => { loadWatchlist() }, [loadWatchlist])
 
   const loadConfluence = useCallback(async () => {
     try {
@@ -189,17 +207,32 @@ export default function MTFSinyalleri() {
     sock.on('disconnect', () => setSocketConnected(false))
 
     // Backend mtfLiveLoop her 10sn tick atar — strategy='crypto_mtf_tick'
+    // mtfBacktestService calibration progress'i — strategy='mtf_calibration_progress'
     sock.on('new_signal', (msg) => {
-      if (msg?.strategy !== 'crypto_mtf_tick') return
-      setLastTickAt(new Date().toISOString())
-      // Aktif TF tick'in TF'siyle eşleşiyorsa tarayıcı verisini tazele
-      if (msg.timeframe === activeTFRef.current) {
-        loadScanner(msg.timeframe)
+      if (msg?.strategy === 'crypto_mtf_tick') {
+        setLastTickAt(new Date().toISOString())
+        if (msg.timeframe === activeTFRef.current) {
+          loadScanner(msg.timeframe)
+        }
+      } else if (msg?.strategy === 'mtf_calibration_progress') {
+        setCalibrationProgress({
+          phase: msg.phase,
+          completedSteps: msg.completedSteps || 0,
+          totalSteps: msg.totalSteps || 0,
+          currentTF: msg.currentTF,
+          currentDate: msg.currentDate,
+          elapsedMs: msg.elapsedMs || 0,
+          step: msg.step,
+        })
+        // 'completed' geldiğinde calibration'ı yeniden yükle
+        if (msg.phase === 'completed') {
+          loadCalibration()
+        }
       }
     })
 
     return () => { sock.disconnect() }
-  }, [loadScanner])
+  }, [loadScanner, loadCalibration])
 
   // Polling cadence — Socket.IO yedeği olarak (bağlantı düşerse veya 1m dışı TF'de):
   //   1m  → 10sn (kullanıcı isteği: dakikalık her 10sn güncellensin)
@@ -375,6 +408,9 @@ export default function MTFSinyalleri() {
           onGenerate={triggerGenerate}
           refreshing={refreshing}
           confluenceData={confluenceData}
+          watchlistOnly={watchlistOnly}
+          setWatchlistOnly={setWatchlistOnly}
+          watchlistSymbols={watchlistSymbols}
         />
       )}
 
@@ -384,6 +420,9 @@ export default function MTFSinyalleri() {
           data={confluenceData}
           expandedSymbol={expandedSymbol}
           setExpandedSymbol={setExpandedSymbol}
+          watchlistOnly={watchlistOnly}
+          setWatchlistOnly={setWatchlistOnly}
+          watchlistSymbols={watchlistSymbols}
         />
       )}
 
@@ -394,6 +433,7 @@ export default function MTFSinyalleri() {
           activeTF={activeTF}
           onCalibrate={triggerCalibrationRun}
           running={calibrationRunning}
+          progress={calibrationProgress}
         />
       )}
 
@@ -411,7 +451,7 @@ export default function MTFSinyalleri() {
 }
 
 // ─── Scanner görünümü ─────────────────────────────────────────────────────
-function ScannerView({ data, activeTF, direction, setDirection, expandedSymbol, setExpandedSymbol, onGenerate, refreshing, confluenceData }) {
+function ScannerView({ data, activeTF, direction, setDirection, expandedSymbol, setExpandedSymbol, onGenerate, refreshing, confluenceData, watchlistOnly, setWatchlistOnly, watchlistSymbols }) {
   if (data?.pending) {
     return (
       <div className="card p-8 text-center space-y-3">
@@ -437,11 +477,18 @@ function ScannerView({ data, activeTF, direction, setDirection, expandedSymbol, 
   }
 
   const scanner = data?.scanner
-  const longSignals = scanner?.long?.signals || []
-  const shortSignals = scanner?.short?.signals || []
+  const allLongSignals  = scanner?.long?.allSignals  || scanner?.long?.signals  || []
+  const allShortSignals = scanner?.short?.allSignals || scanner?.short?.signals || []
+  // Watchlist filtresi: aktifse sadece takip listesindeki coin'ler
+  const filterByWatchlist = (sigs) => watchlistOnly
+    ? sigs.filter(s => watchlistSymbols.has((s.symbol || '').toUpperCase()))
+    : sigs.slice(0, 10)
+  const longSignals  = filterByWatchlist(allLongSignals)
+  const shortSignals = filterByWatchlist(allShortSignals)
   const visibleSignals = direction === 'long' ? longSignals : shortSignals
-  const longCount = longSignals.length
-  const shortCount = shortSignals.length
+  const longCount  = (watchlistOnly ? filterByWatchlist(allLongSignals)  : allLongSignals.slice(0, 10)).length
+  const shortCount = (watchlistOnly ? filterByWatchlist(allShortSignals) : allShortSignals.slice(0, 10)).length
+  const watchlistAvailable = watchlistSymbols && watchlistSymbols.size > 0
 
   return (
     <>
@@ -460,7 +507,22 @@ function ScannerView({ data, activeTF, direction, setDirection, expandedSymbol, 
             {scanner?.generatedAt ? new Date(scanner.generatedAt).toLocaleTimeString('tr-TR', {hour:'2-digit', minute:'2-digit'}) : '—'}
           </span>
         </div>
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1 flex-wrap">
+          {/* Watchlist filtresi (sadece takipte) */}
+          {watchlistAvailable && (
+            <button
+              onClick={() => setWatchlistOnly(!watchlistOnly)}
+              className={`text-[10px] px-2.5 py-1 rounded-full border font-semibold flex items-center gap-1 ${
+                watchlistOnly
+                  ? 'bg-gold-500/20 text-gold-300 border-gold-500/40'
+                  : 'bg-dark-800 text-gray-500 border-dark-700'
+              }`}
+              title={`Takip listendeki ${watchlistSymbols.size} coin'i filtrele`}
+            >
+              <Star className="w-2.5 h-2.5" />
+              Takipte ({watchlistSymbols.size})
+            </button>
+          )}
           <button
             onClick={() => setDirection('long')}
             className={`text-[10px] px-2.5 py-1 rounded-full border font-bold ${
@@ -818,7 +880,7 @@ function SignalCard({ sig, rank, direction, tf, expanded, onToggle, confluenceFo
 }
 
 // ─── Confluence görünümü ──────────────────────────────────────────────────
-function ConfluenceView({ data, expandedSymbol, setExpandedSymbol }) {
+function ConfluenceView({ data, expandedSymbol, setExpandedSymbol, watchlistOnly, setWatchlistOnly, watchlistSymbols }) {
   if (data?.error) {
     return (
       <div className="card p-6 text-center">
@@ -827,19 +889,49 @@ function ConfluenceView({ data, expandedSymbol, setExpandedSymbol }) {
       </div>
     )
   }
-  const top = data?.top || []
+  // Watchlist filtresi: aktifse sadece takip listesindeki coin'ler (top 20'den filtre)
+  const allList = data?.all || data?.top || []
+  const watchlistAvailable = watchlistSymbols && watchlistSymbols.size > 0
+  const top = watchlistOnly && watchlistAvailable
+    ? allList.filter(c => watchlistSymbols.has((c.symbol || '').toUpperCase()))
+    : (data?.top || [])
+
   if (top.length === 0) {
     return (
       <div className="card p-6 text-center">
         <Layers className="w-6 h-6 text-gray-500 mx-auto mb-2" />
-        <p className="text-sm text-gray-400">Henüz yeterli TF taraması yok.</p>
-        <p className="text-xs text-gray-500 mt-1">Önce her TF için scanner'ı çalıştır.</p>
+        <p className="text-sm text-gray-400">
+          {watchlistOnly
+            ? 'Takip listendeki coin\'ler için MTF confluence verisi yok.'
+            : 'Henüz yeterli TF taraması yok.'}
+        </p>
+        <p className="text-xs text-gray-500 mt-1">
+          {watchlistOnly ? 'Filtreyi kapatıp tüm coin\'leri görebilirsin.' : 'Önce her TF için scanner\'ı çalıştır.'}
+        </p>
       </div>
     )
   }
 
   return (
     <>
+      {/* Watchlist filter toggle */}
+      {watchlistAvailable && (
+        <div className="card p-2 flex items-center justify-end">
+          <button
+            onClick={() => setWatchlistOnly(!watchlistOnly)}
+            className={`text-[10px] px-2.5 py-1 rounded-full border font-semibold flex items-center gap-1 ${
+              watchlistOnly
+                ? 'bg-gold-500/20 text-gold-300 border-gold-500/40'
+                : 'bg-dark-800 text-gray-500 border-dark-700'
+            }`}
+            title={`Takip listendeki ${watchlistSymbols.size} coin'i filtrele`}
+          >
+            <Star className="w-2.5 h-2.5" />
+            Sadece takipte ({watchlistSymbols.size})
+          </button>
+        </div>
+      )}
+
       {/* Özet sayaçları */}
       <div className="card p-3 grid grid-cols-3 sm:grid-cols-7 gap-2 text-[10px]">
         <Tally label="STRONG LONG" value={data.strongLong} cls="text-emerald-300 bg-emerald-500/15" />
@@ -1018,7 +1110,7 @@ function CoinDetailExpanded({ symbol, confluence }) {
 }
 
 // ─── Calibration (Bayesian) görünümü ───────────────────────────────────────
-function CalibrationView({ data, activeTF, onCalibrate, running }) {
+function CalibrationView({ data, activeTF, onCalibrate, running, progress }) {
   if (!data) {
     return (
       <div className="card p-8 text-center">
@@ -1093,6 +1185,11 @@ function CalibrationView({ data, activeTF, onCalibrate, running }) {
         </button>
       </div>
 
+      {/* Progress bar — calibration çalışırken canlı güncelleme */}
+      {progress && progress.phase !== 'completed' && (
+        <CalibrationProgressBar progress={progress} />
+      )}
+
       {/* Açıklama */}
       <div className="card p-3 flex items-start gap-2 bg-blue-500/5 border-blue-500/20 text-[11px]">
         <Info className="w-3.5 h-3.5 text-blue-400 mt-0.5 flex-shrink-0" />
@@ -1121,6 +1218,59 @@ function CalibrationView({ data, activeTF, onCalibrate, running }) {
               allBuckets={allBuckets}
             />
           ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function CalibrationProgressBar({ progress }) {
+  const { phase, completedSteps, totalSteps, currentTF, currentDate, elapsedMs, step } = progress
+  const pct = totalSteps > 0 ? Math.round((completedSteps / totalSteps) * 100) : 0
+  const elapsedSec = Math.round((elapsedMs || 0) / 1000)
+  // ETA: ortalama step süresi × kalan step
+  const stepAvgMs = completedSteps > 0 ? (elapsedMs || 0) / completedSteps : 0
+  const remainingMs = stepAvgMs * Math.max(0, totalSteps - completedSteps)
+  const etaSec = Math.round(remainingMs / 1000)
+
+  const phaseLabel = {
+    starting:    'Başlatılıyor',
+    started:     'Başlatıldı',
+    running:     `${currentTF || ''}@${currentDate || ''} işleniyor`,
+    step_done:   'Adım tamamlandı',
+    step_error:  'Adım hatası',
+    completed:   'Tamamlandı',
+  }[phase] || phase
+
+  const lastWinRate = step?.longWinRate != null
+    ? `Long ${step.longWinRate}% (${step.longCount}) · Short ${step.shortWinRate}% (${step.shortCount})`
+    : null
+
+  return (
+    <div className="card p-3 space-y-2 border-purple-500/30">
+      <div className="flex items-center justify-between text-[11px] flex-wrap gap-2">
+        <div className="flex items-center gap-2">
+          <RefreshCw className={`w-3.5 h-3.5 text-purple-300 ${phase === 'running' ? 'animate-spin' : ''}`} />
+          <span className="text-purple-300 font-semibold">Calibration</span>
+          <span className="text-gray-400">— {phaseLabel}</span>
+        </div>
+        <div className="text-gray-400 font-mono text-[10px]">
+          {completedSteps} / {totalSteps} adım
+          {elapsedSec > 0 && <span className="ml-2">· geçen {elapsedSec}sn</span>}
+          {etaSec > 0 && phase !== 'completed' && <span className="ml-2">· kalan ~{etaSec}sn</span>}
+        </div>
+      </div>
+      {/* Progress bar */}
+      <div className="h-2 bg-dark-700 rounded-full overflow-hidden">
+        <div
+          className="h-full bg-gradient-to-r from-purple-500 to-emerald-500 transition-all"
+          style={{ width: `${pct}%` }}
+        />
+      </div>
+      {lastWinRate && (
+        <div className="text-[10px] text-gray-500 flex items-center gap-1">
+          <CheckCircle2 className="w-3 h-3 text-emerald-400" />
+          <span className="text-gray-300">Son adım:</span> {lastWinRate}
         </div>
       )}
     </div>
