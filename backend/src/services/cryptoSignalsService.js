@@ -467,10 +467,269 @@ async function analyzeSingleCoin(symbol) {
   };
 }
 
+// ── Backtest: geçmiş tarih ile sinyal performans simülasyonu ──────────────
+// Binance klines API'nin endTime/startTime parametrelerini kullanır —
+// gelecek veri sızdırmayı önler.
+
+async function fetchKlinesHistorical(symbol, interval, endTimeMs, limit = 250) {
+  try {
+    const res = await axios.get(`${BINANCE_BASE}/api/v3/klines`, {
+      params: {
+        symbol: `${symbol}USDT`,
+        interval, limit,
+        endTime: endTimeMs,
+      },
+      timeout: 15000,
+    });
+    return (res.data || []).map(k => ({
+      time: Math.floor(k[0] / 1000),
+      open: +k[1], high: +k[2], low: +k[3], close: +k[4],
+      volume: +k[5],
+    }));
+  } catch (e) {
+    return null;
+  }
+}
+
+async function fetchFutureCandles(symbol, startTimeMs, days = 7) {
+  try {
+    const res = await axios.get(`${BINANCE_BASE}/api/v3/klines`, {
+      params: {
+        symbol: `${symbol}USDT`,
+        interval: '1d',
+        limit: days,
+        startTime: startTimeMs,
+      },
+      timeout: 15000,
+    });
+    return (res.data || []).map(k => ({
+      time: Math.floor(k[0] / 1000),
+      open: +k[1], high: +k[2], low: +k[3], close: +k[4],
+      volume: +k[5],
+    }));
+  } catch (e) {
+    return [];
+  }
+}
+
+async function gatherForCoinAsOf(coin, asOfDate, horizonDays) {
+  const symbol = coin.symbol;
+  const cutoffMs = new Date(asOfDate + 'T23:59:59Z').getTime();
+  const futureStartMs = cutoffMs + 1;
+
+  const [daily, fourH, future] = await Promise.allSettled([
+    fetchKlinesHistorical(symbol, '1d', cutoffMs, 250),
+    fetchKlinesHistorical(symbol, '4h', cutoffMs, 250),
+    fetchFutureCandles(symbol, futureStartMs, horizonDays),
+  ]);
+
+  const dailyCandles = daily.status === 'fulfilled' ? daily.value : null;
+  const fourHCandles = fourH.status === 'fulfilled' ? fourH.value : null;
+  const futureCandles = future.status === 'fulfilled' ? future.value : [];
+
+  if (!dailyCandles || dailyCandles.length < 60) return null;
+  if (!fourHCandles || fourHCandles.length < 60) return null;
+
+  const dailyCloses = dailyCandles.map(c => c.close);
+  const fourHCloses = fourHCandles.map(c => c.close);
+  const dailyVolumes = dailyCandles.map(c => c.volume);
+  const fourHVolumes = fourHCandles.map(c => c.volume);
+  const lastDaily = dailyCandles[dailyCandles.length - 1];
+
+  const dailyMacd = macdHistogram(dailyCloses);
+  const fourHMacd = macdHistogram(fourHCloses);
+
+  const ctx = {
+    symbol,
+    name: coin.name,
+    lastClose: lastDaily.close,
+    lastVolume: lastDaily.volume,
+    atr: atr(dailyCandles),
+    daily: {
+      ema20: ema(dailyCloses, 20),
+      ema50: ema(dailyCloses, 50),
+      ema200: dailyCloses.length >= 200 ? ema(dailyCloses, 200) : null,
+      rsi: rsi(dailyCloses, 14),
+      rsiRecentMax: rsiRecentMax(dailyCloses, 10, 14),
+      macdHist: dailyMacd.hist,
+      macdHistPrev: dailyMacd.prev,
+      volumeAvg20: sma(dailyVolumes, 20),
+      adx: adx(dailyCandles),
+      recentBars: dailyCandles.slice(-6).map(c => ({ high: c.high, low: c.low, close: c.close, open: c.open, volume: c.volume })),
+    },
+    fourH: {
+      ema20: ema(fourHCloses, 20),
+      ema50: ema(fourHCloses, 50),
+      ema200: fourHCloses.length >= 200 ? ema(fourHCloses, 200) : null,
+      rsi: rsi(fourHCloses, 14),
+      macdHist: fourHMacd.hist,
+      macdHistPrev: fourHMacd.prev,
+      volumeAvg20: sma(fourHVolumes, 20),
+      lastClose: fourHCandles[fourHCandles.length - 1].close,
+      lastVolume: fourHCandles[fourHCandles.length - 1].volume,
+      last20High: Math.max(...fourHCloses.slice(-21, -1)),
+      last20Low: Math.min(...fourHCloses.slice(-21, -1)),
+      recentBars: fourHCandles.slice(-6).map(c => ({ high: c.high, low: c.low, close: c.close, open: c.open, volume: c.volume })),
+    },
+    funding: null, // backtest'te funding verisi tarihsel değil — atla
+  };
+
+  return { ctx, futureCandles };
+}
+
+// Sinyal forward evaluation — kripto: market entry, target1 = ana hedef
+function evaluateCryptoSignalForward(signal, futureCandles) {
+  if (!signal?.entry || !signal?.stop || !signal?.target1) {
+    return { outcome: 'no_levels', returnPct: 0, bars: 0 };
+  }
+  if (!futureCandles || futureCandles.length === 0) {
+    return { outcome: 'no_future_data', returnPct: 0, bars: 0 };
+  }
+  const isLong = signal.direction === 'long';
+  const fillPrice = signal.entry;
+
+  for (let i = 0; i < futureCandles.length; i++) {
+    const c = futureCandles[i];
+    const stopHit   = isLong ? c.low  <= signal.stop    : c.high >= signal.stop;
+    const targetHit = isLong ? c.high >= signal.target1 : c.low  <= signal.target1;
+
+    if (stopHit && targetHit) {
+      // Tutucu: önce stop sayılır
+      const ret = isLong ? (signal.stop - fillPrice) / fillPrice : (fillPrice - signal.stop) / fillPrice;
+      return { outcome: 'hit_stop', returnPct: +(ret * 100).toFixed(2), bars: i + 1 };
+    }
+    if (stopHit) {
+      const ret = isLong ? (signal.stop - fillPrice) / fillPrice : (fillPrice - signal.stop) / fillPrice;
+      return { outcome: 'hit_stop', returnPct: +(ret * 100).toFixed(2), bars: i + 1 };
+    }
+    if (targetHit) {
+      const ret = isLong ? (signal.target1 - fillPrice) / fillPrice : (fillPrice - signal.target1) / fillPrice;
+      return { outcome: 'hit_target', returnPct: +(ret * 100).toFixed(2), bars: i + 1 };
+    }
+  }
+
+  // Horizon sonuna kadar çıkış yok → hâlâ açık, son kapanışla değerlendir
+  const lastF = futureCandles[futureCandles.length - 1];
+  const exitPrice = lastF?.close;
+  const ret = exitPrice ? (isLong ? (exitPrice - fillPrice) / fillPrice : (fillPrice - exitPrice) / fillPrice) : 0;
+  return {
+    outcome: 'still_running',
+    returnPct: +(ret * 100).toFixed(2),
+    bars: futureCandles.length,
+    exitPrice,
+  };
+}
+
+function aggregateBacktestStats(signals) {
+  const total = signals.length;
+  if (total === 0) return { total: 0, hitTarget: 0, hitStop: 0, stillRunning: 0, winRate: 0, avgReturn: 0 };
+  const hitTarget    = signals.filter(s => s.outcome === 'hit_target').length;
+  const hitStop      = signals.filter(s => s.outcome === 'hit_stop').length;
+  const stillRunning = signals.filter(s => s.outcome === 'still_running').length;
+  const noFuture     = signals.filter(s => s.outcome === 'no_future_data').length;
+  const closed = hitTarget + hitStop;
+  const winRate = closed > 0 ? +(hitTarget / closed * 100).toFixed(1) : 0;
+  const sumReturn = signals.reduce((sum, s) => sum + (s.returnPct || 0), 0);
+  const avgReturn = +(sumReturn / total).toFixed(2);
+  return { total, hitTarget, hitStop, stillRunning, noFuture, winRate, avgReturn, sumReturn: +sumReturn.toFixed(2) };
+}
+
+async function backtestAsOf(asOfDate, horizonDays = 7) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(asOfDate || '')) {
+    throw new Error('asOfDate format hatalı (YYYY-MM-DD)');
+  }
+  const universe = await getTop100Coins();
+  if (universe.length === 0) {
+    throw new Error('Universe boş — CoinGecko erişilemedi');
+  }
+  const { spot } = await getBinanceUsdtSymbols();
+  const tradable = universe.filter(c => spot.has(c.symbol));
+
+  const spotList = [], longList = [], shortList = [];
+
+  for (let i = 0; i < tradable.length; i += BATCH_SIZE) {
+    const batch = tradable.slice(i, i + BATCH_SIZE);
+    const results = await Promise.allSettled(
+      batch.map(c => gatherForCoinAsOf(c, asOfDate, horizonDays))
+    );
+    for (const r of results) {
+      if (r.status !== 'fulfilled' || !r.value) continue;
+      const { ctx, futureCandles } = r.value;
+      const all = cryptoScorer.scoreAll(ctx);
+      const base = { symbol: ctx.symbol, name: ctx.name };
+
+      if (all.spot_long) {
+        const out = evaluateCryptoSignalForward(all.spot_long, futureCandles);
+        spotList.push({ ...all.spot_long, ...base, ...out });
+      }
+      if (all.futures_long) {
+        const out = evaluateCryptoSignalForward(all.futures_long, futureCandles);
+        longList.push({ ...all.futures_long, ...base, ...out });
+      }
+      if (all.futures_short) {
+        const out = evaluateCryptoSignalForward(all.futures_short, futureCandles);
+        shortList.push({ ...all.futures_short, ...base, ...out });
+      }
+    }
+    if (i + BATCH_SIZE < tradable.length) {
+      await new Promise(r => setTimeout(r, BATCH_PAUSE_MS));
+    }
+  }
+
+  const sortFn = (a, b) => b.totalScore - a.totalScore || b.ratio - a.ratio;
+  spotList.sort(sortFn);
+  longList.sort(sortFn);
+  shortList.sort(sortFn);
+
+  const top = (list) => list.slice(0, TOP_LIMIT);
+  return {
+    asOfDate,
+    horizonDays,
+    generatedAt: new Date().toISOString(),
+    universeSize: universe.length,
+    tradableCount: tradable.length,
+    spot_long: {
+      stats: aggregateBacktestStats(top(spotList)),
+      allStats: aggregateBacktestStats(spotList),
+      top10: top(spotList).map(s => ({
+        symbol: s.symbol, name: s.name, totalScore: s.totalScore, grade: s.grade,
+        entry: s.entry, stop: s.stop, target1: s.target1, target2: s.target2,
+        outcome: s.outcome, returnPct: s.returnPct, bars: s.bars,
+      })),
+      allCount: spotList.length,
+    },
+    futures_long: {
+      stats: aggregateBacktestStats(top(longList)),
+      allStats: aggregateBacktestStats(longList),
+      top10: top(longList).map(s => ({
+        symbol: s.symbol, name: s.name, totalScore: s.totalScore, grade: s.grade,
+        entry: s.entry, stop: s.stop, target1: s.target1, target2: s.target2,
+        outcome: s.outcome, returnPct: s.returnPct, bars: s.bars,
+        leverage: s.leverage_suggest,
+      })),
+      allCount: longList.length,
+    },
+    futures_short: {
+      stats: aggregateBacktestStats(top(shortList)),
+      allStats: aggregateBacktestStats(shortList),
+      top10: top(shortList).map(s => ({
+        symbol: s.symbol, name: s.name, totalScore: s.totalScore, grade: s.grade,
+        entry: s.entry, stop: s.stop, target1: s.target1, target2: s.target2,
+        outcome: s.outcome, returnPct: s.returnPct, bars: s.bars,
+        leverage: s.leverage_suggest,
+      })),
+      allCount: shortList.length,
+    },
+  };
+}
+
 module.exports = {
   generatePhase,
   runAndStore,
   analyzeSingleCoin,
+  backtestAsOf,
+  evaluateCryptoSignalForward,
+  aggregateBacktestStats,
   getTop100Coins,
   getBinanceUsdtSymbols,
   TOP_LIMIT,

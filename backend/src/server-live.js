@@ -2670,6 +2670,23 @@ app.post('/api/market/crypto/generate', async (req, res) => {
   }
 });
 
+// Backtest — geçmiş tarih + horizon ile sinyal performans testi
+//   ?asOf=YYYY-MM-DD       (geçmiş trade günü)
+//   ?horizon=7             (varsayılan 7 mum, max 30)
+app.get('/api/market/crypto/backtest', async (req, res) => {
+  try {
+    const asOf = req.query.asOf;
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(asOf || '')) {
+      return res.status(400).json({ success: false, error: 'asOf zorunlu (YYYY-MM-DD)' });
+    }
+    const horizon = Math.min(Math.max(parseInt(req.query.horizon || '7', 10), 1), 30);
+    const result = await cryptoSignalsService.backtestAsOf(asOf, horizon);
+    res.json({ success: true, ...result });
+  } catch (e) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
 // ============ X (TWITTER) MENTION ROUTES ============
 // dexter (virattt/dexter) src/tools/search/x-search.ts'ten esinli.
 // Şu an mock data; ileride twscrape → RapidAPI → resmi X API v2'ye geçilecek.
