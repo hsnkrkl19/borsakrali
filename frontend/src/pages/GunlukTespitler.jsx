@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef, Fragment } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { Search, Filter, TrendingUp, TrendingDown, Target, Activity, Bell, BellRing, RefreshCw, X, Volume2, Star, Clock, Zap, Wifi, WifiOff, Info, CheckCircle, BookOpen, ChevronDown, ChevronUp, HelpCircle, Sparkles, Coins } from 'lucide-react'
+import { Search, Filter, TrendingUp, TrendingDown, Target, Activity, Bell, BellRing, RefreshCw, X, Volume2, Star, Clock, Zap, Wifi, WifiOff, Info, CheckCircle, BookOpen, ChevronDown, ChevronUp, HelpCircle, Sparkles, Coins, Layers } from 'lucide-react'
 import { io } from 'socket.io-client'
 
 import { getApiBase, getSocketBase } from '../config'
@@ -10,13 +10,14 @@ import TradePlanCard from '../components/TradePlanCard'
 import InfoTooltip from '../components/InfoTooltip'
 import BugununSinyalleri from '../components/BugununSinyalleri'
 import KriptoSinyalleri from '../components/KriptoSinyalleri'
+import MTFSinyalleri from '../components/MTFSinyalleri'
 import BacktestPanel from '../components/BacktestPanel'
 const API_BASE = getApiBase() + '/api'
 const SOCKET_URL = getSocketBase()
 
 export default function GunlukTespitler() {
   const [searchParams, setSearchParams] = useSearchParams()
-  const initialTab = ['bugun', 'today', 'kripto', 'backtest', 'akilli-suzgec', 'canli-takip', 'detayli-analiz'].includes(searchParams.get('tab'))
+  const initialTab = ['bugun', 'today', 'kripto', 'mtf', 'backtest', 'akilli-suzgec', 'canli-takip', 'detayli-analiz'].includes(searchParams.get('tab'))
     ? (searchParams.get('tab') === 'today' ? 'bugun' : searchParams.get('tab'))
     : 'bugun'  // varsayılan: Bugünün Sinyalleri (yeni özellik)
   const [activeTab, setActiveTab] = useState(initialTab)
@@ -233,6 +234,7 @@ export default function GunlukTespitler() {
   const tabs = [
     { id: 'bugun',         label: 'Bugünün Sinyalleri', icon: Sparkles },
     { id: 'kripto',        label: 'Kripto',             icon: Coins },
+    { id: 'mtf',           label: 'Çoklu Zaman',        icon: Layers },
     { id: 'backtest',      label: 'Backtest',           icon: Activity },
     { id: 'akilli-suzgec', label: 'Akıllı Süzgeç',      icon: Filter },
     { id: 'canli-takip',   label: 'Canlı Alarmlar',     icon: BellRing, badge: unreadCount },
@@ -453,6 +455,9 @@ export default function GunlukTespitler() {
 
       {/* Kripto Tab — top 100 coin için spot/futures long/short */}
       {activeTab === 'kripto' && <KriptoSinyalleri />}
+
+      {/* Çoklu Zaman Tab — 7 TF (1m-1w) MTF sinyal motoru + confluence engine */}
+      {activeTab === 'mtf' && <MTFSinyalleri />}
 
       {/* Backtest Tab — geçmiş tarih + horizon ile sinyal performans testi */}
       {activeTab === 'backtest' && <BacktestPanel />}
