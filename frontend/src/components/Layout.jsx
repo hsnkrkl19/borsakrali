@@ -165,6 +165,7 @@ export default function Layout({ children }) {
                 <div className="flex flex-wrap items-center justify-center gap-4 text-xs text-gray-400">
                   <Link to="/hakkimizda" className="hover:text-white">Hakkimizda</Link>
                   <Link to="/iletisim" className="hover:text-white">Iletisim</Link>
+                  <Link to="/egitim" className="hover:text-white">Egitim</Link>
                   <Link to="/privacy-policy" className="hover:text-white">Gizlilik Politikasi</Link>
                   <Link to="/terms-of-use" className="hover:text-white">Kullanim Kosullari</Link>
                   <Link to="/account-deletion" className="hover:text-white">Hesap Silme</Link>
