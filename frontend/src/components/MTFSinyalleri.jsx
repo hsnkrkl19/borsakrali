@@ -127,13 +127,21 @@ export default function MTFSinyalleri() {
       .finally(() => setLoading(false))
   }, [activeTF, loadScanner, loadConfluence])
 
-  // 1m/5m: kısa TF için 30sn refresh, diğerleri için 2 dk
+  // Polling cadence — TF'ye göre farklı tempo:
+  //   1m  → 10sn (kullanıcı isteği: dakikalık her 10sn güncellensin)
+  //   5m  → 30sn
+  //   15m → 60sn
+  //   1h+ → 2dk
   useEffect(() => {
-    const isShortTF = ['1m', '5m', '15m'].includes(activeTF)
+    const intervalMs =
+      activeTF === '1m'  ? 10 * 1000 :
+      activeTF === '5m'  ? 30 * 1000 :
+      activeTF === '15m' ? 60 * 1000 :
+                           2 * 60 * 1000
     const interval = setInterval(() => {
       loadScanner(activeTF)
       if (view === 'confluence') loadConfluence()
-    }, isShortTF ? 30 * 1000 : 2 * 60 * 1000)
+    }, intervalMs)
     return () => clearInterval(interval)
   }, [activeTF, view, loadScanner, loadConfluence])
 
@@ -237,7 +245,9 @@ export default function MTFSinyalleri() {
             Her timeframe 12 koşul üzerinden puanlanır (current TF + higher TF + AI/math).{' '}
             <span className="text-white">Confluence</span> 7 TF'in ağırlıklı toplamı:
             uzun TF (1w×12, 1d×10) daha çok ağırlık taşır.{' '}
-            {['1m', '5m', '15m'].includes(activeTF) ? '30 sn' : '2 dk'}'da bir otomatik yenilenir.
+            {activeTF === '1m'  ? '10 sn' :
+             activeTF === '5m'  ? '30 sn' :
+             activeTF === '15m' ? '1 dk'  : '2 dk'}'da bir otomatik yenilenir.
           </p>
         </div>
       </div>

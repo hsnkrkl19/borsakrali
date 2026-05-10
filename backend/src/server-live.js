@@ -6912,6 +6912,15 @@ server.listen(PORT, () => {
   // Otomatik guncellemeyi baslat (1 dakika = 60000ms)
   liveDataService.startAutoUpdate(60 * 1000);
 
+  // MTF live loop — 1m taraması her 10 sn (top 10 coin, sessiz).
+  //     Diğer cron'lar (BIST sinyaller, daha uzun TF'ler) henüz auto-start değil;
+  //     hâlâ endpoint trigger ya da elle çağırılır.
+  try {
+    require('./services/mtfLiveLoop').start();
+  } catch (e) {
+    console.error('[MTFLoop] Başlatma hata:', e.message);
+  }
+
   // NOT: Telegram bot ayri process olarak calisir (telegram-bot.js)
   // telegramService burada sadece bildirim gondermek icin kullanilir
   console.log('[Telegram] Bot ayri process olarak calisiyor (telegram-bot.js)');
