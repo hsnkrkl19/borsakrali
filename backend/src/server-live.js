@@ -2754,9 +2754,19 @@ app.post('/api/market/crypto/mtf/generate', async (req, res) => {
   }
 });
 
-// ============ MTF BACKTEST + CALIBRATION (Faz 6 + 7) ============
+// ============ MTF BACKTEST + CALIBRATION + PUSH (Faz 6 + 7 + 11) ============
 const mtfBacktestService = require('./services/mtfBacktestService');
 const mtfCalibrationService = require('./services/mtfCalibrationService');
+const mtfPushNotifier = require('./services/mtfPushNotifier');
+
+// Push notifier istatistikleri — debug + admin paneli için
+app.get('/api/market/crypto/mtf/push-stats', (req, res) => {
+  try {
+    res.json({ success: true, ...mtfPushNotifier.getStats() });
+  } catch (e) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
 
 // Tek TF × tek asOf backtest
 //   ?tf=1h&asOf=YYYY-MM-DD&horizon=24

@@ -60,6 +60,23 @@ async function tick() {
       logger.warn(`[MTFLoop] socket emit başarısız: ${e.message}`);
     }
 
+    // Confluence değişimlerini izle — STRONG geçişleri için push notif
+    //   Cooldown 30 dk + min confidence 0.5 spam'i önler.
+    //   Yalnızca her 6 cycle'da bir (~1 dk) hesaplama yükünü düşürmek için.
+    if (cycleCount % 6 === 0) {
+      try {
+        const multiTimeframeService = require('./multiTimeframeService');
+        const conf = await multiTimeframeService.scanConfluence();
+        const all = conf?.all || conf?.top || [];
+        if (all.length > 0) {
+          const notifier = require('./mtfPushNotifier');
+          await notifier.evaluateAndPush(all);
+        }
+      } catch (e) {
+        logger.warn(`[MTFLoop] push notifier hatası: ${e.message}`);
+      }
+    }
+
     // Her 6 cycle'da bir (yaklaşık 1 dk) log — gürültü kontrol
     if (cycleCount % 6 === 0) {
       logger.info(`[MTFLoop] 1m cycle #${cycleCount} OK — last: ${lastSuccessAt}`);

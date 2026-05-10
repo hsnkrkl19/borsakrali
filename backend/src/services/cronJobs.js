@@ -259,23 +259,17 @@ async function runMTFPhase(tf, options = {}) {
       stockSymbol: 'CRYPTO_MTF',
     });
 
-    // Push: yalnızca STRONG verdict eşiği geçen confluence'larda
+    // Push: confluence değişimlerini izle — sadece STRONG'a yeni geçiş /
+    //   yön flip durumlarında bildirim. mtfPushNotifier cooldown + confidence
+    //   eşiklerini içerde uygular (per (coin, verdict) 30 dk cooldown).
     if (!options.silent && (tf === '4h' || tf === '1d' || tf === '1w')) {
       try {
         const date = require('./mtfSnapshotStore').dateKey();
         const snap = require('./mtfSnapshotStore').read(date);
-        const strong = (snap?.confluence?.top || []).filter(c =>
-          c.verdict === 'STRONG_LONG' || c.verdict === 'STRONG_SHORT'
-        ).slice(0, 5);
-        if (strong.length > 0) {
-          const longTop  = strong.filter(c => c.verdict === 'STRONG_LONG').map(c => c.symbol).slice(0, 3).join(', ');
-          const shortTop = strong.filter(c => c.verdict === 'STRONG_SHORT').map(c => c.symbol).slice(0, 3).join(', ');
-          await pushNotificationService.broadcastNotification({
-            title: `📡 ${tf.toUpperCase()} MTF Confluence`,
-            body: (longTop ? `Long: ${longTop}` : '') + (shortTop ? ` · Short: ${shortTop}` : ''),
-            path: '/gunluk-tespitler?tab=mtf',
-            topic: 'all',
-          });
+        const all = snap?.confluence?.all || snap?.confluence?.top || [];
+        if (all.length > 0) {
+          const notifier = require('./mtfPushNotifier');
+          await notifier.evaluateAndPush(all);
         }
       } catch (e) {
         logger.error(`[MTF] FCM push hata (${tf}): ${e.message}`);
