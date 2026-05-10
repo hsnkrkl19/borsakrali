@@ -2462,6 +2462,41 @@ app.get('/api/snr/scanner/bist30', async (req, res) => {
 const dailySignalsService = require('./services/dailySignalsService');
 const snapshotStore = require('./services/snapshotStore');
 const cronJobsService = require('./services/cronJobs');
+const dailyPerformanceService = require('./services/dailyPerformanceService');
+
+// Gün sonu performans — son N tarih listesi
+app.get('/api/market/daily-performance/dates', (req, res) => {
+  try {
+    const limit = Math.min(Math.max(parseInt(req.query.limit || '30', 10), 1), 90);
+    const dates = dailyPerformanceService.listAvailableDates(limit);
+    res.json({ dates });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Gün sonu performans — tek tarih (snapshot'tan veya ?compute=1 ile canlı)
+app.get('/api/market/daily-performance/:date', async (req, res) => {
+  try {
+    const { date } = req.params;
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+      return res.status(400).json({ error: 'date YYYY-MM-DD formatinda olmali' });
+    }
+    const stored = dailyPerformanceService.getStoredPerformance(date);
+    if (stored) return res.json({ source: 'snapshot', ...stored });
+    if (req.query.compute === '1' || req.query.compute === 'true') {
+      const live = await dailyPerformanceService.computePerformance(date);
+      return res.json({ source: 'live', ...live });
+    }
+    res.status(404).json({
+      error: 'Bu tarih icin performans hesaplanmadi',
+      date,
+      hint: 'POST /api/admin/compute-performance?date=YYYY-MM-DD veya ?compute=1 ekleyin',
+    });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
 
 // Bugünün snapshot'ı — premarket + revision + intraday hepsi tek payload'da
 app.get('/api/daily-signals/today', (req, res) => {
@@ -2550,6 +2585,86 @@ app.get('/api/daily-signals/backtest', async (req, res) => {
     const horizon = Math.min(Math.max(parseInt(req.query.horizon || '5', 10), 1), 30);
     const result = await dailySignalsService.backtestAsOf(asOf, horizon);
     res.json({ success: true, ...result });
+  } catch (e) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
+// ============ CRYPTO SIGNALS (top 100 — spot/futures long/short) ============
+const cryptoSignalsService = require('./services/cryptoSignalsService');
+const cryptoSnapshotStore = require('./services/cryptoSnapshotStore');
+
+app.get('/api/market/crypto/signals', async (req, res) => {
+  try {
+    const date = cryptoSnapshotStore.dateKey();
+    const snap = cryptoSnapshotStore.read(date);
+    if (!snap) {
+      // İlk açılışta hiç cron çalışmamış olabilir → manuel intraday üret
+      const result = await cronJobsService.triggerCryptoPhase('intraday');
+      if (!result) {
+        return res.status(503).json({
+          success: false,
+          error: 'Kripto sinyalleri henüz hazır değil — birkaç dakika sonra tekrar deneyin',
+        });
+      }
+      return res.json({ success: true, ...result, source: 'fresh' });
+    }
+    const phaseData = cryptoSnapshotStore.getCurrentPhase(snap);
+    res.json({
+      success: true,
+      date: snap.date,
+      ...phaseData,
+      availablePhases: ['morning', 'midday', 'evening', 'night']
+        .filter(p => snap[p]).reduce((m, p) => { m[p] = snap[p].generatedAt; return m; }, {}),
+      intradayCount: snap.intraday?.length || 0,
+    });
+  } catch (e) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
+app.get('/api/market/crypto/signals/history', (req, res) => {
+  try {
+    const { date } = req.query;
+    if (date) {
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+        return res.status(400).json({ success: false, error: 'Geçersiz tarih formatı (YYYY-MM-DD)' });
+      }
+      const data = cryptoSnapshotStore.read(date);
+      if (!data) return res.status(404).json({ success: false, error: 'Bu tarihte kayıt yok' });
+      return res.json({ success: true, ...data });
+    }
+    const limit = Math.min(parseInt(req.query.days || '30', 10), 90);
+    const dates = cryptoSnapshotStore.listAvailableDates(limit);
+    res.json({ success: true, dates });
+  } catch (e) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
+app.get('/api/market/crypto/coin/:symbol', async (req, res) => {
+  try {
+    const symbol = (req.params.symbol || '').toUpperCase();
+    if (!symbol) return res.status(400).json({ success: false, error: 'Sembol zorunlu' });
+    const result = await cryptoSignalsService.analyzeSingleCoin(symbol);
+    if (!result) {
+      return res.status(404).json({ success: false, error: `${symbol} top 100'de yok ya da Binance USDT paritesinde değil` });
+    }
+    res.json({ success: true, ...result });
+  } catch (e) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
+// Manuel tetikleme — ilk önbellek + admin/test
+app.post('/api/market/crypto/generate', async (req, res) => {
+  try {
+    const phase = ['morning', 'midday', 'evening', 'night', 'intraday'].includes(req.body?.phase)
+      ? req.body.phase
+      : 'intraday';
+    const result = await cronJobsService.triggerCryptoPhase(phase);
+    if (!result) return res.status(500).json({ success: false, error: 'Üretim başarısız' });
+    res.json({ success: true, phase, ...result });
   } catch (e) {
     res.status(500).json({ success: false, error: e.message });
   }

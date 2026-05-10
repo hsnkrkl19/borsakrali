@@ -8,6 +8,7 @@ const bulkDataUpdater = require('./bulkDataUpdaterService');
 const signalDetectionService = require('./signalDetectionService');
 const kapService = require('./kapService');
 const dailySignalsService = require('./dailySignalsService');
+const cryptoSignalsService = require('./cryptoSignalsService');
 const socketService = require('./socketService');
 const pushNotificationService = require('./pushNotificationService');
 const economicCalendarService = require('./economicCalendarService');
@@ -188,6 +189,58 @@ async function runDailyPhase(phase, options = {}) {
   }
 }
 
+// Faz adı → bildirim başlığı + emoji
+const CRYPTO_PHASE_TITLE = {
+  morning:  '🪙 Kripto Sinyalleri (09:00)',
+  midday:   '🪙 Kripto Sinyalleri (13:00)',
+  evening:  '🪙 Kripto Sinyalleri (19:00)',
+  night:    '🪙 Kripto Sinyalleri (01:00)',
+  intraday: '🪙 Kripto Sinyalleri (intraday)',
+};
+
+async function runCryptoPhase(phase, options = {}) {
+  try {
+    logger.info(`⏰ Crypto signals (${phase}) başlatıldı`);
+    const result = await cryptoSignalsService.runAndStore(phase);
+
+    const spotCount  = result.spot_long?.signals?.length || 0;
+    const longCount  = result.futures_long?.signals?.length || 0;
+    const shortCount = result.futures_short?.signals?.length || 0;
+
+    socketService.broadcastSignal({
+      strategy: 'crypto_signals', phase,
+      generatedAt: result.generatedAt,
+      spotCount, longCount, shortCount,
+      stockSymbol: 'CRYPTO_DAILY',
+    });
+
+    if (!options.silent && phase !== 'intraday') {
+      const longTop  = (result.futures_long?.signals  || []).slice(0, 3).map(s => s.symbol).join(', ');
+      const shortTop = (result.futures_short?.signals || []).slice(0, 3).map(s => s.symbol).join(', ');
+      const spotTop  = (result.spot_long?.signals     || []).slice(0, 3).map(s => s.symbol).join(', ');
+      const title = CRYPTO_PHASE_TITLE[phase] || '🪙 Kripto Sinyalleri';
+      const body =
+        `Long: ${longTop || spotTop || '—'}` +
+        (shortTop ? ` · Short: ${shortTop}` : '');
+      try {
+        await pushNotificationService.broadcastNotification({
+          title, body,
+          path: '/gunluk-tespitler?tab=kripto',
+          topic: 'all',
+        });
+      } catch (e) {
+        logger.error(`[CryptoSignals] FCM push hata (${phase}): ${e.message}`);
+      }
+    }
+
+    logger.info(`✅ Crypto signals (${phase}) tamamlandı — Spot: ${spotCount}, Long: ${longCount}, Short: ${shortCount}`);
+    return result;
+  } catch (e) {
+    logger.error(`Crypto signals (${phase}) hata: ${e.message}`, e.stack);
+    return null;
+  }
+}
+
 class CronJobsService {
   constructor() {
     this.jobs = [];
@@ -307,7 +360,44 @@ class CronJobsService {
       { scheduled: false, ...TR_TZ }
     );
 
-    // 10. Borsa açılış bildirimi — 10:00 (BIST seans başlangıcı). Pzt-Cuma.
+    // 10. Crypto morning — 09:00 (UTC+3). Asya kapanışı + Avrupa açılışı geçişi.
+    //     Push bildirimli, 7 gün.
+    const cryptoMorningJob = cron.schedule(
+      '0 9 * * *',
+      () => runCryptoPhase('morning'),
+      { scheduled: false, ...TR_TZ }
+    );
+
+    // 11. Crypto midday — 13:00 (UTC+3). Avrupa öğlen, US futures açılış öncesi.
+    const cryptoMiddayJob = cron.schedule(
+      '0 13 * * *',
+      () => runCryptoPhase('midday'),
+      { scheduled: false, ...TR_TZ }
+    );
+
+    // 12. Crypto evening — 19:00 (UTC+3). Avrupa kapanışı + US prime time.
+    const cryptoEveningJob = cron.schedule(
+      '0 19 * * *',
+      () => runCryptoPhase('evening'),
+      { scheduled: false, ...TR_TZ }
+    );
+
+    // 13. Crypto night — 01:00 (UTC+3). Asya açılış geçişi.
+    const cryptoNightJob = cron.schedule(
+      '0 1 * * *',
+      () => runCryptoPhase('night'),
+      { scheduled: false, ...TR_TZ }
+    );
+
+    // 14. Crypto intraday — her 30 dk'da bir sessiz refresh (kripto 7/24).
+    //     Push atmaz; UI canlı veri için snapshot tazelenir.
+    const cryptoIntradayJob = cron.schedule(
+      '*/30 * * * *',
+      () => runCryptoPhase('intraday', { silent: true }),
+      { scheduled: false, ...TR_TZ }
+    );
+
+    // 15. Borsa açılış bildirimi — 10:00 (BIST seans başlangıcı). Pzt-Cuma.
     //     Resmi tatil günlerinde fonksiyon kendi içinde atlatır.
     const marketOpenJob = cron.schedule(
       '0 10 * * 1-5',
@@ -315,7 +405,7 @@ class CronJobsService {
       { scheduled: false, ...TR_TZ }
     );
 
-    // 11. Borsa kapanış bildirimi — 18:00 (BIST seans sonu). Pzt-Cuma.
+    // 16. Borsa kapanış bildirimi — 18:00 (BIST seans sonu). Pzt-Cuma.
     //     Resmi tatil günlerinde fonksiyon kendi içinde atlatır.
     const marketCloseJob = cron.schedule(
       '0 18 * * 1-5',
@@ -323,7 +413,7 @@ class CronJobsService {
       { scheduled: false, ...TR_TZ }
     );
 
-    // 12. Ekonomik takvim erken uyarısı — her gün 18:30. Yarınki yüksek-etkili
+    // 17. Ekonomik takvim erken uyarısı — her gün 18:30. Yarınki yüksek-etkili
     //     (importance:'high') TR/US olayları varsa broadcast; yoksa sessiz.
     const calendarWarningJob = cron.schedule(
       '30 18 * * *',
@@ -366,6 +456,11 @@ class CronJobsService {
       preMarketJob,
       revisionJob,
       intradayJob,
+      cryptoMorningJob,
+      cryptoMiddayJob,
+      cryptoEveningJob,
+      cryptoNightJob,
+      cryptoIntradayJob,
       marketOpenJob,
       marketCloseJob,
       calendarWarningJob,
@@ -402,6 +497,15 @@ class CronJobsService {
    */
   async triggerDailyPhase(phase) {
     return runDailyPhase(phase, { silent: true });
+  }
+
+  /**
+   * Manuel tetikleme — kripto sinyalleri (test + ilk önbellek için)
+   */
+  async triggerCryptoPhase(phase) {
+    const valid = ['morning', 'midday', 'evening', 'night', 'intraday'];
+    const safe = valid.includes(phase) ? phase : 'intraday';
+    return runCryptoPhase(safe, { silent: true });
   }
 
   /**
