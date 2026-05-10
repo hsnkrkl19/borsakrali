@@ -45,6 +45,17 @@ router.get('/debug-log', (req, res) => {
   res.json({ logs: debugLogs.slice(-30) });
 });
 
+// GEÇİCİ test broadcast — kayıtlı tüm cihazlara bildirim atar.
+// Production'da silinecek.
+router.post('/test-broadcast', async (req, res) => {
+  const result = await pushNotificationService.broadcastNotification({
+    title: req.body?.title || 'Borsa Kralı — Test Bildirimi',
+    body: req.body?.body || 'FCM kurulumu başarılı! 🎉 Bildirim sistemi çalışıyor.',
+    path: req.body?.path || '/',
+  });
+  res.json(result);
+});
+
 // FCM canlı test — admin SDK auth durumunu net görmek için
 router.get('/diagnose', async (req, res) => {
   const result = { ok: false, steps: [] };
