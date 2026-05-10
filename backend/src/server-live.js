@@ -2813,6 +2813,39 @@ app.post('/api/market/crypto/mtf/calibrate', async (req, res) => {
   }
 });
 
+// Tek backtest + sonuçları calibration'a feed (Faz 15)
+//   body: { tf, asOf, horizon?, save? }
+app.post('/api/market/crypto/mtf/backtest-and-feed', async (req, res) => {
+  try {
+    const tf = MTF_VALID.includes(req.body?.tf) ? req.body.tf : '4h';
+    const asOf = req.body?.asOf;
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(asOf || '')) {
+      return res.status(400).json({ success: false, error: 'asOf zorunlu (YYYY-MM-DD)' });
+    }
+    const horizon = Math.max(1, Math.min(parseInt(req.body?.horizon || '0', 10) || 0, 200))
+      || mtfBacktestService.TF_DEFAULT_HORIZON[tf];
+    const save = req.body?.save !== false;
+
+    const result = await mtfBacktestService.backtestTFAsOf(tf, asOf, horizon);
+    const allSignals = [...(result.longResults || []), ...(result.shortResults || [])].map(s => ({
+      score: s.totalScore,
+      applicableMax: s.applicableMax,
+      direction: s.direction,
+      outcome: s.outcome,
+    }));
+    const upd = mtfCalibrationService.updateFromBacktest(tf, allSignals);
+    if (save) mtfCalibrationService.save();
+
+    res.json({
+      success: true,
+      ...result,
+      calibration: { updated: upd.updated, skipped: upd.skipped, saved: !!save },
+    });
+  } catch (e) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
 // ============ X (TWITTER) MENTION ROUTES ============
 // dexter (virattt/dexter) src/tools/search/x-search.ts'ten esinli.
 // Şu an mock data; ileride twscrape → RapidAPI → resmi X API v2'ye geçilecek.

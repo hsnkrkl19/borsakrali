@@ -125,20 +125,23 @@ export default function MTFSinyalleri() {
     }
   }, [])
 
-  const runBacktest = useCallback(async ({ tf, asOf, horizon }) => {
+  const runBacktest = useCallback(async ({ tf, asOf, horizon, feedToCalibration }) => {
     setBacktestRunning(true)
     setBacktestData(null)
     try {
-      const r = await api.get('/market/crypto/mtf/backtest', {
-        params: { tf, asOf, horizon },
-      })
+      // feedToCalibration aktifse POST /backtest-and-feed kullan
+      const r = feedToCalibration
+        ? await api.post('/market/crypto/mtf/backtest-and-feed', { tf, asOf, horizon, save: true })
+        : await api.get('/market/crypto/mtf/backtest', { params: { tf, asOf, horizon } })
       setBacktestData(r.data)
+      // Feed yapıldıysa calibration verisini de tazele
+      if (feedToCalibration) loadCalibration()
     } catch (e) {
       setBacktestData({ error: e.response?.data?.error || e.message })
     } finally {
       setBacktestRunning(false)
     }
-  }, [])
+  }, [loadCalibration])
 
   const triggerCalibrationRun = useCallback(async () => {
     setCalibrationRunning(true)
@@ -1361,12 +1364,13 @@ function BacktestView({ activeTF, data, onRun, running }) {
   const [tf, setTF] = useState(activeTF)
   const [asOf, setAsOf] = useState(defaultDate)
   const [horizon, setHorizon] = useState(0)  // 0 = TF default
+  const [feedToCalibration, setFeedToCalibration] = useState(false)
 
   const HORIZON_DEFAULTS = { '1m': 60, '5m': 60, '15m': 60, '1h': 24, '4h': 30, '1d': 7, '1w': 4 }
   const effectiveHorizon = horizon || HORIZON_DEFAULTS[tf] || 24
 
   const handleRun = () => {
-    onRun({ tf, asOf, horizon: effectiveHorizon })
+    onRun({ tf, asOf, horizon: effectiveHorizon, feedToCalibration })
   }
 
   return (
@@ -1429,6 +1433,19 @@ function BacktestView({ activeTF, data, onRun, running }) {
             </button>
           </div>
         </div>
+
+        {/* Calibration feed checkbox */}
+        <label className="flex items-center gap-2 cursor-pointer group">
+          <input
+            type="checkbox"
+            checked={feedToCalibration}
+            onChange={(e) => setFeedToCalibration(e.target.checked)}
+            className="rounded border-dark-600 bg-dark-800 text-purple-500 focus:ring-purple-500/30 focus:ring-offset-0 w-3.5 h-3.5"
+          />
+          <span className="text-[11px] text-gray-400 group-hover:text-gray-300">
+            Sonuçları <span className="text-purple-300 font-semibold">kalibrasyona ekle</span> — Beta posterior güncellenir, win probability iyileşir
+          </span>
+        </label>
 
         <div className="flex items-start gap-2 p-2 bg-blue-500/5 border border-blue-500/20 rounded-lg text-[11px]">
           <Info className="w-3.5 h-3.5 text-blue-400 mt-0.5 flex-shrink-0" />
@@ -1494,6 +1511,14 @@ function BacktestResults({ data }) {
           <span className="text-gray-600">·</span>
           <span>analiz: <span className="text-white font-mono">{data.analyzedCount}</span></span>
         </div>
+        {data.calibration && (
+          <span className="text-[10px] px-2 py-0.5 rounded-full bg-purple-500/15 text-purple-300 border border-purple-500/30 flex items-center gap-1">
+            <Activity className="w-3 h-3" />
+            Calibration: +{data.calibration.updated} update
+            {data.calibration.skipped > 0 && <span className="opacity-60">· {data.calibration.skipped} atlandı</span>}
+            {data.calibration.saved && <span className="ml-1">★</span>}
+          </span>
+        )}
       </div>
 
       {/* Stats — LONG + SHORT yan yana */}

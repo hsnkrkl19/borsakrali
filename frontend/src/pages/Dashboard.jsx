@@ -7,6 +7,7 @@ import {
 } from 'lucide-react'
 import apiClient from '../services/api'
 import GuestCTA from '../components/GuestCTA'
+import MTFConfluenceSummary from '../components/MTFConfluenceSummary'
 
 const fmt = (n, d = 2) => n == null ? '—' : n.toLocaleString('tr-TR', { minimumFractionDigits: d, maximumFractionDigits: d })
 
@@ -432,6 +433,9 @@ export default function Dashboard() {
 
       {/* Bugünün Sinyalleri Özeti — boşluğu doldurur, daily-signals'e atlar */}
       <DailySignalsSummary snapshot={dailySnapshot} navigate={navigate} loading={loading && !dailySnapshot} />
+
+      {/* Kripto MTF Confluence Özeti — top STRONG_LONG/SHORT picks (Bayesian) */}
+      <MTFConfluenceSummary navigate={navigate} />
 
       {/* Hızlı Erişim Kartları */}
       <div>
