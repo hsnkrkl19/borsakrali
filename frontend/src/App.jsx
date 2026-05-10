@@ -10,6 +10,7 @@ import CommandPalette from './components/CommandPalette'
 import AnnouncementsManager from './components/AnnouncementsManager'
 import AdminBroadcastFAB from './components/AdminBroadcastFAB'
 import CookieConsent from './components/CookieConsent'
+import RequireAuth from './components/RequireAuth'
 import Dashboard from './pages/Dashboard'
 import GunlukTespitler from './pages/GunlukTespitler'
 import TakipListem from './pages/TakipListem'
@@ -31,6 +32,13 @@ import Odeme from './pages/Odeme'
 import IstekPaneli from './pages/IstekPaneli'
 import EkonomikTakvim from './pages/EkonomikTakvim'
 import AdminBildirimler from './pages/AdminBildirimler'
+import Egitim from './pages/Egitim'
+import TeknikAnalizGiris from './pages/egitim/TeknikAnalizGiris'
+import Bist100Rehberi from './pages/egitim/Bist100Rehberi'
+import TemelGostergeler from './pages/egitim/TemelGostergeler'
+import BilancoOkuma from './pages/egitim/BilancoOkuma'
+import DestekDirenc from './pages/egitim/DestekDirenc'
+import YatirimStratejisi from './pages/egitim/YatirimStratejisi'
 
 // === BİRLEŞİK SAYFALAR (sadeleştirme) ===
 import Tarayicilar from './pages/Tarayicilar'         // Taramalar + EMA34 + Malaysian SNR + Tarama Merkezi
@@ -140,57 +148,60 @@ function App() {
         <Route
           path="/*"
           element={
-            isAuthenticated ? (
-              <Layout>
-                <ErrorBoundary>
-                <Routes>
-                  {/* === ANA SAYFALAR === */}
-                  <Route path="/" element={<Dashboard />} />
-                  <Route path="/canli-heatmap" element={<LiveHeatmap />} />
-                  <Route path="/kripto" element={<Kripto />} />
-                  <Route path="/endeks/:symbol" element={<EndeksDetay />} />
-                  <Route path="/pro-analiz" element={<ProAnaliz />} />
+            <Layout>
+              <ErrorBoundary>
+              <Routes>
+                {/* === HERKESE ACIK SAYFALAR (login gerektirmez, AdSense uyumu) === */}
+                <Route path="/" element={<Dashboard />} />
+                <Route path="/canli-heatmap" element={<LiveHeatmap />} />
+                <Route path="/ekonomik-takvim" element={<EkonomikTakvim />} />
+                <Route path="/site-haritasi" element={<SiteHaritasi />} />
+                <Route path="/endeks/:symbol" element={<EndeksDetay />} />
+                <Route path="/yenilikler" element={<Navigate to="/site-haritasi" replace />} />
 
-                  {/* === ANALİZ === */}
-                  <Route path="/teknik-analiz-ai" element={<TeknikAnalizAI />} />
-                  <Route path="/sirket-analizi" element={<SirketAnalizi />} />
-                  <Route path="/dcf-degerleme" element={<DCFDegerleme />} />
-                  <Route path="/kripto-degerleme" element={<KriptoDegerleme />} />
-                  <Route path="/site-haritasi" element={<SiteHaritasi />} />
-                  <Route path="/yenilikler" element={<Navigate to="/site-haritasi" replace />} />
-                  <Route path="/tarayicilar" element={<Tarayicilar />} />
-                  <Route path="/gunluk-tespitler" element={<GunlukTespitler />} />
-                  <Route path="/performans" element={<Performans />} />
+                {/* === EGITIM / BLOG (public, AdSense icin kritik icerik) === */}
+                <Route path="/egitim" element={<Egitim />} />
+                <Route path="/egitim/teknik-analiz-giris" element={<TeknikAnalizGiris />} />
+                <Route path="/egitim/bist100-rehberi" element={<Bist100Rehberi />} />
+                <Route path="/egitim/temel-gostergeler" element={<TemelGostergeler />} />
+                <Route path="/egitim/bilanco-okuma" element={<BilancoOkuma />} />
+                <Route path="/egitim/destek-direnc" element={<DestekDirenc />} />
+                <Route path="/egitim/yatirim-stratejisi" element={<YatirimStratejisi />} />
 
-                  {/* === KİŞİSEL === */}
-                  <Route path="/takip-listem" element={<TakipListem />} />
-                  <Route path="/notlarim" element={<Notlarim />} />
-                  <Route path="/ekonomik-takvim" element={<EkonomikTakvim />} />
+                {/* === PREMIUM / KISISEL — login zorunlu === */}
+                <Route path="/kripto" element={<RequireAuth><Kripto /></RequireAuth>} />
+                <Route path="/pro-analiz" element={<RequireAuth><ProAnaliz /></RequireAuth>} />
+                <Route path="/teknik-analiz-ai" element={<RequireAuth><TeknikAnalizAI /></RequireAuth>} />
+                <Route path="/sirket-analizi" element={<RequireAuth><SirketAnalizi /></RequireAuth>} />
+                <Route path="/dcf-degerleme" element={<RequireAuth><DCFDegerleme /></RequireAuth>} />
+                <Route path="/kripto-degerleme" element={<RequireAuth><KriptoDegerleme /></RequireAuth>} />
+                <Route path="/tarayicilar" element={<RequireAuth><Tarayicilar /></RequireAuth>} />
+                <Route path="/gunluk-tespitler" element={<RequireAuth><GunlukTespitler /></RequireAuth>} />
+                <Route path="/performans" element={<RequireAuth><Performans /></RequireAuth>} />
+                <Route path="/takip-listem" element={<RequireAuth><TakipListem /></RequireAuth>} />
+                <Route path="/notlarim" element={<RequireAuth><Notlarim /></RequireAuth>} />
 
-                  {/* === HESAP === */}
-                  <Route path="/abonelik" element={<Abonelik />} />
-                  <Route path="/odeme" element={<Odeme />} />
-                  <Route path="/ayarlar" element={<Ayarlar />} />
-                  <Route path="/sifre-degistir" element={<ChangePassword />} />
-                  <Route path="/istek-paneli" element={<IstekPaneli />} />
+                {/* === HESAP === */}
+                <Route path="/abonelik" element={<Abonelik />} />
+                <Route path="/odeme" element={<RequireAuth><Odeme /></RequireAuth>} />
+                <Route path="/ayarlar" element={<RequireAuth><Ayarlar /></RequireAuth>} />
+                <Route path="/sifre-degistir" element={<RequireAuth><ChangePassword /></RequireAuth>} />
+                <Route path="/istek-paneli" element={<RequireAuth><IstekPaneli /></RequireAuth>} />
 
-                  {user?.role === 'admin' && (
-                    <Route path="/admin-bildirimler" element={<AdminBildirimler />} />
-                  )}
+                {user?.role === 'admin' && (
+                  <Route path="/admin-bildirimler" element={<AdminBildirimler />} />
+                )}
 
-                  {/* === ESKİ URL → YENİ URL YÖNLENDİRMELERİ === */}
-                  {REDIRECT_MAP.map(r => (
-                    <Route key={r.from} path={r.from} element={<Navigate to={r.to} replace />} />
-                  ))}
+                {/* === ESKI URL -> YENI URL YONLENDIRMELERI === */}
+                {REDIRECT_MAP.map(r => (
+                  <Route key={r.from} path={r.from} element={<Navigate to={r.to} replace />} />
+                ))}
 
-                  {/* Bilinmeyen yollar Dashboard'a */}
-                  <Route path="*" element={<Navigate to="/" replace />} />
-                </Routes>
-                </ErrorBoundary>
-              </Layout>
-            ) : (
-              <Navigate to="/login" replace />
-            )
+                {/* Bilinmeyen yollar Dashboard'a */}
+                <Route path="*" element={<Navigate to="/" replace />} />
+              </Routes>
+              </ErrorBoundary>
+            </Layout>
           }
         />
       </Routes>

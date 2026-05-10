@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { RefreshCw, AlertCircle, Calendar, ExternalLink, Brain, TrendingUp, TrendingDown, Minus, ChevronDown, ChevronUp } from 'lucide-react'
 import api from '../services/api'
+import GuestCTA from '../components/GuestCTA'
 
 const IMPORTANCE_CONFIG = {
   high:   { label: 'Yüksek', color: 'text-red-400',    dot: 'bg-red-400',    bg: 'bg-red-500/10 border-red-500/20' },
@@ -98,6 +99,8 @@ export default function EkonomikTakvim() {
 
   return (
     <div className="space-y-5 max-w-3xl mx-auto">
+      <GuestCTA />
+
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>

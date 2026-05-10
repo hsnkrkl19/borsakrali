@@ -6,6 +6,7 @@ import {
   Calendar, Clock, Command, Sparkles, ArrowRight,
 } from 'lucide-react'
 import apiClient from '../services/api'
+import GuestCTA from '../components/GuestCTA'
 
 const fmt = (n, d = 2) => n == null ? '—' : n.toLocaleString('tr-TR', { minimumFractionDigits: d, maximumFractionDigits: d })
 
@@ -35,13 +36,24 @@ function IndexCard({ symbol, label, value, change, changePct, onClick, loading }
   return (
     <button
       onClick={onClick}
-      className="relative w-full text-left rounded-2xl p-4 sm:p-5 border transition-all
+      className="relative w-full text-left rounded-2xl p-4 sm:p-5 border overflow-hidden transition-all
         active:scale-[0.99] hover:scale-[1.005]"
       style={{
-        background: `linear-gradient(135deg, rgba(${accent}, 0.10) 0%, var(--bg-card) 50%, var(--bg-elevated) 100%)`,
-        borderColor: `rgba(${accent}, 0.30)`,
+        background: `linear-gradient(135deg, rgba(${accent}, 0.06) 0%, var(--bg-card) 55%, var(--bg-card) 100%)`,
+        borderColor: `rgba(${accent}, 0.45)`,
+        boxShadow: `var(--shadow-card), 0 0 0 1px rgba(${accent}, 0.18) inset`,
       }}
     >
+      <span
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-x-0 top-0 h-[3px]"
+        style={{ background: `linear-gradient(90deg, transparent 0%, rgba(${accent}, 0.7) 50%, transparent 100%)` }}
+      />
+      <span
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-x-0 bottom-0 h-[1px]"
+        style={{ background: `linear-gradient(90deg, transparent 0%, rgba(${accent}, 0.45) 50%, transparent 100%)` }}
+      />
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
           <div
@@ -293,6 +305,8 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-5">
+      <GuestCTA />
+
       {/* Header */}
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
@@ -341,9 +355,7 @@ export default function Dashboard() {
 
       {/* Quick stat chips — anlık piyasa durumu özeti
           • BIST100/BIST30 = endeks gün içi yüzdesel değişim
-          • Yükselen/Düşen  = BIST100'deki yön sayıları (gerçek breadth)
-          • Oran            = Yükselen / (Yükselen + Düşen) — piyasa nefesi
-              ≥%60 alıcılı, %40-60 yatay, ≤%40 satıcılı piyasa */}
+          • Yükselen/Düşen  = BIST100'deki yön sayıları (gerçek breadth) */}
       <div className="flex flex-wrap items-center gap-2">
         {bist100 != null && (
           <StatChip
@@ -374,12 +386,6 @@ export default function Dashboard() {
               value={breadth.down}
               tone="down"
               title={`BIST100'deki ${breadth.down} hisse bugün eksideki kapanıyor (${breadth.total} aktif hisse içinde)`}
-            />
-            <StatChip
-              label="Nefes"
-              value={`%${breadth.ratio}`}
-              tone={breadth.ratio >= 60 ? 'up' : breadth.ratio <= 40 ? 'down' : 'neutral'}
-              title={`Piyasa nefesi (breadth) = Yükselen / (Yükselen + Düşen). ${breadth.ratio >= 60 ? 'Alıcılı tablo' : breadth.ratio <= 40 ? 'Satıcılı tablo' : 'Yatay piyasa'} — ${breadth.up} yukarı, ${breadth.down} aşağı.`}
             />
           </>
         )}

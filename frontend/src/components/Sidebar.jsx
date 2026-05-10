@@ -30,6 +30,7 @@ import BrandMark from './BrandMark'
 
 export default function Sidebar({ isOpen, onToggle }) {
   const user = useAuthStore((state) => state.user)
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated)
   const logout = useAuthStore((state) => state.logout)
   const navigate = useNavigate()
   const [profileMenuOpen, setProfileMenuOpen] = useState(false)
@@ -63,11 +64,13 @@ export default function Sidebar({ isOpen, onToggle }) {
 
   // === SADELEŞTİRİLMİŞ NAVİGASYON ===
   // 23 sekme → 11 sekme. Tek işlevli sayfalar tek çatı altında birleşti.
-  const navItems = [
+  // isPublic: true → login olmayan kullanıcılar da görür (AdSense uyumu)
+  const allNavItems = [
     // Ana
-    { path: '/',                  label: 'Piyasa Kokpiti',   icon: LayoutDashboard, group: 'core' },
-    { path: '/site-haritasi',     label: 'Site Haritası',    icon: MapIcon,         group: 'core', highlight: true },
-    { path: '/canli-heatmap',     label: 'Canlı Heatmap',    icon: Flame,           group: 'core', highlight: true },
+    { path: '/',                  label: 'Piyasa Kokpiti',   icon: LayoutDashboard, group: 'core', isPublic: true },
+    { path: '/site-haritasi',     label: 'Site Haritası',    icon: MapIcon,         group: 'core', highlight: true, isPublic: true },
+    { path: '/canli-heatmap',     label: 'Canlı Heatmap',    icon: Flame,           group: 'core', highlight: true, isPublic: true },
+    { path: '/egitim',            label: 'Eğitim',           icon: BookOpen,        group: 'core', isPublic: true, badge: 'YENİ' },
     { path: '/kripto',            label: 'Kripto',           icon: Coins,           group: 'core', highlight: true, badge: 'YENİ' },
     { path: '/pro-analiz',        label: 'Pro Analiz',       icon: Gem,             group: 'core', highlight: true, badge: 'PRO' },
 
@@ -83,15 +86,20 @@ export default function Sidebar({ isOpen, onToggle }) {
     // Kişisel
     { path: '/takip-listem',      label: 'Takip Listem',     icon: Briefcase,       group: 'kisisel' },
     { path: '/notlarim',          label: 'Notlarım',         icon: BookOpen,        group: 'kisisel' },
-    { path: '/ekonomik-takvim',   label: 'Ekonomik Takvim',  icon: Calendar,        group: 'kisisel' },
+    { path: '/ekonomik-takvim',   label: 'Ekonomik Takvim',  icon: Calendar,        group: 'kisisel', isPublic: true },
 
     // Hesap
-    { path: '/abonelik',          label: 'Abonelik',         icon: CreditCard,      group: 'hesap' },
+    { path: '/abonelik',          label: 'Abonelik',         icon: CreditCard,      group: 'hesap', isPublic: true },
     { path: '/ayarlar',           label: 'Ayarlar',          icon: Settings,        group: 'hesap' },
     ...(user?.role === 'admin'
       ? [{ path: '/admin-bildirimler', label: 'Admin Bildirim', icon: BellRing, highlight: true, badge: 'ADMIN', group: 'hesap' }]
       : []),
   ]
+
+  // Login degilse sadece public sayfalari goster
+  const navItems = isAuthenticated
+    ? allNavItems
+    : allNavItems.filter((it) => it.isPublic)
 
   const groupLabels = {
     core:    'Hızlı Erişim',
@@ -249,6 +257,29 @@ export default function Sidebar({ isOpen, onToggle }) {
         className="flex-shrink-0 p-2 relative"
         style={{ borderTop: '1px solid var(--border-main)' }}
       >
+        {!isAuthenticated ? (
+          <div className={`space-y-2 ${isOpen ? '' : 'flex flex-col items-center'}`}>
+            <button
+              type="button"
+              onClick={() => navigate('/register')}
+              className={`relative overflow-hidden rounded-xl ${isOpen ? 'w-full px-3 py-2.5' : 'w-12 h-12 flex items-center justify-center'} bg-gradient-to-r from-gold-500 to-gold-600 text-dark-950 font-semibold text-[13px] transition hover:from-gold-400 hover:to-gold-500`}
+              title="Ucretsiz Kayit Ol"
+            >
+              {isOpen ? 'Ucretsiz Kayit Ol' : <Crown className="w-5 h-5" />}
+            </button>
+            {isOpen && (
+              <button
+                type="button"
+                onClick={() => navigate('/login')}
+                className="w-full px-3 py-2.5 rounded-xl border text-[13px] font-medium transition"
+                style={{ borderColor: 'var(--border-main)', color: 'var(--text-secondary)' }}
+              >
+                Giris Yap
+              </button>
+            )}
+          </div>
+        ) : (
+        <>
         <button
           type="button"
           onClick={() => setProfileMenuOpen((v) => !v)}
@@ -342,6 +373,8 @@ export default function Sidebar({ isOpen, onToggle }) {
               </button>
             </div>
           </div>
+        )}
+        </>
         )}
       </div>
     </aside>

@@ -6,6 +6,7 @@ import {
   MessageCircle, Hash, Newspaper, Layers, BarChart3, FileText,
   Sparkles, Brain, Zap,
 } from 'lucide-react'
+import GuestCTA from '../components/GuestCTA'
 
 const SECTIONS = [
   {
@@ -182,6 +183,8 @@ export default function SiteHaritasi() {
 
   return (
     <div className="space-y-6 max-w-6xl mx-auto pb-10">
+      <GuestCTA />
+
       {/* Hero */}
       <div className="rounded-2xl border border-amber-500/30 bg-gradient-to-br from-amber-500/15 to-amber-700/5 p-5 sm:p-6">
         <div className="flex items-start gap-3">

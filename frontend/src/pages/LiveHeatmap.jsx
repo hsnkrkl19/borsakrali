@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ExternalLink } from 'lucide-react';
 import axios from 'axios';
+import GuestCTA from '../components/GuestCTA';
 
 import { getApiBase } from '../config'
 const API_BASE = getApiBase() + '/api';
@@ -111,6 +112,8 @@ export default function LiveHeatmap() {
 
   return (
     <div className="min-h-screen bg-dark-950 p-2 sm:p-6">
+      <GuestCTA />
+
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 gap-2">
         <div>
