@@ -9,6 +9,7 @@ const signalDetectionService = require('./signalDetectionService');
 const kapService = require('./kapService');
 const dailySignalsService = require('./dailySignalsService');
 const cryptoSignalsService = require('./cryptoSignalsService');
+const multiTimeframeService = require('./multiTimeframeService');
 const socketService = require('./socketService');
 const pushNotificationService = require('./pushNotificationService');
 const economicCalendarService = require('./economicCalendarService');
@@ -241,6 +242,54 @@ async function runCryptoPhase(phase, options = {}) {
   }
 }
 
+// ── Multi-Timeframe (1h/4h/1d/1w) signal scanner ──────────────────────────
+async function runMTFPhase(tf, options = {}) {
+  try {
+    logger.info(`⏰ MTF (${tf}) tarama başlatıldı`);
+    const result = await multiTimeframeService.runAndStore(tf);
+
+    const longCount  = result.scanner?.long?.signals?.length  || 0;
+    const shortCount = result.scanner?.short?.signals?.length || 0;
+    const analyzed   = result.scanner?.analyzedCount || 0;
+
+    socketService.broadcastSignal({
+      strategy: 'crypto_mtf', timeframe: tf,
+      generatedAt: result.generatedAt,
+      longCount, shortCount, analyzed,
+      stockSymbol: 'CRYPTO_MTF',
+    });
+
+    // Push: yalnızca STRONG verdict eşiği geçen confluence'larda
+    if (!options.silent && (tf === '4h' || tf === '1d' || tf === '1w')) {
+      try {
+        const date = require('./mtfSnapshotStore').dateKey();
+        const snap = require('./mtfSnapshotStore').read(date);
+        const strong = (snap?.confluence?.top || []).filter(c =>
+          c.verdict === 'STRONG_LONG' || c.verdict === 'STRONG_SHORT'
+        ).slice(0, 5);
+        if (strong.length > 0) {
+          const longTop  = strong.filter(c => c.verdict === 'STRONG_LONG').map(c => c.symbol).slice(0, 3).join(', ');
+          const shortTop = strong.filter(c => c.verdict === 'STRONG_SHORT').map(c => c.symbol).slice(0, 3).join(', ');
+          await pushNotificationService.broadcastNotification({
+            title: `📡 ${tf.toUpperCase()} MTF Confluence`,
+            body: (longTop ? `Long: ${longTop}` : '') + (shortTop ? ` · Short: ${shortTop}` : ''),
+            path: '/gunluk-tespitler?tab=mtf',
+            topic: 'all',
+          });
+        }
+      } catch (e) {
+        logger.error(`[MTF] FCM push hata (${tf}): ${e.message}`);
+      }
+    }
+
+    logger.info(`✅ MTF (${tf}) tamamlandı — Long: ${longCount}, Short: ${shortCount}, Analyzed: ${analyzed}`);
+    return result;
+  } catch (e) {
+    logger.error(`MTF (${tf}) hata: ${e.message}`, e.stack);
+    return null;
+  }
+}
+
 class CronJobsService {
   constructor() {
     this.jobs = [];
@@ -397,7 +446,35 @@ class CronJobsService {
       { scheduled: false, ...TR_TZ }
     );
 
-    // 15. Borsa açılış bildirimi — 10:00 (BIST seans başlangıcı). Pzt-Cuma.
+    // 15. MTF 1h — her saat :05'te (mum kapandıktan sonra). Sessiz; Socket.IO push.
+    const mtfHourlyJob = cron.schedule(
+      '5 * * * *',
+      () => runMTFPhase('1h', { silent: true }),
+      { scheduled: false, ...TR_TZ }
+    );
+
+    // 16. MTF 4h — 4 saat aralıkla :10'da. STRONG confluence push'lu.
+    const mtf4hJob = cron.schedule(
+      '10 0,4,8,12,16,20 * * *',
+      () => runMTFPhase('4h'),
+      { scheduled: false, ...TR_TZ }
+    );
+
+    // 17. MTF 1d — günde bir, 00:30'da. STRONG confluence push'lu.
+    const mtfDailyJob = cron.schedule(
+      '30 0 * * *',
+      () => runMTFPhase('1d'),
+      { scheduled: false, ...TR_TZ }
+    );
+
+    // 18. MTF 1w — Pazartesi 01:00'da haftalık tarama. STRONG confluence push'lu.
+    const mtfWeeklyJob = cron.schedule(
+      '0 1 * * 1',
+      () => runMTFPhase('1w'),
+      { scheduled: false, ...TR_TZ }
+    );
+
+    // 19. Borsa açılış bildirimi — 10:00 (BIST seans başlangıcı). Pzt-Cuma.
     //     Resmi tatil günlerinde fonksiyon kendi içinde atlatır.
     const marketOpenJob = cron.schedule(
       '0 10 * * 1-5',
@@ -405,7 +482,7 @@ class CronJobsService {
       { scheduled: false, ...TR_TZ }
     );
 
-    // 16. Borsa kapanış bildirimi — 18:00 (BIST seans sonu). Pzt-Cuma.
+    // 20. Borsa kapanış bildirimi — 18:00 (BIST seans sonu). Pzt-Cuma.
     //     Resmi tatil günlerinde fonksiyon kendi içinde atlatır.
     const marketCloseJob = cron.schedule(
       '0 18 * * 1-5',
@@ -413,7 +490,7 @@ class CronJobsService {
       { scheduled: false, ...TR_TZ }
     );
 
-    // 17. Ekonomik takvim erken uyarısı — her gün 18:30. Yarınki yüksek-etkili
+    // 21. Ekonomik takvim erken uyarısı — her gün 18:30. Yarınki yüksek-etkili
     //     (importance:'high') TR/US olayları varsa broadcast; yoksa sessiz.
     const calendarWarningJob = cron.schedule(
       '30 18 * * *',
@@ -461,6 +538,10 @@ class CronJobsService {
       cryptoEveningJob,
       cryptoNightJob,
       cryptoIntradayJob,
+      mtfHourlyJob,
+      mtf4hJob,
+      mtfDailyJob,
+      mtfWeeklyJob,
       marketOpenJob,
       marketCloseJob,
       calendarWarningJob,
@@ -506,6 +587,15 @@ class CronJobsService {
     const valid = ['morning', 'midday', 'evening', 'night', 'intraday'];
     const safe = valid.includes(phase) ? phase : 'intraday';
     return runCryptoPhase(safe, { silent: true });
+  }
+
+  /**
+   * Manuel tetikleme — MTF taraması (1h | 4h | 1d | 1w)
+   */
+  async triggerMTFPhase(tf) {
+    const valid = ['1h', '4h', '1d', '1w'];
+    const safe = valid.includes(tf) ? tf : '4h';
+    return runMTFPhase(safe, { silent: true });
   }
 
   /**

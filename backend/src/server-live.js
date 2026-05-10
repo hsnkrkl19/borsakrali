@@ -2687,6 +2687,73 @@ app.get('/api/market/crypto/backtest', async (req, res) => {
   }
 });
 
+// ============ MULTI-TIMEFRAME (1h / 4h / 1d / 1w) ============
+const multiTimeframeService = require('./services/multiTimeframeService');
+const mtfSnapshotStore = require('./services/mtfSnapshotStore');
+
+const MTF_VALID = ['1h', '4h', '1d', '1w'];
+
+// Tek TF için snapshot'tan veya canlı tarama
+app.get('/api/market/crypto/mtf/scanner', async (req, res) => {
+  try {
+    const tf = MTF_VALID.includes(req.query.tf) ? req.query.tf : '4h';
+    const date = mtfSnapshotStore.dateKey();
+    let block = mtfSnapshotStore.getTimeframe(date, tf);
+    let source = 'snapshot';
+    if (!block) {
+      // İlk açılışta cron çalışmamış olabilir — manuel tetikle
+      const result = await cronJobsService.triggerMTFPhase(tf);
+      if (!result) return res.status(503).json({ success: false, error: 'MTF taraması henüz hazır değil' });
+      block = { generatedAt: result.generatedAt, scanner: result.scanner };
+      source = 'fresh';
+    }
+    res.json({ success: true, date, timeframe: tf, source, ...block });
+  } catch (e) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
+// Tek coin için 4 TF + confluence
+app.get('/api/market/crypto/mtf/coin/:symbol', async (req, res) => {
+  try {
+    const symbol = (req.params.symbol || '').toUpperCase();
+    if (!symbol) return res.status(400).json({ success: false, error: 'Sembol zorunlu' });
+    const result = await multiTimeframeService.analyzeCoinAllTFs(symbol);
+    if (!result) return res.status(404).json({ success: false, error: `${symbol} top 100'de yok ya da Binance USDT paritesinde değil` });
+    res.json({ success: true, ...result });
+  } catch (e) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
+// Confluence — tüm TF'lerin ağırlıklı toplamından çıkan multi-TF özeti
+app.get('/api/market/crypto/mtf/confluence', async (req, res) => {
+  try {
+    const date = mtfSnapshotStore.dateKey();
+    const snap = mtfSnapshotStore.read(date);
+    let confluence = snap?.confluence || null;
+    if (!confluence) {
+      // Snapshot'ta yoksa canlı hesapla (snapshot varsa cache'ten)
+      confluence = await multiTimeframeService.scanConfluence();
+    }
+    res.json({ success: true, date, ...confluence });
+  } catch (e) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
+// Manuel trigger — admin/test
+app.post('/api/market/crypto/mtf/generate', async (req, res) => {
+  try {
+    const tf = MTF_VALID.includes(req.body?.tf) ? req.body.tf : '4h';
+    const result = await cronJobsService.triggerMTFPhase(tf);
+    if (!result) return res.status(500).json({ success: false, error: 'MTF üretim başarısız' });
+    res.json({ success: true, timeframe: tf, ...result });
+  } catch (e) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
 // ============ X (TWITTER) MENTION ROUTES ============
 // dexter (virattt/dexter) src/tools/search/x-search.ts'ten esinli.
 // Şu an mock data; ileride twscrape → RapidAPI → resmi X API v2'ye geçilecek.

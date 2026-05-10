@@ -8,6 +8,8 @@ const router = express.Router();
 const marketController = require('../controllers/market.controller');
 const cryptoSignalsService = require('../services/cryptoSignalsService');
 const cryptoSnapshotStore = require('../services/cryptoSnapshotStore');
+const multiTimeframeService = require('../services/multiTimeframeService');
+const mtfSnapshotStore = require('../services/mtfSnapshotStore');
 const cronJobsService = require('../services/cronJobs');
 const { authenticate } = require('../middleware/auth');
 
@@ -90,6 +92,51 @@ router.get('/crypto/coin/:symbol', async (req, res) => {
       return res.status(404).json({ success: false, error: `${symbol} top 100'de yok ya da Binance USDT paritesinde değil` });
     }
     res.json({ success: true, ...result });
+  } catch (e) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
+// Multi-Timeframe scanner — 1h | 4h | 1d | 1w
+const MTF_VALID = ['1h', '4h', '1d', '1w'];
+
+router.get('/crypto/mtf/scanner', async (req, res) => {
+  try {
+    const tf = MTF_VALID.includes(req.query.tf) ? req.query.tf : '4h';
+    const date = mtfSnapshotStore.dateKey();
+    let block = mtfSnapshotStore.getTimeframe(date, tf);
+    let source = 'snapshot';
+    if (!block) {
+      const result = await cronJobsService.triggerMTFPhase(tf);
+      if (!result) return res.status(503).json({ success: false, error: 'MTF taraması henüz hazır değil' });
+      block = { generatedAt: result.generatedAt, scanner: result.scanner };
+      source = 'fresh';
+    }
+    res.json({ success: true, date, timeframe: tf, source, ...block });
+  } catch (e) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
+router.get('/crypto/mtf/coin/:symbol', async (req, res) => {
+  try {
+    const symbol = (req.params.symbol || '').toUpperCase();
+    if (!symbol) return res.status(400).json({ success: false, error: 'Sembol zorunlu' });
+    const result = await multiTimeframeService.analyzeCoinAllTFs(symbol);
+    if (!result) return res.status(404).json({ success: false, error: `${symbol} top 100'de yok ya da Binance USDT paritesinde değil` });
+    res.json({ success: true, ...result });
+  } catch (e) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
+router.get('/crypto/mtf/confluence', async (req, res) => {
+  try {
+    const date = mtfSnapshotStore.dateKey();
+    const snap = mtfSnapshotStore.read(date);
+    let confluence = snap?.confluence || null;
+    if (!confluence) confluence = await multiTimeframeService.scanConfluence();
+    res.json({ success: true, date, ...confluence });
   } catch (e) {
     res.status(500).json({ success: false, error: e.message });
   }
