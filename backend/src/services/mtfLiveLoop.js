@@ -83,6 +83,34 @@ function start() {
     tick(); // ilk cycle hemen
     intervalHandle = setInterval(tick, INTERVAL_MS);
   }, BOOT_DELAY_MS);
+
+  // Boot sonrası 90sn beklenip ARKA PLANDA hafif calibration başlat.
+  //   - Live loop'u bloklamaz (async, paralel çalışır)
+  //   - Sadece 1h × 3 gün = 3 backtest (~20-30sn toplam)
+  //   - Sonuçlar mtfCalibrationService'e yazılır + diske kaydedilir
+  //   - Sonradan 12 saatte bir tekrar (daha geniş calibration)
+  setTimeout(async () => {
+    try {
+      logger.info('[MTFLoop] Initial calibration başlatılıyor (1h × 3 gün)...');
+      const mtfBacktestService = require('./mtfBacktestService');
+      await mtfBacktestService.calibrateFromHistory({ tfs: ['1h'], daysBack: 3, save: true });
+      logger.info('[MTFLoop] Initial calibration tamamlandı ✓');
+    } catch (e) {
+      logger.error(`[MTFLoop] Initial calibration hata: ${e.message}`);
+    }
+  }, 90 * 1000);
+
+  // 12 saatte bir geniş kalibrasyon — 1h/4h/1d × 7 gün
+  setInterval(async () => {
+    try {
+      logger.info('[MTFLoop] Periyodik calibration başlatılıyor (1h/4h/1d × 7 gün)...');
+      const mtfBacktestService = require('./mtfBacktestService');
+      await mtfBacktestService.calibrateFromHistory({ tfs: ['1h', '4h', '1d'], daysBack: 7, save: true });
+      logger.info('[MTFLoop] Periyodik calibration tamamlandı ✓');
+    } catch (e) {
+      logger.error(`[MTFLoop] Periyodik calibration hata: ${e.message}`);
+    }
+  }, 12 * 3600 * 1000);
 }
 
 function stop() {

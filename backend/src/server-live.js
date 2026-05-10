@@ -2754,6 +2754,55 @@ app.post('/api/market/crypto/mtf/generate', async (req, res) => {
   }
 });
 
+// ============ MTF BACKTEST + CALIBRATION (Faz 6 + 7) ============
+const mtfBacktestService = require('./services/mtfBacktestService');
+const mtfCalibrationService = require('./services/mtfCalibrationService');
+
+// Tek TF × tek asOf backtest
+//   ?tf=1h&asOf=YYYY-MM-DD&horizon=24
+app.get('/api/market/crypto/mtf/backtest', async (req, res) => {
+  try {
+    const tf = MTF_VALID.includes(req.query.tf) ? req.query.tf : '4h';
+    const asOf = req.query.asOf;
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(asOf || '')) {
+      return res.status(400).json({ success: false, error: 'asOf zorunlu (YYYY-MM-DD)' });
+    }
+    const horizon = Math.max(1, Math.min(parseInt(req.query.horizon || '0', 10) || 0, 200))
+      || mtfBacktestService.TF_DEFAULT_HORIZON[tf];
+    const result = await mtfBacktestService.backtestTFAsOf(tf, asOf, horizon);
+    res.json({ success: true, ...result });
+  } catch (e) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
+// Calibration tablosu snapshot — TF × yön × bucket dökümü
+app.get('/api/market/crypto/mtf/calibration', (req, res) => {
+  try {
+    res.json({
+      success: true,
+      generatedAt: new Date().toISOString(),
+      snapshot: mtfCalibrationService.getSnapshot(),
+    });
+  } catch (e) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
+// Manuel calibration tetikleme (admin/test) — body: { tfs?, daysBack?, save? }
+app.post('/api/market/crypto/mtf/calibrate', async (req, res) => {
+  try {
+    const tfs       = Array.isArray(req.body?.tfs) ? req.body.tfs : ['1h', '4h', '1d'];
+    const daysBack  = Math.max(1, Math.min(parseInt(req.body?.daysBack || '7', 10), 30));
+    const save      = req.body?.save !== false;
+    // Async, blocking — uzun sürer (her TF × her gün ~5-10sn)
+    const result = await mtfBacktestService.calibrateFromHistory({ tfs, daysBack, save });
+    res.json({ success: true, ...result });
+  } catch (e) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
 // ============ X (TWITTER) MENTION ROUTES ============
 // dexter (virattt/dexter) src/tools/search/x-search.ts'ten esinli.
 // Şu an mock data; ileride twscrape → RapidAPI → resmi X API v2'ye geçilecek.
