@@ -446,35 +446,57 @@ class CronJobsService {
       { scheduled: false, ...TR_TZ }
     );
 
-    // 15. MTF 1h — her saat :05'te (mum kapandıktan sonra). Sessiz; Socket.IO push.
+    // 15. MTF 1m — her dakika (top 10 coin scalping). Sessiz; Socket.IO push.
+    //     30 sn klines cache + her dk tarama → ortalama 30 sn data tazeliği.
+    const mtf1mJob = cron.schedule(
+      '* * * * *',
+      () => runMTFPhase('1m', { silent: true }),
+      { scheduled: false, ...TR_TZ }
+    );
+
+    // 16. MTF 5m — her 5 dakika (top 10). Sessiz; Socket.IO push.
+    const mtf5mJob = cron.schedule(
+      '*/5 * * * *',
+      () => runMTFPhase('5m', { silent: true }),
+      { scheduled: false, ...TR_TZ }
+    );
+
+    // 17. MTF 15m — her 15 dakika (top 10). Sessiz; Socket.IO push.
+    const mtf15mJob = cron.schedule(
+      '*/15 * * * *',
+      () => runMTFPhase('15m', { silent: true }),
+      { scheduled: false, ...TR_TZ }
+    );
+
+    // 18. MTF 1h — her saat :05'te (top 20). Sessiz; Socket.IO push.
     const mtfHourlyJob = cron.schedule(
       '5 * * * *',
       () => runMTFPhase('1h', { silent: true }),
       { scheduled: false, ...TR_TZ }
     );
 
-    // 16. MTF 4h — 4 saat aralıkla :10'da. STRONG confluence push'lu.
+    // 19. MTF 4h — 4 saat aralıkla :10'da (top 20). STRONG confluence push'lu.
     const mtf4hJob = cron.schedule(
       '10 0,4,8,12,16,20 * * *',
       () => runMTFPhase('4h'),
       { scheduled: false, ...TR_TZ }
     );
 
-    // 17. MTF 1d — günde bir, 00:30'da. STRONG confluence push'lu.
+    // 20. MTF 1d — günde bir, 00:30'da (top 30). STRONG confluence push'lu.
     const mtfDailyJob = cron.schedule(
       '30 0 * * *',
       () => runMTFPhase('1d'),
       { scheduled: false, ...TR_TZ }
     );
 
-    // 18. MTF 1w — Pazartesi 01:00'da haftalık tarama. STRONG confluence push'lu.
+    // 21. MTF 1w — Pazartesi 01:00'da (top 30). STRONG confluence push'lu.
     const mtfWeeklyJob = cron.schedule(
       '0 1 * * 1',
       () => runMTFPhase('1w'),
       { scheduled: false, ...TR_TZ }
     );
 
-    // 19. Borsa açılış bildirimi — 10:00 (BIST seans başlangıcı). Pzt-Cuma.
+    // 22. Borsa açılış bildirimi — 10:00 (BIST seans başlangıcı). Pzt-Cuma.
     //     Resmi tatil günlerinde fonksiyon kendi içinde atlatır.
     const marketOpenJob = cron.schedule(
       '0 10 * * 1-5',
@@ -482,7 +504,7 @@ class CronJobsService {
       { scheduled: false, ...TR_TZ }
     );
 
-    // 20. Borsa kapanış bildirimi — 18:00 (BIST seans sonu). Pzt-Cuma.
+    // 23. Borsa kapanış bildirimi — 18:00 (BIST seans sonu). Pzt-Cuma.
     //     Resmi tatil günlerinde fonksiyon kendi içinde atlatır.
     const marketCloseJob = cron.schedule(
       '0 18 * * 1-5',
@@ -490,7 +512,7 @@ class CronJobsService {
       { scheduled: false, ...TR_TZ }
     );
 
-    // 21. Ekonomik takvim erken uyarısı — her gün 18:30. Yarınki yüksek-etkili
+    // 24. Ekonomik takvim erken uyarısı — her gün 18:30. Yarınki yüksek-etkili
     //     (importance:'high') TR/US olayları varsa broadcast; yoksa sessiz.
     const calendarWarningJob = cron.schedule(
       '30 18 * * *',
@@ -538,6 +560,9 @@ class CronJobsService {
       cryptoEveningJob,
       cryptoNightJob,
       cryptoIntradayJob,
+      mtf1mJob,
+      mtf5mJob,
+      mtf15mJob,
       mtfHourlyJob,
       mtf4hJob,
       mtfDailyJob,
@@ -590,10 +615,10 @@ class CronJobsService {
   }
 
   /**
-   * Manuel tetikleme — MTF taraması (1h | 4h | 1d | 1w)
+   * Manuel tetikleme — MTF taraması (1m | 5m | 15m | 1h | 4h | 1d | 1w)
    */
   async triggerMTFPhase(tf) {
-    const valid = ['1h', '4h', '1d', '1w'];
+    const valid = ['1m', '5m', '15m', '1h', '4h', '1d', '1w'];
     const safe = valid.includes(tf) ? tf : '4h';
     return runMTFPhase(safe, { silent: true });
   }

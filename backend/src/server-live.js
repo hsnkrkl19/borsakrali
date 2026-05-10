@@ -2691,7 +2691,7 @@ app.get('/api/market/crypto/backtest', async (req, res) => {
 const multiTimeframeService = require('./services/multiTimeframeService');
 const mtfSnapshotStore = require('./services/mtfSnapshotStore');
 
-const MTF_VALID = ['1h', '4h', '1d', '1w'];
+const MTF_VALID = ['1m', '5m', '15m', '1h', '4h', '1d', '1w'];
 
 // Tek TF için snapshot'tan veya canlı tarama
 app.get('/api/market/crypto/mtf/scanner', async (req, res) => {

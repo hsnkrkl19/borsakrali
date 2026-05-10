@@ -723,6 +723,19 @@ async function backtestAsOf(asOfDate, horizonDays = 7) {
   };
 }
 
+// Top N coin (CoinGecko market cap sırasına göre, getTop100Coins'in alt kümesi)
+async function getTopNCoins(n = 100) {
+  const top100 = await getTop100Coins();
+  return top100.slice(0, Math.max(1, Math.min(n, 100)));
+}
+
+// Top N tradable USDT coin (Binance spot'ta bulunanlar)
+async function getTopNTradable(n = 100) {
+  const top100 = await getTop100Coins();
+  const { spot } = await getBinanceUsdtSymbols();
+  return top100.filter(c => spot.has(c.symbol)).slice(0, Math.max(1, Math.min(n, 100)));
+}
+
 module.exports = {
   generatePhase,
   runAndStore,
@@ -731,6 +744,8 @@ module.exports = {
   evaluateCryptoSignalForward,
   aggregateBacktestStats,
   getTop100Coins,
+  getTopNCoins,
+  getTopNTradable,
   getBinanceUsdtSymbols,
   TOP_LIMIT,
 };

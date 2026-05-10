@@ -24,7 +24,7 @@ const fs = require('fs');
 const path = require('path');
 
 const SNAPSHOT_DIR = path.join(__dirname, '..', 'data', 'crypto-mtf');
-const SUPPORTED_TFS = ['1h', '4h', '1d', '1w'];
+const SUPPORTED_TFS = ['1m', '5m', '15m', '1h', '4h', '1d', '1w'];
 
 function ensureDir() {
   if (!fs.existsSync(SNAPSHOT_DIR)) {

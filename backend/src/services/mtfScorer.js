@@ -279,12 +279,18 @@ const CONDITION_GROUPS = {
   pattern: { label: 'Mum Formasyonu', color: 'amber' },
 };
 
-// TF-spesifik R/R ve stop multiplier (kısa TF'de daha sıkı stop)
+// TF-spesifik R/R ve stop multiplier
+//   - Kısa TF'de daha sıkı stop, küçük target (scalping mantığı)
+//   - Uzun TF'de geniş stop, büyük target (swing/pozisyon mantığı)
+//   - leverageBase: scalping'de 5x maks (volatilite riskli), 4h/swing'de 5-7x optimum
 const TF_RISK_PROFILE = {
-  '1h': { stopAtrMult: 1.2, target1AtrMult: 1.8, target2AtrMult: 3.0, leverageBase: 3 },
-  '4h': { stopAtrMult: 1.5, target1AtrMult: 2.5, target2AtrMult: 4.0, leverageBase: 5 },
-  '1d': { stopAtrMult: 2.0, target1AtrMult: 3.5, target2AtrMult: 6.0, leverageBase: 3 },
-  '1w': { stopAtrMult: 2.5, target1AtrMult: 5.0, target2AtrMult: 10.0, leverageBase: 1 },
+  '1m':  { stopAtrMult: 0.8, target1AtrMult: 1.0, target2AtrMult: 1.5, leverageBase: 4 },
+  '5m':  { stopAtrMult: 1.0, target1AtrMult: 1.3, target2AtrMult: 2.0, leverageBase: 5 },
+  '15m': { stopAtrMult: 1.2, target1AtrMult: 1.6, target2AtrMult: 2.5, leverageBase: 5 },
+  '1h':  { stopAtrMult: 1.2, target1AtrMult: 1.8, target2AtrMult: 3.0, leverageBase: 3 },
+  '4h':  { stopAtrMult: 1.5, target1AtrMult: 2.5, target2AtrMult: 4.0, leverageBase: 5 },
+  '1d':  { stopAtrMult: 2.0, target1AtrMult: 3.5, target2AtrMult: 6.0, leverageBase: 3 },
+  '1w':  { stopAtrMult: 2.5, target1AtrMult: 5.0, target2AtrMult: 10.0, leverageBase: 1 },
 };
 
 // ───────────────────────────────────────────────────────────────────────────

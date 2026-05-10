@@ -97,8 +97,8 @@ router.get('/crypto/coin/:symbol', async (req, res) => {
   }
 });
 
-// Multi-Timeframe scanner — 1h | 4h | 1d | 1w
-const MTF_VALID = ['1h', '4h', '1d', '1w'];
+// Multi-Timeframe scanner — 1m/5m/15m (top 10) | 1h/4h (top 20) | 1d/1w (top 30)
+const MTF_VALID = ['1m', '5m', '15m', '1h', '4h', '1d', '1w'];
 
 router.get('/crypto/mtf/scanner', async (req, res) => {
   try {

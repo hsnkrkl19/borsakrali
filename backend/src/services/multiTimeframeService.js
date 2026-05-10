@@ -36,16 +36,39 @@ const BINANCE_BASE = 'https://api.binance.com';
 
 // TF → bir üst TF (macro context için)
 const HIGHER_TF_MAP = {
+  '1m':  '5m',
+  '5m':  '15m',
+  '15m': '1h',
   '1h':  '4h',
   '4h':  '1d',
   '1d':  '1w',
   '1w':  '1M',  // aylık üst context
 };
 
+// TF → kapsam (kullanıcı isteği): top 10/20/30 split
+//   1m/5m/15m → top 10 (en likit, scalping)
+//   1h/4h     → top 20 (saatlik swing)
+//   1d/1w     → top 30 (pozisyon, daha geniş kapsam)
+const TF_TIER = {
+  '1m':  10,
+  '5m':  10,
+  '15m': 10,
+  '1h':  20,
+  '4h':  20,
+  '1d':  30,
+  '1w':  30,
+};
+
 // Confluence aggregator ağırlıkları (uzun TF daha çok ağırlık)
+//   1m/5m/15m: scalping — düşük ağırlık (gürültü çok)
+//   1h/4h:    saatlik — orta
+//   1d/1w:    swing — yüksek
 const TF_WEIGHTS = {
-  '1h':  6,
-  '4h':  8,
+  '1m':   2,
+  '5m':   3,
+  '15m':  4,
+  '1h':   6,
+  '4h':   8,
   '1d':  10,
   '1w':  12,
 };
@@ -54,11 +77,14 @@ const TF_WEIGHTS_TOTAL = Object.values(TF_WEIGHTS).reduce((a, b) => a + b, 0);
 // Klines önbellek (TF'e göre TTL — yeni mum kapanmadan tekrar fetch etmek anlamsız)
 const klinesCache = new Map(); // key=`${symbol}:${tf}` -> { data, t }
 const TF_CACHE_TTL = {
-  '1h': 5 * 60 * 1000,   // 5 dk
-  '4h': 30 * 60 * 1000,  // 30 dk
-  '1d': 2 * 3600 * 1000, // 2 sa
-  '1w': 12 * 3600 * 1000,// 12 sa
-  '1M': 24 * 3600 * 1000,// 24 sa
+  '1m':  20 * 1000,        // 20 sn (1m mum 60sn'de bir kapanır)
+  '5m':  60 * 1000,        // 1 dk
+  '15m': 3 * 60 * 1000,    // 3 dk
+  '1h':  5 * 60 * 1000,    // 5 dk
+  '4h':  30 * 60 * 1000,   // 30 dk
+  '1d':  2 * 3600 * 1000,  // 2 sa
+  '1w':  12 * 3600 * 1000, // 12 sa
+  '1M':  24 * 3600 * 1000, // 24 sa
 };
 
 async function fetchKlines(symbol, interval, limit = 250) {
@@ -241,13 +267,17 @@ async function buildContextForCoinTF(coin, tf) {
   };
 }
 
-// ── Universe taraması — bir TF için top 100 coin ──────────────────────────
+// ── Universe taraması — TF'e göre top 10/20/30 partition'ı ────────────────
+//   1m/5m/15m → top 10 (scalping, en likit)
+//   1h/4h     → top 20 (saatlik swing)
+//   1d/1w     → top 30 (pozisyon)
 async function scanUniverseForTF(tf) {
+  const tierLimit = TF_TIER[tf] || 30;
   const universe = await cryptoSignalsService.getTop100Coins();
   if (!universe.length) return { signals: [], allSignals: [], analyzedCount: 0 };
 
   const { spot } = await cryptoSignalsService.getBinanceUsdtSymbols();
-  const tradable = universe.filter(c => spot.has(c.symbol));
+  const tradable = universe.filter(c => spot.has(c.symbol)).slice(0, tierLimit);
 
   const longList = [], shortList = [];
   let analyzedCount = 0;
@@ -282,6 +312,7 @@ async function scanUniverseForTF(tf) {
   return {
     timeframe: tf,
     higherTimeframe: HIGHER_TF_MAP[tf],
+    tierLimit,
     universeSize: universe.length,
     tradableCount: tradable.length,
     analyzedCount,
