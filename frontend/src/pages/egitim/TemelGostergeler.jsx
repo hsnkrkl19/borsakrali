@@ -337,6 +337,36 @@ saglam giris noktasi olani secilir.`}
               </p>
             </section>
 
+            <section>
+              <h2 className="mb-3 text-xl font-semibold text-white">Uyumsuzluk (Divergence) Analizi</h2>
+              <p>
+                MACD ve RSI'nin en degerli kullanim bicimlerinden biri uyumsuzluk (divergence) tespitidir.
+                Uyumsuzluk; fiyat ile gostergenin farkli yonlerde hareket etmesidir ve cogu zaman trendin
+                bozulmaya basladiginin habercisidir.
+              </p>
+              <ul className="mt-3 list-disc space-y-2 pl-6">
+                <li>
+                  <strong className="text-white">Negatif (bearish) uyumsuzluk:</strong> Fiyat daha yuksek
+                  tepe yapar; ancak RSI veya MACD daha dusuk tepe yapar. Yukselis zayifliyor demektir.
+                </li>
+                <li>
+                  <strong className="text-white">Pozitif (bullish) uyumsuzluk:</strong> Fiyat daha dusuk dip
+                  yapar; ancak gosterge daha yuksek dip yapar. Dususun yorgunluk yasadigini ifade eder.
+                </li>
+                <li>
+                  <strong className="text-white">Gizli (hidden) uyumsuzluk:</strong> Trend devamini isaret
+                  eden uyumsuzluk turudur. Yukselen trendde fiyat daha yuksek dip yaparken RSI daha dusuk
+                  dip yapiyorsa, bu trendin devam edecegine isaret olabilir.
+                </li>
+              </ul>
+              <p className="mt-3">
+                Pratik ornek: SAHOL hissesi son tepe noktasinda 80 TL gorurken, bir onceki tepede 75 TL idi.
+                Aralarinda RSI 78'den 68'e geriledi. Bu negatif uyumsuzluk, yukselisin yorulmasini ve olasi
+                bir donus hareketini haber verebilir. Tek basina divergence islem sinyali degildir; mum
+                formasyonu, hacim ve trend cizgisi ile birlikte yorumlanmalidir.
+              </p>
+            </section>
+
             <section className="rounded-2xl border border-white/5 bg-dark-900/40 p-5">
               <h2 className="mb-3 text-lg font-semibold text-white">Bu makaleyle alakali</h2>
               <ul className="space-y-2 text-sm">

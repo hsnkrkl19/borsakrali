@@ -208,7 +208,7 @@ S3 = S1 - (Onceki Gun Yuksek - Dusuk)`}
               </p>
               <p className="mt-3">
                 Dusuk hacimli bolgeler (LVN — Low Volume Node) ise tersi bicimde calisir; fiyat bu bolgelerden
-                hizla geçme egilimindedir. Hacim profili ozellikle gunluk ve haftalik grafikte etkili sonuc
+                hizla gecme egilimindedir. Hacim profili ozellikle gunluk ve haftalik grafikte etkili sonuc
                 verir. Ornegin THYAO hissesinde son 3 ayin hacim profilini ekleyince, 220 TL ve 245 TL gibi
                 belirgin yogunluk noktalari ortaya cikabilir; bunlar manuel cizdiginiz seviyelerle ortustugu
                 taktirde guven artar.
@@ -280,6 +280,22 @@ S3 = S1 - (Onceki Gun Yuksek - Dusuk)`}
               <p className="mt-3">
                 Bu yaklasim Borsa Krali'ndaki 52 haftalik en yuksek/dusuk gostergeleriyle entegredir; tek
                 bakista bir hissenin yil boyunca neredeyizini gormek icin pratik bir referans saglar.
+              </p>
+            </section>
+
+            <section>
+              <h2 className="mb-3 text-xl font-semibold text-white">Order Block ve Likidite Bolgeleri</h2>
+              <p>
+                Modern teknik analizde "order block" ve "likidite havuzu" kavramlari ozellikle kurumsal
+                takipci yatirimcilar arasinda yayilmistir. Order block; buyuk emirlerin gerceklesmis oldugu
+                ve sonrasinda hizli hareket olusan mum bolgeleridir. Likidite havuzu ise stop emirlerinin
+                yogunlastigi alanlardir.
+              </p>
+              <p className="mt-3">
+                Pratik anlami soyledir: bir hissenin onceki onemli dipinin hemen altinda yogun stop emri
+                vardir. Manipulatif hareketlerde fiyat o seviyenin biraz altina inip stoplari toplar, sonra
+                hizla yukari doner. Bu nedenle stop emirlerini onceki dibin tam altina degil; biraz uzaginda
+                yerlestirmek pratik bir savunma yontemidir.
               </p>
             </section>
 

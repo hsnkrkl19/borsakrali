@@ -147,7 +147,7 @@ export default function TeknikAnalizGiris() {
               </ul>
               <p className="mt-3">
                 Trend cizgileri, en az iki dibi (yukselen trend) veya iki tepeyi (dusen trend) birlestirerek
-                cizilir. Gec yapilan dokunuslar trendin geçerliligini guclendirir.
+                cizilir. Gec yapilan dokunuslar trendin gecerliligini guclendirir.
               </p>
             </section>
 
