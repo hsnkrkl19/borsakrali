@@ -86,9 +86,11 @@ function formatPct(value, digits = 2) {
 export default function MTFSinyalleri() {
   const [activeTF, setActiveTF] = useState('4h')
   const [direction, setDirection] = useState('long')   // 'long' | 'short'
-  const [view, setView] = useState('scanner')          // 'scanner' | 'confluence'
+  const [view, setView] = useState('scanner')          // 'scanner' | 'confluence' | 'calibration'
   const [scannerData, setScannerData] = useState(null)
   const [confluenceData, setConfluenceData] = useState(null)
+  const [calibrationData, setCalibrationData] = useState(null)
+  const [calibrationRunning, setCalibrationRunning] = useState(false)
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [expandedSymbol, setExpandedSymbol] = useState(null)
@@ -108,6 +110,28 @@ export default function MTFSinyalleri() {
       else setScannerData({ error: e.response?.data?.error || e.message, timeframe: tf })
     }
   }, [])
+
+  const loadCalibration = useCallback(async () => {
+    try {
+      const r = await api.get('/market/crypto/mtf/calibration')
+      setCalibrationData(r.data)
+    } catch (e) {
+      setCalibrationData({ error: e.response?.data?.error || e.message })
+    }
+  }, [])
+
+  const triggerCalibrationRun = useCallback(async () => {
+    setCalibrationRunning(true)
+    try {
+      // Hafif: sadece aktif TF × 3 gün — UI bloklamasın
+      await api.post('/market/crypto/mtf/calibrate', { tfs: [activeTF], daysBack: 3, save: true })
+      await loadCalibration()
+    } catch (e) {
+      // sessiz
+    } finally {
+      setCalibrationRunning(false)
+    }
+  }, [activeTF, loadCalibration])
 
   const loadConfluence = useCallback(async () => {
     try {
@@ -232,14 +256,30 @@ export default function MTFSinyalleri() {
               {socketConnected ? <Wifi className="w-3 h-3" /> : <WifiOff className="w-3 h-3" />}
               {socketConnected ? 'Canlı' : 'Polling'}
             </span>
-            <button
-              onClick={() => setView(view === 'scanner' ? 'confluence' : 'scanner')}
-              className="btn-secondary text-xs px-3 py-1.5 flex items-center gap-1"
-              title={view === 'scanner' ? 'Confluence görünümüne geç' : 'Scanner görünümüne geç'}
-            >
-              {view === 'scanner' ? <BarChart3 className="w-3.5 h-3.5" /> : <Layers className="w-3.5 h-3.5" />}
-              {view === 'scanner' ? 'Confluence' : 'Scanner'}
-            </button>
+            {/* 3 modlu görünüm seçici (Scanner ↔ Confluence ↔ Calibration) */}
+            <div className="flex items-center gap-0.5 rounded-lg border border-dark-700 bg-dark-800 p-0.5">
+              <button
+                onClick={() => setView('scanner')}
+                className={`text-[10px] px-2 py-1 rounded transition-colors flex items-center gap-1 ${
+                  view === 'scanner' ? 'bg-gold-500/20 text-gold-300' : 'text-gray-400 hover:text-white'
+                }`}
+                title="Scanner"
+              ><Layers className="w-3 h-3" />Tarayıcı</button>
+              <button
+                onClick={() => { setView('confluence'); loadConfluence() }}
+                className={`text-[10px] px-2 py-1 rounded transition-colors flex items-center gap-1 ${
+                  view === 'confluence' ? 'bg-gold-500/20 text-gold-300' : 'text-gray-400 hover:text-white'
+                }`}
+                title="Confluence"
+              ><BarChart3 className="w-3 h-3" />Confluence</button>
+              <button
+                onClick={() => { setView('calibration'); loadCalibration() }}
+                className={`text-[10px] px-2 py-1 rounded transition-colors flex items-center gap-1 ${
+                  view === 'calibration' ? 'bg-gold-500/20 text-gold-300' : 'text-gray-400 hover:text-white'
+                }`}
+                title="Bayesian Calibration tablosu"
+              ><Activity className="w-3 h-3" />Kalibrasyon</button>
+            </div>
             <button
               onClick={reloadAll}
               disabled={refreshing}
@@ -320,6 +360,16 @@ export default function MTFSinyalleri() {
           data={confluenceData}
           expandedSymbol={expandedSymbol}
           setExpandedSymbol={setExpandedSymbol}
+        />
+      )}
+
+      {/* ── Calibration (Bayesian) görünümü ──────────────────────────── */}
+      {view === 'calibration' && (
+        <CalibrationView
+          data={calibrationData}
+          activeTF={activeTF}
+          onCalibrate={triggerCalibrationRun}
+          running={calibrationRunning}
         />
       )}
     </div>
@@ -513,17 +563,33 @@ function SignalCard({ sig, rank, direction, tf, expanded, onToggle, confluenceFo
                   {volStyle.label}
                 </span>
               )}
-              {sig.winProbability && (
-                <span
-                  className={`text-[10px] px-2 py-0.5 rounded-full border bg-purple-500/10 text-purple-300 border-purple-500/30`}
-                  title={`Bayesian win probability — bucket: ${sig.winProbability.bucket}, prior: ${(sig.winProbability.prior * 100).toFixed(0)}%, ${sig.winProbability.samples > 0 ? sig.winProbability.samples + ' örneklem' : 'henüz backtest verisi yok'}`}
-                >
-                  %{(sig.winProbability.probability * 100).toFixed(0)} kazanma
-                  {sig.winProbability.samples > 0 && (
-                    <span className="text-[8px] opacity-70 ml-0.5">·n{sig.winProbability.samples}</span>
-                  )}
-                </span>
-              )}
+              {sig.winProbability && (() => {
+                const p = sig.winProbability.probability
+                const n = sig.winProbability.samples || 0
+                // Confidence-based styling:
+                //   n >= 30: kalın bg, "calibrated" ★
+                //   n >= 5:  orta bg
+                //   n < 5:   açık bg, "prior" işareti
+                const isCalibrated = n >= 30
+                const isMid = n >= 5
+                const cls = isCalibrated
+                  ? 'bg-purple-500/25 text-purple-200 border-purple-500/50'
+                  : isMid
+                  ? 'bg-purple-500/15 text-purple-300 border-purple-500/30'
+                  : 'bg-purple-500/5 text-purple-300/80 border-purple-500/20'
+                const tooltip = n === 0
+                  ? `Prior (henüz backtest verisi yok): %${(sig.winProbability.prior * 100).toFixed(0)}`
+                  : `Bayesian — bucket ${sig.winProbability.bucket}, prior %${(sig.winProbability.prior * 100).toFixed(0)} → posterior %${(p * 100).toFixed(0)} (${n} örneklem, α=${sig.winProbability.posteriorAlpha?.toFixed(2)} β=${sig.winProbability.posteriorBeta?.toFixed(2)})`
+                return (
+                  <span className={`text-[10px] px-2 py-0.5 rounded-full border ${cls}`} title={tooltip}>
+                    %{(p * 100).toFixed(0)} kazanma
+                    {n === 0 && <span className="text-[8px] opacity-70 ml-0.5">prior</span>}
+                    {n > 0 && n < 5 && <span className="text-[8px] opacity-70 ml-0.5">·n{n}</span>}
+                    {isMid && !isCalibrated && <span className="text-[8px] opacity-70 ml-0.5">·n{n}</span>}
+                    {isCalibrated && <span className="text-[8px] ml-0.5">★</span>}
+                  </span>
+                )
+              })()}
               {confluenceForCoin && (
                 <span
                   className={`text-[10px] px-2 py-0.5 rounded-full border ${VERDICT_STYLES[confluenceForCoin.verdict]?.bg || ''} ${VERDICT_STYLES[confluenceForCoin.verdict]?.border || ''} ${VERDICT_STYLES[confluenceForCoin.verdict]?.color || ''}`}
@@ -912,6 +978,182 @@ function CoinDetailExpanded({ symbol, confluence }) {
       <div className="text-[10px] text-gray-500 italic">
         Confluence: net {confluence.net} · güven %{(confluence.confidence * 100).toFixed(0)} ·
         {' '}{confluence.alignedLong} long / {confluence.alignedShort} short hizalı
+      </div>
+    </div>
+  )
+}
+
+// ─── Calibration (Bayesian) görünümü ───────────────────────────────────────
+function CalibrationView({ data, activeTF, onCalibrate, running }) {
+  if (!data) {
+    return (
+      <div className="card p-8 text-center">
+        <RefreshCw className="w-6 h-6 text-gold-400 animate-spin mx-auto mb-2" />
+        <p className="text-sm text-gray-400">Calibration yükleniyor...</p>
+      </div>
+    )
+  }
+  if (data.error) {
+    return (
+      <div className="card p-6 text-center">
+        <AlertTriangle className="w-6 h-6 text-red-400 mx-auto mb-2" />
+        <p className="text-sm text-red-300">{data.error}</p>
+      </div>
+    )
+  }
+  const snapshot = data.snapshot || {}
+  const tfs = Object.keys(snapshot).sort((a, b) => {
+    const order = ['1m', '5m', '15m', '1h', '4h', '1d', '1w']
+    return order.indexOf(a) - order.indexOf(b)
+  })
+  const allBuckets = ['0', '0.1', '0.2', '0.3', '0.4', '0.5', '0.6', '0.7', '0.8', '0.9', '1']
+
+  // Toplam istatistik
+  let totalSamples = 0, totalBuckets = 0, weightedProbSum = 0
+  for (const tf of tfs) {
+    for (const dir of ['long', 'short']) {
+      const buckets = snapshot[tf]?.[dir] || {}
+      for (const b of Object.keys(buckets)) {
+        totalSamples += buckets[b].samples || 0
+        totalBuckets += 1
+        weightedProbSum += (buckets[b].probability || 0) * (buckets[b].samples || 1)
+      }
+    }
+  }
+  const avgProb = totalSamples > 0 ? (weightedProbSum / Math.max(totalSamples, 1)) : null
+
+  return (
+    <div className="space-y-3">
+      {/* Üst bilgi + tetikleme */}
+      <div className="card p-3 flex items-center justify-between gap-3 flex-wrap">
+        <div className="flex items-center gap-3 text-[11px]">
+          <span className="flex items-center gap-1 text-gray-400">
+            <Activity className="w-3.5 h-3.5 text-purple-300" />
+            <span className="text-purple-300 font-semibold">Bayesian Calibration</span>
+          </span>
+          <span className="text-gray-600">·</span>
+          <span className="text-gray-400">
+            <span className="text-white font-mono">{totalBuckets}</span> bucket ·
+            <span className="text-white font-mono"> {totalSamples}</span> örneklem
+            {avgProb != null && (<>
+              <span className="text-gray-600 mx-1">·</span>
+              <span>Ağırlıklı ort: <span className="text-white font-mono">{(avgProb * 100).toFixed(1)}%</span></span>
+            </>)}
+          </span>
+          {data.generatedAt && (<>
+            <span className="text-gray-600">·</span>
+            <span className="text-gray-500 flex items-center gap-1">
+              <Clock className="w-3 h-3" />
+              {new Date(data.generatedAt).toLocaleTimeString('tr-TR', {hour:'2-digit',minute:'2-digit'})}
+            </span>
+          </>)}
+        </div>
+        <button
+          onClick={onCalibrate}
+          disabled={running}
+          className="btn-primary text-xs px-3 py-1.5 flex items-center gap-1 disabled:opacity-50"
+          title={`${activeTF} × 3 gün backtest çalıştır + Bayesian update`}
+        >
+          {running ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
+          {running ? 'Hesaplanıyor...' : `${activeTF} kalibre et`}
+        </button>
+      </div>
+
+      {/* Açıklama */}
+      <div className="card p-3 flex items-start gap-2 bg-blue-500/5 border-blue-500/20 text-[11px]">
+        <Info className="w-3.5 h-3.5 text-blue-400 mt-0.5 flex-shrink-0" />
+        <p className="text-gray-400 leading-relaxed">
+          Her hücre <span className="text-white">Beta(α, β)</span> posterior — gerçek backtest verisinden öğrenilmiş kazanma olasılığı.
+          Skor oranı 0.0-1.0 bucket'lara ayrılır. Hücre rengi olasılık (yeşil = yüksek), parlaklık örneklem sayısıyla artar.
+          Sample yokken sadece prior gösterilir (gri tonu). Otomatik kalibrasyon her 12 saatte bir geniş kapsamda çalışır.
+        </p>
+      </div>
+
+      {/* Heatmap grid: TF satırları, bucket sütunları */}
+      {tfs.length === 0 ? (
+        <div className="card p-6 text-center">
+          <Activity className="w-6 h-6 text-gray-500 mx-auto mb-2" />
+          <p className="text-sm text-gray-400">Henüz kalibrasyon verisi yok.</p>
+          <p className="text-xs text-gray-500 mt-1">"{activeTF} kalibre et" ile manuel başlat ya da otomatik çalışmasını bekle (90 sn boot delay).</p>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {['long', 'short'].map(dir => (
+            <CalibrationHeatmap
+              key={dir}
+              direction={dir}
+              snapshot={snapshot}
+              tfs={tfs}
+              allBuckets={allBuckets}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function CalibrationHeatmap({ direction, snapshot, tfs, allBuckets }) {
+  const dirLabel = direction === 'long' ? 'LONG' : 'SHORT'
+  const dirColor = direction === 'long' ? 'emerald' : 'rose'
+
+  return (
+    <div className="card p-3 space-y-2">
+      <div className="flex items-center gap-2 mb-1">
+        <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full bg-${dirColor}-500/15 text-${dirColor}-300 border border-${dirColor}-500/30`}>
+          {dirLabel}
+        </span>
+        <span className="text-[10px] text-gray-500">— skor oranı (X) × timeframe (Y)</span>
+      </div>
+      <div className="overflow-x-auto">
+        <table className="w-full text-[10px]" style={{ minWidth: 520 }}>
+          <thead>
+            <tr className="text-gray-500">
+              <th className="text-left pr-2 py-1 sticky left-0 bg-dark-800">TF</th>
+              {allBuckets.map(b => (
+                <th key={b} className="text-center px-1 py-1 font-mono">{b}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {tfs.map(tf => (
+              <tr key={tf}>
+                <td className="text-left pr-2 py-1 sticky left-0 bg-dark-800 font-mono font-semibold text-white">{tf}</td>
+                {allBuckets.map(b => {
+                  const bucket = snapshot[tf]?.[direction]?.[b]
+                  if (!bucket) return (
+                    <td key={b} className="text-center px-0.5 py-0.5">
+                      <div className="rounded bg-dark-800 border border-dark-700 text-gray-700 py-1.5">—</div>
+                    </td>
+                  )
+                  // Color: olasılık → yeşil tonlar (long) / kırmızı (short)
+                  const p = bucket.probability ?? 0.5
+                  const samples = bucket.samples ?? 0
+                  // Confidence intensity: samples log scale → 0-1
+                  const intensity = Math.min(1, Math.log10(1 + samples) / 1.7)  // 50 sample ≈ 1.0
+                  const baseColor = direction === 'long' ? '0,201,138' : '255,90,90'
+                  // Background opacity: prob × intensity
+                  const bg = `rgba(${baseColor}, ${0.15 + p * intensity * 0.55})`
+                  const border = `rgba(${baseColor}, ${0.30 + intensity * 0.40})`
+                  const textColor = p > 0.5 ? 'white' : 'rgba(255,255,255,0.8)'
+
+                  return (
+                    <td key={b} className="text-center px-0.5 py-0.5">
+                      <div
+                        className="rounded border py-1 leading-tight"
+                        style={{ background: bg, borderColor: border, color: textColor }}
+                        title={`Bucket ${b} · α=${bucket.alpha?.toFixed(2)} β=${bucket.beta?.toFixed(2)} · n=${samples}`}
+                      >
+                        <div className="font-mono font-bold">{(p * 100).toFixed(0)}%</div>
+                        <div className="text-[8px] opacity-70">n{samples}</div>
+                      </div>
+                    </td>
+                  )
+                })}
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
     </div>
   )
