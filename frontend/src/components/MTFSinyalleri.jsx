@@ -23,6 +23,7 @@ import {
 import { io } from 'socket.io-client'
 import api from '../services/api'
 import { getSocketBase } from '../config'
+import MTFCoinDetailModal from './MTFCoinDetailModal'
 
 // ── Yapılandırma ──────────────────────────────────────────────────────────
 const TF_LIST = [
@@ -96,6 +97,7 @@ export default function MTFSinyalleri() {
   const [calibrationProgress, setCalibrationProgress] = useState(null)  // { phase, completedSteps, totalSteps, currentTF, currentDate }
   const [watchlistOnly, setWatchlistOnly] = useState(false)
   const [watchlistSymbols, setWatchlistSymbols] = useState(new Set())
+  const [detailSymbol, setDetailSymbol] = useState(null)
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [expandedSymbol, setExpandedSymbol] = useState(null)
@@ -414,6 +416,7 @@ export default function MTFSinyalleri() {
           watchlistOnly={watchlistOnly}
           setWatchlistOnly={setWatchlistOnly}
           watchlistSymbols={watchlistSymbols}
+          onOpenDetail={setDetailSymbol}
         />
       )}
 
@@ -426,6 +429,7 @@ export default function MTFSinyalleri() {
           watchlistOnly={watchlistOnly}
           setWatchlistOnly={setWatchlistOnly}
           watchlistSymbols={watchlistSymbols}
+          onOpenDetail={setDetailSymbol}
         />
       )}
 
@@ -449,12 +453,20 @@ export default function MTFSinyalleri() {
           running={backtestRunning}
         />
       )}
+
+      {/* ── Coin detay modalı (Faz 14) ───────────────────────────────── */}
+      {detailSymbol && (
+        <MTFCoinDetailModal
+          symbol={detailSymbol}
+          onClose={() => setDetailSymbol(null)}
+        />
+      )}
     </div>
   )
 }
 
 // ─── Scanner görünümü ─────────────────────────────────────────────────────
-function ScannerView({ data, activeTF, direction, setDirection, expandedSymbol, setExpandedSymbol, onGenerate, refreshing, confluenceData, watchlistOnly, setWatchlistOnly, watchlistSymbols }) {
+function ScannerView({ data, activeTF, direction, setDirection, expandedSymbol, setExpandedSymbol, onGenerate, refreshing, confluenceData, watchlistOnly, setWatchlistOnly, watchlistSymbols, onOpenDetail }) {
   if (data?.pending) {
     return (
       <div className="card p-8 text-center space-y-3">
@@ -569,6 +581,7 @@ function ScannerView({ data, activeTF, direction, setDirection, expandedSymbol, 
               expanded={expandedSymbol === sig.symbol}
               onToggle={() => setExpandedSymbol(expandedSymbol === sig.symbol ? null : sig.symbol)}
               confluenceForCoin={confluenceData?.all?.find(c => c.symbol === sig.symbol)}
+              onOpenDetail={onOpenDetail}
             />
           ))}
         </div>
@@ -578,7 +591,7 @@ function ScannerView({ data, activeTF, direction, setDirection, expandedSymbol, 
 }
 
 // ─── Tek sinyal kartı ─────────────────────────────────────────────────────
-function SignalCard({ sig, rank, direction, tf, expanded, onToggle, confluenceForCoin }) {
+function SignalCard({ sig, rank, direction, tf, expanded, onToggle, confluenceForCoin, onOpenDetail }) {
   const dirStyle = direction === 'long'
     ? { label: '↑ LONG', color: 'text-emerald-400', bg: 'bg-emerald-500/10', border: 'border-emerald-500/30' }
     : { label: '↓ SHORT', color: 'text-rose-400',  bg: 'bg-rose-500/10',     border: 'border-rose-500/30' }
@@ -866,16 +879,26 @@ function SignalCard({ sig, rank, direction, tf, expanded, onToggle, confluenceFo
             </div>
           )}
 
-          {/* Binance link */}
-          <a
-            href={`https://www.binance.com/en/trade/${sig.symbol}_USDT`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-1.5 text-[11px] text-gold-400 hover:text-gold-300"
-          >
-            <ExternalLink className="w-3 h-3" />
-            Binance'te {sig.symbol}/USDT
-          </a>
+          {/* Aksiyon butonları */}
+          <div className="flex items-center gap-3 flex-wrap">
+            <button
+              onClick={(e) => { e.stopPropagation(); onOpenDetail?.(sig.symbol) }}
+              className="inline-flex items-center gap-1.5 text-[11px] px-2.5 py-1 rounded-lg bg-purple-500/15 text-purple-300 border border-purple-500/30 hover:bg-purple-500/25"
+              title="Bu coin için 7 timeframe full detay modalı"
+            >
+              <Layers className="w-3 h-3" />
+              7-TF Detay
+            </button>
+            <a
+              href={`https://www.binance.com/en/trade/${sig.symbol}_USDT`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 text-[11px] text-gold-400 hover:text-gold-300"
+            >
+              <ExternalLink className="w-3 h-3" />
+              Binance'te {sig.symbol}/USDT
+            </a>
+          </div>
         </div>
       )}
     </div>
@@ -883,7 +906,7 @@ function SignalCard({ sig, rank, direction, tf, expanded, onToggle, confluenceFo
 }
 
 // ─── Confluence görünümü ──────────────────────────────────────────────────
-function ConfluenceView({ data, expandedSymbol, setExpandedSymbol, watchlistOnly, setWatchlistOnly, watchlistSymbols }) {
+function ConfluenceView({ data, expandedSymbol, setExpandedSymbol, watchlistOnly, setWatchlistOnly, watchlistSymbols, onOpenDetail }) {
   if (data?.error) {
     return (
       <div className="card p-6 text-center">
@@ -955,6 +978,7 @@ function ConfluenceView({ data, expandedSymbol, setExpandedSymbol, watchlistOnly
             rank={idx + 1}
             expanded={expandedSymbol === c.symbol}
             onToggle={() => setExpandedSymbol(expandedSymbol === c.symbol ? null : c.symbol)}
+            onOpenDetail={onOpenDetail}
           />
         ))}
       </div>
@@ -971,7 +995,7 @@ function Tally({ label, value, cls }) {
   )
 }
 
-function ConfluenceRow({ c, rank, expanded, onToggle }) {
+function ConfluenceRow({ c, rank, expanded, onToggle, onOpenDetail }) {
   const verdict = VERDICT_STYLES[c.verdict] || VERDICT_STYLES.NEUTRAL
   return (
     <div className={`card border-2 ${expanded ? 'border-purple-500/40' : 'border-dark-700'} transition-colors`}>
@@ -1026,7 +1050,19 @@ function ConfluenceRow({ c, rank, expanded, onToggle }) {
       </div>
 
       {expanded && (
-        <CoinDetailExpanded symbol={c.symbol} confluence={c} />
+        <>
+          <CoinDetailExpanded symbol={c.symbol} confluence={c} />
+          <div className="mt-3 pt-3 border-t border-dark-700/50">
+            <button
+              onClick={(e) => { e.stopPropagation(); onOpenDetail?.(c.symbol) }}
+              className="text-[11px] px-2.5 py-1 rounded-lg bg-purple-500/15 text-purple-300 border border-purple-500/30 hover:bg-purple-500/25 inline-flex items-center gap-1.5"
+              title="Tüm 7 TF + AI/Math katmanı modal'da"
+            >
+              <Layers className="w-3 h-3" />
+              Full Detay Modal
+            </button>
+          </div>
+        </>
       )}
     </div>
   )
