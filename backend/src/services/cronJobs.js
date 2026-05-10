@@ -10,10 +10,134 @@ const kapService = require('./kapService');
 const dailySignalsService = require('./dailySignalsService');
 const socketService = require('./socketService');
 const pushNotificationService = require('./pushNotificationService');
+const economicCalendarService = require('./economicCalendarService');
 const logger = require('../utils/logger');
 
 // Türkiye saat dilimi — BIST takvimi
 const TR_TZ = { timezone: 'Europe/Istanbul' };
+
+// BIST'in kapalı olduğu 2026 resmi tatil günleri (YYYY-MM-DD).
+// Borsa açılış/kapanış bildirimleri bu günlerde atılmaz.
+// Ramazan/Kurban bayramları + arefe günleri dahil.
+const TR_HOLIDAYS_2026 = new Set([
+  '2026-01-01',                                      // Yılbaşı
+  '2026-03-20', '2026-03-21', '2026-03-22',          // Ramazan Bayramı (1-3)
+  '2026-04-23',                                      // Ulusal Egemenlik ve Çocuk Bayramı
+  '2026-05-01',                                      // Emek ve Dayanışma Günü
+  '2026-05-19',                                      // Atatürk'ü Anma, Gençlik ve Spor Bayramı
+  '2026-05-26', '2026-05-27', '2026-05-28', '2026-05-29', // Kurban Bayramı (arefe + 1-3)
+  '2026-07-15',                                      // Demokrasi ve Millî Birlik Günü
+  '2026-08-30',                                      // Zafer Bayramı
+  '2026-10-28', '2026-10-29',                        // Cumhuriyet Bayramı (arefe + 1)
+]);
+
+// Avrupa/İstanbul saat diliminde bugünün YYYY-MM-DD anahtarını döndür.
+function todayKeyTR() {
+  return new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/Istanbul' });
+}
+
+// Avrupa/İstanbul saat diliminde yarının YYYY-MM-DD anahtarını döndür.
+function tomorrowKeyTR() {
+  const t = new Date(Date.now() + 86400000);
+  return t.toLocaleDateString('en-CA', { timeZone: 'Europe/Istanbul' });
+}
+
+// Borsa açılış bildirimi — TR resmi tatil günlerinde sessiz.
+async function runMarketOpen() {
+  try {
+    const dateKey = todayKeyTR();
+    if (TR_HOLIDAYS_2026.has(dateKey)) {
+      logger.info(`⏭️ Market open: ${dateKey} resmi tatil — bildirim atlandı`);
+      return null;
+    }
+
+    logger.info('⏰ Market open broadcast başlatıldı');
+    const result = await pushNotificationService.broadcastNotification({
+      title: '📈 Borsa açıldı',
+      body: 'BIST seansı başladı. Bugünün sinyalleri için tıklayın.',
+      path: '/gunluk-tespitler?tab=bugun',
+      topic: 'all',
+    });
+    if (!result?.success) {
+      logger.error(`[MarketOpen] broadcast başarısız: ${result?.error || 'bilinmeyen hata'}`);
+    } else {
+      logger.info(`✅ Market open broadcast tamamlandı (FCM: ${result.broadcast?.fcmStatus})`);
+    }
+    return result;
+  } catch (e) {
+    logger.error(`[MarketOpen] hata: ${e.message}`, e.stack);
+    return null;
+  }
+}
+
+// Borsa kapanış bildirimi — TR resmi tatil günlerinde sessiz.
+async function runMarketClose() {
+  try {
+    const dateKey = todayKeyTR();
+    if (TR_HOLIDAYS_2026.has(dateKey)) {
+      logger.info(`⏭️ Market close: ${dateKey} resmi tatil — bildirim atlandı`);
+      return null;
+    }
+
+    logger.info('⏰ Market close broadcast başlatıldı');
+    const result = await pushNotificationService.broadcastNotification({
+      title: '📉 Borsa kapandı',
+      body: 'Seans bitti. Gün sonu performans raporu hazır.',
+      path: '/gun-sonu-performans',
+      topic: 'all',
+    });
+    if (!result?.success) {
+      logger.error(`[MarketClose] broadcast başarısız: ${result?.error || 'bilinmeyen hata'}`);
+    } else {
+      logger.info(`✅ Market close broadcast tamamlandı (FCM: ${result.broadcast?.fcmStatus})`);
+    }
+    return result;
+  } catch (e) {
+    logger.error(`[MarketClose] hata: ${e.message}`, e.stack);
+    return null;
+  }
+}
+
+// Yarınki yüksek-etkili (importance:'high') olayları kontrol et;
+// varsa kullanıcılara erken uyarı gönder. Yoksa sessiz.
+async function runCalendarWarning() {
+  try {
+    const tomorrow = tomorrowKeyTR();
+    const events = economicCalendarService.getHighImpactForDate(tomorrow);
+
+    if (!events.length) {
+      logger.info(`⏭️ Calendar warning: ${tomorrow} için yüksek-etkili veri yok — bildirim atlandı`);
+      return null;
+    }
+
+    logger.info(`⏰ Calendar warning broadcast başlatıldı — ${tomorrow}: ${events.length} olay`);
+
+    // Mesajda 3 olayın başlığını özet olarak göster — '–' işaretinden önceki kısmı al.
+    const previewTitles = events
+      .slice(0, 3)
+      .map(e => (e.title || '').split('–')[0].trim())
+      .filter(Boolean)
+      .join(', ');
+    const tail = events.length > 3 ? ` ve ${events.length - 3} daha` : '';
+    const body = `TR/US: ${previewTitles}${tail}. Pozisyonlarınızı gözden geçirin.`;
+
+    const result = await pushNotificationService.broadcastNotification({
+      title: `⚠️ Yarın ${events.length} kritik veri var`,
+      body,
+      path: '/ekonomik-takvim',
+      topic: 'all',
+    });
+    if (!result?.success) {
+      logger.error(`[CalendarWarning] broadcast başarısız: ${result?.error || 'bilinmeyen hata'}`);
+    } else {
+      logger.info(`✅ Calendar warning broadcast tamamlandı (FCM: ${result.broadcast?.fcmStatus})`);
+    }
+    return result;
+  } catch (e) {
+    logger.error(`[CalendarWarning] hata: ${e.message}`, e.stack);
+    return null;
+  }
+}
 
 // Daily signal cron'u sadece bir kere üretsin diye (manuel + cron çakışması olmasın)
 async function runDailyPhase(phase, options = {}) {
@@ -183,6 +307,30 @@ class CronJobsService {
       { scheduled: false, ...TR_TZ }
     );
 
+    // 10. Borsa açılış bildirimi — 10:00 (BIST seans başlangıcı). Pzt-Cuma.
+    //     Resmi tatil günlerinde fonksiyon kendi içinde atlatır.
+    const marketOpenJob = cron.schedule(
+      '0 10 * * 1-5',
+      () => runMarketOpen(),
+      { scheduled: false, ...TR_TZ }
+    );
+
+    // 11. Borsa kapanış bildirimi — 18:00 (BIST seans sonu). Pzt-Cuma.
+    //     Resmi tatil günlerinde fonksiyon kendi içinde atlatır.
+    const marketCloseJob = cron.schedule(
+      '0 18 * * 1-5',
+      () => runMarketClose(),
+      { scheduled: false, ...TR_TZ }
+    );
+
+    // 12. Ekonomik takvim erken uyarısı — her gün 18:30. Yarınki yüksek-etkili
+    //     (importance:'high') TR/US olayları varsa broadcast; yoksa sessiz.
+    const calendarWarningJob = cron.schedule(
+      '30 18 * * *',
+      () => runCalendarWarning(),
+      { scheduled: false, ...TR_TZ }
+    );
+
     // Start jobs only during market hours (9 AM - 6 PM, Monday-Friday)
     const marketHoursJob = cron.schedule(
       '* 9-18 * * 1-5', // Mon-Fri, 9 AM - 6 PM
@@ -218,6 +366,9 @@ class CronJobsService {
       preMarketJob,
       revisionJob,
       intradayJob,
+      marketOpenJob,
+      marketCloseJob,
+      calendarWarningJob,
       marketHoursJob,
       afterHoursJob
     ];
@@ -251,6 +402,21 @@ class CronJobsService {
    */
   async triggerDailyPhase(phase) {
     return runDailyPhase(phase, { silent: true });
+  }
+
+  /**
+   * Manuel tetikleme — broadcast bildirimleri (admin paneli + test).
+   * type: 'market-open' | 'market-close' | 'calendar-warning'
+   * Tatil/boş-takvim filtreleri normal cron'la aynı şekilde uygulanır.
+   */
+  async triggerNotification(type) {
+    switch (type) {
+      case 'market-open':       return runMarketOpen();
+      case 'market-close':      return runMarketClose();
+      case 'calendar-warning':  return runCalendarWarning();
+      default:
+        throw new Error(`Bilinmeyen bildirim tipi: ${type}`);
+    }
   }
 }
 
