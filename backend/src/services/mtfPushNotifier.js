@@ -20,6 +20,15 @@
 const pushNotificationService = require('./pushNotificationService');
 const logger = require('../utils/logger');
 
+// Telegram channel — opsiyonel. TELEGRAM_MTF_CHAT_ID env var ayarlanırsa
+// FCM push'a ek olarak Telegram kanalına/grubuna da gönderir.
+const TELEGRAM_CHAT_ID = process.env.TELEGRAM_MTF_CHAT_ID || null;
+let telegramService = null;
+if (TELEGRAM_CHAT_ID) {
+  try { telegramService = require('./telegramService'); }
+  catch (e) { logger.warn(`[MTFPush] telegramService yüklenemedi: ${e.message}`); }
+}
+
 const COOLDOWN_MS = 30 * 60 * 1000; // 30 dk per (coin, verdict)
 const MIN_CONFIDENCE = 0.5;
 const MAX_BATCH = 5;                // tek bildirimde en fazla 5 coin
@@ -114,11 +123,38 @@ async function evaluateAndPush(confluences) {
     });
     stats.totalPushed += upgrades.length;
     logger.info(`[MTFPush] ${upgrades.length} STRONG upgrade gönderildi (top ${top.length}): ${title}`);
-    return { upgrades: upgrades.length, pushed: top.length, title, body };
+
+    // Telegram broadcast (opsiyonel)
+    if (telegramService && TELEGRAM_CHAT_ID) {
+      try {
+        const telegramText = formatTelegramMessage(top);
+        await telegramService.sendMessage(TELEGRAM_CHAT_ID, telegramText, 'HTML');
+        stats.totalTelegramSent = (stats.totalTelegramSent || 0) + 1;
+      } catch (e) {
+        logger.warn(`[MTFPush] Telegram gönderim hatası: ${e.message}`);
+      }
+    }
+
+    return { upgrades: upgrades.length, pushed: top.length, title, body, telegramSent: !!(telegramService && TELEGRAM_CHAT_ID) };
   } catch (e) {
     logger.error(`[MTFPush] broadcast hatası: ${e.message}`);
     return { upgrades: upgrades.length, pushed: 0, error: e.message };
   }
+}
+
+// Telegram için zengin HTML mesaj formatı
+function formatTelegramMessage(upgrades) {
+  const lines = ['<b>📡 BORSA KRALI — MTF Confluence</b>', ''];
+  for (const c of upgrades) {
+    const arrow = c.verdict === 'STRONG_LONG' ? '🟢⬆️' : '🔴⬇️';
+    const verdictLabel = c.verdict === 'STRONG_LONG' ? 'STRONG LONG' : 'STRONG SHORT';
+    const flipMark = c.isFlip ? ' 🔁' : ' ⭐';
+    lines.push(`${arrow} <b>${c.symbol}</b> — <i>${verdictLabel}</i>${flipMark}`);
+    lines.push(`   net: <code>${c.net > 0 ? '+' : ''}${c.net?.toFixed(1)}</code> · güven: <code>%${((c.confidence || 0) * 100).toFixed(0)}</code> · ${c.alignedLong}L / ${c.alignedShort}S aligned`);
+    lines.push('');
+  }
+  lines.push('<a href="https://borsakrali.com/gunluk-tespitler?tab=mtf">📊 Detay için tıkla</a>');
+  return lines.join('\n');
 }
 
 function getStats() {
@@ -128,6 +164,8 @@ function getStats() {
     activeCooldowns: lastPushAt.size,
     cooldownMs: COOLDOWN_MS,
     minConfidence: MIN_CONFIDENCE,
+    telegramEnabled: !!(telegramService && TELEGRAM_CHAT_ID),
+    telegramChatId: TELEGRAM_CHAT_ID ? `***${String(TELEGRAM_CHAT_ID).slice(-4)}` : null,
   };
 }
 

@@ -19,8 +19,10 @@
 
 const logger = require('../utils/logger');
 
-const INTERVAL_MS = 10 * 1000;       // 10 saniye
-const BOOT_DELAY_MS = 5 * 1000;      // boot sonrası ilk çağrı için gecikme
+const INTERVAL_MS = parseInt(process.env.MTF_LOOP_INTERVAL_MS || '10000', 10);
+// Boot delay — Render slow boot için yüksek default (30sn). PORT bind'inden
+// sonra Render "live" kabul eder, ama biz hâlâ boot işlerine zaman tanıyoruz.
+const BOOT_DELAY_MS = parseInt(process.env.MTF_LOOP_BOOT_DELAY_MS || '30000', 10);
 
 let intervalHandle = null;
 let bootTimeout = null;
@@ -101,33 +103,35 @@ function start() {
     intervalHandle = setInterval(tick, INTERVAL_MS);
   }, BOOT_DELAY_MS);
 
-  // Boot sonrası 90sn beklenip ARKA PLANDA hafif calibration başlat.
-  //   - Live loop'u bloklamaz (async, paralel çalışır)
-  //   - Sadece 1h × 3 gün = 3 backtest (~20-30sn toplam)
-  //   - Sonuçlar mtfCalibrationService'e yazılır + diske kaydedilir
-  //   - Sonradan 12 saatte bir tekrar (daha geniş calibration)
-  setTimeout(async () => {
-    try {
-      logger.info('[MTFLoop] Initial calibration başlatılıyor (1h × 3 gün)...');
-      const mtfBacktestService = require('./mtfBacktestService');
-      await mtfBacktestService.calibrateFromHistory({ tfs: ['1h'], daysBack: 3, save: true });
-      logger.info('[MTFLoop] Initial calibration tamamlandı ✓');
-    } catch (e) {
-      logger.error(`[MTFLoop] Initial calibration hata: ${e.message}`);
-    }
-  }, 90 * 1000);
+  // Boot calibration — sadece env: MTF_CALIB_ON_BOOT=true ise.
+  //   Render free tier'da boot sırasındaki ekstra yük build timeout/OOM
+  //   riskini artırır. Manuel tetikleme: POST /api/market/crypto/mtf/calibrate.
+  if (process.env.MTF_CALIB_ON_BOOT === 'true') {
+    setTimeout(async () => {
+      try {
+        logger.info('[MTFLoop] Initial calibration başlatılıyor (1h × 3 gün)...');
+        const mtfBacktestService = require('./mtfBacktestService');
+        await mtfBacktestService.calibrateFromHistory({ tfs: ['1h'], daysBack: 3, save: true });
+        logger.info('[MTFLoop] Initial calibration tamamlandı ✓');
+      } catch (e) {
+        logger.error(`[MTFLoop] Initial calibration hata: ${e.message}`);
+      }
+    }, 120 * 1000);
+  }
 
-  // 12 saatte bir geniş kalibrasyon — 1h/4h/1d × 7 gün
-  setInterval(async () => {
-    try {
-      logger.info('[MTFLoop] Periyodik calibration başlatılıyor (1h/4h/1d × 7 gün)...');
-      const mtfBacktestService = require('./mtfBacktestService');
-      await mtfBacktestService.calibrateFromHistory({ tfs: ['1h', '4h', '1d'], daysBack: 7, save: true });
-      logger.info('[MTFLoop] Periyodik calibration tamamlandı ✓');
-    } catch (e) {
-      logger.error(`[MTFLoop] Periyodik calibration hata: ${e.message}`);
-    }
-  }, 12 * 3600 * 1000);
+  // 12 saatte bir geniş kalibrasyon — sadece env aktifse
+  if (process.env.MTF_CALIB_PERIODIC === 'true') {
+    setInterval(async () => {
+      try {
+        logger.info('[MTFLoop] Periyodik calibration başlatılıyor (1h/4h/1d × 7 gün)...');
+        const mtfBacktestService = require('./mtfBacktestService');
+        await mtfBacktestService.calibrateFromHistory({ tfs: ['1h', '4h', '1d'], daysBack: 7, save: true });
+        logger.info('[MTFLoop] Periyodik calibration tamamlandı ✓');
+      } catch (e) {
+        logger.error(`[MTFLoop] Periyodik calibration hata: ${e.message}`);
+      }
+    }, 12 * 3600 * 1000);
+  }
 }
 
 function stop() {

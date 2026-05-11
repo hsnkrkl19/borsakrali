@@ -2754,6 +2754,71 @@ app.post('/api/market/crypto/mtf/generate', async (req, res) => {
   }
 });
 
+// ============ PAPER TRADING (Faz 18) ============
+const paperTradingService = require('./services/paperTradingService');
+
+// User ID: token'dan al ya da fallback olarak query/body. Auth opsiyonel.
+function getPaperUserId(req) {
+  return req.user?.id || req.query?.userId || req.body?.userId || 'guest';
+}
+
+// Açık + kapanmış portfolio
+app.get('/api/paper-trading/portfolio', async (req, res) => {
+  try {
+    const userId = getPaperUserId(req);
+    const data = await paperTradingService.getPortfolio(userId);
+    res.json({ success: true, ...data });
+  } catch (e) { res.status(500).json({ success: false, error: e.message }); }
+});
+
+// Pozisyon aç — body: { signal: { symbol, direction, entry, stop, target1, target2, timeframe, totalScore, grade, leverage_suggest, winProbability } }
+app.post('/api/paper-trading/open', async (req, res) => {
+  try {
+    const userId = getPaperUserId(req);
+    const signal = req.body?.signal;
+    if (!signal) return res.status(400).json({ success: false, error: 'signal zorunlu' });
+    const r = await paperTradingService.openPosition(userId, signal);
+    res.json(r);
+  } catch (e) { res.status(500).json({ success: false, error: e.message }); }
+});
+
+// Pozisyon kapat
+app.post('/api/paper-trading/close', async (req, res) => {
+  try {
+    const userId = getPaperUserId(req);
+    const posId = req.body?.posId;
+    if (!posId) return res.status(400).json({ success: false, error: 'posId zorunlu' });
+    const r = await paperTradingService.closePosition(userId, posId);
+    res.json(r);
+  } catch (e) { res.status(500).json({ success: false, error: e.message }); }
+});
+
+// Tüm kullanıcılar için stop/target tetikleme — admin/cron
+app.post('/api/paper-trading/tick-all', async (req, res) => {
+  try {
+    const r = await paperTradingService.tickAll();
+    res.json({ success: true, ...r });
+  } catch (e) { res.status(500).json({ success: false, error: e.message }); }
+});
+
+// Top performans
+app.get('/api/paper-trading/leaderboard', async (req, res) => {
+  try {
+    const limit = Math.min(parseInt(req.query.limit || '10', 10), 50);
+    const r = await paperTradingService.getLeaderboard(limit);
+    res.json({ success: true, leaderboard: r });
+  } catch (e) { res.status(500).json({ success: false, error: e.message }); }
+});
+
+// Portfolio reset
+app.post('/api/paper-trading/reset', (req, res) => {
+  try {
+    const userId = getPaperUserId(req);
+    const r = paperTradingService.reset(userId);
+    res.json({ success: true, ...r });
+  } catch (e) { res.status(500).json({ success: false, error: e.message }); }
+});
+
 // ============ MTF BACKTEST + CALIBRATION + PUSH (Faz 6 + 7 + 11) ============
 const mtfBacktestService = require('./services/mtfBacktestService');
 const mtfCalibrationService = require('./services/mtfCalibrationService');
@@ -7007,10 +7072,16 @@ server.listen(PORT, () => {
   // MTF live loop — 1m taraması her 10 sn (top 10 coin, sessiz).
   //     Diğer cron'lar (BIST sinyaller, daha uzun TF'ler) henüz auto-start değil;
   //     hâlâ endpoint trigger ya da elle çağırılır.
-  try {
-    require('./services/mtfLiveLoop').start();
-  } catch (e) {
-    console.error('[MTFLoop] Başlatma hata:', e.message);
+  //   ENV GATE (MTF_LOOP_DISABLED=true): Render/prod'da boot stability için
+  //   kapatılabilir; manuel endpoint tetiklemesi her zaman çalışır.
+  if (process.env.MTF_LOOP_DISABLED !== 'true') {
+    try {
+      require('./services/mtfLiveLoop').start();
+    } catch (e) {
+      console.error('[MTFLoop] Başlatma hata:', e.message);
+    }
+  } else {
+    console.log('[MTFLoop] ENV MTF_LOOP_DISABLED=true — live loop atlandı');
   }
 
   // NOT: Telegram bot ayri process olarak calisir (telegram-bot.js)
