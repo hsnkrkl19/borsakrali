@@ -7,6 +7,7 @@ const { Stock, MarketData, Signal } = require('../models');
 const yahooFinanceService = require('../services/yahooFinanceService');
 const bulkDataUpdater = require('../services/bulkDataUpdaterService');
 const formulaService = require('../services/formulaService');
+const dailyPerformanceService = require('../services/dailyPerformanceService');
 const logger = require('../utils/logger');
 
 // Tarama icin kullanilacak genis BIST hisse listesi
@@ -747,6 +748,50 @@ class MarketController {
     } catch (error) {
       logger.error('getAlgorithmPerformance error:', error);
       res.status(500).json({ error: 'Performans verileri alinamadi' });
+    }
+  }
+
+  /**
+   * Gün sonu performans — kayıtlı tarihler listesi (son N gün)
+   */
+  async getDailyPerformanceDates(req, res) {
+    try {
+      const limit = Math.min(Math.max(parseInt(req.query.limit || '30', 10), 1), 90);
+      const dates = dailyPerformanceService.listAvailableDates(limit);
+      res.json({ dates });
+    } catch (error) {
+      logger.error('getDailyPerformanceDates error:', error);
+      res.status(500).json({ error: 'Tarih listesi alinamadi' });
+    }
+  }
+
+  /**
+   * Gün sonu performans — bir tarih için stored sonuç.
+   * Eğer snapshot'ta `performance` alanı yoksa canlı hesaplar (compute=true).
+   */
+  async getDailyPerformance(req, res) {
+    try {
+      const { date } = req.params;
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+        return res.status(400).json({ error: 'date YYYY-MM-DD formatinda olmali' });
+      }
+      const stored = dailyPerformanceService.getStoredPerformance(date);
+      if (stored) return res.json({ source: 'snapshot', ...stored });
+
+      // İstek üzerine canlı hesap (?compute=1) — 18:30 cron'undan önce kullanışlı.
+      if (req.query.compute === '1' || req.query.compute === 'true') {
+        const live = await dailyPerformanceService.computePerformance(date);
+        return res.json({ source: 'live', ...live });
+      }
+
+      return res.status(404).json({
+        error: 'Bu tarih icin performans hesaplanmadi',
+        date,
+        hint: 'POST /api/admin/compute-performance?date=YYYY-MM-DD veya ?compute=1 ekleyin',
+      });
+    } catch (error) {
+      logger.error('getDailyPerformance error:', error);
+      res.status(500).json({ error: 'Performans verisi alinamadi' });
     }
   }
 

@@ -6,7 +6,7 @@
 const express = require('express');
 const router = express.Router();
 
-// Mock datas - gerçek KAP API entegrasyonu için placeholder
+// Veri kaynağı: Yahoo Finance v7 + İş Yatırım (gerçek finansal veri). Veri yoksa [] döner.
 const { generateBalanceSheet, generateIncomeStatement, generateCashFlow, generateRatios } = require('../services/financialDataService');
 
 /**
@@ -18,7 +18,6 @@ router.get('/:symbol/balance-sheet', async (req, res) => {
         const { symbol } = req.params;
         const { period = 'annual', years = 5 } = req.query;
 
-        // TODO: KAP API'den gerçek veri çek
         const balanceSheet = await generateBalanceSheet(symbol, period, parseInt(years));
 
         res.json({

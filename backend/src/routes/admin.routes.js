@@ -3,6 +3,7 @@ const rateLimit = require('express-rate-limit');
 
 const authService = require('../services/authService');
 const pushNotificationService = require('../services/pushNotificationService');
+const dailyPerformanceService = require('../services/dailyPerformanceService');
 const cronJobsService = require('../services/cronJobs');
 
 const router = express.Router();
@@ -90,6 +91,21 @@ router.post('/trigger-notification', sendLimiter, async (req, res) => {
     return res.json({ success: true, triggered: type, ...result });
   } catch (e) {
     return res.status(500).json({ success: false, error: e.message });
+  }
+});
+
+// Manuel: o gün için gün sonu performansını hesapla ve snapshot'a yaz.
+//   POST /api/admin/compute-performance?date=YYYY-MM-DD
+router.post('/compute-performance', async (req, res) => {
+  try {
+    const date = req.query.date || req.body?.date;
+    if (date && !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+      return res.status(400).json({ success: false, error: 'date YYYY-MM-DD formatında olmalı' });
+    }
+    const result = await dailyPerformanceService.computeAndStore(date);
+    res.json({ success: true, ...result });
+  } catch (e) {
+    res.status(500).json({ success: false, error: e.message });
   }
 });
 

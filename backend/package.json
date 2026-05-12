@@ -6,8 +6,6 @@
   "scripts": {
     "start": "node src/server-live.js",
     "dev": "nodemon src/server-live.js",
-    "start:mock": "node src/server-mock.js",
-    "dev:mock": "nodemon src/server-mock.js",
     "start:db": "node src/server.js",
     "dev:db": "nodemon src/server.js",
     "test": "jest --coverage",
@@ -26,6 +24,7 @@
   "license": "MIT",
   "dependencies": {
     "@supabase/supabase-js": "^2.105.3",
+    "@the-convocation/twitter-scraper": "^0.22.3",
     "axios": "^1.6.5",
     "axios-cookiejar-support": "^6.0.5",
     "bcrypt": "^5.1.1",
