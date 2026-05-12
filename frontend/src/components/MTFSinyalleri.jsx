@@ -98,6 +98,16 @@ export default function MTFSinyalleri() {
   const [watchlistOnly, setWatchlistOnly] = useState(false)
   const [watchlistSymbols, setWatchlistSymbols] = useState(new Set())
   const [detailSymbol, setDetailSymbol] = useState(null)
+  const [soundEnabled, setSoundEnabled] = useState(() => {
+    try { return localStorage.getItem('bk-mtf-sound') !== 'off' } catch { return true }
+  })
+  const audioRef = useRef(null)
+  const lastSoundAtRef = useRef(0)
+  const soundEnabledRef = useRef(true)
+  useEffect(() => {
+    soundEnabledRef.current = soundEnabled
+    try { localStorage.setItem('bk-mtf-sound', soundEnabled ? 'on' : 'off') } catch (_) {}
+  }, [soundEnabled])
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [expandedSymbol, setExpandedSymbol] = useState(null)
@@ -211,6 +221,23 @@ export default function MTFSinyalleri() {
     sock.on('connect',    () => setSocketConnected(true))
     sock.on('disconnect', () => setSocketConnected(false))
 
+    // Audio init — Web Audio API'siz, küçük data URI yeterli (8kHz mono ping)
+    if (!audioRef.current) {
+      try {
+        audioRef.current = new Audio('data:audio/wav;base64,UklGRrAFAABXQVZFZm10IBAAAAABAAEARKwAAESsAAABAAgAZGF0YYwFAACAhI2ZpLG7w8nMzczIwLizp5mNgnNlWUtBOzMuLi41O0VRXmt2gYqRl5ueoaKjo6KhnpqVj4iAd25kWlBHPjctKioqLjU+SVRgbHaAiJCWnJ+ho6OioJyXkYqCemxhVktAOC8oJiUmKjA5RFFcaXSAjJWdpKuwtLa3treyrqilm5GFd2dWRzgsIRoVERAQEhcdJC09SVdmdYWUocGtkH9wYVNGOy4kHRwbHB8mLDM7Q01YZXOAjpqksLrEy9HV1tXSzcfAuLCmnZGGe25iVUlAODAqKCcoKi45RFFebHWAi5OcoaSlpKKgnZmUjoiBeXBnXVNJQDoyLisrKy42P0pXY3B7hY+Xnp+goJ+enJqWko2HgXlybGRcVE5JQz03MzAtKyssLjE2PEFGTFNZX2VrcXh+hIqQlpyhpaiqq6urqaaiopH9foN+enRsZl5VTUQ8MyklJCMmKjE6RVJfa3iAi5SbnqGgnpyZlpKMhX52bWNZTkU8My0qKCgrLzhDT1tnc36Hjpaco6mssLO2t7e3trWzr6yopaCcl5KMhoF7dXBraGRfXFhVUk5LSEZEQ0NEQ0RDREVFR0pNUFRYW19jZ2tucnZ5fH+ChIeJjI+RkpSVlpaXlpaWlpWVk5GPjouHhIB8eHRwbWlmYmBdW1lXVlVUVFNUVFRVVlhZW11gYmVnaWxucXR2eHt9foCBgoOEhYWGhoeHh4eHh4eGhoaFhYSEg4OCgoGBgYCAgIB/f39+fn5+fn5+fn5+fX19fX18fHx7e3p6eXl5eXh4eHd3d3d3d3d3d3d4eHh4eXl5enp7e3x8fX1+fn9/gICBgYKDg4SEhYWGhoeHiIiJiYqKi4uMjI2Njo6Pj5CQkZGSkpOTk5SUlJWVlZWWlpaWl5eXl5eXl5eXl5eXl5eXl5eWlpaWlpWVlZSUlJOTk5KSkpGRkZCQkI+Pj46Ojo2NjY2MjIyMi4uLi4uLi4uLi4uLi4uMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjA==')
+        audioRef.current.volume = 0.4
+      } catch (_) {}
+    }
+    const playPing = () => {
+      if (!soundEnabledRef.current || !audioRef.current) return
+      // Cooldown: 10 sn'de bir, spam etmesin
+      const now = Date.now()
+      if (now - lastSoundAtRef.current < 10000) return
+      lastSoundAtRef.current = now
+      audioRef.current.currentTime = 0
+      audioRef.current.play().catch(() => {})
+    }
+
     // Backend mtfLiveLoop her 10sn tick atar — strategy='crypto_mtf_tick'
     // mtfBacktestService calibration progress'i — strategy='mtf_calibration_progress'
     sock.on('new_signal', (msg) => {
@@ -219,6 +246,10 @@ export default function MTFSinyalleri() {
         if (msg.timeframe === activeTFRef.current) {
           loadScanner(msg.timeframe)
         }
+        // Backend confluence değişimini push notif olarak gönderiyor —
+        // burada tick metadata'sında yeni STRONG var mı bak (longTop var ise ses)
+        const hasNewStrong = (msg.topLong?.length || 0) > 0 || (msg.topShort?.length || 0) > 0
+        if (hasNewStrong) playPing()
       } else if (msg?.strategy === 'mtf_calibration_progress') {
         setCalibrationProgress({
           phase: msg.phase,
@@ -342,6 +373,17 @@ export default function MTFSinyalleri() {
                 title="Geçmiş tarihli backtest"
               ><Target className="w-3 h-3" />Backtest</button>
             </div>
+            <button
+              onClick={() => setSoundEnabled(s => !s)}
+              className={`text-xs px-2 py-1.5 rounded-lg border ${
+                soundEnabled
+                  ? 'bg-gold-500/15 text-gold-300 border-gold-500/30'
+                  : 'bg-dark-800 text-gray-500 border-dark-700'
+              }`}
+              title={soundEnabled ? 'Ses açık — STRONG sinyalde ping çalar (10sn cooldown)' : 'Ses kapalı'}
+            >
+              {soundEnabled ? '🔔' : '🔕'}
+            </button>
             <button
               onClick={reloadAll}
               disabled={refreshing}
