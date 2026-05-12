@@ -304,6 +304,12 @@ function scoreTrend(ctx) {
   const requiredFailed = conditions.find(c => c.required && !c.met);
   if (requiredFailed) return null;
 
+  // ALT-ZORUNLU: ema_stack VEYA combo_hit'ten en az biri geçmeli.
+  // Bu, "sadece storyline + indikatör spamı" durumlarını eler — yapı zayıfsa sinyal yok.
+  const emaStackMet = conditions.find(c => c.id === 'ema_stack')?.met;
+  const comboHitMet = conditions.find(c => c.id === 'combo_hit')?.met;
+  if (!emaStackMet && !comboHitMet) return null;
+
   const totalScore = conditions.filter(c => c.met).length;
   const applicableMax = conditions.length;
 
@@ -316,6 +322,11 @@ function scoreTrend(ctx) {
     ? +(entry + 2.5 * atr).toFixed(2)
     : +(entry - 2.5 * atr).toFixed(2);
 
+  // R/R oranı: |target-entry| / |entry-stop|
+  const reward = Math.abs(target - entry);
+  const risk = Math.abs(entry - stop);
+  const riskReward = risk > 0 ? +(reward / risk).toFixed(2) : null;
+
   return {
     strategy: 'trend',
     direction,
@@ -325,6 +336,7 @@ function scoreTrend(ctx) {
     grade: gradeFromRatio(totalScore / applicableMax),
     conditions,
     entry, stop, target,
+    riskReward,
     fillMode: 'market',     // anında tetik
     triggerZone: null,
     source: 'combo',
@@ -374,6 +386,12 @@ function scoreReversion(ctx) {
   const requiredFailed = conditions.find(c => c.required && !c.met);
   if (requiredFailed) return null;
 
+  // ALT-ZORUNLU: engulfing_at_zone VEYA liquidity_sweep'ten en az biri geçmeli.
+  // Kurumsal müdahale kanıtı yoksa "boş zone bounce" alma riski yüksek — eliyoruz.
+  const engulfMet = conditions.find(c => c.id === 'engulfing_at_zone')?.met;
+  const sweepMet  = conditions.find(c => c.id === 'liquidity_sweep')?.met;
+  if (!engulfMet && !sweepMet) return null;
+
   const totalScore = conditions.filter(c => c.met).length;
   const applicableMax = conditions.length;
 
@@ -387,6 +405,8 @@ function scoreReversion(ctx) {
   const target = direction === 'long'
     ? +(entry + 2.0 * risk).toFixed(2)
     : +(entry - 2.0 * risk).toFixed(2);
+  const reward = Math.abs(target - entry);
+  const riskReward = risk > 0 ? +(reward / risk).toFixed(2) : null;
 
   return {
     strategy: 'reversion',
@@ -397,6 +417,7 @@ function scoreReversion(ctx) {
     grade: gradeFromRatio(totalScore / applicableMax),
     conditions,
     entry, stop, target,
+    riskReward,
     fillMode: 'limit', // zone değiş bekler
     // Tetik aralığı: long ⇒ zone içine değiş (low ≤ top, high ≥ bottom)
     triggerZone: { top: zone.top, bottom: zone.bottom },
@@ -422,12 +443,12 @@ function scoreReversion(ctx) {
   };
 }
 
-// Grade eşikleri — gerçekçi 10-koşullu sistem için.
-// 7+ koşul gerçekten kuvvetli sinyal demek; 5+ koşul güçlüdür.
+// Grade eşikleri — alt-zorunlu sıkılaştırmasıyla birlikte yükseldi.
+// MUKEMMEL = 8+, GUCLU = 6-7, ORTA = 5, ZAYIF = <5 (zaten min eşik 6, ZAYIF nadiren çıkar).
 function gradeFromRatio(r) {
-  if (r >= 0.70) return 'MUKEMMEL';
-  if (r >= 0.50) return 'GUCLU';
-  if (r >= 0.30) return 'ORTA';
+  if (r >= 0.80) return 'MUKEMMEL';
+  if (r >= 0.60) return 'GUCLU';
+  if (r >= 0.50) return 'ORTA';
   return 'ZAYIF';
 }
 

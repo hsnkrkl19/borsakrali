@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import {
   Target, TrendingUp, TrendingDown, AlertTriangle, Search, Filter, RefreshCw,
   ChevronRight, BarChart3, Zap, Star, AlertCircle, Cloud, Activity,
-  ArrowUpRight, ArrowDownRight, Layers, Gauge, Triangle, Eye, CheckCircle, X, Play
+  ArrowUpRight, ArrowDownRight, Layers, Gauge, Triangle, Eye, CheckCircle, X, Play, Sparkles
 } from 'lucide-react'
 import { createChart } from 'lightweight-charts'
 
@@ -119,9 +119,17 @@ function CommodityAnalysis() {
   )
 }
 
+// ── Varlık tipi seçimi: BIST hisseleri / Kripto / Emtia ─────────────────────
+const ASSET_TYPES = [
+  { id: 'bist',      label: 'BIST 30',      emoji: '📈', desc: '30 hisse',          symbol: '₺' },
+  { id: 'crypto',    label: 'Kripto',       emoji: '🪙', desc: 'Top 20 coin',       symbol: '$' },
+  { id: 'commodity', label: 'Altın/Gümüş', emoji: '🏅', desc: 'XAUUSD · XAGUSD',   symbol: '$' },
+]
+
 export default function Taramalar() {
   const [activeTab, setActiveTab] = useState('stratejiler')
   const [activeCategory, setActiveCategory] = useState('tumu')
+  const [assets, setAssets] = useState('bist') // 'bist' | 'crypto' | 'commodity'
 
   // Çoklu seçim: Set<strategyId>
   const [selectedIds, setSelectedIds] = useState(new Set())
@@ -177,7 +185,15 @@ export default function Taramalar() {
     else if (activeTab === 'fibo') fetchFibonacciLevels()
     else if (activeTab === 'ichimoku') runSingleScan('ichimoku-bullish')
     else if (activeTab === 'sikisan') runSingleScan('bollinger-squeeze')
-  }, [activeTab])
+  }, [activeTab, assets])
+
+  // assets değişince önceki sonuçları temizle (yeniden taransın diye)
+  useEffect(() => {
+    setScanResults([])
+    setMultiResults([])
+    setScanMode(null)
+    setError(null)
+  }, [assets])
 
   // Tekli tarama (eski davranış)
   const runSingleScan = async (strategyId) => {
@@ -188,11 +204,11 @@ export default function Taramalar() {
     setScanMode('single')
     setScanMeta(null)
     try {
-      const response = await fetch(`${API_BASE}/market/scans/${strategyId}`)
+      const response = await fetch(`${API_BASE}/market/scans/${strategyId}?assets=${assets}`)
       if (!response.ok) throw new Error('Tarama yapılamadı')
       const data = await response.json()
       setScanResults(data.stocks || [])
-      setScanMeta({ total: data.total, scanned: data.scanned, strategy: data.strategy, timestamp: data.timestamp })
+      setScanMeta({ total: data.total, scanned: data.scanned, strategy: data.strategy, timestamp: data.timestamp, assets: data.assets })
     } catch {
       setError('Tarama sonuçları yüklenemedi. Lütfen tekrar deneyin.')
     } finally {
@@ -216,7 +232,7 @@ export default function Taramalar() {
     setScanMeta(null)
     try {
       const responses = await Promise.all(
-        ids.map(id => fetch(`${API_BASE}/market/scans/${id}`).then(r => r.ok ? r.json() : { stocks: [] }))
+        ids.map(id => fetch(`${API_BASE}/market/scans/${id}?assets=${assets}`).then(r => r.ok ? r.json() : { stocks: [] }))
       )
       // Her sembol için hangi stratejilerde göründüğünü bul
       const symbolMap = new Map()
@@ -358,18 +374,59 @@ export default function Taramalar() {
 
   const selectedCount = selectedIds.size
 
+  const activeAsset = ASSET_TYPES.find(a => a.id === assets) || ASSET_TYPES[0]
+  const priceSym = activeAsset.symbol
+
   return (
     <div className="space-y-5">
       {/* Header */}
-      <div className="flex items-start justify-between">
+      <div className="flex items-start justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-2xl font-bold text-white">Piyasa Radarı</h1>
-          <p className="text-gray-400 mt-1 text-sm">15+ profesyonel teknik analiz taraması - RSI, MACD, Ichimoku, ADX, Supertrend ve daha fazlası</p>
+          <p className="text-gray-400 mt-1 text-sm">15+ profesyonel teknik analiz taraması — BIST, kripto ve altın/gümüş için tek arayüz</p>
         </div>
         <div className="text-xs text-gray-500 bg-dark-800 px-3 py-1.5 rounded-lg border border-dark-700">
-          30 Hisse Taranıyor
+          {activeAsset.emoji} {activeAsset.desc} taranıyor
         </div>
       </div>
+
+      {/* ── Varlık tipi seçici ─────────────────────────────────────────────── */}
+      <div className="bg-dark-900/60 border border-dark-700 rounded-2xl p-1.5">
+        <div className="flex gap-1 flex-wrap">
+          {ASSET_TYPES.map(a => {
+            const isActive = assets === a.id
+            return (
+              <button
+                key={a.id}
+                onClick={() => setAssets(a.id)}
+                className={`flex-1 min-w-[120px] flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl text-sm font-semibold transition-all ${
+                  isActive
+                    ? 'bg-gradient-to-r from-amber-500 to-amber-600 text-dark-950 shadow-lg shadow-amber-500/25'
+                    : 'text-gray-400 hover:text-white hover:bg-dark-800'
+                }`}
+              >
+                <span className="text-base">{a.emoji}</span>
+                {a.label}
+                <span className={`text-[10px] font-medium ${isActive ? 'text-dark-900/80' : 'text-gray-500'}`}>
+                  {a.desc}
+                </span>
+              </button>
+            )
+          })}
+        </div>
+      </div>
+
+      {/* Aktif varlık için kısa bilgi */}
+      {assets !== 'bist' && (
+        <div className="px-3 py-2 bg-amber-500/5 border border-amber-500/20 rounded-lg text-xs text-amber-100/80 flex items-start gap-2">
+          <Sparkles className="w-3.5 h-3.5 flex-shrink-0 mt-0.5 text-amber-400" />
+          <span>
+            {assets === 'crypto'
+              ? 'Kripto evreni Yahoo Finance günlük verisiyle taranıyor — Bitcoin, Ethereum dahil 20 büyük coin için aynı 15+ strateji çalışıyor.'
+              : 'Altın & gümüş için günlük SNR/RSI/MACD taraması. Ons (USD) ve gram TL fiyatları ayrı ayrı analiz edilir.'}
+          </span>
+        </div>
+      )}
 
       {/* Tabs */}
       <div className="flex flex-wrap gap-2">
@@ -565,7 +622,7 @@ export default function Taramalar() {
           <p className="text-white font-medium">
             {scanMode === 'multi' ? `${selectedIds.size} strateji paralel taranıyor...` : 'Tarama yapılıyor...'}
           </p>
-          <p className="text-gray-500 text-sm mt-1">30 hisse teknik indikatörlerle analiz ediliyor</p>
+          <p className="text-gray-500 text-sm mt-1">{activeAsset.emoji} {activeAsset.desc} teknik indikatörlerle analiz ediliyor</p>
         </div>
       )}
 
@@ -602,7 +659,7 @@ export default function Taramalar() {
                     <p className="text-xs text-gray-500 truncate max-w-[140px]">{stock.name}</p>
                   </div>
                   <div className="text-right">
-                    <p className="font-mono text-white font-medium">{stock.price?.toFixed(2)} ₺</p>
+                    <p className="font-mono text-white font-medium">{stock.price?.toFixed(2)} {priceSym}</p>
                     <p className={`text-xs font-mono font-semibold ${stock.changePercent >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
                       {stock.changePercent >= 0 ? '+' : ''}{stock.changePercent?.toFixed(2)}%
                     </p>
@@ -652,7 +709,7 @@ export default function Taramalar() {
                       <p className="font-bold text-primary-400">{stock.symbol}</p>
                       <p className="text-xs text-gray-500 max-w-[120px] truncate">{stock.name}</p>
                     </td>
-                    <td className="py-3 font-mono text-white font-medium">{stock.price?.toFixed(2)} ₺</td>
+                    <td className="py-3 font-mono text-white font-medium">{stock.price?.toFixed(2)} {priceSym}</td>
                     <td className={`py-3 font-mono font-semibold ${stock.changePercent >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
                       {stock.changePercent >= 0 ? '+' : ''}{stock.changePercent?.toFixed(2)}%
                     </td>
@@ -737,7 +794,7 @@ export default function Taramalar() {
                     <p className="text-xs text-gray-500 truncate max-w-[140px]">{stock.name}</p>
                   </div>
                   <div className="text-right">
-                    <p className="font-mono text-white font-medium">{stock.price?.toFixed(2)} ₺</p>
+                    <p className="font-mono text-white font-medium">{stock.price?.toFixed(2)} {priceSym}</p>
                     <p className={`text-xs font-mono font-semibold ${stock.changePercent >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
                       {stock.changePercent >= 0 ? '+' : ''}{stock.changePercent?.toFixed(2)}%
                     </p>
@@ -777,7 +834,7 @@ export default function Taramalar() {
                       <p className="font-bold text-primary-400">{stock.symbol}</p>
                       <p className="text-xs text-gray-500 max-w-[120px] truncate">{stock.name}</p>
                     </td>
-                    <td className="py-3 font-mono text-white font-medium">{stock.price?.toFixed(2)} ₺</td>
+                    <td className="py-3 font-mono text-white font-medium">{stock.price?.toFixed(2)} {priceSym}</td>
                     <td className={`py-3 font-mono font-semibold ${stock.changePercent >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
                       {stock.changePercent >= 0 ? '+' : ''}{stock.changePercent?.toFixed(2)}%
                     </td>

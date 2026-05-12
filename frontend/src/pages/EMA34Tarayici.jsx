@@ -1,28 +1,38 @@
 import { useState, useEffect } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { TrendingUp, TrendingDown, RefreshCw, Search, Activity, ArrowUp, ArrowDown } from 'lucide-react'
+import { TrendingUp, TrendingDown, RefreshCw, Search, Activity, ArrowUp, ArrowDown, Waves, ChevronsUp, ChevronsDown } from 'lucide-react'
 import api from '../services/api'
 import InfoTooltip from '../components/InfoTooltip'
 
+// Sinyal yapılandırması — 8 farklı durum
 const SIGNAL_CONFIG = {
-  cross_above: { label: '↑ TEMA34 Üstüne Çıktı', color: 'text-green-400', bg: 'bg-green-500/20 border-green-500/40', icon: ArrowUp, priority: 0 },
-  above:       { label: '✓ TEMA34 Üzerinde',     color: 'text-green-300', bg: 'bg-green-500/10 border-green-500/20', icon: TrendingUp, priority: 1 },
-  cross_below: { label: '↓ TEMA34 Altına İndi',  color: 'text-red-400',   bg: 'bg-red-500/20 border-red-500/40',   icon: ArrowDown, priority: 2 },
-  below:       { label: '✗ TEMA34 Altında',       color: 'text-red-300',   bg: 'bg-red-500/10 border-red-500/20',   icon: TrendingDown, priority: 3 },
+  wave_long:     { label: '🌊 Wave Long (Pullback)', short: '🌊 Wave LONG', color: 'text-emerald-300', bg: 'bg-emerald-500/25 border-emerald-500/60', icon: Waves },
+  cross_above:   { label: '↑ EMA34 Üstüne Çıktı',    short: '↑ Cross UP',  color: 'text-green-400',   bg: 'bg-green-500/20 border-green-500/40',     icon: ArrowUp },
+  trending_up:   { label: '⇈ Trend Boğa (5+ bar)',   short: '⇈ TrendUP',   color: 'text-green-300',   bg: 'bg-green-500/15 border-green-500/30',     icon: ChevronsUp },
+  above:         { label: '✓ EMA34 Üzerinde',         short: '✓ Üstünde',    color: 'text-green-200',   bg: 'bg-green-500/10 border-green-500/20',     icon: TrendingUp },
+  below:         { label: '✗ EMA34 Altında',           short: '✗ Altında',    color: 'text-red-200',     bg: 'bg-red-500/10 border-red-500/20',         icon: TrendingDown },
+  trending_down: { label: '⇊ Trend Ayı (5+ bar)',      short: '⇊ TrendDN',   color: 'text-red-300',     bg: 'bg-red-500/15 border-red-500/30',         icon: ChevronsDown },
+  cross_below:   { label: '↓ EMA34 Altına İndi',       short: '↓ Cross DN',  color: 'text-red-400',     bg: 'bg-red-500/20 border-red-500/40',         icon: ArrowDown },
+  wave_short:    { label: '🌊 Wave Short (Pullback)',  short: '🌊 Wave SHORT',color: 'text-red-300',     bg: 'bg-red-500/25 border-red-500/60',         icon: Waves },
 }
 
-const TEMA34_TIP = {
-  title: 'TEMA34 (Triple EMA) Takip Sistemi',
-  description: 'Günlük mum grafiğinde TEMA34 (34 periyot Triple EMA — Üçlü Üssel Hareketli Ortalama) seviyesine göre hisseleri filtreler. TEMA, klasik EMA\'ya göre gecikmeyi belirgin biçimde azaltır ve orta vadeli trendi daha hızlı teyit eder. Hızlı sinyal — klasik EMA34 yerine daha çevik bir trend göstergesi. Fiyat TEMA34 üzerindeyken alım trendi devam etmekte; altına geçince trend kırılmaktadır.',
-  formula: 'TEMA — Triple Exponential Moving Average (length = 34)\n\nk = 2 / (34 + 1) ≈ 0.0571\n\nema1 = EMA(Kapanış, 34)\nema2 = EMA(ema1,    34)\nema3 = EMA(ema2,    34)\nTEMA = 3 × (ema1 − ema2) + ema3\n\nKesişim yukarı (Cross Above):\n  Dün: Kapanış < TEMA_dün\n  Bugün: Kapanış > TEMA_bugün → AL Sinyali\n\nKesişim aşağı (Cross Below):\n  Dün: Kapanış > TEMA_dün\n  Bugün: Kapanış < TEMA_bugün → ÇIKIŞ Sinyali\n\nSkor hesabı:\n  TEMA üzerinde: +20\n  Yeni kesişim yukarı: +20 ek\n  TEMA\'ya yakın (%0-3): +10\n  TEMA\'ya yakın (%3-8): +5\n  TEMA altında: -20\n  Yeni kesişim aşağı: -15 ek\n\nKlasik EMA34\'ten farkı: TEMA üçlü filtrelenmiş — gecikmesi yaklaşık 3 kat daha az, ama daha gürültülü. EMA34 = yavaş & güvenilir rejim filtresi, TEMA34 = hızlı sinyal.',
-  source: 'TradingView Pine v6 — Triple EMA (TEMA) standart formülü'
+const SLOPE_BADGE = {
+  up:   { label: '↗ Yukarı eğim', color: 'bg-green-500/20 text-green-300' },
+  flat: { label: '→ Yatay',       color: 'bg-gray-500/20 text-gray-300' },
+  down: { label: '↘ Aşağı eğim',  color: 'bg-red-500/20 text-red-300' },
 }
 
-export default function TEMA34Tarayici() {
+const EMA34_TIP = {
+  title: 'EMA34 (Bill Williams) — Wave Rider Sistemi',
+  description: 'Klasik tek-geçişli 34 periyot Üstel Hareketli Ortalama. Fibonacci sayısı (34) piyasada doğal destek/direnç oluşturur; profesyonel trader\'ların favori seviyesidir. TEMA34\'ten farkı: gecikme yüksek ama gürültü düşük → güvenilir uzun vadeli trend rejimi filtresi. Bill Williams\'ın "Wave Rider" stratejisi 3 adımda çalışır: (1) trend kurulması (5+ ardışık bar bir tarafta), (2) EMA34\'e geri çekilme (pullback), (3) trend yönünde tepki kapanışı = yüksek olasılıklı giriş.',
+  formula: 'EMA — Exponential Moving Average (length = 34)\n\nk = 2 / (34 + 1) ≈ 0.0571\nEMA_0 = SMA(Kapanış, 34)   [SMA seed]\nEMA_t = Kapanış_t × k + EMA_{t-1} × (1 − k)\n\n══ Wave Long Sinyali ══\n  • Önce 5+ ardışık bar EMA34 üzerinde kapanmış (trend onayı)\n  • Son 5 bar içinde fiyat EMA34\'e dokunmuş (low ≤ EMA ≤ high)\n  • Şu an Kapanış > EMA34 + EMA34 eğimi yukarı → GİRİŞ\n\n══ Wave Short Sinyali ══\n  • Önce 5+ ardışık bar EMA34 altında kapanmış\n  • Pullback dokunuş + eğim aşağı → SHORT GİRİŞ\n\n══ Trend Modu ══\n  • Trending Up: 5+ bar üstte + slope > +%0.3\n  • Trending Down: 5+ bar altta + slope < −%0.3\n\n══ Skor (0-100) ══\n  Wave Long: 90 | Cross Above: 80 | Trending Up: 75 | Above: 60\n  Below: 40 | Trending Down: 25 | Cross Below: 20 | Wave Short: 10\n  Eğim bonusu: ±5\n\n══ Mesafe ölçümü ══\n  • % uzaklık: (Kapanış − EMA) / EMA × 100\n  • ATR uzaklık: (Kapanış − EMA) / ATR(14)  [normalize]',
+  source: 'Bill Williams "Trading Chaos" — 34 EMA Wave Rider stratejisi'
+}
+
+export default function EMA34Tarayici() {
   const [searchParams] = useSearchParams()
   const [scanData, setScanData] = useState(null)
   const [loading, setLoading] = useState(false)
-  const [trackSymbol, setTrackSymbol] = useState('')
   const [trackInput, setTrackInput] = useState('')
   const [trackData, setTrackData] = useState(null)
   const [trackLoading, setTrackLoading] = useState(false)
@@ -33,7 +43,7 @@ export default function TEMA34Tarayici() {
     setLoading(true)
     setScanData(null)
     try {
-      const r = await api.get(`/tema34/scan?list=${list}`)
+      const r = await api.get(`/ema34/scan?list=${list}`)
       setScanData(r.data)
     } catch (e) {
       setScanData({ error: e.response?.data?.error || 'Tarama hatası' })
@@ -46,12 +56,11 @@ export default function TEMA34Tarayici() {
     const s = (sym || trackInput).trim().toUpperCase()
     if (!s) return
     const isCrypto = forceType === 'crypto' || listParam === 'crypto'
-    setTrackSymbol(s)
     setTrackLoading(true)
     setTrackData(null)
     try {
       const typeParam = isCrypto ? '?type=crypto' : ''
-      const r = await api.get(`/tema34/track/${s}${typeParam}`)
+      const r = await api.get(`/ema34/track/${s}${typeParam}`)
       setTrackData(r.data)
     } catch (e) {
       setTrackData({ error: e.response?.data?.error || 'Takip hatası' })
@@ -62,7 +71,6 @@ export default function TEMA34Tarayici() {
 
   useEffect(() => { runScan() }, [])
 
-  // URL'den symbol gelirse o hisseyi otomatik takip et
   useEffect(() => {
     const urlSym = searchParams.get('symbol')
     const urlType = searchParams.get('type')
@@ -71,7 +79,7 @@ export default function TEMA34Tarayici() {
       setTrackInput(s)
       trackStock(s, urlType === 'crypto' ? 'crypto' : 'stock')
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const filteredResults = scanData?.results?.filter(r =>
@@ -84,10 +92,10 @@ export default function TEMA34Tarayici() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-white flex items-center gap-2">
-            TEMA34 Takip
-            <InfoTooltip size="lg" {...TEMA34_TIP} />
+            EMA34 Wave Rider
+            <InfoTooltip size="lg" {...EMA34_TIP} />
           </h1>
-          <p className="text-gray-400 text-sm mt-1">Günlük kapanışa göre TEMA34 (Triple EMA) üstü/altı tarayıcı ve al-devam sinyali</p>
+          <p className="text-gray-400 text-sm mt-1">Bill Williams 34 EMA — Trend filtresi + Pullback giriş sistemi</p>
         </div>
         <button onClick={() => runScan(listParam)} disabled={loading} className="btn-secondary flex items-center gap-2">
           <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
@@ -112,27 +120,31 @@ export default function TEMA34Tarayici() {
             </button>
           ))}
         </div>
-        <div className="flex gap-2 ml-auto">
-          {['all', 'cross_above', 'above', 'cross_below', 'below'].map(s => (
+        <div className="flex gap-1.5 ml-auto flex-wrap">
+          {['all', 'wave_long', 'cross_above', 'trending_up', 'trending_down', 'cross_below', 'wave_short'].map(s => (
             <button
               key={s}
               onClick={() => setFilterSignal(s)}
               className={`px-2.5 py-1 rounded text-xs font-medium transition-colors ${filterSignal === s ? 'bg-primary-600 text-white' : 'bg-dark-800 text-gray-400 hover:text-white'}`}
             >
-              {s === 'all' ? 'Tümü' : s === 'cross_above' ? '↑ Yeni Kırılım' : s === 'above' ? '✓ Üstünde' : s === 'cross_below' ? '↓ Yeni İniş' : '✗ Altında'}
+              {s === 'all' ? 'Tümü' : SIGNAL_CONFIG[s]?.short}
             </button>
           ))}
         </div>
       </div>
 
-      {/* Özet kartlar */}
+      {/* Özet kartlar — 8 sinyal türü */}
       {scanData && !scanData.error && (
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           {[
-            { key: 'crossAbove', label: '↑ Yeni Kırılım',  color: 'text-green-400', bg: 'bg-green-500/10' },
-            { key: 'above',      label: '✓ TEMA Üzerinde', color: 'text-green-300', bg: 'bg-green-500/5' },
-            { key: 'crossBelow', label: '↓ Yeni İniş',     color: 'text-red-400',   bg: 'bg-red-500/10' },
-            { key: 'below',      label: '✗ TEMA Altında',  color: 'text-red-300',   bg: 'bg-red-500/5' },
+            { key: 'waveLong',     label: '🌊 Wave Long',    color: 'text-emerald-300', bg: 'bg-emerald-500/15' },
+            { key: 'crossAbove',   label: '↑ Yeni Kırılım',  color: 'text-green-400',   bg: 'bg-green-500/10' },
+            { key: 'trendingUp',   label: '⇈ Trend Boğa',    color: 'text-green-300',   bg: 'bg-green-500/5' },
+            { key: 'above',        label: '✓ Üzerinde',      color: 'text-green-200',   bg: 'bg-green-500/5' },
+            { key: 'below',        label: '✗ Altında',       color: 'text-red-200',     bg: 'bg-red-500/5' },
+            { key: 'trendingDown', label: '⇊ Trend Ayı',     color: 'text-red-300',     bg: 'bg-red-500/5' },
+            { key: 'crossBelow',   label: '↓ Yeni İniş',     color: 'text-red-400',     bg: 'bg-red-500/10' },
+            { key: 'waveShort',    label: '🌊 Wave Short',   color: 'text-red-300',     bg: 'bg-red-500/15' },
           ].map(({ key, label, color, bg }) => (
             <div key={key} className={`card text-center ${bg}`}>
               <div className={`text-2xl font-bold ${color}`}>{scanData[key] || 0}</div>
@@ -146,7 +158,7 @@ export default function TEMA34Tarayici() {
       <div className="card">
         <h3 className="font-semibold text-white mb-3 flex items-center gap-2">
           <Activity className="w-4 h-4 text-primary-400" />
-          Tekil Hisse TEMA34 Takibi
+          Tekil Hisse EMA34 Takibi
         </h3>
         <div className="flex gap-2">
           <input
@@ -173,30 +185,74 @@ export default function TEMA34Tarayici() {
           <div className="mt-4 space-y-3">
             <div className="flex items-center gap-3 flex-wrap">
               <span className="text-xl font-bold text-white">{trackData.symbol}</span>
-              <span className={`px-3 py-1 rounded-full text-sm font-bold border ${(trackData.aboveTema34 ?? trackData.aboveEma34) ? 'bg-green-500/20 text-green-400 border-green-500/40' : 'bg-red-500/20 text-red-400 border-red-500/40'}`}>
-                {trackData.activeSignal}
+              {trackData.activeSignal && SIGNAL_CONFIG[trackData.activeSignal] && (
+                <span className={`px-3 py-1 rounded-full text-sm font-bold border ${SIGNAL_CONFIG[trackData.activeSignal].bg} ${SIGNAL_CONFIG[trackData.activeSignal].color}`}>
+                  {SIGNAL_CONFIG[trackData.activeSignal].label}
+                </span>
+              )}
+              {trackData.slopeDir && (
+                <span className={`px-2 py-0.5 rounded text-xs font-medium ${SLOPE_BADGE[trackData.slopeDir].color}`}>
+                  {SLOPE_BADGE[trackData.slopeDir].label} ({trackData.slopePct >= 0 ? '+' : ''}{trackData.slopePct}%)
+                </span>
+              )}
+              <span className="text-gray-400 text-sm">
+                {trackData.consecutiveDaysAbove > 0
+                  ? `${trackData.consecutiveDaysAbove} gün üst üste EMA üzerinde`
+                  : trackData.consecutiveDaysBelow > 0
+                    ? `${trackData.consecutiveDaysBelow} gün üst üste EMA altında`
+                    : ''}
               </span>
-              <span className="text-gray-400 text-sm">{trackData.consecutiveDaysAbove > 0 ? `${trackData.consecutiveDaysAbove} gün üst üste TEMA üzerinde` : 'TEMA altında'}</span>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-sm">
+
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
               <div className="bg-dark-800 rounded-lg p-3 text-center">
                 <div className="text-xs text-gray-500 mb-1">Son Kapanış</div>
                 <div className="font-mono font-bold text-white">{trackData.lastClose?.toFixed(2)}</div>
               </div>
               <div className="bg-dark-800 rounded-lg p-3 text-center">
-                <div className="text-xs text-gray-500 mb-1">TEMA34 Bugün</div>
-                <div className="font-mono font-bold text-primary-400">{(trackData.tema34 ?? trackData.ema34)?.toFixed(2)}</div>
+                <div className="text-xs text-gray-500 mb-1">EMA34</div>
+                <div className="font-mono font-bold text-primary-400">{trackData.ema34?.toFixed(2)}</div>
               </div>
               <div className="bg-dark-800 rounded-lg p-3 text-center">
-                <div className="text-xs text-gray-500 mb-1">Uzaklık</div>
-                <div className={`font-mono font-bold ${(trackData.aboveTema34 ?? trackData.aboveEma34) ? 'text-green-400' : 'text-red-400'}`}>
-                  {(() => {
-                    const t = trackData.tema34 ?? trackData.ema34
-                    return trackData.lastClose && t ? `${((trackData.lastClose - t) / t * 100).toFixed(2)}%` : '-'
-                  })()}
+                <div className="text-xs text-gray-500 mb-1">Uzaklık (%)</div>
+                <div className={`font-mono font-bold ${trackData.aboveEma34 ? 'text-green-400' : 'text-red-400'}`}>
+                  {trackData.distancePct >= 0 ? '+' : ''}{trackData.distancePct}%
+                </div>
+              </div>
+              <div className="bg-dark-800 rounded-lg p-3 text-center">
+                <div className="text-xs text-gray-500 mb-1">ATR Çarpanı</div>
+                <div className={`font-mono font-bold ${trackData.aboveEma34 ? 'text-green-400' : 'text-red-400'}`}>
+                  {trackData.distanceAtr >= 0 ? '+' : ''}{trackData.distanceAtr}σ
                 </div>
               </div>
             </div>
+
+            {/* Wave detayı */}
+            {(trackData.touched || trackData.priorTrendBars > 0) && (
+              <div className="bg-dark-800/60 border border-dark-700 rounded-lg p-3 text-sm">
+                <div className="flex items-center gap-2 mb-2">
+                  <Waves className="w-4 h-4 text-emerald-400" />
+                  <span className="font-semibold text-emerald-300">Wave Analizi</span>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs">
+                  <div>
+                    <span className="text-gray-500">Pullback temas:</span>{' '}
+                    <span className={trackData.touched ? 'text-yellow-300 font-semibold' : 'text-gray-400'}>
+                      {trackData.touched ? `Evet (${trackData.touchSide === 'support' ? 'destek' : 'direnç'})` : 'Yok'}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-gray-500">Önceki trend:</span>{' '}
+                    <span className="text-white font-semibold">{trackData.priorTrendBars} bar</span>
+                  </div>
+                  <div>
+                    <span className="text-gray-500">Skor:</span>{' '}
+                    <span className={`font-semibold ${trackData.score >= 70 ? 'text-green-400' : trackData.score >= 40 ? 'text-yellow-400' : 'text-red-400'}`}>{trackData.score}/100</span>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Geçmiş serisi */}
             {trackData.series && (
               <div className="mt-2 max-h-48 overflow-y-auto">
@@ -205,7 +261,7 @@ export default function TEMA34Tarayici() {
                     <tr className="text-gray-500 border-b border-dark-700">
                       <th className="pb-1 text-left">Tarih</th>
                       <th className="pb-1 text-right">Kapanış</th>
-                      <th className="pb-1 text-right">TEMA34</th>
+                      <th className="pb-1 text-right">EMA34</th>
                       <th className="pb-1 text-right">Durum</th>
                     </tr>
                   </thead>
@@ -245,7 +301,7 @@ export default function TEMA34Tarayici() {
         {loading && (
           <div className="flex items-center justify-center py-12">
             <RefreshCw className="w-6 h-6 text-primary-400 animate-spin" />
-            <span className="text-gray-400 ml-2">BIST hisseleri taranıyor...</span>
+            <span className="text-gray-400 ml-2">Hisseler taranıyor (EMA34 — 1 yıl veri)...</span>
           </div>
         )}
 
@@ -259,15 +315,18 @@ export default function TEMA34Tarayici() {
                   <th className="pb-2 pr-3">Hisse</th>
                   <th className="pb-2 pr-3">Sinyal</th>
                   <th className="pb-2 pr-3">Kapanış</th>
-                  <th className="pb-2 pr-3">TEMA34</th>
+                  <th className="pb-2 pr-3">EMA34</th>
+                  <th className="pb-2 pr-3">Eğim</th>
+                  <th className="pb-2 pr-3">Bar</th>
                   <th className="pb-2 pr-3">Uzaklık</th>
                   <th className="pb-2">Skor</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredResults.map((row, i) => {
-                  const cfg = SIGNAL_CONFIG[row.signal]
+                  const cfg = SIGNAL_CONFIG[row.signal] || SIGNAL_CONFIG.above
                   const Icon = cfg.icon
+                  const slopeBadge = SLOPE_BADGE[row.slopeDir] || SLOPE_BADGE.flat
                   return (
                     <tr
                       key={i}
@@ -278,17 +337,25 @@ export default function TEMA34Tarayici() {
                       <td className="py-2 pr-3">
                         <span className={`flex items-center gap-1 text-xs px-2 py-0.5 rounded border w-fit ${cfg.bg} ${cfg.color}`}>
                           <Icon className="w-3 h-3" />
-                          {cfg.label}
+                          {cfg.short}
                         </span>
                       </td>
                       <td className="py-2 pr-3 font-mono text-white">{row.lastClose?.toFixed(2)}</td>
-                      <td className="py-2 pr-3 font-mono text-primary-400">{(row.tema34 ?? row.ema34)?.toFixed(2)}</td>
-                      <td className={`py-2 pr-3 font-mono ${parseFloat(row.distancePct) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                      <td className="py-2 pr-3 font-mono text-primary-400">{row.ema34?.toFixed(2)}</td>
+                      <td className="py-2 pr-3">
+                        <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${slopeBadge.color}`}>
+                          {row.slopePct >= 0 ? '+' : ''}{row.slopePct}%
+                        </span>
+                      </td>
+                      <td className="py-2 pr-3 font-mono text-xs text-gray-300">
+                        {row.consecutive > 0 ? `+${row.consecutive}` : row.consecutive}
+                      </td>
+                      <td className={`py-2 pr-3 font-mono text-xs ${parseFloat(row.distancePct) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
                         {parseFloat(row.distancePct) >= 0 ? '+' : ''}{row.distancePct}%
                       </td>
                       <td className="py-2">
                         <div className="flex items-center gap-2">
-                          <div className="w-16 bg-dark-700 rounded-full h-1.5">
+                          <div className="w-14 bg-dark-700 rounded-full h-1.5">
                             <div
                               className={`h-1.5 rounded-full ${row.score >= 70 ? 'bg-green-500' : row.score >= 50 ? 'bg-yellow-500' : 'bg-red-500'}`}
                               style={{ width: `${row.score}%` }}

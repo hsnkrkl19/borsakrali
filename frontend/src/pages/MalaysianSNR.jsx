@@ -195,9 +195,11 @@ const POPULAR = ['THYAO', 'GARAN', 'ASELS', 'EREGL', 'BIMAS', 'AKBNK', 'TUPRS', 
 
 // Kıymetli Metaller — commodity endpoint'e yönlendirilen semboller
 const COMMODITY_LIST = [
-  { label: 'Altın (Ons)',  symbol: 'XAUUSD', key: 'gold_usd'   },
-  { label: 'Gümüş (Ons)', symbol: 'XAGUSD', key: 'silver_usd' },
-  { label: 'Altın TL',    symbol: 'XAUTRY', key: 'gold_try'   },
+  { label: 'Altın (Ons)',   symbol: 'XAUUSD', key: 'gold_usd'   },
+  { label: 'Gümüş (Ons)',  symbol: 'XAGUSD', key: 'silver_usd' },
+  { label: 'Gram Altın',    symbol: 'XAUTRY', key: 'gold_try'   },
+  { label: 'Gram Gümüş',   symbol: 'XAGTRY', key: 'silver_try' },
+  { label: 'USD / TL',       symbol: 'USDTRY', key: 'usd_try'    },
 ]
 
 // Sembol → commodity key eşlemesi
@@ -205,6 +207,8 @@ const COMMODITY_KEY_MAP = {
   XAUUSD: 'gold_usd',
   XAGUSD: 'silver_usd',
   XAUTRY: 'gold_try',
+  XAGTRY: 'silver_try',
+  USDTRY: 'usd_try',
 }
 
 // Top 100 Kripto — kısa semboller (Yahoo Finance'te -USD eki ile çekilir)
@@ -380,14 +384,9 @@ export default function MalaysianSNR() {
       setTab('zones')
       return
     }
-    // Commodity sembolleri için SNR analizi desteklenmiyor — sadece grafik
-    if (t === 'commodity') {
-      setTab('zones')
-      return
-    }
     setLoading(true)
     try {
-      const params = t === 'crypto' ? `?type=crypto` : ''
+      const params = t === 'crypto' ? '?type=crypto' : (t === 'commodity' ? '?type=commodity' : '')
       const r = await api.get(`/snr/${s}${params}`)
       setData(r.data)
       setTab('zones')
@@ -410,7 +409,12 @@ export default function MalaysianSNR() {
   const loadScanner = async (scope = scanScope) => {
     setScanLoading(true)
     try {
-      const r = await api.get('/snr/scanner', { params: { scope } })
+      // Özel scope'lar: commodity ve crypto için ayrı endpoint'ler
+      let url = '/snr/scanner'
+      let params = { scope }
+      if (scope === 'commodity') { url = '/snr/scanner/commodity'; params = {} }
+      else if (scope === 'crypto') { url = '/snr/scanner/crypto'; params = {} }
+      const r = await api.get(url, { params })
       setScanner(r.data.results || [])
     } catch {
       setScanner([])
@@ -477,7 +481,7 @@ export default function MalaysianSNR() {
         <div className="flex gap-2">
           <input
             className="input flex-1 text-sm"
-            placeholder={assetType === 'crypto' ? 'Kripto girin: BTC, ETH, SOL, BNB...' : assetType === 'commodity' ? 'Sembol girin: XAUUSD, XAGUSD, XAUTRY' : 'Sembol girin: THYAO, GARAN, ASELS...'}
+            placeholder={assetType === 'crypto' ? 'Kripto girin: BTC, ETH, SOL, BNB...' : assetType === 'commodity' ? 'Sembol girin: XAUUSD, XAGUSD, XAUTRY, XAGTRY' : 'Sembol girin: THYAO, GARAN, ASELS...'}
             value={inputVal}
             onChange={e => setInputVal(e.target.value.toUpperCase())}
             onKeyDown={e => e.key === 'Enter' && analyze()}
@@ -554,10 +558,15 @@ export default function MalaysianSNR() {
             <p className="text-white font-semibold">
               {symbol === 'XAUUSD' ? 'Altın (Ons) — USD'
                 : symbol === 'XAGUSD' ? 'Gümüş (Ons) — USD'
-                : symbol === 'XAUTRY' ? 'Altın — TL'
+                : symbol === 'XAUTRY' ? 'Gram Altın — TL'
+                : symbol === 'XAGTRY' ? 'Gram Gümüş — TL'
+                : symbol === 'USDTRY' ? 'USD / TL'
                 : symbol}
             </p>
-            <p className="text-gray-400 text-xs mt-0.5">Kıymetli metaller için SNR analizi desteklenmiyor — grafik gösteriliyor</p>
+            <p className="text-gray-400 text-xs mt-0.5">
+              {data ? 'Malaysian SNR analizi — destek/direnç bölgeleri ve sinyaller'
+                    : 'SNR zone analizi yükleniyor…'}
+            </p>
           </div>
         </div>
       )}
@@ -853,9 +862,11 @@ export default function MalaysianSNR() {
           <div className="flex items-center gap-2 flex-wrap">
             <span className="text-xs text-gray-400">Kapsam:</span>
             {[
-              { id: 'bist30',  label: 'BIST30',  hint: '~10 sn' },
-              { id: 'bist100', label: 'BIST100', hint: '~30 sn', recommended: true },
-              { id: 'all',     label: 'Tümü',    hint: '2-3 dk' },
+              { id: 'bist30',    label: 'BIST30',    hint: '~10 sn' },
+              { id: 'bist100',   label: 'BIST100',   hint: '~30 sn', recommended: true },
+              { id: 'all',       label: 'Tümü',       hint: '2-3 dk' },
+              { id: 'crypto',    label: '🪙 Kripto',  hint: '~20 coin' },
+              { id: 'commodity', label: '🏅 Emtia',   hint: 'Au/Ag' },
             ].map(opt => (
               <button
                 key={opt.id}
@@ -878,7 +889,12 @@ export default function MalaysianSNR() {
             <div className="flex items-center justify-center py-16">
               <div className="text-center">
                 <div className="w-8 h-8 border-2 border-gold-500 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
-                <p className="text-sm text-gray-400">{scanScope === 'all' ? 'Tüm BIST' : scanScope === 'bist100' ? 'BIST100' : 'BIST30'} taranıyor...</p>
+                <p className="text-sm text-gray-400">{
+                  scanScope === 'all' ? 'Tüm BIST'
+                  : scanScope === 'bist100' ? 'BIST100'
+                  : scanScope === 'crypto' ? '🪙 Top 20 Kripto'
+                  : scanScope === 'commodity' ? '🏅 Kıymetli Metaller'
+                  : 'BIST30'} taranıyor...</p>
               </div>
             </div>
           ) : scanner === null ? (
@@ -886,7 +902,10 @@ export default function MalaysianSNR() {
           ) : scanner.length === 0 ? (
             <div className="text-center py-8 text-gray-500 text-sm">Aktif sinyal bulunamadı</div>
           ) : scanner.map((item, i) => (
-            <div key={item.symbol} onClick={() => { analyze(item.symbol); setTab('signals') }}
+            <div key={item.symbol} onClick={() => {
+              const t = item.assetType || (scanScope === 'crypto' ? 'crypto' : scanScope === 'commodity' ? 'commodity' : 'stock')
+              analyze(item.symbol, t); setTab('signals')
+            }}
               className="card cursor-pointer hover:border-gold-500/40 flex items-center gap-4">
               <span className="text-lg font-bold text-gray-500 w-6 text-center">#{i + 1}</span>
               <div className="flex-1">

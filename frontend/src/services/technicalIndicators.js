@@ -1030,12 +1030,13 @@ export function detectTrendZirvesi(data, closes) {
 }
 
 /**
- * EMA34 Değen Hisseler — artık TEMA34 (Triple EMA, length=34) kullanıyor.
+ * TEMA34 Değen Hisseler — Triple EMA, length=34
  * out = 3*(ema1-ema2) + ema3
+ * Hızlı sinyal — düşük gecikme, ama gürültüye duyarlı.
  */
-export function detectEMA34Touch(data, closes) {
+export function detectTEMA34Touch(data, closes) {
   if (closes.length < 100) return null
-  const ema34 = calculateTEMA(closes, 34)
+  const tema34 = calculateTEMA(closes, 34)
   const lastIdx = closes.length - 1
 
   // Son 3 günde TEMA34'e dokundu mu?
@@ -1043,7 +1044,7 @@ export function detectEMA34Touch(data, closes) {
   let touchIdx = -1
 
   for (let i = lastIdx - 2; i <= lastIdx; i++) {
-    const diff = Math.abs(data[i].low - ema34[i]) / ema34[i]
+    const diff = Math.abs(data[i].low - tema34[i]) / tema34[i]
     if (diff < 0.01) {
       touched = true
       touchIdx = i
@@ -1051,18 +1052,91 @@ export function detectEMA34Touch(data, closes) {
     }
   }
 
-  // Dokundu ve yukarı tepki verdi mi?
-  if (touched && closes[lastIdx] > ema34[lastIdx]) {
+  if (touched && closes[lastIdx] > tema34[lastIdx]) {
     return {
-      type: 'EMA34 Desteği',
+      type: 'TEMA34 Desteği',
       signal: 'AL',
       strength: 'Orta',
       price: closes[lastIdx],
-      ema34: ema34[lastIdx],
+      tema34: tema34[lastIdx],
       touchPrice: data[touchIdx]?.low
     }
   }
 
+  return null
+}
+
+/**
+ * EMA34 (Bill Williams Wave Rider) — Tek-geçişli klasik EMA34
+ * Trend filtresi + Pullback giriş stratejisi
+ *   Wave Long  = 5+ ardışık bar üstte + EMA34'e dokunuş + yeşil tepki + yukarı eğim
+ *   Wave Short = aynı mantık ters yönde
+ */
+export function detectEMA34Touch(data, closes) {
+  if (closes.length < 60) return null
+  const ema34 = calculateEMA(closes, 34)
+  const lastIdx = closes.length - 1
+  const ema_now = ema34[lastIdx]
+  if (ema_now == null) return null
+
+  // Son 5 günde EMA34'e dokundu mu? (bar low<=EMA<=high)
+  let touched = false
+  let touchIdx = -1
+  for (let i = Math.max(0, lastIdx - 4); i <= lastIdx; i++) {
+    if (ema34[i] == null) continue
+    if (data[i].low <= ema34[i] && data[i].high >= ema34[i]) {
+      touched = true
+      touchIdx = i
+    }
+  }
+  if (!touched) return null
+
+  // Trend yönü: dokunuştan önceki rejim
+  const direction = (touchIdx > 0 && ema34[touchIdx - 1] != null)
+    ? (closes[touchIdx - 1] > ema34[touchIdx - 1] ? 1 : -1)
+    : (closes[lastIdx] > ema_now ? 1 : -1)
+
+  // Önceki trend gücü
+  let priorBars = 0
+  if (touchIdx > 0) {
+    for (let i = touchIdx - 1; i >= 0 && ema34[i] != null; i--) {
+      if (direction === 1 && closes[i] > ema34[i]) priorBars++
+      else if (direction === -1 && closes[i] <= ema34[i]) priorBars++
+      else break
+    }
+  }
+  if (priorBars < 5) return null
+
+  // Eğim
+  const ema_5ago = ema34[lastIdx - 5]
+  const slope = ema_5ago ? ((ema_now - ema_5ago) / ema_5ago) : 0
+
+  // Wave Long
+  if (direction === 1 && closes[lastIdx] > ema_now && slope > 0.003 && closes[lastIdx] > closes[lastIdx - 1]) {
+    return {
+      type: 'EMA34 Wave Long',
+      signal: 'AL',
+      strength: 'Güçlü',
+      price: closes[lastIdx],
+      ema34: ema_now,
+      priorTrendBars: priorBars,
+      slopePct: parseFloat((slope * 100).toFixed(2)),
+      touchPrice: data[touchIdx]?.low,
+    }
+  }
+  // Wave Short
+  if (direction === -1 && closes[lastIdx] <= ema_now && slope < -0.003 && closes[lastIdx] < closes[lastIdx - 1]) {
+    return {
+      type: 'EMA34 Wave Short',
+      signal: 'SAT',
+      strength: 'Güçlü',
+      price: closes[lastIdx],
+      ema34: ema_now,
+      priorTrendBars: priorBars,
+      slopePct: parseFloat((slope * 100).toFixed(2)),
+      touchPrice: data[touchIdx]?.high,
+    }
+  }
   return null
 }
 
@@ -1454,6 +1528,7 @@ export default {
   detectTrendDibi,
   detectTrendZirvesi,
   detectEMA34Touch,
+  detectTEMA34Touch,
   detectIchimokuBullish,
   detectIchimokuBearish,
   detectRSIADXStrong,

@@ -650,7 +650,7 @@ export default function TeknikAnalizAI() {
         </div>
       </div>
 
-      {/* Diğer Analiz Yöntemleri — SNR + EMA34 hızlı erişim */}
+      {/* Diğer Analiz Yöntemleri — SNR + EMA34 Wave + TEMA34 hızlı erişim */}
       <div className="card">
         <h3 className="font-semibold text-white mb-1 flex items-center gap-2">
           <span className="text-amber-400">⚡</span>
@@ -661,7 +661,7 @@ export default function TeknikAnalizAI() {
             ? <>Aktif sembol: <span className="text-amber-400 font-mono font-bold">{symbol}</span> — bu sembol için farklı analiz yapın</>
             : 'Tarayıcı veya bireysel analiz için aşağıdaki butonları kullanın'}
         </p>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
           <button
             onClick={() => {
               const sym = (symbol || '').trim().toUpperCase()
@@ -677,7 +677,7 @@ export default function TeknikAnalizAI() {
             </div>
             <div className="min-w-0 flex-1">
               <div className="text-sm font-semibold text-white">Malaysian SNR</div>
-              <div className="text-[11px] text-gray-400">Gövde tabanlı destek/direnç + Giriş/Stop/TP</div>
+              <div className="text-[11px] text-gray-400">Gövde tabanlı destek/direnç</div>
             </div>
             <ChevronRight className="w-4 h-4 text-gray-500 group-hover:text-blue-400" />
           </button>
@@ -686,7 +686,7 @@ export default function TeknikAnalizAI() {
             onClick={() => {
               const sym = (symbol || '').trim().toUpperCase()
               const url = sym
-                ? `/tarayicilar?tab=ema34&symbol=${encodeURIComponent(sym)}`
+                ? `/tarayicilar?tab=ema34&symbol=${encodeURIComponent(sym)}${assetType === 'crypto' ? '&type=crypto' : ''}`
                 : '/tarayicilar?tab=ema34'
               navigate(url)
             }}
@@ -696,10 +696,30 @@ export default function TeknikAnalizAI() {
               <BarChart2 className="w-5 h-5 text-white" />
             </div>
             <div className="min-w-0 flex-1">
-              <div className="text-sm font-semibold text-white">EMA34 Takip</div>
-              <div className="text-[11px] text-gray-400">34 günlük üstel ortalama trend takibi</div>
+              <div className="text-sm font-semibold text-white">EMA34 Wave</div>
+              <div className="text-[11px] text-gray-400">Bill Williams pullback sistemi</div>
             </div>
             <ChevronRight className="w-4 h-4 text-gray-500 group-hover:text-emerald-400" />
+          </button>
+
+          <button
+            onClick={() => {
+              const sym = (symbol || '').trim().toUpperCase()
+              const url = sym
+                ? `/tarayicilar?tab=tema34&symbol=${encodeURIComponent(sym)}${assetType === 'crypto' ? '&type=crypto' : ''}`
+                : '/tarayicilar?tab=tema34'
+              navigate(url)
+            }}
+            className="group flex items-center gap-3 p-3 sm:p-4 bg-gradient-to-br from-teal-500/10 to-teal-600/5 hover:from-teal-500/20 hover:to-teal-600/10 border border-teal-500/30 hover:border-teal-500/50 rounded-xl text-left transition-all"
+          >
+            <div className="flex-shrink-0 w-10 h-10 rounded-xl bg-gradient-to-br from-teal-500 to-teal-600 flex items-center justify-center shadow-md">
+              <BarChart2 className="w-5 h-5 text-white" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="text-sm font-semibold text-white">TEMA34 Takip</div>
+              <div className="text-[11px] text-gray-400">Triple EMA — hızlı trend sinyali</div>
+            </div>
+            <ChevronRight className="w-4 h-4 text-gray-500 group-hover:text-teal-400" />
           </button>
         </div>
       </div>
