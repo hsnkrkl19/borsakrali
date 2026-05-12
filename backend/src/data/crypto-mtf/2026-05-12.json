@@ -2,7 +2,7 @@
   "date": "2026-05-12",
   "timeframes": {
     "1m": {
-      "generatedAt": "2026-05-12T20:25:11.204Z",
+      "generatedAt": "2026-05-12T20:27:01.273Z",
       "scanner": {
         "timeframe": "1m",
         "higherTimeframe": "5m",
@@ -54,6 +54,170 @@
                   "label": "1m MACD pozitif + büyüyor",
                   "group": "ind",
                   "why": "MACD histogramı pozitif ve son barda büyüyor — momentum güçleniyor.",
+                  "met": true,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "current_volume_above_avg",
+                  "label": "1m hacim 20-bar SMA üstü",
+                  "group": "ind",
+                  "why": "Son mum hacmi ortalama üstünde — alıcı katılımı var.",
+                  "met": true,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "higher_uptrend",
+                  "label": "5m EMA20 > EMA50 (macro)",
+                  "group": "macro",
+                  "why": "Üst zaman diliminde de yapı yukarı — kontra-trend değil.",
+                  "met": true,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "higher_above_ema50",
+                  "label": "5m fiyat EMA50 üstü",
+                  "group": "macro",
+                  "why": "Üst TF orta vadeli ortalama üstünde — sağlam zemin.",
+                  "met": true,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "higher_rsi_not_overbought",
+                  "label": "5m RSI < 75",
+                  "group": "macro",
+                  "why": "Üst TF aşırı alımda değil — yukarı alanı var.",
+                  "met": true,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "higher_macd_aligned",
+                  "label": "5m MACD ≥ 0",
+                  "group": "macro",
+                  "why": "Üst TF momentumu da long lehine.",
+                  "met": false,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "bullish_divergence",
+                  "label": "Bullish RSI divergence",
+                  "group": "math",
+                  "why": "Fiyat lower-low, RSI higher-low — trend dönüşü olası.",
+                  "met": true,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "bullish_candlestick",
+                  "label": "Boğa candlestick formasyonu",
+                  "group": "pattern",
+                  "why": "Bullish engulfing / hammer / bullish harami son barda var.",
+                  "met": false,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "volatility_supportive",
+                  "label": "Volatilite trade için uygun",
+                  "group": "math",
+                  "why": "ATR rejimi normal/low — yüksek volatilitede kontra-trend giriş riskli.",
+                  "met": true,
+                  "applicable": true,
+                  "required": false
+                }
+              ],
+              "entry": 2285.71,
+              "stop": 2285.29,
+              "target1": 2286.23,
+              "target2": 2286.49,
+              "leverage_suggest": 6,
+              "winProbability": {
+                "probability": 0.79,
+                "confidence": 0.06,
+                "samples": 0,
+                "bucket": 0.8,
+                "prior": 0.789,
+                "posteriorAlpha": 1.58,
+                "posteriorBeta": 0.42
+              },
+              "indicators": {
+                "current_rsi": 52.67,
+                "current_macdHist": 0.0246,
+                "higher_rsi": 60.18,
+                "higher_macdHist": -0.2377
+              },
+              "patterns": {
+                "engulfing": null,
+                "pinBar": null,
+                "doji": null,
+                "harami": null
+              },
+              "divergence": {
+                "type": "hidden_bullish"
+              },
+              "volatility": {
+                "regime": "low",
+                "atrPct": 0.03,
+                "meanAtrPct": 0.04,
+                "stdAtrPct": 0.005,
+                "zScore": -2.2
+              },
+              "momentum": null,
+              "lastClose": 2285.71,
+              "atr": 0.5228571428570571,
+              "updatedAt": "2026-05-12T20:27:01.276Z",
+              "symbol": "ETH",
+              "name": "Ethereum",
+              "image": "https://coin-images.coingecko.com/coins/images/279/large/ethereum.png?1696501628",
+              "coinId": "ethereum"
+            },
+            {
+              "strategy": "long",
+              "direction": "long",
+              "timeframe": "1m",
+              "higherTimeframe": "5m",
+              "totalScore": 9,
+              "applicableMax": 12,
+              "ratio": 0.75,
+              "grade": "MUKEMMEL",
+              "conditions": [
+                {
+                  "id": "current_uptrend",
+                  "label": "1m EMA20 > EMA50",
+                  "group": "trend",
+                  "why": "Entry zaman diliminde kısa vadeli yapı yukarı yönlü.",
+                  "met": true,
+                  "applicable": true,
+                  "required": true
+                },
+                {
+                  "id": "current_above_ema200",
+                  "label": "1m fiyat EMA200 üstü",
+                  "group": "trend",
+                  "why": "Entry TF'de uzun vadeli ana trend boğa.",
+                  "met": true,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "current_rsi_healthy",
+                  "label": "1m RSI 45-72",
+                  "group": "ind",
+                  "why": "Aşırı satımdan çıkmış, aşırı alıma girmemiş — sağlıklı momentum.",
+                  "met": true,
+                  "applicable": true,
+                  "required": true
+                },
+                {
+                  "id": "current_macd_bullish",
+                  "label": "1m MACD pozitif + büyüyor",
+                  "group": "ind",
+                  "why": "MACD histogramı pozitif ve son barda büyüyor — momentum güçleniyor.",
                   "met": false,
                   "applicable": true,
                   "required": false
@@ -99,7 +263,7 @@
                   "label": "5m MACD ≥ 0",
                   "group": "macro",
                   "why": "Üst TF momentumu da long lehine.",
-                  "met": true,
+                  "met": false,
                   "applicable": true,
                   "required": false
                 },
@@ -131,11 +295,11 @@
                   "required": false
                 }
               ],
-              "entry": 94.88,
-              "stop": 94.845,
-              "target1": 94.924,
-              "target2": 94.946,
-              "leverage_suggest": 6,
+              "entry": 94.9,
+              "stop": 94.866,
+              "target1": 94.942,
+              "target2": 94.963,
+              "leverage_suggest": 4,
               "winProbability": {
                 "probability": 0.79,
                 "confidence": 0.06,
@@ -146,10 +310,10 @@
                 "posteriorBeta": 0.42
               },
               "indicators": {
-                "current_rsi": 47.73,
-                "current_macdHist": -0.0059,
-                "higher_rsi": 57.35,
-                "higher_macdHist": 0.0005
+                "current_rsi": 50.67,
+                "current_macdHist": -0.0055,
+                "higher_rsi": 57.54,
+                "higher_macdHist": -0.003
               },
               "patterns": {
                 "engulfing": null,
@@ -162,15 +326,15 @@
               },
               "volatility": {
                 "regime": "low",
-                "atrPct": 0.051,
+                "atrPct": 0.05,
                 "meanAtrPct": 0.06,
                 "stdAtrPct": 0.005,
-                "zScore": -1.91
+                "zScore": -1.86
               },
               "momentum": null,
-              "lastClose": 94.88,
-              "atr": 0.04428571428571156,
-              "updatedAt": "2026-05-12T20:25:11.791Z",
+              "lastClose": 94.9,
+              "atr": 0.04214285714285536,
+              "updatedAt": "2026-05-12T20:27:01.834Z",
               "symbol": "SOL",
               "name": "Solana",
               "image": "https://coin-images.coingecko.com/coins/images/4128/large/solana.png?1718769756",
@@ -227,7 +391,169 @@
                   "label": "1m hacim 20-bar SMA üstü",
                   "group": "ind",
                   "why": "Son mum hacmi ortalama üstünde — alıcı katılımı var.",
+                  "met": true,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "higher_uptrend",
+                  "label": "5m EMA20 > EMA50 (macro)",
+                  "group": "macro",
+                  "why": "Üst zaman diliminde de yapı yukarı — kontra-trend değil.",
+                  "met": true,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "higher_above_ema50",
+                  "label": "5m fiyat EMA50 üstü",
+                  "group": "macro",
+                  "why": "Üst TF orta vadeli ortalama üstünde — sağlam zemin.",
+                  "met": true,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "higher_rsi_not_overbought",
+                  "label": "5m RSI < 75",
+                  "group": "macro",
+                  "why": "Üst TF aşırı alımda değil — yukarı alanı var.",
+                  "met": true,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "higher_macd_aligned",
+                  "label": "5m MACD ≥ 0",
+                  "group": "macro",
+                  "why": "Üst TF momentumu da long lehine.",
+                  "met": true,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "bullish_divergence",
+                  "label": "Bullish RSI divergence",
+                  "group": "math",
+                  "why": "Fiyat lower-low, RSI higher-low — trend dönüşü olası.",
                   "met": false,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "bullish_candlestick",
+                  "label": "Boğa candlestick formasyonu",
+                  "group": "pattern",
+                  "why": "Bullish engulfing / hammer / bullish harami son barda var.",
+                  "met": false,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "volatility_supportive",
+                  "label": "Volatilite trade için uygun",
+                  "group": "math",
+                  "why": "ATR rejimi normal/low — yüksek volatilitede kontra-trend giriş riskli.",
+                  "met": true,
+                  "applicable": true,
+                  "required": false
+                }
+              ],
+              "entry": 0.11,
+              "stop": 0.10994,
+              "target1": 0.11007,
+              "target2": 0.11011,
+              "leverage_suggest": 4,
+              "winProbability": {
+                "probability": 0.79,
+                "confidence": 0.06,
+                "samples": 0,
+                "bucket": 0.8,
+                "prior": 0.789,
+                "posteriorAlpha": 1.58,
+                "posteriorBeta": 0.42
+              },
+              "indicators": {
+                "current_rsi": 53.11,
+                "current_macdHist": 0,
+                "higher_rsi": 64.01,
+                "higher_macdHist": 0
+              },
+              "patterns": {
+                "engulfing": null,
+                "pinBar": null,
+                "doji": null,
+                "harami": null
+              },
+              "divergence": null,
+              "volatility": {
+                "regime": "low",
+                "atrPct": 0.072,
+                "meanAtrPct": 0.082,
+                "stdAtrPct": 0.008,
+                "zScore": -1.23
+              },
+              "momentum": null,
+              "lastClose": 0.11,
+              "atr": 0.00007428571428571522,
+              "updatedAt": "2026-05-12T20:27:01.834Z",
+              "symbol": "DOGE",
+              "name": "Dogecoin",
+              "image": "https://coin-images.coingecko.com/coins/images/5/large/dogecoin.png?1696501409",
+              "coinId": "dogecoin"
+            },
+            {
+              "strategy": "long",
+              "direction": "long",
+              "timeframe": "1m",
+              "higherTimeframe": "5m",
+              "totalScore": 9,
+              "applicableMax": 12,
+              "ratio": 0.75,
+              "grade": "MUKEMMEL",
+              "conditions": [
+                {
+                  "id": "current_uptrend",
+                  "label": "1m EMA20 > EMA50",
+                  "group": "trend",
+                  "why": "Entry zaman diliminde kısa vadeli yapı yukarı yönlü.",
+                  "met": true,
+                  "applicable": true,
+                  "required": true
+                },
+                {
+                  "id": "current_above_ema200",
+                  "label": "1m fiyat EMA200 üstü",
+                  "group": "trend",
+                  "why": "Entry TF'de uzun vadeli ana trend boğa.",
+                  "met": true,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "current_rsi_healthy",
+                  "label": "1m RSI 45-72",
+                  "group": "ind",
+                  "why": "Aşırı satımdan çıkmış, aşırı alıma girmemiş — sağlıklı momentum.",
+                  "met": true,
+                  "applicable": true,
+                  "required": true
+                },
+                {
+                  "id": "current_macd_bullish",
+                  "label": "1m MACD pozitif + büyüyor",
+                  "group": "ind",
+                  "why": "MACD histogramı pozitif ve son barda büyüyor — momentum güçleniyor.",
+                  "met": false,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "current_volume_above_avg",
+                  "label": "1m hacim 20-bar SMA üstü",
+                  "group": "ind",
+                  "why": "Son mum hacmi ortalama üstünde — alıcı katılımı var.",
+                  "met": true,
                   "applicable": true,
                   "required": false
                 },
@@ -272,7 +598,7 @@
                   "label": "Bullish RSI divergence",
                   "group": "math",
                   "why": "Fiyat lower-low, RSI higher-low — trend dönüşü olası.",
-                  "met": true,
+                  "met": false,
                   "applicable": true,
                   "required": false
                 },
@@ -295,10 +621,10 @@
                   "required": false
                 }
               ],
-              "entry": 2285.5,
-              "stop": 2285.12,
-              "target1": 2285.98,
-              "target2": 2286.22,
+              "entry": 0.272,
+              "stop": 0.27186,
+              "target1": 0.27218,
+              "target2": 0.27227,
               "leverage_suggest": 4,
               "winProbability": {
                 "probability": 0.79,
@@ -310,10 +636,10 @@
                 "posteriorBeta": 0.42
               },
               "indicators": {
-                "current_rsi": 51.76,
-                "current_macdHist": -0.0241,
-                "higher_rsi": 58.75,
-                "higher_macdHist": -0.2785
+                "current_rsi": 53.82,
+                "current_macdHist": 0,
+                "higher_rsi": 60.11,
+                "higher_macdHist": -0.0001
               },
               "patterns": {
                 "engulfing": null,
@@ -327,27 +653,22 @@
                 },
                 "harami": null
               },
-              "divergence": {
-                "type": "hidden_bullish"
-              },
+              "divergence": null,
               "volatility": {
-                "regime": "low",
-                "atrPct": 0.029,
-                "meanAtrPct": 0.04,
+                "regime": "normal",
+                "atrPct": 0.071,
+                "meanAtrPct": 0.073,
                 "stdAtrPct": 0.004,
-                "zScore": -2.55
+                "zScore": -0.41
               },
-              "momentum": {
-                "type": "bearish_decay",
-                "accel": -0.0073
-              },
-              "lastClose": 2285.5,
-              "atr": 0.48071428571418956,
-              "updatedAt": "2026-05-12T20:25:11.530Z",
-              "symbol": "ETH",
-              "name": "Ethereum",
-              "image": "https://coin-images.coingecko.com/coins/images/279/large/ethereum.png?1696501628",
-              "coinId": "ethereum"
+              "momentum": null,
+              "lastClose": 0.272,
+              "atr": 0.0001785714285714327,
+              "updatedAt": "2026-05-12T20:27:01.834Z",
+              "symbol": "ADA",
+              "name": "Cardano",
+              "image": "https://coin-images.coingecko.com/coins/images/975/large/cardano.png?1696502090",
+              "coinId": "cardano"
             },
             {
               "strategy": "long",
@@ -468,10 +789,10 @@
                   "required": false
                 }
               ],
-              "entry": 80796.87,
-              "stop": 80784.9,
-              "target1": 80811.83,
-              "target2": 80819.31,
+              "entry": 80808.83,
+              "stop": 80796,
+              "target1": 80824.87,
+              "target2": 80832.88,
               "leverage_suggest": 4,
               "winProbability": {
                 "probability": 0.705,
@@ -483,29 +804,31 @@
                 "posteriorBeta": 0.59
               },
               "indicators": {
-                "current_rsi": 50.91,
-                "current_macdHist": 1.2636,
-                "higher_rsi": 57.98,
-                "higher_macdHist": -12.2556
+                "current_rsi": 53.12,
+                "current_macdHist": 3.3143,
+                "higher_rsi": 59.68,
+                "higher_macdHist": -10.8466
               },
               "patterns": {
                 "engulfing": null,
                 "pinBar": null,
                 "doji": null,
-                "harami": null
+                "harami": {
+                  "type": "bearish_harami"
+                }
               },
               "divergence": null,
               "volatility": {
                 "regime": "low",
-                "atrPct": 0.024,
+                "atrPct": 0.025,
                 "meanAtrPct": 0.03,
                 "stdAtrPct": 0.003,
-                "zScore": -2.55
+                "zScore": -2.15
               },
               "momentum": null,
-              "lastClose": 80796.87,
-              "atr": 14.957857142858431,
-              "updatedAt": "2026-05-12T20:25:11.530Z",
+              "lastClose": 80808.83,
+              "atr": 16.035714285716363,
+              "updatedAt": "2026-05-12T20:27:01.276Z",
               "symbol": "BTC",
               "name": "Bitcoin",
               "image": "https://coin-images.coingecko.com/coins/images/1/large/bitcoin.png?1696501400",
@@ -553,7 +876,7 @@
                   "label": "1m MACD pozitif + büyüyor",
                   "group": "ind",
                   "why": "MACD histogramı pozitif ve son barda büyüyor — momentum güçleniyor.",
-                  "met": true,
+                  "met": false,
                   "applicable": true,
                   "required": false
                 },
@@ -598,7 +921,7 @@
                   "label": "5m MACD ≥ 0",
                   "group": "macro",
                   "why": "Üst TF momentumu da long lehine.",
-                  "met": false,
+                  "met": true,
                   "applicable": true,
                   "required": false
                 },
@@ -630,10 +953,10 @@
                   "required": false
                 }
               ],
-              "entry": 1.4418,
-              "stop": 1.4415,
-              "target1": 1.4422,
-              "target2": 1.4425,
+              "entry": 0.3496,
+              "stop": 0.34947,
+              "target1": 0.34976,
+              "target2": 0.34985,
               "leverage_suggest": 4,
               "winProbability": {
                 "probability": 0.705,
@@ -645,10 +968,10 @@
                 "posteriorBeta": 0.59
               },
               "indicators": {
-                "current_rsi": 55.77,
-                "current_macdHist": 0.0001,
-                "higher_rsi": 62.1,
-                "higher_macdHist": -0.0002
+                "current_rsi": 48.79,
+                "current_macdHist": 0,
+                "higher_rsi": 64,
+                "higher_macdHist": 0
               },
               "patterns": {
                 "engulfing": null,
@@ -658,188 +981,20 @@
               },
               "divergence": null,
               "volatility": {
-                "regime": "low",
-                "atrPct": 0.036,
-                "meanAtrPct": 0.049,
+                "regime": "normal",
+                "atrPct": 0.042,
+                "meanAtrPct": 0.038,
                 "stdAtrPct": 0.005,
-                "zScore": -2.58
+                "zScore": 0.78
               },
               "momentum": null,
-              "lastClose": 1.4418,
-              "atr": 0.00043571428571430115,
-              "updatedAt": "2026-05-12T20:25:11.531Z",
-              "symbol": "XRP",
-              "name": "XRP",
-              "image": "https://coin-images.coingecko.com/coins/images/44/large/xrp-symbol-white-128.png?1696501442",
-              "coinId": "ripple"
-            },
-            {
-              "strategy": "long",
-              "direction": "long",
-              "timeframe": "1m",
-              "higherTimeframe": "5m",
-              "totalScore": 8,
-              "applicableMax": 12,
-              "ratio": 0.67,
-              "grade": "GUCLU",
-              "conditions": [
-                {
-                  "id": "current_uptrend",
-                  "label": "1m EMA20 > EMA50",
-                  "group": "trend",
-                  "why": "Entry zaman diliminde kısa vadeli yapı yukarı yönlü.",
-                  "met": true,
-                  "applicable": true,
-                  "required": true
-                },
-                {
-                  "id": "current_above_ema200",
-                  "label": "1m fiyat EMA200 üstü",
-                  "group": "trend",
-                  "why": "Entry TF'de uzun vadeli ana trend boğa.",
-                  "met": true,
-                  "applicable": true,
-                  "required": false
-                },
-                {
-                  "id": "current_rsi_healthy",
-                  "label": "1m RSI 45-72",
-                  "group": "ind",
-                  "why": "Aşırı satımdan çıkmış, aşırı alıma girmemiş — sağlıklı momentum.",
-                  "met": true,
-                  "applicable": true,
-                  "required": true
-                },
-                {
-                  "id": "current_macd_bullish",
-                  "label": "1m MACD pozitif + büyüyor",
-                  "group": "ind",
-                  "why": "MACD histogramı pozitif ve son barda büyüyor — momentum güçleniyor.",
-                  "met": false,
-                  "applicable": true,
-                  "required": false
-                },
-                {
-                  "id": "current_volume_above_avg",
-                  "label": "1m hacim 20-bar SMA üstü",
-                  "group": "ind",
-                  "why": "Son mum hacmi ortalama üstünde — alıcı katılımı var.",
-                  "met": false,
-                  "applicable": true,
-                  "required": false
-                },
-                {
-                  "id": "higher_uptrend",
-                  "label": "5m EMA20 > EMA50 (macro)",
-                  "group": "macro",
-                  "why": "Üst zaman diliminde de yapı yukarı — kontra-trend değil.",
-                  "met": true,
-                  "applicable": true,
-                  "required": false
-                },
-                {
-                  "id": "higher_above_ema50",
-                  "label": "5m fiyat EMA50 üstü",
-                  "group": "macro",
-                  "why": "Üst TF orta vadeli ortalama üstünde — sağlam zemin.",
-                  "met": true,
-                  "applicable": true,
-                  "required": false
-                },
-                {
-                  "id": "higher_rsi_not_overbought",
-                  "label": "5m RSI < 75",
-                  "group": "macro",
-                  "why": "Üst TF aşırı alımda değil — yukarı alanı var.",
-                  "met": true,
-                  "applicable": true,
-                  "required": false
-                },
-                {
-                  "id": "higher_macd_aligned",
-                  "label": "5m MACD ≥ 0",
-                  "group": "macro",
-                  "why": "Üst TF momentumu da long lehine.",
-                  "met": true,
-                  "applicable": true,
-                  "required": false
-                },
-                {
-                  "id": "bullish_divergence",
-                  "label": "Bullish RSI divergence",
-                  "group": "math",
-                  "why": "Fiyat lower-low, RSI higher-low — trend dönüşü olası.",
-                  "met": false,
-                  "applicable": true,
-                  "required": false
-                },
-                {
-                  "id": "bullish_candlestick",
-                  "label": "Boğa candlestick formasyonu",
-                  "group": "pattern",
-                  "why": "Bullish engulfing / hammer / bullish harami son barda var.",
-                  "met": false,
-                  "applicable": true,
-                  "required": false
-                },
-                {
-                  "id": "volatility_supportive",
-                  "label": "Volatilite trade için uygun",
-                  "group": "math",
-                  "why": "ATR rejimi normal/low — yüksek volatilitede kontra-trend giriş riskli.",
-                  "met": true,
-                  "applicable": true,
-                  "required": false
-                }
-              ],
-              "entry": 0.10998,
-              "stop": 0.10992,
-              "target1": 0.11005,
-              "target2": 0.11009,
-              "leverage_suggest": 4,
-              "winProbability": {
-                "probability": 0.705,
-                "confidence": 0,
-                "samples": 0,
-                "bucket": 0.7,
-                "prior": 0.707,
-                "posteriorAlpha": 1.41,
-                "posteriorBeta": 0.59
-              },
-              "indicators": {
-                "current_rsi": 52.76,
-                "current_macdHist": 0,
-                "higher_rsi": 62.7,
-                "higher_macdHist": 0
-              },
-              "patterns": {
-                "engulfing": null,
-                "pinBar": {
-                  "type": "shooting_star",
-                  "wickRatio": 2
-                },
-                "doji": null,
-                "harami": null
-              },
-              "divergence": null,
-              "volatility": {
-                "regime": "low",
-                "atrPct": 0.068,
-                "meanAtrPct": 0.082,
-                "stdAtrPct": 0.008,
-                "zScore": -1.62
-              },
-              "momentum": {
-                "type": "bearish_decay",
-                "accel": 0
-              },
-              "lastClose": 0.10998,
-              "atr": 0.00007142857142857149,
-              "updatedAt": "2026-05-12T20:25:11.791Z",
-              "symbol": "DOGE",
-              "name": "Dogecoin",
-              "image": "https://coin-images.coingecko.com/coins/images/5/large/dogecoin.png?1696501409",
-              "coinId": "dogecoin"
+              "lastClose": 0.3496,
+              "atr": 0.00016428571428571997,
+              "updatedAt": "2026-05-12T20:27:01.834Z",
+              "symbol": "TRX",
+              "name": "TRON",
+              "image": "https://coin-images.coingecko.com/coins/images/1094/large/photo_2026-04-13_09-59-16.png?1776048311",
+              "coinId": "tron"
             },
             {
               "strategy": "long",
@@ -928,7 +1083,7 @@
                   "label": "5m MACD ≥ 0",
                   "group": "macro",
                   "why": "Üst TF momentumu da long lehine.",
-                  "met": true,
+                  "met": false,
                   "applicable": true,
                   "required": false
                 },
@@ -955,15 +1110,15 @@
                   "label": "Volatilite trade için uygun",
                   "group": "math",
                   "why": "ATR rejimi normal/low — yüksek volatilitede kontra-trend giriş riskli.",
-                  "met": false,
+                  "met": true,
                   "applicable": true,
                   "required": false
                 }
               ],
-              "entry": 0.3496,
-              "stop": 0.34947,
-              "target1": 0.34976,
-              "target2": 0.34985,
+              "entry": 1.4421,
+              "stop": 1.4417,
+              "target1": 1.4426,
+              "target2": 1.4428,
               "leverage_suggest": 3,
               "winProbability": {
                 "probability": 0.61,
@@ -975,38 +1130,33 @@
                 "posteriorBeta": 0.78
               },
               "indicators": {
-                "current_rsi": 48.89,
-                "current_macdHist": 0,
-                "higher_rsi": 61.48,
-                "higher_macdHist": 0
+                "current_rsi": 57.66,
+                "current_macdHist": 0.0001,
+                "higher_rsi": 63.56,
+                "higher_macdHist": -0.0002
               },
               "patterns": {
                 "engulfing": null,
                 "pinBar": null,
                 "doji": null,
-                "harami": {
-                  "type": "bearish_harami"
-                }
+                "harami": null
               },
               "divergence": null,
               "volatility": {
-                "regime": "high",
-                "atrPct": 0.045,
-                "meanAtrPct": 0.038,
+                "regime": "low",
+                "atrPct": 0.04,
+                "meanAtrPct": 0.049,
                 "stdAtrPct": 0.005,
-                "zScore": 1.28
+                "zScore": -1.82
               },
-              "momentum": {
-                "type": "bearish_decay",
-                "accel": 0
-              },
-              "lastClose": 0.3496,
-              "atr": 0.00016428571428571997,
-              "updatedAt": "2026-05-12T20:25:11.791Z",
-              "symbol": "TRX",
-              "name": "TRON",
-              "image": "https://coin-images.coingecko.com/coins/images/1094/large/photo_2026-04-13_09-59-16.png?1776048311",
-              "coinId": "tron"
+              "momentum": null,
+              "lastClose": 1.4421,
+              "atr": 0.0004785714285714234,
+              "updatedAt": "2026-05-12T20:27:01.276Z",
+              "symbol": "XRP",
+              "name": "XRP",
+              "image": "https://coin-images.coingecko.com/coins/images/44/large/xrp-symbol-white-128.png?1696501442",
+              "coinId": "ripple"
             }
           ],
           "allSignals": [
@@ -1052,6 +1202,170 @@
                   "label": "1m MACD pozitif + büyüyor",
                   "group": "ind",
                   "why": "MACD histogramı pozitif ve son barda büyüyor — momentum güçleniyor.",
+                  "met": true,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "current_volume_above_avg",
+                  "label": "1m hacim 20-bar SMA üstü",
+                  "group": "ind",
+                  "why": "Son mum hacmi ortalama üstünde — alıcı katılımı var.",
+                  "met": true,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "higher_uptrend",
+                  "label": "5m EMA20 > EMA50 (macro)",
+                  "group": "macro",
+                  "why": "Üst zaman diliminde de yapı yukarı — kontra-trend değil.",
+                  "met": true,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "higher_above_ema50",
+                  "label": "5m fiyat EMA50 üstü",
+                  "group": "macro",
+                  "why": "Üst TF orta vadeli ortalama üstünde — sağlam zemin.",
+                  "met": true,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "higher_rsi_not_overbought",
+                  "label": "5m RSI < 75",
+                  "group": "macro",
+                  "why": "Üst TF aşırı alımda değil — yukarı alanı var.",
+                  "met": true,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "higher_macd_aligned",
+                  "label": "5m MACD ≥ 0",
+                  "group": "macro",
+                  "why": "Üst TF momentumu da long lehine.",
+                  "met": false,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "bullish_divergence",
+                  "label": "Bullish RSI divergence",
+                  "group": "math",
+                  "why": "Fiyat lower-low, RSI higher-low — trend dönüşü olası.",
+                  "met": true,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "bullish_candlestick",
+                  "label": "Boğa candlestick formasyonu",
+                  "group": "pattern",
+                  "why": "Bullish engulfing / hammer / bullish harami son barda var.",
+                  "met": false,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "volatility_supportive",
+                  "label": "Volatilite trade için uygun",
+                  "group": "math",
+                  "why": "ATR rejimi normal/low — yüksek volatilitede kontra-trend giriş riskli.",
+                  "met": true,
+                  "applicable": true,
+                  "required": false
+                }
+              ],
+              "entry": 2285.71,
+              "stop": 2285.29,
+              "target1": 2286.23,
+              "target2": 2286.49,
+              "leverage_suggest": 6,
+              "winProbability": {
+                "probability": 0.79,
+                "confidence": 0.06,
+                "samples": 0,
+                "bucket": 0.8,
+                "prior": 0.789,
+                "posteriorAlpha": 1.58,
+                "posteriorBeta": 0.42
+              },
+              "indicators": {
+                "current_rsi": 52.67,
+                "current_macdHist": 0.0246,
+                "higher_rsi": 60.18,
+                "higher_macdHist": -0.2377
+              },
+              "patterns": {
+                "engulfing": null,
+                "pinBar": null,
+                "doji": null,
+                "harami": null
+              },
+              "divergence": {
+                "type": "hidden_bullish"
+              },
+              "volatility": {
+                "regime": "low",
+                "atrPct": 0.03,
+                "meanAtrPct": 0.04,
+                "stdAtrPct": 0.005,
+                "zScore": -2.2
+              },
+              "momentum": null,
+              "lastClose": 2285.71,
+              "atr": 0.5228571428570571,
+              "updatedAt": "2026-05-12T20:27:01.276Z",
+              "symbol": "ETH",
+              "name": "Ethereum",
+              "image": "https://coin-images.coingecko.com/coins/images/279/large/ethereum.png?1696501628",
+              "coinId": "ethereum"
+            },
+            {
+              "strategy": "long",
+              "direction": "long",
+              "timeframe": "1m",
+              "higherTimeframe": "5m",
+              "totalScore": 9,
+              "applicableMax": 12,
+              "ratio": 0.75,
+              "grade": "MUKEMMEL",
+              "conditions": [
+                {
+                  "id": "current_uptrend",
+                  "label": "1m EMA20 > EMA50",
+                  "group": "trend",
+                  "why": "Entry zaman diliminde kısa vadeli yapı yukarı yönlü.",
+                  "met": true,
+                  "applicable": true,
+                  "required": true
+                },
+                {
+                  "id": "current_above_ema200",
+                  "label": "1m fiyat EMA200 üstü",
+                  "group": "trend",
+                  "why": "Entry TF'de uzun vadeli ana trend boğa.",
+                  "met": true,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "current_rsi_healthy",
+                  "label": "1m RSI 45-72",
+                  "group": "ind",
+                  "why": "Aşırı satımdan çıkmış, aşırı alıma girmemiş — sağlıklı momentum.",
+                  "met": true,
+                  "applicable": true,
+                  "required": true
+                },
+                {
+                  "id": "current_macd_bullish",
+                  "label": "1m MACD pozitif + büyüyor",
+                  "group": "ind",
+                  "why": "MACD histogramı pozitif ve son barda büyüyor — momentum güçleniyor.",
                   "met": false,
                   "applicable": true,
                   "required": false
@@ -1097,7 +1411,7 @@
                   "label": "5m MACD ≥ 0",
                   "group": "macro",
                   "why": "Üst TF momentumu da long lehine.",
-                  "met": true,
+                  "met": false,
                   "applicable": true,
                   "required": false
                 },
@@ -1129,11 +1443,11 @@
                   "required": false
                 }
               ],
-              "entry": 94.88,
-              "stop": 94.845,
-              "target1": 94.924,
-              "target2": 94.946,
-              "leverage_suggest": 6,
+              "entry": 94.9,
+              "stop": 94.866,
+              "target1": 94.942,
+              "target2": 94.963,
+              "leverage_suggest": 4,
               "winProbability": {
                 "probability": 0.79,
                 "confidence": 0.06,
@@ -1144,10 +1458,10 @@
                 "posteriorBeta": 0.42
               },
               "indicators": {
-                "current_rsi": 47.73,
-                "current_macdHist": -0.0059,
-                "higher_rsi": 57.35,
-                "higher_macdHist": 0.0005
+                "current_rsi": 50.67,
+                "current_macdHist": -0.0055,
+                "higher_rsi": 57.54,
+                "higher_macdHist": -0.003
               },
               "patterns": {
                 "engulfing": null,
@@ -1160,15 +1474,15 @@
               },
               "volatility": {
                 "regime": "low",
-                "atrPct": 0.051,
+                "atrPct": 0.05,
                 "meanAtrPct": 0.06,
                 "stdAtrPct": 0.005,
-                "zScore": -1.91
+                "zScore": -1.86
               },
               "momentum": null,
-              "lastClose": 94.88,
-              "atr": 0.04428571428571156,
-              "updatedAt": "2026-05-12T20:25:11.791Z",
+              "lastClose": 94.9,
+              "atr": 0.04214285714285536,
+              "updatedAt": "2026-05-12T20:27:01.834Z",
               "symbol": "SOL",
               "name": "Solana",
               "image": "https://coin-images.coingecko.com/coins/images/4128/large/solana.png?1718769756",
@@ -1225,7 +1539,169 @@
                   "label": "1m hacim 20-bar SMA üstü",
                   "group": "ind",
                   "why": "Son mum hacmi ortalama üstünde — alıcı katılımı var.",
+                  "met": true,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "higher_uptrend",
+                  "label": "5m EMA20 > EMA50 (macro)",
+                  "group": "macro",
+                  "why": "Üst zaman diliminde de yapı yukarı — kontra-trend değil.",
+                  "met": true,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "higher_above_ema50",
+                  "label": "5m fiyat EMA50 üstü",
+                  "group": "macro",
+                  "why": "Üst TF orta vadeli ortalama üstünde — sağlam zemin.",
+                  "met": true,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "higher_rsi_not_overbought",
+                  "label": "5m RSI < 75",
+                  "group": "macro",
+                  "why": "Üst TF aşırı alımda değil — yukarı alanı var.",
+                  "met": true,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "higher_macd_aligned",
+                  "label": "5m MACD ≥ 0",
+                  "group": "macro",
+                  "why": "Üst TF momentumu da long lehine.",
+                  "met": true,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "bullish_divergence",
+                  "label": "Bullish RSI divergence",
+                  "group": "math",
+                  "why": "Fiyat lower-low, RSI higher-low — trend dönüşü olası.",
                   "met": false,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "bullish_candlestick",
+                  "label": "Boğa candlestick formasyonu",
+                  "group": "pattern",
+                  "why": "Bullish engulfing / hammer / bullish harami son barda var.",
+                  "met": false,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "volatility_supportive",
+                  "label": "Volatilite trade için uygun",
+                  "group": "math",
+                  "why": "ATR rejimi normal/low — yüksek volatilitede kontra-trend giriş riskli.",
+                  "met": true,
+                  "applicable": true,
+                  "required": false
+                }
+              ],
+              "entry": 0.11,
+              "stop": 0.10994,
+              "target1": 0.11007,
+              "target2": 0.11011,
+              "leverage_suggest": 4,
+              "winProbability": {
+                "probability": 0.79,
+                "confidence": 0.06,
+                "samples": 0,
+                "bucket": 0.8,
+                "prior": 0.789,
+                "posteriorAlpha": 1.58,
+                "posteriorBeta": 0.42
+              },
+              "indicators": {
+                "current_rsi": 53.11,
+                "current_macdHist": 0,
+                "higher_rsi": 64.01,
+                "higher_macdHist": 0
+              },
+              "patterns": {
+                "engulfing": null,
+                "pinBar": null,
+                "doji": null,
+                "harami": null
+              },
+              "divergence": null,
+              "volatility": {
+                "regime": "low",
+                "atrPct": 0.072,
+                "meanAtrPct": 0.082,
+                "stdAtrPct": 0.008,
+                "zScore": -1.23
+              },
+              "momentum": null,
+              "lastClose": 0.11,
+              "atr": 0.00007428571428571522,
+              "updatedAt": "2026-05-12T20:27:01.834Z",
+              "symbol": "DOGE",
+              "name": "Dogecoin",
+              "image": "https://coin-images.coingecko.com/coins/images/5/large/dogecoin.png?1696501409",
+              "coinId": "dogecoin"
+            },
+            {
+              "strategy": "long",
+              "direction": "long",
+              "timeframe": "1m",
+              "higherTimeframe": "5m",
+              "totalScore": 9,
+              "applicableMax": 12,
+              "ratio": 0.75,
+              "grade": "MUKEMMEL",
+              "conditions": [
+                {
+                  "id": "current_uptrend",
+                  "label": "1m EMA20 > EMA50",
+                  "group": "trend",
+                  "why": "Entry zaman diliminde kısa vadeli yapı yukarı yönlü.",
+                  "met": true,
+                  "applicable": true,
+                  "required": true
+                },
+                {
+                  "id": "current_above_ema200",
+                  "label": "1m fiyat EMA200 üstü",
+                  "group": "trend",
+                  "why": "Entry TF'de uzun vadeli ana trend boğa.",
+                  "met": true,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "current_rsi_healthy",
+                  "label": "1m RSI 45-72",
+                  "group": "ind",
+                  "why": "Aşırı satımdan çıkmış, aşırı alıma girmemiş — sağlıklı momentum.",
+                  "met": true,
+                  "applicable": true,
+                  "required": true
+                },
+                {
+                  "id": "current_macd_bullish",
+                  "label": "1m MACD pozitif + büyüyor",
+                  "group": "ind",
+                  "why": "MACD histogramı pozitif ve son barda büyüyor — momentum güçleniyor.",
+                  "met": false,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "current_volume_above_avg",
+                  "label": "1m hacim 20-bar SMA üstü",
+                  "group": "ind",
+                  "why": "Son mum hacmi ortalama üstünde — alıcı katılımı var.",
+                  "met": true,
                   "applicable": true,
                   "required": false
                 },
@@ -1270,7 +1746,7 @@
                   "label": "Bullish RSI divergence",
                   "group": "math",
                   "why": "Fiyat lower-low, RSI higher-low — trend dönüşü olası.",
-                  "met": true,
+                  "met": false,
                   "applicable": true,
                   "required": false
                 },
@@ -1293,10 +1769,10 @@
                   "required": false
                 }
               ],
-              "entry": 2285.5,
-              "stop": 2285.12,
-              "target1": 2285.98,
-              "target2": 2286.22,
+              "entry": 0.272,
+              "stop": 0.27186,
+              "target1": 0.27218,
+              "target2": 0.27227,
               "leverage_suggest": 4,
               "winProbability": {
                 "probability": 0.79,
@@ -1308,10 +1784,10 @@
                 "posteriorBeta": 0.42
               },
               "indicators": {
-                "current_rsi": 51.76,
-                "current_macdHist": -0.0241,
-                "higher_rsi": 58.75,
-                "higher_macdHist": -0.2785
+                "current_rsi": 53.82,
+                "current_macdHist": 0,
+                "higher_rsi": 60.11,
+                "higher_macdHist": -0.0001
               },
               "patterns": {
                 "engulfing": null,
@@ -1325,27 +1801,22 @@
                 },
                 "harami": null
               },
-              "divergence": {
-                "type": "hidden_bullish"
-              },
+              "divergence": null,
               "volatility": {
-                "regime": "low",
-                "atrPct": 0.029,
-                "meanAtrPct": 0.04,
+                "regime": "normal",
+                "atrPct": 0.071,
+                "meanAtrPct": 0.073,
                 "stdAtrPct": 0.004,
-                "zScore": -2.55
+                "zScore": -0.41
               },
-              "momentum": {
-                "type": "bearish_decay",
-                "accel": -0.0073
-              },
-              "lastClose": 2285.5,
-              "atr": 0.48071428571418956,
-              "updatedAt": "2026-05-12T20:25:11.530Z",
-              "symbol": "ETH",
-              "name": "Ethereum",
-              "image": "https://coin-images.coingecko.com/coins/images/279/large/ethereum.png?1696501628",
-              "coinId": "ethereum"
+              "momentum": null,
+              "lastClose": 0.272,
+              "atr": 0.0001785714285714327,
+              "updatedAt": "2026-05-12T20:27:01.834Z",
+              "symbol": "ADA",
+              "name": "Cardano",
+              "image": "https://coin-images.coingecko.com/coins/images/975/large/cardano.png?1696502090",
+              "coinId": "cardano"
             },
             {
               "strategy": "long",
@@ -1466,10 +1937,10 @@
                   "required": false
                 }
               ],
-              "entry": 80796.87,
-              "stop": 80784.9,
-              "target1": 80811.83,
-              "target2": 80819.31,
+              "entry": 80808.83,
+              "stop": 80796,
+              "target1": 80824.87,
+              "target2": 80832.88,
               "leverage_suggest": 4,
               "winProbability": {
                 "probability": 0.705,
@@ -1481,29 +1952,31 @@
                 "posteriorBeta": 0.59
               },
               "indicators": {
-                "current_rsi": 50.91,
-                "current_macdHist": 1.2636,
-                "higher_rsi": 57.98,
-                "higher_macdHist": -12.2556
+                "current_rsi": 53.12,
+                "current_macdHist": 3.3143,
+                "higher_rsi": 59.68,
+                "higher_macdHist": -10.8466
               },
               "patterns": {
                 "engulfing": null,
                 "pinBar": null,
                 "doji": null,
-                "harami": null
+                "harami": {
+                  "type": "bearish_harami"
+                }
               },
               "divergence": null,
               "volatility": {
                 "regime": "low",
-                "atrPct": 0.024,
+                "atrPct": 0.025,
                 "meanAtrPct": 0.03,
                 "stdAtrPct": 0.003,
-                "zScore": -2.55
+                "zScore": -2.15
               },
               "momentum": null,
-              "lastClose": 80796.87,
-              "atr": 14.957857142858431,
-              "updatedAt": "2026-05-12T20:25:11.530Z",
+              "lastClose": 80808.83,
+              "atr": 16.035714285716363,
+              "updatedAt": "2026-05-12T20:27:01.276Z",
               "symbol": "BTC",
               "name": "Bitcoin",
               "image": "https://coin-images.coingecko.com/coins/images/1/large/bitcoin.png?1696501400",
@@ -1551,7 +2024,7 @@
                   "label": "1m MACD pozitif + büyüyor",
                   "group": "ind",
                   "why": "MACD histogramı pozitif ve son barda büyüyor — momentum güçleniyor.",
-                  "met": true,
+                  "met": false,
                   "applicable": true,
                   "required": false
                 },
@@ -1596,7 +2069,7 @@
                   "label": "5m MACD ≥ 0",
                   "group": "macro",
                   "why": "Üst TF momentumu da long lehine.",
-                  "met": false,
+                  "met": true,
                   "applicable": true,
                   "required": false
                 },
@@ -1628,10 +2101,10 @@
                   "required": false
                 }
               ],
-              "entry": 1.4418,
-              "stop": 1.4415,
-              "target1": 1.4422,
-              "target2": 1.4425,
+              "entry": 0.3496,
+              "stop": 0.34947,
+              "target1": 0.34976,
+              "target2": 0.34985,
               "leverage_suggest": 4,
               "winProbability": {
                 "probability": 0.705,
@@ -1643,10 +2116,10 @@
                 "posteriorBeta": 0.59
               },
               "indicators": {
-                "current_rsi": 55.77,
-                "current_macdHist": 0.0001,
-                "higher_rsi": 62.1,
-                "higher_macdHist": -0.0002
+                "current_rsi": 48.79,
+                "current_macdHist": 0,
+                "higher_rsi": 64,
+                "higher_macdHist": 0
               },
               "patterns": {
                 "engulfing": null,
@@ -1656,188 +2129,20 @@
               },
               "divergence": null,
               "volatility": {
-                "regime": "low",
-                "atrPct": 0.036,
-                "meanAtrPct": 0.049,
+                "regime": "normal",
+                "atrPct": 0.042,
+                "meanAtrPct": 0.038,
                 "stdAtrPct": 0.005,
-                "zScore": -2.58
+                "zScore": 0.78
               },
               "momentum": null,
-              "lastClose": 1.4418,
-              "atr": 0.00043571428571430115,
-              "updatedAt": "2026-05-12T20:25:11.531Z",
-              "symbol": "XRP",
-              "name": "XRP",
-              "image": "https://coin-images.coingecko.com/coins/images/44/large/xrp-symbol-white-128.png?1696501442",
-              "coinId": "ripple"
-            },
-            {
-              "strategy": "long",
-              "direction": "long",
-              "timeframe": "1m",
-              "higherTimeframe": "5m",
-              "totalScore": 8,
-              "applicableMax": 12,
-              "ratio": 0.67,
-              "grade": "GUCLU",
-              "conditions": [
-                {
-                  "id": "current_uptrend",
-                  "label": "1m EMA20 > EMA50",
-                  "group": "trend",
-                  "why": "Entry zaman diliminde kısa vadeli yapı yukarı yönlü.",
-                  "met": true,
-                  "applicable": true,
-                  "required": true
-                },
-                {
-                  "id": "current_above_ema200",
-                  "label": "1m fiyat EMA200 üstü",
-                  "group": "trend",
-                  "why": "Entry TF'de uzun vadeli ana trend boğa.",
-                  "met": true,
-                  "applicable": true,
-                  "required": false
-                },
-                {
-                  "id": "current_rsi_healthy",
-                  "label": "1m RSI 45-72",
-                  "group": "ind",
-                  "why": "Aşırı satımdan çıkmış, aşırı alıma girmemiş — sağlıklı momentum.",
-                  "met": true,
-                  "applicable": true,
-                  "required": true
-                },
-                {
-                  "id": "current_macd_bullish",
-                  "label": "1m MACD pozitif + büyüyor",
-                  "group": "ind",
-                  "why": "MACD histogramı pozitif ve son barda büyüyor — momentum güçleniyor.",
-                  "met": false,
-                  "applicable": true,
-                  "required": false
-                },
-                {
-                  "id": "current_volume_above_avg",
-                  "label": "1m hacim 20-bar SMA üstü",
-                  "group": "ind",
-                  "why": "Son mum hacmi ortalama üstünde — alıcı katılımı var.",
-                  "met": false,
-                  "applicable": true,
-                  "required": false
-                },
-                {
-                  "id": "higher_uptrend",
-                  "label": "5m EMA20 > EMA50 (macro)",
-                  "group": "macro",
-                  "why": "Üst zaman diliminde de yapı yukarı — kontra-trend değil.",
-                  "met": true,
-                  "applicable": true,
-                  "required": false
-                },
-                {
-                  "id": "higher_above_ema50",
-                  "label": "5m fiyat EMA50 üstü",
-                  "group": "macro",
-                  "why": "Üst TF orta vadeli ortalama üstünde — sağlam zemin.",
-                  "met": true,
-                  "applicable": true,
-                  "required": false
-                },
-                {
-                  "id": "higher_rsi_not_overbought",
-                  "label": "5m RSI < 75",
-                  "group": "macro",
-                  "why": "Üst TF aşırı alımda değil — yukarı alanı var.",
-                  "met": true,
-                  "applicable": true,
-                  "required": false
-                },
-                {
-                  "id": "higher_macd_aligned",
-                  "label": "5m MACD ≥ 0",
-                  "group": "macro",
-                  "why": "Üst TF momentumu da long lehine.",
-                  "met": true,
-                  "applicable": true,
-                  "required": false
-                },
-                {
-                  "id": "bullish_divergence",
-                  "label": "Bullish RSI divergence",
-                  "group": "math",
-                  "why": "Fiyat lower-low, RSI higher-low — trend dönüşü olası.",
-                  "met": false,
-                  "applicable": true,
-                  "required": false
-                },
-                {
-                  "id": "bullish_candlestick",
-                  "label": "Boğa candlestick formasyonu",
-                  "group": "pattern",
-                  "why": "Bullish engulfing / hammer / bullish harami son barda var.",
-                  "met": false,
-                  "applicable": true,
-                  "required": false
-                },
-                {
-                  "id": "volatility_supportive",
-                  "label": "Volatilite trade için uygun",
-                  "group": "math",
-                  "why": "ATR rejimi normal/low — yüksek volatilitede kontra-trend giriş riskli.",
-                  "met": true,
-                  "applicable": true,
-                  "required": false
-                }
-              ],
-              "entry": 0.10998,
-              "stop": 0.10992,
-              "target1": 0.11005,
-              "target2": 0.11009,
-              "leverage_suggest": 4,
-              "winProbability": {
-                "probability": 0.705,
-                "confidence": 0,
-                "samples": 0,
-                "bucket": 0.7,
-                "prior": 0.707,
-                "posteriorAlpha": 1.41,
-                "posteriorBeta": 0.59
-              },
-              "indicators": {
-                "current_rsi": 52.76,
-                "current_macdHist": 0,
-                "higher_rsi": 62.7,
-                "higher_macdHist": 0
-              },
-              "patterns": {
-                "engulfing": null,
-                "pinBar": {
-                  "type": "shooting_star",
-                  "wickRatio": 2
-                },
-                "doji": null,
-                "harami": null
-              },
-              "divergence": null,
-              "volatility": {
-                "regime": "low",
-                "atrPct": 0.068,
-                "meanAtrPct": 0.082,
-                "stdAtrPct": 0.008,
-                "zScore": -1.62
-              },
-              "momentum": {
-                "type": "bearish_decay",
-                "accel": 0
-              },
-              "lastClose": 0.10998,
-              "atr": 0.00007142857142857149,
-              "updatedAt": "2026-05-12T20:25:11.791Z",
-              "symbol": "DOGE",
-              "name": "Dogecoin",
-              "image": "https://coin-images.coingecko.com/coins/images/5/large/dogecoin.png?1696501409",
-              "coinId": "dogecoin"
+              "lastClose": 0.3496,
+              "atr": 0.00016428571428571997,
+              "updatedAt": "2026-05-12T20:27:01.834Z",
+              "symbol": "TRX",
+              "name": "TRON",
+              "image": "https://coin-images.coingecko.com/coins/images/1094/large/photo_2026-04-13_09-59-16.png?1776048311",
+              "coinId": "tron"
             },
             {
               "strategy": "long",
@@ -1926,7 +2231,7 @@
                   "label": "5m MACD ≥ 0",
                   "group": "macro",
                   "why": "Üst TF momentumu da long lehine.",
-                  "met": true,
+                  "met": false,
                   "applicable": true,
                   "required": false
                 },
@@ -1953,15 +2258,15 @@
                   "label": "Volatilite trade için uygun",
                   "group": "math",
                   "why": "ATR rejimi normal/low — yüksek volatilitede kontra-trend giriş riskli.",
-                  "met": false,
+                  "met": true,
                   "applicable": true,
                   "required": false
                 }
               ],
-              "entry": 0.3496,
-              "stop": 0.34947,
-              "target1": 0.34976,
-              "target2": 0.34985,
+              "entry": 1.4421,
+              "stop": 1.4417,
+              "target1": 1.4426,
+              "target2": 1.4428,
               "leverage_suggest": 3,
               "winProbability": {
                 "probability": 0.61,
@@ -1973,38 +2278,33 @@
                 "posteriorBeta": 0.78
               },
               "indicators": {
-                "current_rsi": 48.89,
-                "current_macdHist": 0,
-                "higher_rsi": 61.48,
-                "higher_macdHist": 0
+                "current_rsi": 57.66,
+                "current_macdHist": 0.0001,
+                "higher_rsi": 63.56,
+                "higher_macdHist": -0.0002
               },
               "patterns": {
                 "engulfing": null,
                 "pinBar": null,
                 "doji": null,
-                "harami": {
-                  "type": "bearish_harami"
-                }
+                "harami": null
               },
               "divergence": null,
               "volatility": {
-                "regime": "high",
-                "atrPct": 0.045,
-                "meanAtrPct": 0.038,
+                "regime": "low",
+                "atrPct": 0.04,
+                "meanAtrPct": 0.049,
                 "stdAtrPct": 0.005,
-                "zScore": 1.28
+                "zScore": -1.82
               },
-              "momentum": {
-                "type": "bearish_decay",
-                "accel": 0
-              },
-              "lastClose": 0.3496,
-              "atr": 0.00016428571428571997,
-              "updatedAt": "2026-05-12T20:25:11.791Z",
-              "symbol": "TRX",
-              "name": "TRON",
-              "image": "https://coin-images.coingecko.com/coins/images/1094/large/photo_2026-04-13_09-59-16.png?1776048311",
-              "coinId": "tron"
+              "momentum": null,
+              "lastClose": 1.4421,
+              "atr": 0.0004785714285714234,
+              "updatedAt": "2026-05-12T20:27:01.276Z",
+              "symbol": "XRP",
+              "name": "XRP",
+              "image": "https://coin-images.coingecko.com/coins/images/44/large/xrp-symbol-white-128.png?1696501442",
+              "coinId": "ripple"
             }
           ]
         },
@@ -2016,17 +2316,17 @@
     }
   },
   "confluence": {
-    "generatedAt": "2026-05-12T20:25:11.794Z",
-    "totalCoins": 6,
-    "strongLong": 6,
+    "generatedAt": "2026-05-12T20:27:01.838Z",
+    "totalCoins": 7,
+    "strongLong": 7,
     "long": 0,
     "strongShort": 0,
     "short": 0,
     "neutral": 0,
     "top": [
       {
-        "symbol": "SOL",
-        "name": "Solana",
+        "symbol": "ETH",
+        "name": "Ethereum",
         "verdict": "STRONG_LONG",
         "net": 10,
         "weightedLong": 10,
@@ -2037,11 +2337,11 @@
         "tfDirections": {
           "1m": "long"
         },
-        "image": "https://coin-images.coingecko.com/coins/images/4128/large/solana.png?1718769756"
+        "image": "https://coin-images.coingecko.com/coins/images/279/large/ethereum.png?1696501628"
       },
       {
-        "symbol": "ETH",
-        "name": "Ethereum",
+        "symbol": "SOL",
+        "name": "Solana",
         "verdict": "STRONG_LONG",
         "net": 9,
         "weightedLong": 9,
@@ -2052,7 +2352,37 @@
         "tfDirections": {
           "1m": "long"
         },
-        "image": "https://coin-images.coingecko.com/coins/images/279/large/ethereum.png?1696501628"
+        "image": "https://coin-images.coingecko.com/coins/images/4128/large/solana.png?1718769756"
+      },
+      {
+        "symbol": "DOGE",
+        "name": "Dogecoin",
+        "verdict": "STRONG_LONG",
+        "net": 9,
+        "weightedLong": 9,
+        "weightedShort": 0,
+        "alignedLong": 1,
+        "alignedShort": 0,
+        "confidence": 0.49,
+        "tfDirections": {
+          "1m": "long"
+        },
+        "image": "https://coin-images.coingecko.com/coins/images/5/large/dogecoin.png?1696501409"
+      },
+      {
+        "symbol": "ADA",
+        "name": "Cardano",
+        "verdict": "STRONG_LONG",
+        "net": 9,
+        "weightedLong": 9,
+        "weightedShort": 0,
+        "alignedLong": 1,
+        "alignedShort": 0,
+        "confidence": 0.49,
+        "tfDirections": {
+          "1m": "long"
+        },
+        "image": "https://coin-images.coingecko.com/coins/images/975/large/cardano.png?1696502090"
       },
       {
         "symbol": "BTC",
@@ -2070,38 +2400,23 @@
         "image": "https://coin-images.coingecko.com/coins/images/1/large/bitcoin.png?1696501400"
       },
       {
-        "symbol": "XRP",
-        "name": "XRP",
-        "verdict": "STRONG_LONG",
-        "net": 8,
-        "weightedLong": 8,
-        "weightedShort": 0,
-        "alignedLong": 1,
-        "alignedShort": 0,
-        "confidence": 0.49,
-        "tfDirections": {
-          "1m": "long"
-        },
-        "image": "https://coin-images.coingecko.com/coins/images/44/large/xrp-symbol-white-128.png?1696501442"
-      },
-      {
-        "symbol": "DOGE",
-        "name": "Dogecoin",
-        "verdict": "STRONG_LONG",
-        "net": 8,
-        "weightedLong": 8,
-        "weightedShort": 0,
-        "alignedLong": 1,
-        "alignedShort": 0,
-        "confidence": 0.49,
-        "tfDirections": {
-          "1m": "long"
-        },
-        "image": "https://coin-images.coingecko.com/coins/images/5/large/dogecoin.png?1696501409"
-      },
-      {
         "symbol": "TRX",
         "name": "TRON",
+        "verdict": "STRONG_LONG",
+        "net": 8,
+        "weightedLong": 8,
+        "weightedShort": 0,
+        "alignedLong": 1,
+        "alignedShort": 0,
+        "confidence": 0.49,
+        "tfDirections": {
+          "1m": "long"
+        },
+        "image": "https://coin-images.coingecko.com/coins/images/1094/large/photo_2026-04-13_09-59-16.png?1776048311"
+      },
+      {
+        "symbol": "XRP",
+        "name": "XRP",
         "verdict": "STRONG_LONG",
         "net": 7,
         "weightedLong": 7,
@@ -2112,13 +2427,13 @@
         "tfDirections": {
           "1m": "long"
         },
-        "image": "https://coin-images.coingecko.com/coins/images/1094/large/photo_2026-04-13_09-59-16.png?1776048311"
+        "image": "https://coin-images.coingecko.com/coins/images/44/large/xrp-symbol-white-128.png?1696501442"
       }
     ],
     "all": [
       {
-        "symbol": "SOL",
-        "name": "Solana",
+        "symbol": "ETH",
+        "name": "Ethereum",
         "verdict": "STRONG_LONG",
         "net": 10,
         "weightedLong": 10,
@@ -2129,11 +2444,11 @@
         "tfDirections": {
           "1m": "long"
         },
-        "image": "https://coin-images.coingecko.com/coins/images/4128/large/solana.png?1718769756"
+        "image": "https://coin-images.coingecko.com/coins/images/279/large/ethereum.png?1696501628"
       },
       {
-        "symbol": "ETH",
-        "name": "Ethereum",
+        "symbol": "SOL",
+        "name": "Solana",
         "verdict": "STRONG_LONG",
         "net": 9,
         "weightedLong": 9,
@@ -2144,7 +2459,37 @@
         "tfDirections": {
           "1m": "long"
         },
-        "image": "https://coin-images.coingecko.com/coins/images/279/large/ethereum.png?1696501628"
+        "image": "https://coin-images.coingecko.com/coins/images/4128/large/solana.png?1718769756"
+      },
+      {
+        "symbol": "DOGE",
+        "name": "Dogecoin",
+        "verdict": "STRONG_LONG",
+        "net": 9,
+        "weightedLong": 9,
+        "weightedShort": 0,
+        "alignedLong": 1,
+        "alignedShort": 0,
+        "confidence": 0.49,
+        "tfDirections": {
+          "1m": "long"
+        },
+        "image": "https://coin-images.coingecko.com/coins/images/5/large/dogecoin.png?1696501409"
+      },
+      {
+        "symbol": "ADA",
+        "name": "Cardano",
+        "verdict": "STRONG_LONG",
+        "net": 9,
+        "weightedLong": 9,
+        "weightedShort": 0,
+        "alignedLong": 1,
+        "alignedShort": 0,
+        "confidence": 0.49,
+        "tfDirections": {
+          "1m": "long"
+        },
+        "image": "https://coin-images.coingecko.com/coins/images/975/large/cardano.png?1696502090"
       },
       {
         "symbol": "BTC",
@@ -2162,38 +2507,23 @@
         "image": "https://coin-images.coingecko.com/coins/images/1/large/bitcoin.png?1696501400"
       },
       {
-        "symbol": "XRP",
-        "name": "XRP",
-        "verdict": "STRONG_LONG",
-        "net": 8,
-        "weightedLong": 8,
-        "weightedShort": 0,
-        "alignedLong": 1,
-        "alignedShort": 0,
-        "confidence": 0.49,
-        "tfDirections": {
-          "1m": "long"
-        },
-        "image": "https://coin-images.coingecko.com/coins/images/44/large/xrp-symbol-white-128.png?1696501442"
-      },
-      {
-        "symbol": "DOGE",
-        "name": "Dogecoin",
-        "verdict": "STRONG_LONG",
-        "net": 8,
-        "weightedLong": 8,
-        "weightedShort": 0,
-        "alignedLong": 1,
-        "alignedShort": 0,
-        "confidence": 0.49,
-        "tfDirections": {
-          "1m": "long"
-        },
-        "image": "https://coin-images.coingecko.com/coins/images/5/large/dogecoin.png?1696501409"
-      },
-      {
         "symbol": "TRX",
         "name": "TRON",
+        "verdict": "STRONG_LONG",
+        "net": 8,
+        "weightedLong": 8,
+        "weightedShort": 0,
+        "alignedLong": 1,
+        "alignedShort": 0,
+        "confidence": 0.49,
+        "tfDirections": {
+          "1m": "long"
+        },
+        "image": "https://coin-images.coingecko.com/coins/images/1094/large/photo_2026-04-13_09-59-16.png?1776048311"
+      },
+      {
+        "symbol": "XRP",
+        "name": "XRP",
         "verdict": "STRONG_LONG",
         "net": 7,
         "weightedLong": 7,
@@ -2204,7 +2534,7 @@
         "tfDirections": {
           "1m": "long"
         },
-        "image": "https://coin-images.coingecko.com/coins/images/1094/large/photo_2026-04-13_09-59-16.png?1776048311"
+        "image": "https://coin-images.coingecko.com/coins/images/44/large/xrp-symbol-white-128.png?1696501442"
       }
     ]
   }
