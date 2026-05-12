@@ -30,6 +30,10 @@ backend/src/data/users.enc
 backend/src/data/users.json
 backend/src/data/account-deletion-requests.json
 backend/src/data/push-devices.json
+backend/.x-cookies.json
 frontend/android/app/google-services.json
 frontend/.gradle-user/
 frontend/android/.gradle-user/
+
+# Icon design working files (AI variants, grids, inspect screenshots, etc.)
+frontend/public/icon-options/

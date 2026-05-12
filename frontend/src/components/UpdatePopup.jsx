@@ -3,50 +3,64 @@ import { X, Sparkles, Crown, ArrowRight, Flame } from 'lucide-react'
 import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
 
-const VERSION = '3.5.0'
+const VERSION = '4.3.0'
+const HOLD_SECONDS = 4
 
 const NEW_FEATURES = [
   {
-    icon: '🧮',
-    title: 'DCF Değerleme',
-    desc: 'Wall Street\'in fiyatlama modeli — BIST için içsel değer, sektör WACC, sensitivity matrix',
+    icon: '👑',
+    title: 'Yeni Amblem',
+    desc: 'Hanedan tarzı boğa + altın taç + yükseliş mumları — favicon, app icon, Google Play tek seferde yenilendi',
     tone: 'amber',
     hot: true,
   },
   {
-    icon: '🪙',
-    title: 'Kripto Composite Analiz',
-    desc: '5 modelin birleşik skoru: drawdown · MA · S2F · NVT · volatility — kriptonun DCF\'i',
+    icon: '🤖',
+    title: 'Trading Bot',
+    desc: 'Freqtrade port edilmiş otomatik strateji motoru — backtest + canlı sınama katmanı',
     tone: 'orange',
     hot: true,
   },
   {
-    icon: '🔥',
-    title: 'X Gündemi',
-    desc: 'BIST + kripto — X.com\'da kim ne kadar konuşuluyor, sentiment analizi ile',
+    icon: '💥',
+    title: 'Likidasyon Haritası',
+    desc: 'Coinglass benzeri likidasyon yoğunluk haritası — heatmap + uzun/kısa cluster\'lar',
+    tone: 'orange',
+    hot: true,
+  },
+  {
+    icon: '🎯',
+    title: 'SMC Tarayıcı',
+    desc: 'Smart Money Concepts — order block, FVG, BOS/CHOCH otomatik tespiti',
     tone: 'cyan',
   },
   {
-    icon: '📰',
-    title: 'Canlı Haber Akışı',
-    desc: '6 RSS kaynağı — Bloomberg HT, NTV, Hürriyet, Cointelegraph + akıllı sembol pill\'leri',
+    icon: '⏱️',
+    title: 'MTF + Ses Uyarısı',
+    desc: '7 timeframe kripto konfluans + STRONG sinyal ping sesi + Bayesian win probability',
     tone: 'blue',
   },
   {
-    icon: '⚡',
-    title: 'Canlı Kripto Fiyatları',
-    desc: 'CoinGecko entegre — gerçek zamanlı fiyat, hacim, market cap, 24sa/7g değişim',
+    icon: '🌊',
+    title: 'EMA34 Wave',
+    desc: 'BIST + kripto için EMA34 dalga tarayıcı — pullback ve trend dönüş yakalama',
     tone: 'green',
   },
   {
-    icon: '☀️',
-    title: 'Aydınlık Mod Polish',
-    desc: 'Tüm sayfalarda kontrast iyileştirildi, aksent renkler artık light bg\'de okunabilir',
+    icon: '🛢️',
+    title: 'Emtia Sinyalleri',
+    desc: 'Altın, gümüş, brent, doğal gaz — günlük teknik sinyaller + ekonomik takvim entegre',
     tone: 'amber',
+  },
+  {
+    icon: '📱',
+    title: 'Yeni Mobil Deneyim',
+    desc: 'Bottom nav yenilendi + sayfa geçişlerinde smooth animasyon + tema değişim ripple efekti',
+    tone: 'cyan',
   },
 ]
 
-const POPUP_KEY = 'bk-update-popup-v3.5'
+const POPUP_KEY = 'bk-update-popup-v4.3'
 const MAX_SHOWS = 2
 const INTERVAL_MS = 10 * 60 * 1000
 
@@ -80,7 +94,7 @@ export default function UpdatePopup() {
   const navigate = useNavigate()
   const [visible, setVisible]     = useState(false)
   const [canClose, setCanClose]   = useState(false)
-  const [countdown, setCountdown] = useState(3)
+  const [countdown, setCountdown] = useState(HOLD_SECONDS)
 
   useEffect(() => {
     try {
@@ -111,7 +125,7 @@ export default function UpdatePopup() {
   useEffect(() => {
     if (!visible) return
     setCanClose(false)
-    setCountdown(3)
+    setCountdown(HOLD_SECONDS)
     const interval = setInterval(() => {
       setCountdown(prev => {
         if (prev <= 1) {
@@ -172,8 +186,13 @@ export default function UpdatePopup() {
           <div className="flex items-start justify-between mb-4">
             <div className="flex items-center gap-3">
               <div className="relative">
-                <div className="popup-crown w-14 h-14 rounded-2xl bg-gradient-to-br from-amber-300 via-amber-400 to-amber-600 flex items-center justify-center shadow-lg shadow-amber-500/40 origin-center">
-                  <Crown className="w-7 h-7 text-white drop-shadow" />
+                <div className="popup-crown w-16 h-16 rounded-2xl overflow-hidden flex items-center justify-center shadow-lg shadow-amber-500/40 origin-center ring-2 ring-amber-400/60">
+                  <img
+                    src="/icon-master.png?v=4.3.0"
+                    alt="Borsa Kralı"
+                    className="w-full h-full object-cover"
+                    loading="eager"
+                  />
                 </div>
                 <Sparkles className="popup-sparkle absolute -top-1.5 -right-1.5 w-5 h-5 text-amber-300" />
                 <Sparkles className="popup-sparkle absolute -bottom-1 -left-1 w-3.5 h-3.5 text-amber-400" style={{ animationDelay: '1.2s' }} />
@@ -194,9 +213,9 @@ export default function UpdatePopup() {
                 <h2
                   className="font-bold text-xl leading-tight mt-1"
                   style={{ color: 'var(--text-primary)' }}
-                >Yepyeni 6 Süper Özellik 🎉</h2>
+                >Tahta yenilendi 👑</h2>
                 <p className="text-[11px] mt-0.5" style={{ color: 'var(--text-faint)' }}>
-                  Wall Street'in araçları artık cebinde
+                  Yeni amblem + 7 yeni özellik tek güncellemede
                 </p>
               </div>
             </div>
@@ -218,19 +237,18 @@ export default function UpdatePopup() {
             </button>
           </div>
 
-          {/* Hook metin — daha çarpıcı */}
+          {/* Hook metin — v4.3 launch */}
           <div
             className="text-sm mb-4 leading-relaxed p-3 rounded-xl border"
             style={{
-              background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.08), rgba(249, 115, 22, 0.04))',
-              borderColor: 'rgba(245, 158, 11, 0.25)',
+              background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.10), rgba(249, 115, 22, 0.05))',
+              borderColor: 'rgba(245, 158, 11, 0.30)',
               color: 'var(--text-secondary)',
             }}
           >
-            <span className="font-bold" style={{ color: 'var(--gold-400)' }}>virattt/dexter</span> repo'sundan port edilen profesyonel finans araçları —
-            <span className="font-semibold"> DCF değerleme, kripto composite analiz, X gündemi</span> ve daha fazlası.
+            Yeni hanedan amblemi · <span className="font-bold" style={{ color: 'var(--gold-400)' }}>Trading Bot</span> · <span className="font-bold" style={{ color: 'var(--gold-400)' }}>Likidasyon Haritası</span> · <span className="font-bold" style={{ color: 'var(--gold-400)' }}>SMC</span> · MTF + ses uyarısı · EMA34 Wave · Emtia · yeni mobil deneyim.
             <div className="text-[11px] mt-1.5 opacity-80">
-              4 yeni sayfa · 12+ yeni API · 5 yeni backend servis 🚀
+              22 Faz kripto sistemi · 8+ yeni sayfa · sıfırdan amblem · v4.3.0 🚀
             </div>
           </div>
 
