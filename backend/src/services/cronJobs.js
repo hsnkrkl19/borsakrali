@@ -10,6 +10,7 @@ const kapService = require('./kapService');
 const dailySignalsService = require('./dailySignalsService');
 const cryptoSignalsService = require('./cryptoSignalsService');
 const multiTimeframeService = require('./multiTimeframeService');
+const signalConfidenceService = require('./signalConfidenceService');
 const socketService = require('./socketService');
 const pushNotificationService = require('./pushNotificationService');
 const economicCalendarService = require('./economicCalendarService');
@@ -284,6 +285,32 @@ async function runMTFPhase(tf, options = {}) {
   }
 }
 
+// Confidence summary update — son N tarih için backtest çalıştırır, bucket'ları birikimli günceller.
+// Disk cache'i (data/confidence_summary.json) sinyal enrichment'ı için kullanılır.
+// Yavaş bir iştir: BIST100 + Top100 kripto × N tarih. Düşük yoğunluklu saatte (haftada 1) çalışır.
+async function runConfidenceUpdate(opts = {}) {
+  try {
+    logger.info('🧪 Confidence summary update başladı...');
+    const t0 = Date.now();
+    const result = await signalConfidenceService.updateSummary({
+      days: opts.days ?? 3,                 // 3 farklı asOfDate
+      gap: opts.gap ?? 7,                   // arası 7 gün
+      horizonBist: opts.horizonBist ?? 5,
+      horizonCrypto: opts.horizonCrypto ?? 7,
+      ...opts,
+    });
+    const ms = Date.now() - t0;
+    const totals = Object.fromEntries(
+      Object.entries(result.buckets || {}).map(([k, v]) => [k, Object.values(v).reduce((s, b) => s + (b.sampleSize || 0), 0)])
+    );
+    logger.info(`✅ Confidence update tamam (${ms}ms). Toplam örneklemler: ${JSON.stringify(totals)}`);
+    return result;
+  } catch (e) {
+    logger.error(`[Confidence] update hata: ${e.message}`, e.stack);
+    return null;
+  }
+}
+
 class CronJobsService {
   constructor() {
     this.jobs = [];
@@ -514,6 +541,15 @@ class CronJobsService {
       { scheduled: false, ...TR_TZ }
     );
 
+    // 25. Confidence summary update — Pazar 03:00 TR. Son 3 tarih için backtest
+    //     çalıştırır, BIST + Kripto sinyalleri için historicalWinRate bucket'larını
+    //     birikimli günceller. Yavaş iş; piyasalar kapalıyken çalışır.
+    const confidenceUpdateJob = cron.schedule(
+      '0 3 * * 0',
+      () => runConfidenceUpdate(),
+      { scheduled: false, ...TR_TZ }
+    );
+
     // Start jobs only during market hours (9 AM - 6 PM, Monday-Friday)
     const marketHoursJob = cron.schedule(
       '* 9-18 * * 1-5', // Mon-Fri, 9 AM - 6 PM
@@ -564,6 +600,7 @@ class CronJobsService {
       marketOpenJob,
       marketCloseJob,
       calendarWarningJob,
+      confidenceUpdateJob,
       marketHoursJob,
       afterHoursJob
     ];
@@ -615,6 +652,13 @@ class CronJobsService {
     const valid = ['1m', '5m', '15m', '1h', '4h', '1d', '1w'];
     const safe = valid.includes(tf) ? tf : '4h';
     return runMTFPhase(safe, { silent: true });
+  }
+
+  /**
+   * Manuel tetikleme — confidence summary update (admin / test için)
+   */
+  async triggerConfidenceUpdate(opts = {}) {
+    return runConfidenceUpdate(opts);
   }
 
   /**

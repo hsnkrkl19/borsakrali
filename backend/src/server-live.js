@@ -46,6 +46,7 @@ const fundamentalScoresService = require('./services/fundamentalScoresService');
 const financialsRouter = require('../routes/financials');
 const pushRoutes = require('./routes/push.routes');
 const adminRoutes = require('./routes/admin.routes');
+const tradingBotRoutes = require('./routes/tradingBot.routes');
 const pushNotificationService = require('./services/pushNotificationService');
 const { allBistStocks, bist30Stocks, bist100Stocks, sectors } = require('./data/allBistStocks');
 
@@ -177,6 +178,7 @@ app.get('/api/debug/invalid-symbols', (req, res) => {
 app.use('/api/financials', financialsRouter);
 app.use('/api/push', pushRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/trading-bot', tradingBotRoutes);
 
 // Tüm kullanicilara açik duyuru listesi (admin tarafindan gönderilen
 // broadcast bildirimlerinin geçmişi). Header bell + Duyurular paneli
@@ -1991,6 +1993,7 @@ app.get('/api/analysis/technical/:symbol', async (req, res) => {
 
 // ============ MALAYSIAN SNR ROUTES ============
 const snrService = require('./services/snrService');
+const smcService = require('./services/smcService');
 const comboStrategyService = require('./services/comboStrategyService');
 
 // ============ COMBO STRATEJİ TARAYICI ============
@@ -2664,6 +2667,167 @@ app.get('/api/snr/scanner/crypto', async (req, res) => {
   }
 });
 
+// ============ SMART MONEY CONCEPTS (SMC) ROUTES =============================
+// 5 ana yapı: Swing, FVG, BOS/CHoCH, Order Block, Liquidity Sweep
+// joshyattridge/smartmoneyconcepts (MIT) algoritmasından port — JS native.
+
+// Tekil sembol analizi
+// GET /api/smc/:symbol?type=stock|crypto
+app.get('/api/smc/:symbol', async (req, res, next) => {
+  if (req.params.symbol === 'scanner') return next();
+  try {
+    const rawSym = req.params.symbol.toUpperCase().replace('.IS', '');
+    const assetType = (req.query.type || 'stock').toLowerCase();
+    const interval = (req.query.interval || '1d').toLowerCase();
+    const period = req.query.period || '1y';
+
+    let raw;
+    if (assetType === 'crypto') {
+      raw = await fetchYahooDaily(`${rawSym}-USD`, period);
+    } else {
+      raw = await liveDataService.fetchHistoricalData(rawSym, period, interval);
+    }
+    if (!raw || raw.length < 30) {
+      return res.status(400).json({ success: false, error: 'Yetersiz tarihsel veri' });
+    }
+    const candles = raw.map(r => ({
+      time: Math.floor(new Date(r.date || r.timestamp).getTime() / 1000),
+      open: +r.open || 0, high: +r.high || 0, low: +r.low || 0,
+      close: +r.close || 0, volume: +r.volume || 0,
+    })).filter(c => c.close > 0);
+
+    const analysis = await smcService.analyzeSMC(rawSym, candles, { assetType });
+    res.json({ success: true, ...analysis });
+  } catch (err) {
+    console.error('[SMC]', err.message);
+    res.status(500).json({ success: false, error: 'SMC analizi yapılamadı' });
+  }
+});
+
+// SMC tarayıcı — bist30 / bist100 / crypto
+const smcScannerCache = new Map();
+const SMC_SCAN_TTL = 10 * 60 * 1000;
+
+async function runSmcScan(scope) {
+  let universe;
+  let isCrypto = false;
+  if (scope === 'bist30') universe = bist30Stocks;
+  else if (scope === 'bist100') universe = bist100Stocks;
+  else if (scope === 'crypto') {
+    universe = ['BTC','ETH','BNB','SOL','XRP','ADA','AVAX','DOGE','TRX','LINK',
+                'TON','DOT','MATIC','LTC','BCH','NEAR','UNI','APT','ATOM','OP'];
+    isCrypto = true;
+  } else {
+    universe = bist100Stocks;
+  }
+
+  const results = [];
+  const BATCH = isCrypto ? 6 : 10;
+  const PAUSE = 250;
+
+  for (let i = 0; i < universe.length; i += BATCH) {
+    const batch = universe.slice(i, i + BATCH);
+    const batchRes = await Promise.allSettled(batch.map(async (item) => {
+      try {
+        const sym = isCrypto ? item : item.symbol.replace('.IS', '');
+        const raw = isCrypto
+          ? await fetchYahooDaily(`${sym}-USD`, '1y')
+          : await liveDataService.fetchHistoricalData(sym, '1y', '1d');
+        if (!raw || raw.length < 30) return null;
+        const candles = raw.map(r => ({
+          time: Math.floor(new Date(r.date || r.timestamp).getTime() / 1000),
+          open: +r.open || 0, high: +r.high || 0, low: +r.low || 0,
+          close: +r.close || 0, volume: +r.volume || 0,
+        })).filter(c => c.close > 0);
+        const analysis = await smcService.analyzeSMC(sym, candles, {
+          assetType: isCrypto ? 'crypto' : 'stock',
+        });
+        if (!analysis.signals || analysis.signals.length === 0) return null;
+        return {
+          symbol: sym,
+          name: isCrypto ? sym : (item.name || sym),
+          assetType: isCrypto ? 'crypto' : 'stock',
+          bias: analysis.bias,
+          lastClose: analysis.lastClose,
+          topSignal: analysis.signals[0],
+          signalCount: analysis.signals.length,
+          obCount: analysis.orderBlocks.length,
+          fvgCount: analysis.fvgs.length,
+          activeStructure: analysis.structure[analysis.structure.length - 1] || null,
+        };
+      } catch { return null; }
+    }));
+    batchRes.forEach(r => { if (r.status === 'fulfilled' && r.value) results.push(r.value); });
+    if (i + BATCH < universe.length) await new Promise(r => setTimeout(r, PAUSE));
+  }
+  results.sort((a, b) => (b.topSignal?.score || 0) - (a.topSignal?.score || 0));
+  return results;
+}
+
+app.get('/api/smc/scanner/:scope', async (req, res) => {
+  try {
+    const scope = ['bist30', 'bist100', 'crypto'].includes(req.params.scope)
+      ? req.params.scope : 'bist100';
+    const cached = smcScannerCache.get(scope);
+    if (cached && Date.now() - cached.ts < SMC_SCAN_TTL) {
+      return res.json({ success: true, scope, results: cached.results, cached: true });
+    }
+    const results = await runSmcScan(scope);
+    smcScannerCache.set(scope, { results, ts: Date.now() });
+    res.json({ success: true, scope, results });
+  } catch (err) {
+    console.error('[SMC Scanner]', err.message);
+    res.status(500).json({ success: false, error: 'SMC taraması yapılamadı' });
+  }
+});
+
+// ============ LIQUIDATION HEATMAP (Binance Futures forceOrder WS) =========
+// Canlı Coinglass-tarzı likidasyon haritası — son 24 saat tek bir sembol için
+// fiyat bantlarına grupla; long/short ayrı renkli istatistik.
+const liquidationService = require('./services/liquidationService');
+
+app.get('/api/liquidation/heatmap/:symbol', (req, res) => {
+  try {
+    const symbol = String(req.params.symbol || '').toUpperCase();
+    const sym = symbol.endsWith('USDT') ? symbol : `${symbol}USDT`;
+    const hours = +req.query.hours || 12;
+    const buckets = +req.query.buckets || 40;
+    const data = liquidationService.getHeatmap(sym, { hours, buckets });
+    res.json({ success: true, ...data });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.get('/api/liquidation/summary', (req, res) => {
+  try {
+    const data = liquidationService.getMarketSummary({
+      hours: +req.query.hours || 4,
+      limit: +req.query.limit || 20,
+    });
+    res.json({ success: true, ...data });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.get('/api/liquidation/recent', (req, res) => {
+  try {
+    const data = liquidationService.getRecentLarge({
+      hours: +req.query.hours || 1,
+      limit: +req.query.limit || 30,
+      minUsd: +req.query.minUsd || 25000,
+    });
+    res.json({ success: true, ...data });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.get('/api/liquidation/stats', (_req, res) => {
+  res.json({ success: true, ...liquidationService.getStats() });
+});
+
 // ============ DAILY SIGNALS (09:55 pre-market + 11:00 revision) ============
 const dailySignalsService = require('./services/dailySignalsService');
 const snapshotStore = require('./services/snapshotStore');
@@ -3185,9 +3349,17 @@ app.post('/api/market/crypto/mtf/backtest-and-feed', async (req, res) => {
 });
 
 // ============ X (TWITTER) MENTION ROUTES ============
-// dexter (virattt/dexter) src/tools/search/x-search.ts'ten esinli.
-// Şu an mock data; ileride twscrape → RapidAPI → resmi X API v2'ye geçilecek.
+// Gerçek X.com scraper entegrasyonu — @the-convocation/twitter-scraper
+// Credentials: backend/.env içinde X_AUTH_TOKEN + X_CT0 (önerilen) veya X_USERNAME + X_PASSWORD
 const xMentionService = require('./services/xMentionService');
+
+// Server boot'tan sonra background warmer başlat (BIST30 + Top10 kripto, 35dk döngü)
+xMentionService.startWarmer();
+
+// Servis durumu — admin/debug için
+app.get('/api/x-mentions/status', (req, res) => {
+  res.json({ success: true, ...xMentionService.getStatus() });
+});
 
 // Tarayıcı: scope=bist30 | bist100 | all | crypto | crypto_top10 | crypto_all (default: bist100)
 const X_MENTION_SCOPES = ['bist30', 'bist100', 'all', 'crypto', 'crypto_top10', 'crypto_all'];
@@ -3203,11 +3375,11 @@ app.get('/api/x-mentions/scanner', (req, res) => {
 });
 
 // Tek sembol detayı: ?type=crypto|stock zorunlu değil (auto-detect)
-app.get('/api/x-mentions/:symbol', (req, res) => {
+app.get('/api/x-mentions/:symbol', async (req, res) => {
   try {
     const assetType = ['crypto', 'stock'].includes(req.query.type) ? req.query.type : undefined;
-    const result = xMentionService.getMentionDetail(req.params.symbol, { assetType });
-    if (!result.success) return res.status(404).json(result);
+    const result = await xMentionService.getMentionDetail(req.params.symbol, { assetType });
+    if (!result.success) return res.status(result.error?.includes('bulunamadı') ? 404 : 503).json(result);
     res.json(result);
   } catch (err) {
     console.error('[X-Mentions] Detay hata:', err.message);
@@ -7794,6 +7966,20 @@ server.listen(PORT, () => {
     }
   } else {
     console.log('[MTFLoop] ENV MTF_LOOP_DISABLED=true — live loop atlandı');
+  }
+
+  // Liquidation WebSocket — Binance Futures forceOrder@arr canlı dinleyici.
+  //   ENV GATE (LIQUIDATION_DISABLED=true): Render plan'da egress sıkıntısı
+  //   olursa kapatılabilir; endpoint'ler boş data döner.
+  if (process.env.LIQUIDATION_DISABLED !== 'true') {
+    try {
+      liquidationService.start();
+      console.log('[Liquidation] WS dinleyici başlatıldı (Binance Futures forceOrder)');
+    } catch (e) {
+      console.error('[Liquidation] Başlatma hata:', e.message);
+    }
+  } else {
+    console.log('[Liquidation] ENV LIQUIDATION_DISABLED=true — WS atlandı');
   }
 
   // NOT: Telegram bot ayri process olarak calisir (telegram-bot.js)

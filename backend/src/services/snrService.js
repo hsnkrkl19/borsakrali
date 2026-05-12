@@ -11,9 +11,16 @@ const SNR_CACHE_TTL = 5 * 60 * 1000; // 5 dakika
 // ── Geçerlilik eşikleri ──────────────────────────────────────────────────────
 // Bir sinyalin "hâlâ aktif" sayılabilmesi için fiyata yakın ve yeni olması gerekir.
 // Aksi halde kullanıcıya 232 TL'de "Giriş" gösterilirken hisse 428 TL'de seyrediyor olur.
-const MAX_REACH_PCT_STOCK  = 8;   // hisseler için %8 mesafe sınırı (günlük TF)
-const MAX_REACH_PCT_CRYPTO = 15;  // kripto için %15 (volatilite yüksek)
-const MAX_AGE_DAYS         = 120; // 4 ay öncesi pivotlar artık aktif sinyal değil
+const MAX_REACH_PCT_STOCK     = 8;   // hisseler için %8 mesafe sınırı (günlük TF)
+const MAX_REACH_PCT_CRYPTO    = 15;  // kripto için %15 (volatilite yüksek)
+const MAX_REACH_PCT_COMMODITY = 6;   // altın/gümüş için %6 (daha düşük günlük oynaklık)
+const MAX_AGE_DAYS            = 120; // 4 ay öncesi pivotlar artık aktif sinyal değil
+
+function maxReachFor(assetType) {
+  if (assetType === 'crypto') return MAX_REACH_PCT_CRYPTO;
+  if (assetType === 'commodity') return MAX_REACH_PCT_COMMODITY;
+  return MAX_REACH_PCT_STOCK;
+}
 
 // ---- ATR hesaplama ----
 function calcATR(candles, period = 14) {
@@ -214,7 +221,7 @@ function scoreZones(zones, engulfing, sweeps, storyline, candles, atr, opts = {}
   const lastCandle = candles[candles.length - 1];
   const lastClose  = lastCandle?.close || 0;
   const lastTime   = lastCandle?.time;
-  const maxReachPct = opts.assetType === 'crypto' ? MAX_REACH_PCT_CRYPTO : MAX_REACH_PCT_STOCK;
+  const maxReachPct = maxReachFor(opts.assetType);
 
   return zones.map(zone => {
     let score = 40; // Base
@@ -370,8 +377,9 @@ async function analyzeSNR(symbol, historicalData, opts = {}) {
       ? new Date(lastCandle.time * 1000).toISOString().slice(0, 10)
       : null,
     candleCount: candles.length,
-    maxReachPct: opts.assetType === 'crypto' ? MAX_REACH_PCT_CRYPTO : MAX_REACH_PCT_STOCK,
+    maxReachPct: maxReachFor(opts.assetType),
     maxAgeDays: MAX_AGE_DAYS,
+    assetType: opts.assetType || 'stock',
   };
 
   snrCache.set(cacheKey, { result, ts: Date.now() });

@@ -35,6 +35,11 @@ router.get('/fibonacci', marketController.getFibonacciReversals);
 // Performance
 router.get('/algorithm-performance', marketController.getAlgorithmPerformance);
 
+// Gün sonu performans (sinyal sonuçlandırma)
+//   /dates daha spesifik olduğu için /:date'ten önce yer alıyor
+router.get('/daily-performance/dates', marketController.getDailyPerformanceDates);
+router.get('/daily-performance/:date', marketController.getDailyPerformance);
+
 // Crypto signals — top 100 coin için spot/futures sinyalleri
 router.get('/crypto/signals', async (req, res) => {
   try {

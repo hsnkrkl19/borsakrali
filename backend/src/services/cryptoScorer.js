@@ -384,9 +384,9 @@ const CONDITION_GROUPS = {
 // ───────────────────────────────────────────────────────────────────────────
 
 function gradeFromRatio(r) {
-  if (r >= 0.70) return 'MUKEMMEL';
-  if (r >= 0.50) return 'GUCLU';
-  if (r >= 0.30) return 'ORTA';
+  if (r >= 0.80) return 'MUKEMMEL';
+  if (r >= 0.60) return 'GUCLU';
+  if (r >= 0.50) return 'ORTA';
   return 'ZAYIF';
 }
 
@@ -449,6 +449,14 @@ function precisionFor(price) {
   return 8;
 }
 
+// Strateji bazlı alt-zorunlu grupları — required:true koşulları yetmediği için
+// "yapı kanıtı yoksa sinyal yok" mantığı eklendi (sinyal kalitesi sıkılaştırma).
+const ALT_REQUIRED = {
+  spot_long:     [['price_above_ema200', '4h_uptrend']],     // ana trend kanıtı şart
+  futures_long:  [],                                          // zaten 2 zorunlu (breakout + uptrend)
+  futures_short: [['ema_stack_inverted', 'lower_low_4h']],   // yapı bozulma kanıtı şart
+};
+
 function score(stratKey, ctx) {
   const catalog = stratKey === 'spot_long'      ? SPOT_LONG_CONDITIONS
                 : stratKey === 'futures_long'   ? FUTURES_LONG_CONDITIONS
@@ -461,6 +469,13 @@ function score(stratKey, ctx) {
   const requiredFailed = conditions.find(c => c.required && !c.met);
   if (requiredFailed) return null;
 
+  // ALT-ZORUNLU: her grup içinde en az 1 koşul geçmeli
+  const altRequired = ALT_REQUIRED[stratKey] || [];
+  for (const group of altRequired) {
+    const anyMet = group.some(id => conditions.find(c => c.id === id)?.met);
+    if (!anyMet) return null;
+  }
+
   const totalScore = conditions.filter(c => c.met).length;
   const applicableMax = conditions.length;
   const ratio = totalScore / applicableMax;
@@ -469,6 +484,11 @@ function score(stratKey, ctx) {
   if (!levels) return null;
 
   const direction = stratKey === 'futures_short' ? 'short' : 'long';
+
+  // R/R oranı (target1 bazlı)
+  const reward = Math.abs(levels.target1 - levels.entry);
+  const risk = Math.abs(levels.entry - levels.stop);
+  const riskReward = risk > 0 ? +(reward / risk).toFixed(2) : null;
 
   return {
     strategy: stratKey,
@@ -480,6 +500,7 @@ function score(stratKey, ctx) {
     score10: +(totalScore).toFixed(0),
     conditions,
     ...levels,
+    riskReward,
     leverage_suggest: suggestLeverage(stratKey, totalScore),
     indicators: {
       rsi_1d:  ctx.daily?.rsi,

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef, Fragment } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { Search, Filter, TrendingUp, TrendingDown, Target, Activity, Bell, BellRing, RefreshCw, X, Volume2, Star, Clock, Zap, Wifi, WifiOff, Info, CheckCircle, BookOpen, ChevronDown, ChevronUp, HelpCircle, Sparkles, Coins, Layers } from 'lucide-react'
+import { Search, Filter, TrendingUp, TrendingDown, Target, Activity, Bell, BellRing, RefreshCw, X, Volume2, Star, Clock, Zap, Wifi, WifiOff, Info, CheckCircle, BookOpen, ChevronDown, ChevronUp, HelpCircle, Sparkles, Coins, Layers, Flame } from 'lucide-react'
 import { io } from 'socket.io-client'
 
 import { getApiBase, getSocketBase } from '../config'
@@ -10,14 +10,16 @@ import TradePlanCard from '../components/TradePlanCard'
 import InfoTooltip from '../components/InfoTooltip'
 import BugununSinyalleri from '../components/BugununSinyalleri'
 import KriptoSinyalleri from '../components/KriptoSinyalleri'
+import EmtiaSinyalleri from '../components/EmtiaSinyalleri'
 import MTFSinyalleri from '../components/MTFSinyalleri'
 import BacktestPanel from '../components/BacktestPanel'
+import LikidasyonHaritasi from '../components/LikidasyonHaritasi'
 const API_BASE = getApiBase() + '/api'
 const SOCKET_URL = getSocketBase()
 
 export default function GunlukTespitler() {
   const [searchParams, setSearchParams] = useSearchParams()
-  const initialTab = ['bugun', 'today', 'kripto', 'mtf', 'backtest', 'akilli-suzgec', 'canli-takip', 'detayli-analiz'].includes(searchParams.get('tab'))
+  const initialTab = ['bugun', 'today', 'kripto', 'emtia', 'mtf', 'likidasyon', 'backtest', 'akilli-suzgec', 'canli-takip', 'detayli-analiz'].includes(searchParams.get('tab'))
     ? (searchParams.get('tab') === 'today' ? 'bugun' : searchParams.get('tab'))
     : 'bugun'  // varsayılan: Bugünün Sinyalleri (yeni özellik)
   const [activeTab, setActiveTab] = useState(initialTab)
@@ -234,7 +236,9 @@ export default function GunlukTespitler() {
   const tabs = [
     { id: 'bugun',         label: 'Bugünün Sinyalleri', icon: Sparkles },
     { id: 'kripto',        label: 'Kripto',             icon: Coins },
+    { id: 'emtia',         label: 'Altın & Gümüş',      icon: Coins, isNew: true },
     { id: 'mtf',           label: 'Çoklu Zaman',        icon: Layers },
+    { id: 'likidasyon',    label: 'Likidasyon Haritası', icon: Flame, isNew: true },
     { id: 'backtest',      label: 'Backtest',           icon: Activity },
     { id: 'akilli-suzgec', label: 'Akıllı Süzgeç',      icon: Filter },
     { id: 'canli-takip',   label: 'Canlı Alarmlar',     icon: BellRing, badge: unreadCount },
@@ -441,6 +445,11 @@ export default function GunlukTespitler() {
           >
             <tab.icon className="w-3 h-3 md:w-4 md:h-4" />
             <span className="font-medium text-sm md:text-base">{tab.label}</span>
+            {tab.isNew && activeTab !== tab.id && (
+              <span className="text-[9px] font-bold px-1 py-0.5 rounded bg-amber-500/30 text-amber-200 border border-amber-500/40">
+                YENİ
+              </span>
+            )}
             {tab.badge > 0 && (
               <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] md:text-xs w-4 h-4 md:w-5 md:h-5 rounded-full flex items-center justify-center">
                 {tab.badge}
@@ -456,8 +465,14 @@ export default function GunlukTespitler() {
       {/* Kripto Tab — top 100 coin için spot/futures long/short */}
       {activeTab === 'kripto' && <KriptoSinyalleri />}
 
+      {/* Emtia Tab — Altın & Gümüş Malaysian SNR sinyalleri */}
+      {activeTab === 'emtia' && <EmtiaSinyalleri />}
+
       {/* Çoklu Zaman Tab — 7 TF (1m-1w) MTF sinyal motoru + confluence engine */}
       {activeTab === 'mtf' && <MTFSinyalleri />}
+
+      {/* Likidasyon Haritası — Binance Futures forceOrder canlı akışı, Coinglass-tarzı */}
+      {activeTab === 'likidasyon' && <LikidasyonHaritasi />}
 
       {/* Backtest Tab — geçmiş tarih + horizon ile sinyal performans testi */}
       {activeTab === 'backtest' && <BacktestPanel />}

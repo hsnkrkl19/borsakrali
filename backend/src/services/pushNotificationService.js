@@ -240,12 +240,14 @@ async function broadcastNotification(payload) {
   const externalUrl = safeTrim(payload.url, 500);
 
   const sentAt = new Date().toISOString();
+  const category = safeTrim(payload.category, 40) || 'general';
   const broadcastEntry = {
     id: `b_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
     title,
     body,
     topic,
     channelId,
+    category,
     path: pathValue && !/^https?:\/\//i.test(pathValue) ? pathValue : (externalUrl || pathValue || ''),
     dryRun: Boolean(payload.dryRun),
     sentBy: payload.sender?.email || null,

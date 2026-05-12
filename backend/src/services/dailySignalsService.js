@@ -17,11 +17,14 @@ const comboStrategyService = require('./comboStrategyService');
 const kapService = require('./kapService');
 const universalScorer = require('./universalScorer');
 const snapshotStore = require('./snapshotStore');
+const signalConfidenceService = require('./signalConfidenceService');
 
 // ── Yapılandırma ──────────────────────────────────────────────────────────
 const TOP_LIMIT = 10;
-const MIN_SCORE_TREND = 5;     // 10 koşuldan en az 5 (storyline ZORUNLU)
-const MIN_SCORE_REVERSION = 6; // reversion daha sıkı: hit_stop azalsın diye eşik yükseltildi
+// v5: Sinyal kalitesi sıkılaştırma — scorer'da alt-zorunlular eklendi,
+// min skorlar yükseldi. Sinyal sayısı azalır, kalite artar.
+const MIN_SCORE_TREND = 6;     // 10 koşuldan en az 6 (storyline + ema_stack/combo ZORUNLU)
+const MIN_SCORE_REVERSION = 7; // reversion: yakın+pivot ZORUNLU + engulfing/sweep ZORUNLU + 7 koşul
 const BATCH_SIZE = 8;
 const BATCH_PAUSE_MS = 200;
 
@@ -221,10 +224,15 @@ async function generatePhase(phase) {
   trendList.sort(sortFn); reversionList.sort(sortFn);
   const generatedAt = new Date().toISOString();
 
+  // Backtest tabanlı confidence enrichment — her sinyale historicalWinRate ekler.
+  // signalConfidenceService disk cache'inden okur; cache yoksa null/unknown döner (UI tolere eder).
+  const enrichedTrend     = trendList.map(s => signalConfidenceService.enrichSignal(s, 'trend'));
+  const enrichedReversion = reversionList.map(s => signalConfidenceService.enrichSignal(s, 'reversion'));
+
   return {
     phase, generatedAt,
-    trend:     { signals: trendList.slice(0, TOP_LIMIT),     allSignals: trendList     },
-    reversion: { signals: reversionList.slice(0, TOP_LIMIT), allSignals: reversionList },
+    trend:     { signals: enrichedTrend.slice(0, TOP_LIMIT),     allSignals: enrichedTrend     },
+    reversion: { signals: enrichedReversion.slice(0, TOP_LIMIT), allSignals: enrichedReversion },
   };
 }
 

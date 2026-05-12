@@ -1,0 +1,109 @@
+{
+  "version": 1,
+  "generatedAt": "2026-05-11T04:41:47.020Z",
+  "bucketCount": 17,
+  "table": {
+    "1m__0.7__long": {
+      "alpha": 1.41,
+      "beta": 0.59,
+      "samples": 0,
+      "lastUpdated": null
+    },
+    "4h__0.7__long": {
+      "alpha": 16.41,
+      "beta": 2.59,
+      "samples": 17,
+      "lastUpdated": "2026-05-10T21:12:34.627Z"
+    },
+    "4h__0.6__long": {
+      "alpha": 22.22,
+      "beta": 1.78,
+      "samples": 22,
+      "lastUpdated": "2026-05-10T21:12:37.005Z"
+    },
+    "4h__0.3__long": {
+      "alpha": 3.59,
+      "beta": 1.41,
+      "samples": 3,
+      "lastUpdated": "2026-05-10T21:12:31.782Z"
+    },
+    "4h__0.5__long": {
+      "alpha": 12,
+      "beta": 1,
+      "samples": 11,
+      "lastUpdated": "2026-05-10T21:12:37.005Z"
+    },
+    "4h__0.8__long": {
+      "alpha": 7.58,
+      "beta": 0.42,
+      "samples": 6,
+      "lastUpdated": "2026-05-10T21:12:34.627Z"
+    },
+    "1m__0.8__long": {
+      "alpha": 1.58,
+      "beta": 0.42,
+      "samples": 0,
+      "lastUpdated": null
+    },
+    "1h__0.6__long": {
+      "alpha": 25.22,
+      "beta": 19.78,
+      "samples": 43,
+      "lastUpdated": "2026-05-11T04:41:47.019Z"
+    },
+    "1h__0.7__long": {
+      "alpha": 41.41,
+      "beta": 54.59,
+      "samples": 94,
+      "lastUpdated": "2026-05-11T04:41:47.019Z"
+    },
+    "1h__0.8__long": {
+      "alpha": 21.58,
+      "beta": 17.42,
+      "samples": 37,
+      "lastUpdated": "2026-05-11T04:41:47.019Z"
+    },
+    "1h__0.5__long": {
+      "alpha": 1,
+      "beta": 6,
+      "samples": 5,
+      "lastUpdated": "2026-05-11T04:41:44.858Z"
+    },
+    "1h__0.5__short": {
+      "alpha": 1,
+      "beta": 6,
+      "samples": 5,
+      "lastUpdated": "2026-05-11T04:41:47.019Z"
+    },
+    "1m__0.6__long": {
+      "alpha": 1.22,
+      "beta": 0.78,
+      "samples": 0,
+      "lastUpdated": null
+    },
+    "4h__0.4__long": {
+      "alpha": 1.78,
+      "beta": 1.22,
+      "samples": 1,
+      "lastUpdated": "2026-05-10T21:12:37.005Z"
+    },
+    "1m__0.4__long": {
+      "alpha": 0.78,
+      "beta": 1.22,
+      "samples": 0,
+      "lastUpdated": null
+    },
+    "1m__0.5__long": {
+      "alpha": 1,
+      "beta": 1,
+      "samples": 0,
+      "lastUpdated": null
+    },
+    "1m__0.3__long": {
+      "alpha": 0.59,
+      "beta": 1.41,
+      "samples": 0,
+      "lastUpdated": null
+    }
+  }
+}

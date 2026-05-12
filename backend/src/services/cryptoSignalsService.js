@@ -17,6 +17,7 @@
 const axios = require('axios');
 const cryptoScorer = require('./cryptoScorer');
 const cryptoSnapshotStore = require('./cryptoSnapshotStore');
+const signalConfidenceService = require('./signalConfidenceService');
 
 // ── Yapılandırma ──────────────────────────────────────────────────────────
 const TOP_LIMIT = 10;
@@ -25,6 +26,8 @@ const BATCH_SIZE = 5;             // Binance batch (her batch'te 2 endpoint × 5
 const BATCH_PAUSE_MS = 250;
 const CACHE_TTL_MS = 5 * 60 * 1000;  // CoinGecko 5 dk (rate limit zorunlu)
 const KLINES_CACHE_TTL_MS = 10 * 60 * 1000; // Binance klines 10 dk
+// v5: Sinyal kalitesi sıkılaştırma — 10 koşuldan en az 6 (cryptoScorer'da alt-zorunlular eklendi)
+const MIN_SCORE = 6;
 
 const COINGECKO_BASE = 'https://api.coingecko.com/api/v3';
 const BINANCE_BASE = 'https://api.binance.com';
@@ -379,9 +382,10 @@ async function generatePhase(phase) {
         change24h: ctx.change24h,
       };
 
-      if (all.spot_long) spotLongList.push({ ...all.spot_long, ...baseEntry });
-      if (all.futures_long) futuresLongList.push({ ...all.futures_long, ...baseEntry });
-      if (all.futures_short) futuresShortList.push({ ...all.futures_short, ...baseEntry });
+      // Min skor filtresi — kalite eşiği
+      if (all.spot_long     && all.spot_long.totalScore     >= MIN_SCORE) spotLongList.push({ ...all.spot_long, ...baseEntry });
+      if (all.futures_long  && all.futures_long.totalScore  >= MIN_SCORE) futuresLongList.push({ ...all.futures_long, ...baseEntry });
+      if (all.futures_short && all.futures_short.totalScore >= MIN_SCORE) futuresShortList.push({ ...all.futures_short, ...baseEntry });
     }
     if (i + BATCH_SIZE < tradable.length) {
       await new Promise(r => setTimeout(r, BATCH_PAUSE_MS));
@@ -393,6 +397,11 @@ async function generatePhase(phase) {
   futuresLongList.sort(sortFn);
   futuresShortList.sort(sortFn);
 
+  // Backtest tabanlı confidence enrichment — her sinyale historicalWinRate ekler.
+  const enrichedSpot     = spotLongList.map(s     => signalConfidenceService.enrichSignal(s, 'spot_long'));
+  const enrichedFutLong  = futuresLongList.map(s  => signalConfidenceService.enrichSignal(s, 'futures_long'));
+  const enrichedFutShort = futuresShortList.map(s => signalConfidenceService.enrichSignal(s, 'futures_short'));
+
   const generatedAt = new Date().toISOString();
   return {
     phase,
@@ -400,9 +409,9 @@ async function generatePhase(phase) {
     universeSize: universe.length,
     tradableCount: tradable.length,
     analyzedCount,
-    spot_long:     { signals: spotLongList.slice(0, TOP_LIMIT),     allSignals: spotLongList },
-    futures_long:  { signals: futuresLongList.slice(0, TOP_LIMIT),  allSignals: futuresLongList },
-    futures_short: { signals: futuresShortList.slice(0, TOP_LIMIT), allSignals: futuresShortList },
+    spot_long:     { signals: enrichedSpot.slice(0, TOP_LIMIT),     allSignals: enrichedSpot },
+    futures_long:  { signals: enrichedFutLong.slice(0, TOP_LIMIT),  allSignals: enrichedFutLong },
+    futures_short: { signals: enrichedFutShort.slice(0, TOP_LIMIT), allSignals: enrichedFutShort },
   };
 }
 

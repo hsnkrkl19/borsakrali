@@ -25,6 +25,14 @@ const GRADE_STYLES = {
   ZAYIF:    'bg-gray-500/20   text-gray-300   border-gray-500/40',
 }
 
+// Backtest tabanlı güven bandı — sinyale signalConfidenceService.enrichSignal ile eklenir.
+const CONFIDENCE_STYLES = {
+  high:    { label: 'Yüksek Güven', short: 'Yüksek', cls: 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30', icon: '✓' },
+  mid:     { label: 'Orta Güven',   short: 'Orta',   cls: 'bg-amber-500/15   text-amber-300   border-amber-500/30',   icon: '~' },
+  low:     { label: 'Düşük Güven',  short: 'Düşük',  cls: 'bg-rose-500/15    text-rose-300    border-rose-500/30',    icon: '!' },
+  unknown: { label: 'Veri Toplanıyor', short: 'Yeni', cls: 'bg-gray-500/15   text-gray-400    border-gray-500/30',    icon: '?' },
+}
+
 const STRATEGY_META = {
   spot_long: {
     label: 'Spot Long',
@@ -278,6 +286,7 @@ function CoinCard({ sig, rank, strategy, expanded, onToggle }) {
     ? { label: '↑ LONG', color: 'text-emerald-400', bg: 'bg-emerald-500/10', border: 'border-emerald-500/30' }
     : { label: '↓ SHORT', color: 'text-red-400', bg: 'bg-red-500/10', border: 'border-red-500/30' }
   const gradeColor = GRADE_STYLES[sig.grade] || GRADE_STYLES.ZAYIF
+  const confStyle = CONFIDENCE_STYLES[sig.confidence] || CONFIDENCE_STYLES.unknown
 
   // Skor gauge — totalScore / 10
   const ratio = sig.totalScore / (sig.applicableMax || 10)
@@ -292,6 +301,12 @@ function CoinCard({ sig, rank, strategy, expanded, onToggle }) {
     conditionsByGroup[c.group] = conditionsByGroup[c.group] || []
     conditionsByGroup[c.group].push(c)
   }
+
+  // "Neden bu sinyal" özet — geçen ilk 3 koşul
+  const topReasons = (sig.conditions || [])
+    .filter(c => c.met && c.applicable)
+    .slice(0, 3)
+    .map(c => c.label)
 
   return (
     <div className={`card border-2 ${expanded ? 'border-gold-500/40' : 'border-dark-700'} transition-colors`}>
@@ -328,6 +343,18 @@ function CoinCard({ sig, rank, strategy, expanded, onToggle }) {
                   {sig.leverage_suggest}x
                 </span>
               )}
+              {/* Backtest tabanlı güven badge'i */}
+              <span
+                className={`text-[10px] px-2 py-0.5 rounded-full border font-semibold flex items-center gap-1 ${confStyle.cls}`}
+                title={
+                  sig.historicalWinRate != null
+                    ? `Geçmiş başarı %${sig.historicalWinRate} (${sig.sampleSize ?? 0} örnek). Backtest tabanlı.`
+                    : 'Bu strateji için henüz yeterli backtest örneklemi yok.'
+                }
+              >
+                <span>{confStyle.icon}</span>
+                <span>{sig.historicalWinRate != null ? `%${sig.historicalWinRate} · ${confStyle.short}` : confStyle.short}</span>
+              </span>
             </div>
             {sig.name && sig.name !== sig.symbol && (
               <p className="text-[10px] text-gray-500 truncate mt-0.5">{sig.name}</p>
@@ -364,12 +391,25 @@ function CoinCard({ sig, rank, strategy, expanded, onToggle }) {
           {sig.target2 != null && (
             <span className="text-emerald-200">T2: <span className="font-mono">{formatUsd(sig.target2)}</span></span>
           )}
+          {sig.riskReward != null && (
+            <span className="text-sky-300" title="Reward/Risk oranı (T1 bazlı)">
+              R/R: <span className="font-mono">{sig.riskReward.toFixed(2)}</span>
+            </span>
+          )}
           {sig.change24h != null && (
             <span className={sig.change24h >= 0 ? 'text-emerald-400' : 'text-red-400'}>
               24s: {formatPct(sig.change24h)}
             </span>
           )}
         </div>
+
+        {/* "Neden bu sinyal" — 3 ana koşul, tıklamadan görünsün */}
+        {topReasons.length > 0 && (
+          <div className="mt-2 ml-9 flex items-start gap-1.5 text-[10px] text-gray-400">
+            <span className="text-gold-400/80 font-semibold uppercase tracking-wider whitespace-nowrap pt-0.5">Neden:</span>
+            <span className="leading-relaxed">{topReasons.join(' · ')}</span>
+          </div>
+        )}
       </div>
 
       {/* ── Açılır panel — trade plan ─────────────────────────────────── */}
@@ -432,6 +472,34 @@ function CoinCard({ sig, rank, strategy, expanded, onToggle }) {
                 </div>
               </div>
             ))}
+          </div>
+
+          {/* Backtest tabanlı güven kartı */}
+          <div className={`rounded-lg p-3 border text-xs ${confStyle.cls}`}>
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <div className="flex items-center gap-2">
+                <span className="text-base">{confStyle.icon}</span>
+                <span className="font-bold">{confStyle.label}</span>
+              </div>
+              {sig.historicalWinRate != null && (
+                <div className="flex items-center gap-3 text-[11px]">
+                  <span title="Bu skor bantında geçmiş backtestlerde hedefe ulaşan sinyal oranı">
+                    Win Rate: <span className="font-mono font-bold">%{sig.historicalWinRate}</span>
+                  </span>
+                  {sig.historicalAvgReturn != null && (
+                    <span title="Ortalama getiri (tüm sinyaller)">
+                      Ort. getiri: <span className="font-mono">{sig.historicalAvgReturn >= 0 ? '+' : ''}{sig.historicalAvgReturn}%</span>
+                    </span>
+                  )}
+                  <span className="text-gray-400">Örnek: {sig.sampleSize ?? 0}</span>
+                </div>
+              )}
+            </div>
+            {sig.historicalWinRate == null && (
+              <p className="text-[11px] opacity-80 mt-1.5">
+                Bu strateji × skor kombinasyonu için yeterli backtest örneklemi yok. Pazar 03:00'da güncellenir.
+              </p>
+            )}
           </div>
 
           {/* Binance trade linki */}
