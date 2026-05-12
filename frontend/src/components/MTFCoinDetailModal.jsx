@@ -16,7 +16,7 @@ import { useEffect, useState } from 'react'
 import {
   X, Coins, TrendingUp, TrendingDown, Minus, Target, Shield, Sparkles,
   Activity, Layers, ExternalLink, RefreshCw, AlertTriangle, CheckCircle2,
-  BarChart3, Zap, Clock,
+  BarChart3, Zap, Clock, Wallet,
 } from 'lucide-react'
 import api from '../services/api'
 
@@ -113,7 +113,7 @@ export default function MTFCoinDetailModal({ symbol, onClose }) {
 
             {/* Tab content */}
             <div className="p-3">
-              {activeTab === 'signals'    && <SignalsTab    timeframes={data.timeframes} />}
+              {activeTab === 'signals'    && <SignalsTab    timeframes={data.timeframes} symbol={symbol} />}
               {activeTab === 'indicators' && <IndicatorsTab timeframes={data.timeframes} />}
               {activeTab === 'ai'         && <AITab         timeframes={data.timeframes} />}
             </div>
@@ -234,7 +234,7 @@ function TabBtn({ active, onClick, icon: Icon, children }) {
   )
 }
 
-function SignalsTab({ timeframes }) {
+function SignalsTab({ timeframes, symbol }) {
   return (
     <div className="space-y-2">
       {TF_LIST.map(tf => {
@@ -252,6 +252,10 @@ function SignalsTab({ timeframes }) {
           )
         }
 
+        // Signal payload'una symbol enjekte et — paper-trading API symbol gerektiriyor
+        const longWithSym  = long  ? { ...long,  symbol } : null
+        const shortWithSym = short ? { ...short, symbol } : null
+
         return (
           <div key={tf.key} className="p-2.5 rounded-lg bg-dark-800/40 border border-dark-700">
             <div className="flex items-center gap-2 mb-2">
@@ -259,8 +263,8 @@ function SignalsTab({ timeframes }) {
               <span className="text-[9px] text-gray-500 uppercase">→ üst TF: {data?.higherTimeframe || '—'}</span>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              <DirectionPanel direction="long"  signal={long}  />
-              <DirectionPanel direction="short" signal={short} />
+              <DirectionPanel direction="long"  signal={longWithSym}  />
+              <DirectionPanel direction="short" signal={shortWithSym} />
             </div>
           </div>
         )
@@ -270,10 +274,32 @@ function SignalsTab({ timeframes }) {
 }
 
 function DirectionPanel({ direction, signal }) {
+  const [paperState, setPaperState] = useState('idle') // 'idle' | 'opening' | 'opened' | 'error'
+  const [paperMsg, setPaperMsg] = useState(null)
+
   const dirLabel = direction === 'long' ? '↑ LONG' : '↓ SHORT'
   const dirColor = direction === 'long' ? 'text-emerald-300' : 'text-rose-300'
   const cls = direction === 'long' ? 'border-emerald-500/30 bg-emerald-500/5'
                                   : 'border-rose-500/30 bg-rose-500/5'
+
+  const openPaperTrade = async () => {
+    if (!signal) return
+    setPaperState('opening')
+    setPaperMsg(null)
+    try {
+      const r = await api.post('/paper-trading/open', { signal })
+      if (r.data?.success) {
+        setPaperState('opened')
+        setPaperMsg(`Pozisyon açıldı (${signal.symbol || ''} ${direction})`)
+      } else {
+        setPaperState('error')
+        setPaperMsg(r.data?.error || 'Açılamadı')
+      }
+    } catch (e) {
+      setPaperState('error')
+      setPaperMsg(e.response?.data?.error || e.message)
+    }
+  }
 
   if (!signal) {
     return (
@@ -325,6 +351,30 @@ function DirectionPanel({ direction, signal }) {
           )}
         </div>
       )}
+
+      {/* Paper trade aç butonu */}
+      <button
+        onClick={openPaperTrade}
+        disabled={paperState === 'opening' || paperState === 'opened'}
+        className={`mt-2 w-full text-[10px] px-2 py-1 rounded-lg border inline-flex items-center justify-center gap-1.5 ${
+          paperState === 'opened'
+            ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/40 cursor-default'
+            : paperState === 'error'
+            ? 'bg-rose-500/15 text-rose-300 border-rose-500/40'
+            : 'bg-purple-500/10 text-purple-300 border-purple-500/30 hover:bg-purple-500/20'
+        } disabled:opacity-70`}
+        title={paperMsg || `$1,000 paper trade — ${direction} ${signal.symbol || ''}`}
+      >
+        {paperState === 'opening' ? (
+          <><RefreshCw className="w-2.5 h-2.5 animate-spin" /> Açılıyor...</>
+        ) : paperState === 'opened' ? (
+          <><CheckCircle2 className="w-2.5 h-2.5" /> Paper Trade Açıldı</>
+        ) : paperState === 'error' ? (
+          <><AlertTriangle className="w-2.5 h-2.5" /> {paperMsg || 'Hata'}</>
+        ) : (
+          <><Wallet className="w-2.5 h-2.5" /> Paper Trade Aç ($1,000)</>
+        )}
+      </button>
     </div>
   )
 }
