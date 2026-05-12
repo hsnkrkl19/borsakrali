@@ -97,6 +97,8 @@ class AuthController {
       return res.json({
         success: true,
         token: result.token,
+        refreshToken: result.refreshToken,
+        expiresAt: result.expiresAt,
         user: result.user,
         message: 'Giris basarili!',
       });
@@ -200,7 +202,12 @@ class AuthController {
         });
       }
 
-      const result = await authService.verifyToken(refreshToken);
+      // Daha onceki surum yanlislikla verifyToken cagiriyordu; bu, refresh
+      // token'i access-token gibi dogrulamaya calistigi icin her zaman
+      // basarisiz oluyordu. Sonuc: kullanici 1 saatte bir oturum acmak
+      // zorunda kaliyordu (ozellikle mobil uygulamada). Asil API
+      // refreshSession; yeni access + refresh token ciftini doner.
+      const result = await authService.refreshSession(refreshToken);
 
       if (!result.success) {
         return res.status(401).json(result);
@@ -208,6 +215,9 @@ class AuthController {
 
       return res.json({
         success: true,
+        token: result.token,
+        refreshToken: result.refreshToken,
+        expiresAt: result.expiresAt,
         user: result.user,
       });
     } catch (error) {

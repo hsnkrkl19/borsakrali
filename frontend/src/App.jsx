@@ -100,6 +100,10 @@ function App() {
 
   useEffect(() => {
     if (!token) return
+    // Demo modunda token sahte — /me'yi çağırırsak 401 alır, api.js
+    // interceptor refresh deneyip oturumu kapatır ve Login'e yönlendirir.
+    // Demo kullanıcıyı backend doğrulamasından muaf tutuyoruz.
+    if (user?.isDemo || token === 'demo-token-full-access') return
 
     let active = true
 
@@ -117,7 +121,7 @@ function App() {
     return () => {
       active = false
     }
-  }, [token, updateUser])
+  }, [token, updateUser, user?.isDemo])
 
   return (
     <ErrorBoundary>

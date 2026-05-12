@@ -74,15 +74,36 @@ async function tryRefreshAccessToken() {
 
   refreshPromise = (async () => {
     try {
-      // services/auth.js'i import etmek yerine doğrudan fetch — döngüsel
-      // bağımlılığı önlüyor.
-      const res = await fetch(`${API_BASE_URL}/auth/refresh`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ refreshToken }),
-      })
-      const data = await res.json().catch(() => ({}))
-      if (!res.ok || !data?.success || !data?.token) return null
+      // services/auth.js'i import etmek yerine doğrudan istek — döngüsel
+      // bağımlılığı önlüyor. Native ortamda CapacitorHttp plugin'i fetch'i
+      // patch'liyor ama bazen POST gövdesini düşürüyor; bu yüzden native'de
+      // CapacitorHttp.request'i doğrudan çağırıyoruz.
+      let data = null
+      if (isNative) {
+        const { CapacitorHttp } = await import('@capacitor/core')
+        const res = await CapacitorHttp.request({
+          url: `${API_BASE_URL}/auth/refresh`,
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          data: { refreshToken },
+          connectTimeout: 60000,
+          readTimeout: 60000,
+        })
+        if (res.status < 200 || res.status >= 300) return null
+        data = typeof res.data === 'string'
+          ? (() => { try { return JSON.parse(res.data) } catch { return null } })()
+          : res.data
+      } else {
+        const res = await fetch(`${API_BASE_URL}/auth/refresh`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ refreshToken }),
+        })
+        data = await res.json().catch(() => ({}))
+        if (!res.ok) return null
+      }
+
+      if (!data?.success || !data?.token) return null
       useAuthStore.getState().updateTokens({
         token: data.token,
         refreshToken: data.refreshToken,
@@ -105,6 +126,13 @@ apiClient.interceptors.response.use(
 
     // 401 → önce refresh dene, başarısızsa logout
     if (error.response?.status === 401 && config && !config.__refreshAttempted) {
+      // Demo kullanıcı sahte token ile geziyor; backend her zaman 401 döner.
+      // Otomatik logout zincirini başlatmıyoruz; istek sessizce reddedilir.
+      const stateNow = useAuthStore.getState()
+      if (stateNow.user?.isDemo || stateNow.token === 'demo-token-full-access') {
+        return Promise.reject(error)
+      }
+
       // /auth/refresh çağrısının kendisi 401 dönerse sonsuz döngüye girmesin
       if (typeof config.url === 'string' && config.url.includes('/auth/refresh')) {
         if (typeof window !== 'undefined' && window.location.pathname !== '/login') {
