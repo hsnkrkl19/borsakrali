@@ -12,13 +12,14 @@
  * Trigger: SignalCard ya da ConfluenceRow'dan "Detay" butonu.
  */
 
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import {
   X, Coins, TrendingUp, TrendingDown, Minus, Target, Shield, Sparkles,
   Activity, Layers, ExternalLink, RefreshCw, AlertTriangle, CheckCircle2,
-  BarChart3, Zap, Clock, Wallet,
+  BarChart3, Zap, Clock, Wallet, LineChart,
 } from 'lucide-react'
 import api from '../services/api'
+import MTFCoinChart from './MTFCoinChart'
 
 const TF_LIST = [
   { key: '1m',  label: '1 dk' },
@@ -54,7 +55,7 @@ function formatUsd(v) {
 export default function MTFCoinDetailModal({ symbol, onClose }) {
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
-  const [activeTab, setActiveTab] = useState('signals') // 'signals' | 'indicators' | 'ai'
+  const [activeTab, setActiveTab] = useState('chart') // 'chart' | 'signals' | 'indicators' | 'ai'
 
   useEffect(() => {
     if (!symbol) return
@@ -105,7 +106,8 @@ export default function MTFCoinDetailModal({ symbol, onClose }) {
             <ConfluencePanel confluence={data.confluence} />
 
             {/* Tab selector */}
-            <div className="flex gap-1 px-3 pt-3 border-b border-dark-700">
+            <div className="flex gap-1 px-3 pt-3 border-b border-dark-700 overflow-x-auto scrollbar-thin">
+              <TabBtn active={activeTab === 'chart'} onClick={() => setActiveTab('chart')} icon={LineChart}>Grafik</TabBtn>
               <TabBtn active={activeTab === 'signals'} onClick={() => setActiveTab('signals')} icon={Layers}>Sinyaller</TabBtn>
               <TabBtn active={activeTab === 'indicators'} onClick={() => setActiveTab('indicators')} icon={BarChart3}>İndikatörler</TabBtn>
               <TabBtn active={activeTab === 'ai'} onClick={() => setActiveTab('ai')} icon={Activity}>AI / Math</TabBtn>
@@ -113,6 +115,7 @@ export default function MTFCoinDetailModal({ symbol, onClose }) {
 
             {/* Tab content */}
             <div className="p-3">
+              {activeTab === 'chart'      && <ChartTab      timeframes={data.timeframes} symbol={symbol} />}
               {activeTab === 'signals'    && <SignalsTab    timeframes={data.timeframes} symbol={symbol} />}
               {activeTab === 'indicators' && <IndicatorsTab timeframes={data.timeframes} />}
               {activeTab === 'ai'         && <AITab         timeframes={data.timeframes} />}
@@ -231,6 +234,67 @@ function TabBtn({ active, onClick, icon: Icon, children }) {
       <Icon className="w-3 h-3" />
       {children}
     </button>
+  )
+}
+
+function ChartTab({ timeframes, symbol }) {
+  // En güçlü sinyali bul — score'a göre — default chart için onu kullan
+  const bestSignal = useMemo(() => {
+    if (!timeframes) return null
+    let best = null
+    for (const tf of ['1h', '4h', '1d', '1w', '15m', '5m', '1m']) {
+      const data = timeframes[tf]
+      if (!data) continue
+      const candidates = [
+        data.long  ? { ...data.long,  tf, dir: 'long'  } : null,
+        data.short ? { ...data.short, tf, dir: 'short' } : null,
+      ].filter(Boolean)
+      for (const c of candidates) {
+        if (!best || (c.totalScore || 0) > (best.totalScore || 0)) best = c
+      }
+    }
+    return best
+  }, [timeframes])
+
+  const defaultTF = bestSignal?.tf || '4h'
+  const levels = bestSignal
+    ? { entry: bestSignal.entry, stop: bestSignal.stop, target1: bestSignal.target1, target2: bestSignal.target2 }
+    : {}
+  const direction = bestSignal?.dir || 'long'
+
+  return (
+    <div className="space-y-2">
+      {bestSignal ? (
+        <div className="flex items-center gap-2 flex-wrap text-[10px]">
+          <span className="text-gray-500 uppercase">En güçlü sinyal:</span>
+          <span className={`px-2 py-0.5 rounded-full border font-bold ${
+            direction === 'long'
+              ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30'
+              : 'bg-rose-500/15 text-rose-300 border-rose-500/30'
+          }`}>
+            {bestSignal.tf} · {direction === 'long' ? '↑ LONG' : '↓ SHORT'} · {bestSignal.totalScore}/{bestSignal.applicableMax} {bestSignal.grade}
+          </span>
+          {bestSignal.winProbability && (
+            <span className="px-2 py-0.5 rounded-full bg-purple-500/15 text-purple-300 border border-purple-500/30">
+              %{(bestSignal.winProbability.probability * 100).toFixed(0)} kazanma
+            </span>
+          )}
+        </div>
+      ) : (
+        <div className="text-[10px] text-gray-500 italic">Sinyal yok — sadece chart</div>
+      )}
+      <MTFCoinChart
+        symbol={symbol}
+        timeframe={defaultTF}
+        levels={levels}
+        direction={direction}
+        height={380}
+      />
+      <p className="text-[10px] text-gray-500 leading-relaxed">
+        Veri kaynağı: Binance public API · TF seçici sağ üstte · Sinyal seviyeleri (Giriş/Stop/T1/T2)
+        en güçlü TF'den çizilir, TF değiştirince aynı seviyeler kalır.
+      </p>
+    </div>
   )
 }
 
