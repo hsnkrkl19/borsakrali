@@ -1,13 +1,30 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
-  TrendingUp, TrendingDown, Activity, Flame, ChevronRight,
+  TrendingUp, TrendingDown, Activity, Crosshair, ChevronRight,
   RefreshCw, Target, Brain, Gem, Search, Briefcase, Coins, Building2,
   Calendar, Clock, Command, Sparkles, ArrowRight,
 } from 'lucide-react'
 import apiClient from '../services/api'
 import GuestCTA from '../components/GuestCTA'
 import MTFConfluenceSummary from '../components/MTFConfluenceSummary'
+import HomeHero from '../components/home/HomeHero'
+import HomeHowItWorks from '../components/home/HomeHowItWorks'
+import HomePhilosophy from '../components/home/HomePhilosophy'
+import HomeKnownVsUnknown from '../components/home/HomeKnownVsUnknown'
+import HomeStrategyShowcase from '../components/home/HomeStrategyShowcase'
+import HomeEducation from '../components/home/HomeEducation'
+import HomeFooter from '../components/home/HomeFooter'
+import HomeGuestProof from '../components/home/HomeGuestProof'
+import HomeSectionNav from '../components/home/HomeSectionNav'
+import HomeStickyCTA from '../components/home/HomeStickyCTA'
+import HomeScrollProgress from '../components/home/HomeScrollProgress'
+import HomeFAQ from '../components/home/HomeFAQ'
+import HomeTestimonials from '../components/home/HomeTestimonials'
+import HomeDataSources from '../components/home/HomeDataSources'
+import HomeChangelog from '../components/home/HomeChangelog'
+import { useScrollReveal, useHoverTilt } from '../hooks/useAnime'
+import { useAuthStore } from '../store/authStore'
 
 const fmt = (n, d = 2) => n == null ? '—' : n.toLocaleString('tr-TR', { minimumFractionDigits: d, maximumFractionDigits: d })
 
@@ -34,15 +51,18 @@ function getMarketStatus(now = new Date()) {
 function IndexCard({ symbol, label, value, change, changePct, onClick, loading }) {
   const up = (changePct ?? 0) >= 0
   const accent = up ? '0,201,138' : '255,59,70' // RGB jade / ember
+  const tiltRef = useHoverTilt({ max: 4, scale: 1.012, glare: true })
   return (
     <button
+      ref={tiltRef}
       onClick={onClick}
-      className="relative w-full text-left rounded-2xl p-4 sm:p-5 border overflow-hidden transition-all
-        active:scale-[0.99] hover:scale-[1.005]"
+      className="relative w-full text-left rounded-2xl p-4 sm:p-5 border overflow-hidden
+        active:scale-[0.99]"
       style={{
         background: `linear-gradient(135deg, rgba(${accent}, 0.06) 0%, var(--bg-card) 55%, var(--bg-card) 100%)`,
         borderColor: `rgba(${accent}, 0.45)`,
         boxShadow: `var(--shadow-card), 0 0 0 1px rgba(${accent}, 0.18) inset`,
+        transition: 'border-color 200ms ease, box-shadow 200ms ease',
       }}
     >
       <span
@@ -125,13 +145,24 @@ function MoverRow({ stock, onClick }) {
 
 /* ─── Hızlı erişim butonu (tema uyumlu) ─────────────────────────────────── */
 function QuickAccess({ to, icon: Icon, label, sub, color, navigate }) {
+  const tiltRef = useHoverTilt({ max: 6, scale: 1.025, glare: true })
   return (
     <button
+      ref={tiltRef}
       onClick={() => navigate(to)}
-      className="group hover-lift flex flex-col sm:flex-row items-center sm:items-center gap-2 sm:gap-3 p-3 sm:p-4 rounded-2xl text-center sm:text-left h-full min-h-[110px] sm:min-h-[72px]"
+      className="group flex flex-col sm:flex-row items-center sm:items-center gap-2 sm:gap-3 p-3 sm:p-4 rounded-2xl text-center sm:text-left h-full min-h-[110px] sm:min-h-[72px]"
       style={{
         background: 'var(--bg-card)',
         border: '1px solid var(--border-main)',
+        transition: 'border-color 220ms ease, box-shadow 240ms ease',
+      }}
+      onMouseEnter={e => {
+        e.currentTarget.style.borderColor = 'var(--border-gold)'
+        e.currentTarget.style.boxShadow = 'var(--shadow-hover)'
+      }}
+      onMouseLeave={e => {
+        e.currentTarget.style.borderColor = 'var(--border-main)'
+        e.currentTarget.style.boxShadow = 'none'
       }}
     >
       <div className={`flex-shrink-0 w-11 h-11 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-br ${color} flex items-center justify-center shadow-md transition-transform group-hover:scale-110`}>
@@ -304,9 +335,67 @@ export default function Dashboard() {
   // yükselen / düşen sayısı). Eskiden top-5 listelerin uzunluğunu sayıyordu —
   // o yüzden hep "5 / 5 / %50" gösteriyordu.
 
+  const cockpitRef = useScrollReveal({ selector: '> *', stagger: 80, y: 22, duration: 800, delay: 50 })
+
   return (
-    <div className="space-y-5">
+    <div className="space-y-10 sm:space-y-14 lg:space-y-16">
+      {/* ─── Scroll Progress Bar (üst altın çubuk) ──────────────────── */}
+      <HomeScrollProgress />
+
+      {/* ─── Sticky CTA (guest, scroll'da görünür) ─────────────────── */}
+      <HomeStickyCTA />
+
+      {/* ─── Bölüm Navigasyonu (sağ kenarda, lg+) ──────────────────── */}
+      <HomeSectionNav />
+
+      {/* ─── HERO ──────────────────────────────────────────────────────── */}
+      <div id="hero"><HomeHero /></div>
+
+      {/* ─── MİSAFİR İÇİN SOSYAL KANIT (auth ise null döner) ─────────── */}
+      <HomeGuestProof />
+
+      {/* ─── FELSEFE ───────────────────────────────────────────────────── */}
+      <div id="philosophy"><HomePhilosophy /></div>
+
+      {/* ─── BİLİNEN vs BİLİNMEYEN — derinlik karşılaştırması ─────────── */}
+      <div id="depth"><HomeKnownVsUnknown /></div>
+
+      {/* ─── STRATEJİ DÖNÜŞLERİ — somut backtest sayıları ─────────────── */}
+      <div id="strategies"><HomeStrategyShowcase /></div>
+
+      {/* ─── VERİ KAYNAKLARI — entegrasyon güveni ───────────────────── */}
+      <div id="sources"><HomeDataSources /></div>
+
+      {/* ─── NASIL ÇALIŞIR? Timeline ─────────────────────────────────── */}
+      <div id="how"><HomeHowItWorks /></div>
+
+      {/* ─── EĞİTİM İÇERİKLERİ — site'nin eğitim odağı vitrini ───────── */}
+      <div id="education"><HomeEducation /></div>
+
+      {/* ─── KULLANICI YORUMLARI — sosyal kanıt ─────────────────────── */}
+      <div id="testimonials"><HomeTestimonials /></div>
+
+      {/* ─── SÜRÜM TİMELİNE — aktif gelişim göstergesi ──────────────── */}
+      <div id="changelog"><HomeChangelog /></div>
+
+      {/* ─── SIK SORULAN SORULAR — eğitim + AdSense içerik zenginliği ─ */}
+      <div id="faq"><HomeFAQ /></div>
+
+      {/* ─── PİYASA KOKPİTİ (canlı veriler) ──────────────────────────── */}
+      <div id="cockpit" ref={cockpitRef} className="space-y-5 scroll-mt-20">
       <GuestCTA />
+
+      <div
+        className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border text-[11px] font-semibold tracking-wide uppercase"
+        style={{
+          background: 'rgba(212,175,55,0.08)',
+          borderColor: 'var(--border-gold)',
+          color: 'var(--gold-400)',
+        }}
+      >
+        <span className="w-1.5 h-1.5 rounded-full bg-current animate-pulse" />
+        Canlı Veri
+      </div>
 
       {/* Header */}
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -444,11 +533,11 @@ export default function Dashboard() {
           <span className="text-xs uppercase tracking-wider font-semibold text-amber-400/80">Hızlı Erişim</span>
         </div>
         <div className="grid grid-cols-3 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-3">
-          <QuickAccess to="/canli-heatmap"   icon={Flame}      label="Canlı Heatmap"  sub="BIST30 renk haritası"             color="from-orange-500 to-red-500"     navigate={navigate} />
+          <QuickAccess to="/sinyaller"       icon={Crosshair}  label="Sinyaller"      sub="BIST + Kripto · WinRate etiketli"  color="from-orange-500 to-red-500"     navigate={navigate} />
           <QuickAccess to="/kripto"          icon={Coins}      label="Kripto"         sub="Top 100 + alarm + watchlist"      color="from-yellow-500 to-orange-500"  navigate={navigate} />
           <QuickAccess to="/teknik-analiz-ai" icon={Activity}  label="Teknik Analiz"  sub="RSI · MACD · EMA · BB"            color="from-blue-500 to-blue-600"      navigate={navigate} />
           <QuickAccess to="/sirket-analizi"  icon={Building2}  label="Şirket Analizi" sub="Mali tablolar · KAP · AI Skor"    color="from-indigo-500 to-indigo-600"  navigate={navigate} />
-          <QuickAccess to="/tarayicilar"     icon={Search}     label="Tarayıcılar"    sub="EMA34 · SNR · Strateji"           color="from-emerald-500 to-emerald-600" navigate={navigate} />
+          <QuickAccess to="/tarayicilar"     icon={Search}     label="Tarayıcılar"    sub="EMA34 Wave · TEMA34 · SNR · Strateji"   color="from-emerald-500 to-emerald-600" navigate={navigate} />
           <QuickAccess to="/gunluk-tespitler" icon={Target}    label="Günlük Sinyaller" sub="AL/SAT/NÖTR algoritma"          color="from-red-500 to-red-600"        navigate={navigate} />
           <QuickAccess to="/takip-listem"    icon={Briefcase}  label="Portföyüm"      sub="Hisse takip + kar/zarar"          color="from-purple-500 to-purple-600"  navigate={navigate} />
           <QuickAccess to="/pro-analiz"      icon={Brain}      label="Pro Analiz"     sub="Premium AI tahminleri"            color="from-amber-500 to-amber-600"    navigate={navigate} />
@@ -515,10 +604,11 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Footer */}
-      <div className="text-xs text-center pt-2 pb-4" style={{ color: 'var(--text-faint)' }}>
-        Veri: Yahoo Finance + KAP · Eğitim amaçlıdır, yatırım tavsiyesi değildir
       </div>
+      {/* /Piyasa Kokpiti */}
+
+      {/* ─── FOOTER — disclaimer + sosyal kanıt + nav ────────────────── */}
+      <HomeFooter />
     </div>
   )
 }

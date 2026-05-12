@@ -31,6 +31,14 @@ const GRADE_STYLES = {
   ZAYIF:    'bg-gray-500/20   text-gray-300   border-gray-500/40',
 }
 
+// Backtest tabanlı güven bandı — sinyale signalConfidenceService.enrichSignal ile eklenir.
+const CONFIDENCE_STYLES = {
+  high:    { label: 'Yüksek Güven', short: 'Yüksek', cls: 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30', icon: '✓' },
+  mid:     { label: 'Orta Güven',   short: 'Orta',   cls: 'bg-amber-500/15   text-amber-300   border-amber-500/30',   icon: '~' },
+  low:     { label: 'Düşük Güven',  short: 'Düşük',  cls: 'bg-rose-500/15    text-rose-300    border-rose-500/30',    icon: '!' },
+  unknown: { label: 'Veri Toplanıyor', short: 'Yeni', cls: 'bg-gray-500/15   text-gray-400    border-gray-500/30',    icon: '?' },
+}
+
 const DIRECTION_STYLES = {
   long:  { label: '↑ AL',  color: 'text-emerald-400', bg: 'bg-emerald-500/10', border: 'border-emerald-500/30' },
   short: { label: '↓ SAT', color: 'text-red-400',     bg: 'bg-red-500/10',     border: 'border-red-500/30' },
@@ -300,6 +308,7 @@ export default function BugununSinyalleri() {
 function SignalCard({ sig, rank, diff, reasonsCatalog, expanded, onToggle }) {
   const dir = DIRECTION_STYLES[sig.direction] || DIRECTION_STYLES.long
   const gradeColor = GRADE_STYLES[sig.grade] || GRADE_STYLES.ZAYIF
+  const confStyle = CONFIDENCE_STYLES[sig.confidence] || CONFIDENCE_STYLES.unknown
   const reasonStyle = diff ? (REASON_STYLES[diff.status] || REASON_STYLES.unchanged) : null
   const reasonLabel = diff ? (reasonsCatalog[diff.status]?.label || diff.status) : null
 
@@ -309,6 +318,12 @@ function SignalCard({ sig, rank, diff, reasonsCatalog, expanded, onToggle }) {
     conditionsByGroup[c.group] = conditionsByGroup[c.group] || []
     conditionsByGroup[c.group].push(c)
   }
+
+  // "Neden bu sinyal" — geçen ilk 3 koşulu seç (özet için)
+  const topReasons = (sig.conditions || [])
+    .filter(c => c.met && c.applicable)
+    .slice(0, 3)
+    .map(c => c.label)
 
   const fillBadge = sig.fillMode === 'market'
     ? { label: 'Market Entry', desc: 'Şu anki fiyattan al — anında tetik', cls: 'bg-emerald-500/10 text-emerald-300 border-emerald-500/30' }
@@ -329,6 +344,20 @@ function SignalCard({ sig, rank, diff, reasonsCatalog, expanded, onToggle }) {
               </span>
               <span className={`text-[10px] px-2 py-0.5 rounded-full border font-bold ${gradeColor}`}>
                 {sig.grade}
+              </span>
+              {/* Backtest tabanlı güven badge'i — historicalWinRate varsa winRate'i de göster */}
+              <span
+                className={`text-[10px] px-2 py-0.5 rounded-full border font-semibold flex items-center gap-1 ${confStyle.cls}`}
+                title={
+                  sig.historicalWinRate != null
+                    ? `Geçmiş başarı %${sig.historicalWinRate} (${sig.sampleSize ?? 0} örnek). Bu sinyalin koşul kümesi backtestte bu kadarını hedefe ulaştırdı.`
+                    : 'Bu strateji için henüz yeterli backtest örneklemi yok. Cron Pazar 03:00\'da günceller.'
+                }
+              >
+                <span>{confStyle.icon}</span>
+                <span>
+                  {sig.historicalWinRate != null ? `%${sig.historicalWinRate} · ${confStyle.short}` : confStyle.short}
+                </span>
               </span>
             </div>
             {sig.name && sig.name !== sig.symbol && (
@@ -360,7 +389,7 @@ function SignalCard({ sig, rank, diff, reasonsCatalog, expanded, onToggle }) {
           </div>
         )}
 
-        {/* Fiyat satırı */}
+        {/* Fiyat satırı — Giriş / Stop / Hedef / R/R / mesafe */}
         <div className="flex items-center gap-x-3 gap-y-1 mt-2 ml-8 text-[11px] text-gray-400 flex-wrap">
           {sig.entry != null && (
             <span className="flex items-center gap-1">
@@ -374,6 +403,11 @@ function SignalCard({ sig, rank, diff, reasonsCatalog, expanded, onToggle }) {
           {sig.target != null && (
             <span className="text-emerald-300">Hedef: <span className="font-mono">{sig.target.toFixed(2)}</span></span>
           )}
+          {sig.riskReward != null && (
+            <span className="text-sky-300" title="Reward/Risk oranı — kazanç potansiyeli stop riskinin kaç katı">
+              R/R: <span className="font-mono">{sig.riskReward.toFixed(2)}</span>
+            </span>
+          )}
           {sig.bestZone?.priceDistancePct != null && (
             <span>🎯 %{sig.bestZone.priceDistancePct} uzakta</span>
           )}
@@ -381,6 +415,14 @@ function SignalCard({ sig, rank, diff, reasonsCatalog, expanded, onToggle }) {
             <span className="text-gray-500">📅 {sig.bestZone.pivotDate}{sig.bestZone.daysAgo != null && ` (${sig.bestZone.daysAgo}g)`}</span>
           )}
         </div>
+
+        {/* "Neden bu sinyal" — 3 ana koşul, tıklamadan görünsün */}
+        {topReasons.length > 0 && (
+          <div className="mt-2 ml-8 flex items-start gap-1.5 text-[10px] text-gray-400">
+            <span className="text-gold-400/80 font-semibold uppercase tracking-wider whitespace-nowrap pt-0.5">Neden:</span>
+            <span className="leading-relaxed">{topReasons.join(' · ')}</span>
+          </div>
+        )}
       </div>
 
       {expanded && (
@@ -472,9 +514,9 @@ function SignalCard({ sig, rank, diff, reasonsCatalog, expanded, onToggle }) {
             </div>
           )}
 
-          {/* Stop / Hedef kutuları */}
+          {/* Stop / Hedef kutuları + R/R */}
           {(sig.stop != null || sig.target != null) && (
-            <div className="grid grid-cols-3 gap-2 text-xs">
+            <div className="grid grid-cols-4 gap-2 text-xs">
               <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-2 text-center">
                 <p className="text-[10px] text-gray-500">▶ GİRİŞ</p>
                 <p className="font-mono font-bold text-blue-300">{sig.entry?.toFixed(2)}</p>
@@ -487,8 +529,40 @@ function SignalCard({ sig, rank, diff, reasonsCatalog, expanded, onToggle }) {
                 <p className="text-[10px] text-gray-500">★ HEDEF</p>
                 <p className="font-mono font-bold text-emerald-300">{sig.target?.toFixed(2) ?? '—'}</p>
               </div>
+              <div className="bg-sky-500/10 border border-sky-500/20 rounded-lg p-2 text-center">
+                <p className="text-[10px] text-gray-500">↔ R/R</p>
+                <p className="font-mono font-bold text-sky-300">{sig.riskReward?.toFixed(2) ?? '—'}</p>
+              </div>
             </div>
           )}
+
+          {/* Backtest tabanlı güven kartı */}
+          <div className={`rounded-lg p-3 border text-xs ${confStyle.cls}`}>
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <div className="flex items-center gap-2">
+                <span className="text-base">{confStyle.icon}</span>
+                <span className="font-bold">{confStyle.label}</span>
+              </div>
+              {sig.historicalWinRate != null && (
+                <div className="flex items-center gap-3 text-[11px]">
+                  <span title="Bu skor bantında geçmiş backtestlerde hedefe ulaşan sinyal oranı">
+                    Win Rate: <span className="font-mono font-bold">%{sig.historicalWinRate}</span>
+                  </span>
+                  {sig.historicalAvgReturn != null && (
+                    <span title="Ortalama getiri (tüm sinyaller, açık dahil)">
+                      Ort. getiri: <span className="font-mono">{sig.historicalAvgReturn >= 0 ? '+' : ''}{sig.historicalAvgReturn}%</span>
+                    </span>
+                  )}
+                  <span className="text-gray-400">Örnek: {sig.sampleSize ?? 0}</span>
+                </div>
+              )}
+            </div>
+            {sig.historicalWinRate == null && (
+              <p className="text-[11px] opacity-80 mt-1.5">
+                Bu strateji × skor kombinasyonu için yeterli backtest örneklemi yok. Pazar 03:00'da güncellenir.
+              </p>
+            )}
+          </div>
         </div>
       )}
     </div>

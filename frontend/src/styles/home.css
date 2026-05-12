@@ -1,0 +1,128 @@
+/* ============================================================================
+   HOME — Premium animations layer
+   Imleç halkası, manyetik butonlar, char-split reveal, SVG hover
+   ============================================================================ */
+
+/* === Custom cursor (yalnızca işaretçi cihazlarında) ====================== */
+.cursor-dot,
+.cursor-ring {
+  position: fixed;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+  z-index: 9998;
+  will-change: transform;
+  border-radius: 50%;
+}
+
+.cursor-dot {
+  width: 8px;
+  height: 8px;
+  background: var(--gold-400);
+  box-shadow: 0 0 10px rgba(212, 175, 55, 0.75);
+  mix-blend-mode: screen;
+}
+
+.cursor-ring {
+  width: 36px;
+  height: 36px;
+  border: 1px solid rgba(212, 175, 55, 0.45);
+  background: rgba(212, 175, 55, 0.04);
+  transition: width 240ms ease, height 240ms ease,
+              border-color 240ms ease, background-color 240ms ease;
+}
+
+[data-theme="light"] .cursor-dot {
+  background: var(--bronze);
+  box-shadow: 0 0 10px rgba(139, 101, 16, 0.55);
+}
+[data-theme="light"] .cursor-ring {
+  border-color: rgba(139, 101, 16, 0.45);
+  background: rgba(139, 101, 16, 0.06);
+}
+
+/* Dokunmatik / fare yok → tamamen gizle */
+@media (pointer: coarse), (hover: none) {
+  .cursor-dot, .cursor-ring { display: none !important; }
+}
+
+/* === Char-split reveal ==================================================== */
+.char {
+  display: inline-block;
+  will-change: transform, opacity;
+  backface-visibility: hidden;
+}
+
+/* === Manyetik buton ======================================================= */
+.magnetic-btn {
+  will-change: transform, box-shadow;
+  transition: box-shadow 320ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.magnetic-btn::after {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  pointer-events: none;
+  background: radial-gradient(circle at var(--mx, 50%) var(--my, 50%),
+              rgba(255, 248, 225, 0.22), transparent 55%);
+  opacity: 0;
+  transition: opacity 280ms ease;
+}
+.magnetic-btn:hover::after { opacity: 1; }
+
+/* === Hero SVG signal dots/candles — scale origin merkezde =================== */
+.signal-dot,
+.candle {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+/* === Strategy card ======================================================== */
+.strategy-card {
+  transition: border-color 320ms ease, box-shadow 320ms ease;
+  will-change: transform;
+}
+.strategy-card:hover {
+  border-color: var(--border-gold-strong) !important;
+}
+.strategy-card .arrow-ico {
+  transition: color 220ms ease;
+}
+.strategy-card:hover .arrow-ico {
+  color: var(--gold-300) !important;
+}
+
+/* === Timeline center line (scroll-driven fill) ============================= */
+.tl-line-fill {
+  background: linear-gradient(180deg, var(--gold-300) 0%, var(--gold-400) 45%, rgba(212,175,55,0) 100%);
+  box-shadow: 0 0 14px rgba(212, 175, 55, 0.40);
+  transition: height 160ms linear;
+}
+
+.tl-dot { will-change: transform; }
+.tl-pulse {
+  will-change: transform, opacity;
+  transform-origin: center;
+}
+
+/* === Hero floating ticker chip ============================================ */
+.tape-track {
+  display: inline-flex;
+  gap: 24px;
+  white-space: nowrap;
+  animation: tape-scroll 28s linear infinite;
+}
+@keyframes tape-scroll {
+  to { transform: translateX(-50%); }
+}
+
+/* === Reduce motion ======================================================== */
+@media (prefers-reduced-motion: reduce) {
+  .char, .magnetic-btn, .strategy-card, .tl-item,
+  .signal-dot, .candle, .tape-track {
+    transition: none !important;
+    animation: none !important;
+  }
+  .cursor-dot, .cursor-ring { display: none !important; }
+}
