@@ -25,7 +25,19 @@ export function applyTheme(theme) {
   if (typeof document !== 'undefined' && document.body) {
     document.body.setAttribute('data-theme', resolvedTheme)
   }
-  window.dispatchEvent(new CustomEvent('bk-theme-change', { detail: { theme: resolvedTheme } }))
+  // Ripple efekti için tıklama pozisyonu — ThemeToggle bunu yazar
+  const origin = (typeof window !== 'undefined') ? window.__bkThemeRippleOrigin : null
+  window.dispatchEvent(new CustomEvent('bk-theme-change', {
+    detail: {
+      theme: resolvedTheme,
+      x: origin?.x,
+      y: origin?.y,
+    },
+  }))
+  // Bir kez kullanıldı, sıfırla
+  if (typeof window !== 'undefined') {
+    window.__bkThemeRippleOrigin = null
+  }
 
   return resolvedTheme
 }

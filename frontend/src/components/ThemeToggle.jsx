@@ -68,8 +68,16 @@ export default function ThemeToggle({ variant = 'inline', className = '' }) {
     return () => window.removeEventListener('bk-theme-change', onChange)
   }, [])
 
-  const toggle = () => {
+  // toggle() — tema değiştirir ve Ripple efekti için tıklama pozisyonunu
+  // bir kez 'bk-theme-ripple-origin' window prop'una yazar (ThemeRipple okur).
+  const toggle = (e) => {
     const next = theme === 'dark' ? 'light' : 'dark'
+    // Tıklama pozisyonunu yakala — overlay buradan yayılır
+    const x = (e && (e.clientX ?? e.pageX)) ?? null
+    const y = (e && (e.clientY ?? e.pageY)) ?? null
+    if (x != null && y != null) {
+      window.__bkThemeRippleOrigin = { x, y }
+    }
     setTheme(applyTheme(next))
   }
 

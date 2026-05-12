@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import apiClient from '../services/api'
 import { useUsageStore, DAILY_LIMIT } from '../store/usageStore'
-import { useAnnouncementsStore } from '../store/announcementsStore'
+import { useAnnouncementsStore, inferCategory, NOTIF_CATEGORIES } from '../store/announcementsStore'
 import { formatRelativeTime } from '../lib/strategyMeta'
 import BrandMark from './BrandMark'
 
@@ -86,7 +86,17 @@ export default function Header() {
   const announcements = useAnnouncementsStore((s) => s.announcements)
   const markAllAnnouncementsRead = useAnnouncementsStore((s) => s.markAllRead)
   const announcementReadIds = useAnnouncementsStore((s) => s.readIds)
-  const announcementUnread = announcements.filter((a) => a.id && !announcementReadIds.includes(a.id)).length
+  const announcementHiddenIds = useAnnouncementsStore((s) => s.hiddenIds)
+  const announcementPrefs = useAnnouncementsStore((s) => s.preferences)
+  // Tercih + gizleme farkındalıklı görünür liste — sustur edilen kategoriler dropdown'da da gizli
+  const visibleAnnouncements = announcements.filter((a) => {
+    if (!a.id) return false
+    if (announcementHiddenIds?.includes(a.id)) return false
+    const cat = inferCategory(a)
+    if (announcementPrefs && announcementPrefs[cat] === false) return false
+    return true
+  })
+  const announcementUnread = visibleAnnouncements.filter((a) => !announcementReadIds.includes(a.id)).length
   const userMenuRef = useRef(null)
   const notifRef = useRef(null)
   const isMac = typeof navigator !== 'undefined' && navigator.platform.toUpperCase().includes('MAC')
@@ -428,15 +438,23 @@ export default function Header() {
 
                 <div className="flex-1 overflow-y-auto custom-scrollbar p-2">
                   {notifTab === 'announcements' ? (
-                    announcements.length === 0 ? (
+                    visibleAnnouncements.length === 0 ? (
                       <div className="px-4 py-10 text-center" style={{ color: 'var(--text-faint)' }}>
                         <Megaphone className="w-6 h-6 mx-auto mb-2 opacity-50" />
-                        <div className="text-sm">Henüz duyuru yok</div>
-                        <div className="text-xs mt-1">Yeni duyuru gelince burada görünecek</div>
+                        <div className="text-sm">
+                          {announcements.length > 0 ? 'Bu kategoriler sustur edildi' : 'Henüz duyuru yok'}
+                        </div>
+                        <div className="text-xs mt-1">
+                          {announcements.length > 0
+                            ? <button onClick={() => { setNotifOpen(false); navigate('/bildirimler') }} className="underline" style={{ color: 'var(--gold-400)' }}>Tercihlerden geri aç →</button>
+                            : 'Yeni duyuru gelince burada görünecek'}
+                        </div>
                       </div>
                     ) : (
-                      announcements.map((a) => {
+                      visibleAnnouncements.map((a) => {
                         const isUnread = a.id && !announcementReadIds.includes(a.id)
+                        const cat = inferCategory(a)
+                        const meta = NOTIF_CATEGORIES[cat] || NOTIF_CATEGORIES.general
                         return (
                           <button
                             key={a.id || a.sentAt}
@@ -450,14 +468,14 @@ export default function Header() {
                             className="notif-row w-full text-left"
                             style={isUnread ? { background: 'rgba(212, 175, 55, 0.06)' } : undefined}
                           >
-                            <div className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0"
+                            <div className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 text-base"
                               style={{
-                                background: 'rgba(212, 175, 55, 0.15)',
-                                color: 'var(--gold-400)',
-                                border: '1px solid var(--border-gold)',
+                                background: `${meta.color}1f`,
+                                color: meta.color,
+                                border: `1px solid ${meta.color}40`,
                               }}
                             >
-                              <Megaphone className="w-4 h-4" />
+                              {meta.icon}
                             </div>
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-1.5">
@@ -534,7 +552,7 @@ export default function Header() {
                 </div>
 
                 <button
-                  onClick={() => { setNotifOpen(false); navigate(notifTab === 'announcements' ? '/site-haritasi' : '/gunluk-tespitler') }}
+                  onClick={() => { setNotifOpen(false); navigate(notifTab === 'announcements' ? '/bildirimler' : '/gunluk-tespitler') }}
                   className="px-3.5 py-2.5 border-t text-[12px] font-semibold flex items-center justify-center gap-1.5 hover:opacity-80 transition-opacity"
                   style={{
                     borderColor: 'var(--border-main)',
@@ -542,7 +560,7 @@ export default function Header() {
                     color: 'var(--gold-400)',
                   }}
                 >
-                  Tüm sinyalleri görüntüle →
+                  {notifTab === 'announcements' ? 'Bildirim merkezini aç →' : 'Tüm sinyalleri görüntüle →'}
                 </button>
               </div>
             )}
@@ -596,6 +614,7 @@ export default function Header() {
                   </div>
                   {[
                     { icon: Command, label: 'Komut Paleti', kbd: `${isMac ? '⌘' : 'Ctrl'}+K`, action: () => { setUserMenuOpen(false); openCmdK() } },
+                    { icon: Bell, label: 'Bildirimler', to: '/bildirimler' },
                     { icon: Settings, label: 'Ayarlar', to: '/ayarlar' },
                     { icon: KeyRound, label: 'Şifre Değiştir', to: '/sifre-degistir' },
                     { icon: Sparkles, label: 'Abonelik', to: '/abonelik' },

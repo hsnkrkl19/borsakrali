@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { io } from 'socket.io-client'
 import apiClient from '../services/api'
-import { useAnnouncementsStore } from '../store/announcementsStore'
+import { useAnnouncementsStore, inferCategory } from '../store/announcementsStore'
 import { getSocketBase } from '../config'
 import { playNotificationChime } from '../utils/notificationSound'
 import BroadcastToast from './BroadcastToast'
@@ -59,7 +59,13 @@ export default function AnnouncementsManager() {
       if (entry.id && seenIdsRef.current.has(entry.id)) return
       if (entry.id) seenIdsRef.current.add(entry.id)
 
+      // Store'a her zaman ekle (kullanıcı /bildirimler sayfasında geçmişten geri açabilsin),
+      // ama tercihe göre TOAST/SES tetiklemeyi atla.
       pushAnnouncement(entry)
+
+      const category = inferCategory(entry)
+      const enabled = useAnnouncementsStore.getState().isCategoryEnabled(category)
+      if (!enabled) return
 
       // Toast — 6 sn sonra kendi kendine kapanacak. Yeni duyuru gelirse
       // eskini değiştirir (üst üste binmesin).

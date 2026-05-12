@@ -2,7 +2,7 @@ import { NavLink, useLocation, useNavigate } from 'react-router-dom'
 import { useState, useEffect } from 'react'
 import {
   LayoutDashboard,
-  Flame,
+  Crosshair,
   Activity,
   Search,
   MoreHorizontal,
@@ -30,13 +30,13 @@ import BrandMark from './BrandMark'
 // isPublic: true → login olmayan kullanıcılar da görür
 const mainNavItemsAll = [
   { path: '/',                label: 'Ana Sayfa', icon: LayoutDashboard, isPublic: true },
-  { path: '/canli-heatmap',   label: 'Heatmap',   icon: Flame,           isPublic: true },
+  { path: '/sinyaller',       label: 'Sinyaller', icon: Crosshair,       isPublic: true },
   { path: '/teknik-analiz-ai',label: 'Analiz',    icon: Activity },
   { path: '/tarayicilar',     label: 'Tarayıcı',  icon: Search },
 ]
 const mainNavItemsPublic = [
   { path: '/',                label: 'Ana Sayfa',       icon: LayoutDashboard, isPublic: true },
-  { path: '/canli-heatmap',   label: 'Heatmap',         icon: Flame,           isPublic: true },
+  { path: '/sinyaller',       label: 'Sinyaller',       icon: Crosshair,       isPublic: true },
   { path: '/egitim',          label: 'Egitim',          icon: BookOpen,        isPublic: true },
   { path: '/ekonomik-takvim', label: 'Eko. Takvim',     icon: Calendar,        isPublic: true },
 ]

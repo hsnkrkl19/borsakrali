@@ -98,10 +98,27 @@ async function fetchGoldTryFallbackSeries(options) {
   }
 }
 
-export async function fetchCommodityHistory(commKey, options = {}) {
-  if (commKey === 'gold_try') {
-    return fetchGoldTryFallbackSeries(options)
+async function fetchSilverTryFallbackSeries(options) {
+  const [silverUsd, usdTry] = await Promise.all([
+    fetchCommodityHistoryDirect('silver_usd', options),
+    fetchCommodityHistoryDirect('usd_try', options),
+  ])
+
+  const combinedData = combineGoldTrySeries(silverUsd.data || [], usdTry.data || [])
+  if (!combinedData.length) {
+    throw new Error('silver_try fallback series could not be combined')
   }
 
+  return {
+    symbol: 'SILVER_TL',
+    name: 'Gram Gümüş',
+    unit: 'TL/gr',
+    data: combinedData,
+  }
+}
+
+export async function fetchCommodityHistory(commKey, options = {}) {
+  if (commKey === 'gold_try') return fetchGoldTryFallbackSeries(options)
+  if (commKey === 'silver_try') return fetchSilverTryFallbackSeries(options)
   return fetchCommodityHistoryDirect(commKey, options)
 }

@@ -12,7 +12,7 @@ import {
   Settings,
   ChevronLeft,
   ChevronRight,
-  Flame,
+  Crosshair, // v5: Heatmap → Sinyaller migration
   BellRing,
   Gem,
   CreditCard,
@@ -23,6 +23,8 @@ import {
   KeyRound,
   Calculator,
   Map as MapIcon,
+  BarChart3,
+  Bot,
 } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { useAuthStore } from '../store/authStore'
@@ -69,7 +71,7 @@ export default function Sidebar({ isOpen, onToggle }) {
     // Ana
     { path: '/',                  label: 'Piyasa Kokpiti',   icon: LayoutDashboard, group: 'core', isPublic: true },
     { path: '/site-haritasi',     label: 'Site Haritası',    icon: MapIcon,         group: 'core', highlight: true, isPublic: true },
-    { path: '/canli-heatmap',     label: 'Canlı Heatmap',    icon: Flame,           group: 'core', highlight: true, isPublic: true },
+    { path: '/sinyaller',         label: 'Sinyaller',        icon: Crosshair,       group: 'core', highlight: true, isPublic: true, badge: 'YENİ' },
     { path: '/egitim',            label: 'Eğitim',           icon: BookOpen,        group: 'core', isPublic: true, badge: 'YENİ' },
     { path: '/kripto',            label: 'Kripto',           icon: Coins,           group: 'core', highlight: true, badge: 'YENİ' },
     { path: '/pro-analiz',        label: 'Pro Analiz',       icon: Gem,             group: 'core', highlight: true, badge: 'PRO' },
@@ -81,6 +83,8 @@ export default function Sidebar({ isOpen, onToggle }) {
     { path: '/kripto-degerleme',  label: 'Kripto Değerleme', icon: Coins,           group: 'analiz', highlight: true, badge: 'YENİ' },
     { path: '/tarayicilar',       label: 'Tarayıcılar',      icon: Search,          group: 'analiz' },
     { path: '/gunluk-tespitler',  label: 'Günlük Sinyaller', icon: Target,          group: 'analiz' },
+    { path: '/trading-bot',       label: 'Trading Bot',      icon: Bot,             group: 'analiz', highlight: true, badge: 'YENİ' },
+    { path: '/gun-sonu-performans', label: 'Gün Sonu Performans', icon: BarChart3,  group: 'analiz', highlight: true, badge: 'YENİ' },
     { path: '/performans',        label: 'Performans',       icon: TrendingUp,      group: 'analiz' },
 
     // Kişisel

@@ -11,6 +11,9 @@ import AnnouncementsManager from './components/AnnouncementsManager'
 import AdminBroadcastFAB from './components/AdminBroadcastFAB'
 import CookieConsent from './components/CookieConsent'
 import RequireAuth from './components/RequireAuth'
+import ThemeRipple from './components/ThemeRipple'
+import MobileBottomNav from './components/MobileBottomNav'
+import PageTransition from './components/PageTransition'
 import Dashboard from './pages/Dashboard'
 import GunlukTespitler from './pages/GunlukTespitler'
 import TakipListem from './pages/TakipListem'
@@ -25,13 +28,14 @@ import AccountDeletion from './pages/AccountDeletion'
 import Hakkimizda from './pages/Hakkimizda'
 import Iletisim from './pages/Iletisim'
 import PlayStorePreviewAuth from './pages/PlayStorePreviewAuth'
-import LiveHeatmap from './pages/LiveHeatmap'
+import Sinyaller from './pages/Sinyaller'
 import ProAnaliz from './pages/ProAnaliz'
 import Abonelik from './pages/Abonelik'
 import Odeme from './pages/Odeme'
 import IstekPaneli from './pages/IstekPaneli'
 import EkonomikTakvim from './pages/EkonomikTakvim'
 import AdminBildirimler from './pages/AdminBildirimler'
+import Bildirimler from './pages/Bildirimler'
 import Egitim from './pages/Egitim'
 import TeknikAnalizGiris from './pages/egitim/TeknikAnalizGiris'
 import Bist100Rehberi from './pages/egitim/Bist100Rehberi'
@@ -41,7 +45,7 @@ import DestekDirenc from './pages/egitim/DestekDirenc'
 import YatirimStratejisi from './pages/egitim/YatirimStratejisi'
 
 // === BİRLEŞİK SAYFALAR (sadeleştirme) ===
-import Tarayicilar from './pages/Tarayicilar'         // Taramalar + EMA34 + Malaysian SNR + Tarama Merkezi
+import Tarayicilar from './pages/Tarayicilar'         // Taramalar + EMA34 Wave + TEMA34 + Malaysian SNR + Tarama Merkezi
 import Notlarim from './pages/Notlarim'               // Teknik Notlar + Finansal Notlar
 import SirketAnalizi from './pages/SirketAnalizi'     // Temel Analiz AI + Mali Tablolar + KAP + AI Skor
 import Performans from './pages/Performans'           // Algoritma Performans + İnceleme Kütüphanesi
@@ -50,6 +54,8 @@ import EndeksDetay from './pages/EndeksDetay'         // YENİ: Endeks detay gra
 import DCFDegerleme from './pages/DCFDegerleme'       // YENİ: dexter DCF değerleme
 import KriptoDegerleme from './pages/KriptoDegerleme' // YENİ: kripto composite valuation
 import SiteHaritasi from './pages/SiteHaritasi'       // Site haritasi (eski Yenilikler yerine)
+import GunSonuPerformans from './pages/GunSonuPerformans' // YENİ: günün sinyallerinin gün sonu performansı
+import TradingBot from './pages/TradingBot' // YENİ v5.1: Freqtrade port + sınama katmanı
 
 import { useAuthStore } from './store/authStore'
 import { fetchCurrentUser } from './services/auth'
@@ -63,6 +69,7 @@ const REDIRECT_MAP = [
   // Tarayıcılar grubu
   { from: '/taramalar',                to: '/tarayicilar?tab=genel' },
   { from: '/ema34-tarayici',           to: '/tarayicilar?tab=ema34' },
+  { from: '/tema34-tarayici',          to: '/tarayicilar?tab=tema34' },
   { from: '/malaysian-snr',            to: '/tarayicilar?tab=snr' },
   { from: '/tarama-analiz-merkezi',    to: '/tarayicilar?tab=merkez' },
   { from: '/x-gundem',                 to: '/tarayicilar?tab=x-gundem' },
@@ -128,7 +135,9 @@ function App() {
     <Router>
       <BackButtonHandler />
       <PushNotificationManager />
+      <ThemeRipple />
       <ThemeToggle variant="floating" />
+      <MobileBottomNav />
       {isAuthenticated && <CommandPalette />}
       {isAuthenticated && <AnnouncementsManager />}
       {isAuthenticated && <AdminBroadcastFAB />}
@@ -154,10 +163,14 @@ function App() {
           element={
             <Layout>
               <ErrorBoundary>
+              <PageTransition>
               <Routes>
                 {/* === HERKESE ACIK SAYFALAR (login gerektirmez, AdSense uyumu) === */}
                 <Route path="/" element={<Dashboard />} />
-                <Route path="/canli-heatmap" element={<LiveHeatmap />} />
+                {/* Sinyaller — Komuta merkezi (BIST + Kripto özet) */}
+                <Route path="/sinyaller" element={<Sinyaller />} />
+                {/* Eski heatmap URL → yeni sinyaller sayfasına yönlendir */}
+                <Route path="/canli-heatmap" element={<Navigate to="/sinyaller" replace />} />
                 <Route path="/ekonomik-takvim" element={<EkonomikTakvim />} />
                 <Route path="/site-haritasi" element={<SiteHaritasi />} />
                 <Route path="/endeks/:symbol" element={<EndeksDetay />} />
@@ -182,8 +195,10 @@ function App() {
                 <Route path="/tarayicilar" element={<RequireAuth><Tarayicilar /></RequireAuth>} />
                 <Route path="/gunluk-tespitler" element={<RequireAuth><GunlukTespitler /></RequireAuth>} />
                 <Route path="/performans" element={<RequireAuth><Performans /></RequireAuth>} />
+                <Route path="/gun-sonu-performans" element={<RequireAuth><GunSonuPerformans /></RequireAuth>} />
                 <Route path="/takip-listem" element={<RequireAuth><TakipListem /></RequireAuth>} />
                 <Route path="/notlarim" element={<RequireAuth><Notlarim /></RequireAuth>} />
+                <Route path="/trading-bot" element={<RequireAuth><TradingBot /></RequireAuth>} />
 
                 {/* === HESAP === */}
                 <Route path="/abonelik" element={<Abonelik />} />
@@ -191,6 +206,7 @@ function App() {
                 <Route path="/ayarlar" element={<RequireAuth><Ayarlar /></RequireAuth>} />
                 <Route path="/sifre-degistir" element={<RequireAuth><ChangePassword /></RequireAuth>} />
                 <Route path="/istek-paneli" element={<RequireAuth><IstekPaneli /></RequireAuth>} />
+                <Route path="/bildirimler" element={<RequireAuth><Bildirimler /></RequireAuth>} />
 
                 {user?.role === 'admin' && (
                   <Route path="/admin-bildirimler" element={<AdminBildirimler />} />
@@ -204,6 +220,7 @@ function App() {
                 {/* Bilinmeyen yollar Dashboard'a */}
                 <Route path="*" element={<Navigate to="/" replace />} />
               </Routes>
+              </PageTransition>
               </ErrorBoundary>
             </Layout>
           }

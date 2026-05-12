@@ -382,21 +382,38 @@ export default function IncelemeKutuphanesi() {
       }
     },
     {
-      id: 'ema34-destek',
-      name: 'EMA34 Desteği',
+      id: 'ema34-wave',
+      name: 'EMA34 Wave (Bill Williams)',
       category: 'Boğa Ligi',
       icon: LineChart,
       color: 'gold',
-      description: 'EMA34\'e dokunan ve tepki veren hisseler. Profesyonel trader\'ların favori seviyesi.',
+      description: 'Tek-geçişli klasik EMA34. Trend boğa modunda + EMA34\'e geri çekilme + yeşil tepki kapanışı = yüksek olasılıklı giriş.',
       details: {
         'Nasıl Tespit Edilir?': [
-          'Son 3 günde EMA34\'e dokunuş',
-          'Fiyat EMA34\'ün üzerinde kapanış',
-          'Trend yukarı yönlü',
-          'Hacim desteği var'
+          'Önceki 5+ ardışık bar EMA34 üzerinde (trend onayı)',
+          'Son 5 bar içinde fiyat EMA34\'e dokundu (low ≤ EMA ≤ high)',
+          'EMA34 eğimi yukarı yönlü (> +%0.3 / 5 bar)',
+          'Bugün yeşil kapanış (Kapanış > Dünkü Kapanış)'
         ],
-        'Neden EMA34?': 'Fibonacci sayısı (34) piyasada doğal destek/direnç oluşturur.',
-        'Kullanım': 'Stop-loss EMA34\'ün %2 altında'
+        'Neden EMA34?': 'Fibonacci sayısı (34) piyasada doğal destek/direnç oluşturur. Bill Williams\'ın "Trading Chaos" kitabındaki Wave Rider stratejisinin temelidir.',
+        'Kullanım': 'Stop-loss EMA34\'ün %2 altında — TP bir sonraki direnç veya 1:2.5 RR'
+      }
+    },
+    {
+      id: 'tema34-destek',
+      name: 'TEMA34 Desteği (Triple EMA)',
+      category: 'Boğa Ligi',
+      icon: LineChart,
+      color: 'gold',
+      description: 'TEMA34 (Triple EMA) — klasik EMA\'ya göre ~3 kat daha az gecikme. Hızlı sinyal arayanlar için.',
+      details: {
+        'Nasıl Tespit Edilir?': [
+          'Son 3 günde TEMA34\'e dokunuş',
+          'Fiyat TEMA34\'ün üzerinde kapanış',
+          'Trend yukarı yönlü'
+        ],
+        'EMA34\'ten farkı': 'TEMA üçlü filtrelenmiş — daha hızlı tepki, ama daha gürültülü. EMA34 = uzun vadeli rejim filtresi, TEMA34 = kısa vadeli sinyal.',
+        'Kullanım': 'Stop-loss TEMA34\'ün %1.5 altında'
       }
     }
   ]

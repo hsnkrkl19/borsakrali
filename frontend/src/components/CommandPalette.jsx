@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
-  Search, LayoutDashboard, Flame, Coins, Gem, Activity, Building2,
+  Search, LayoutDashboard, Crosshair, Coins, Gem, Activity, Building2,
   Calculator, Target, TrendingUp, Briefcase, BookOpen, Calendar,
   CreditCard, Settings, Sparkles, KeyRound, LogOut, ArrowRight,
-  Bell, MessageCircle, Sun, Moon, Bookmark,
+  Bell, MessageCircle, Sun, Moon, Bookmark, Bot,
 } from 'lucide-react'
 import apiClient from '../services/api'
 import { useAuthStore } from '../store/authStore'
@@ -12,15 +12,16 @@ import { applyTheme, getStoredTheme } from '../utils/theme'
 
 const PAGE_ITEMS = [
   { kind: 'page', label: 'Piyasa Kokpiti',     to: '/',                  icon: LayoutDashboard, hint: 'Ana sayfa' },
-  { kind: 'page', label: 'Canlı Heatmap',      to: '/canli-heatmap',     icon: Flame },
+  { kind: 'page', label: 'Sinyaller',          to: '/sinyaller',         icon: Crosshair, hint: 'BIST + Kripto komuta merkezi' },
   { kind: 'page', label: 'Kripto Piyasa',      to: '/kripto',            icon: Coins, hint: 'Top 100 + alarm' },
   { kind: 'page', label: 'Pro Analiz',         to: '/pro-analiz',        icon: Gem },
   { kind: 'page', label: 'Teknik Analiz AI',   to: '/teknik-analiz-ai',  icon: Activity, hint: 'RSI · MACD · EMA' },
   { kind: 'page', label: 'Şirket Analizi',     to: '/sirket-analizi',    icon: Building2, hint: 'Mali tablolar · KAP' },
   { kind: 'page', label: 'DCF Değerleme',      to: '/dcf-degerleme',     icon: Calculator },
   { kind: 'page', label: 'Kripto Değerleme',   to: '/kripto-degerleme',  icon: Coins },
-  { kind: 'page', label: 'Tarayıcılar',        to: '/tarayicilar',       icon: Search, hint: 'EMA34 · SNR' },
+  { kind: 'page', label: 'Tarayıcılar',        to: '/tarayicilar',       icon: Search, hint: 'EMA34 Wave · TEMA34 · SNR' },
   { kind: 'page', label: 'Günlük Sinyaller',   to: '/gunluk-tespitler',  icon: Target },
+  { kind: 'page', label: 'Trading Bot',        to: '/trading-bot',       icon: Bot, hint: 'Freqtrade port + sınama' },
   { kind: 'page', label: 'Performans',         to: '/performans',        icon: TrendingUp },
   { kind: 'page', label: 'Takip Listem',       to: '/takip-listem',      icon: Briefcase },
   { kind: 'page', label: 'Notlarım',           to: '/notlarim',          icon: BookOpen },
