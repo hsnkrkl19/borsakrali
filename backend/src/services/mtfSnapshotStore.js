@@ -27,8 +27,13 @@ const SNAPSHOT_DIR = path.join(__dirname, '..', 'data', 'crypto-mtf');
 const SUPPORTED_TFS = ['1m', '5m', '15m', '1h', '4h', '1d', '1w'];
 
 function ensureDir() {
-  if (!fs.existsSync(SNAPSHOT_DIR)) {
-    fs.mkdirSync(SNAPSHOT_DIR, { recursive: true });
+  try {
+    if (!fs.existsSync(SNAPSHOT_DIR)) {
+      fs.mkdirSync(SNAPSHOT_DIR, { recursive: true });
+    }
+  } catch (e) {
+    // Render ephemeral fs / readonly → sessiz geç, in-memory devam
+    console.warn(`[MTFSnapshotStore] ensureDir hatası: ${e.message}`);
   }
 }
 

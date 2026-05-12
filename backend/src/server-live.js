@@ -14,6 +14,30 @@ const http = require('http');
 const axios = require('axios');
 require('dotenv').config();
 
+// ─── GLOBAL CRASH GUARDS ──────────────────────────────────────────────────
+// Render free tier'da herhangi bir Promise reject veya throw process'i öldürür,
+// build "crash" olarak işaretlenir → deploy fail. Bu handler'lar sunucuyu ayakta
+// tutar, sadece logla geçer. Production safety net.
+process.on('uncaughtException', (err) => {
+  try {
+    console.error('[FATAL uncaughtException]', err?.message || err);
+    if (err?.stack) console.error(err.stack);
+  } catch (_) {}
+});
+process.on('unhandledRejection', (reason) => {
+  try {
+    const msg = reason?.message || reason || 'unknown';
+    console.error('[FATAL unhandledRejection]', String(msg).slice(0, 500));
+  } catch (_) {}
+});
+
+// Render auto-detect: prod boot'unda agresif yükü otomatik kapat. RENDER env
+// var Render tarafından otomatik set edilir.
+if (process.env.RENDER && !process.env.MTF_LOOP_DISABLED) {
+  process.env.MTF_LOOP_DISABLED = 'true';
+  console.log('[Boot] Render ortamı tespit edildi → MTF live loop otomatik kapatıldı (manuel endpoint açık)');
+}
+
 const liveDataService = require('./services/liveDataService');
 const telegramService = require('./services/telegramService');
 const socketService = require('./services/socketService');
@@ -2113,23 +2137,97 @@ app.get('/api/combo-strategies/scan/bist30', async (req, res) => {
   }
 });
 
+// Commodity sembol → Yahoo Finance map (SNR için)
+const COMMODITY_YAHOO_MAP = {
+  XAUUSD:   { yahoo: 'GC=F',     name: 'Altın (Ons)',     unit: 'USD/oz' },
+  GOLD_USD: { yahoo: 'GC=F',     name: 'Altın (Ons)',     unit: 'USD/oz' },
+  XAGUSD:   { yahoo: 'SI=F',     name: 'Gümüş (Ons)',     unit: 'USD/oz' },
+  SILVER_USD: { yahoo: 'SI=F',   name: 'Gümüş (Ons)',     unit: 'USD/oz' },
+  XAUTRY:   { yahoo: 'GOLD_TRY', name: 'Gram Altın',      unit: 'TL/gr',  composite: true },
+  GOLD_TRY: { yahoo: 'GOLD_TRY', name: 'Gram Altın',      unit: 'TL/gr',  composite: true },
+  XAGTRY:   { yahoo: 'SILVER_TRY', name: 'Gram Gümüş',    unit: 'TL/gr',  composite: true },
+  SILVER_TRY: { yahoo: 'SILVER_TRY', name: 'Gram Gümüş',  unit: 'TL/gr',  composite: true },
+  USDTRY:   { yahoo: 'USDTRY=X', name: 'Dolar / TL',      unit: 'TL'     },
+  USD_TRY:  { yahoo: 'USDTRY=X', name: 'Dolar / TL',      unit: 'TL'     },
+};
+
+const GRAMS_PER_TROY_OUNCE_SNR = 31.1034768;
+
+async function fetchYahooDaily(yahooSym, rangeStr = '1y') {
+  const encoded = encodeURIComponent(yahooSym);
+  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encoded}?interval=1d&range=${rangeStr}`;
+  const resp = await axios.get(url, {
+    headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
+    timeout: 15000,
+  });
+  const result = resp.data?.chart?.result?.[0];
+  if (!result) return null;
+  const ts = result.timestamp || [];
+  const q = result.indicators?.quote?.[0] || {};
+  return ts.map((t, i) => ({
+    date: new Date(t * 1000).toISOString().slice(0, 10),
+    open: parseFloat(q.open?.[i]) || 0,
+    high: parseFloat(q.high?.[i]) || 0,
+    low: parseFloat(q.low?.[i]) || 0,
+    close: parseFloat(q.close?.[i]) || 0,
+    volume: parseFloat(q.volume?.[i]) || 0,
+  })).filter(r => r.close > 0);
+}
+
+async function fetchCommodityHistoricalForSNR(displaySymbol) {
+  const cfg = COMMODITY_YAHOO_MAP[displaySymbol];
+  if (!cfg) throw new Error(`Commodity '${displaySymbol}' desteklenmiyor`);
+
+  // Composite: GOLD_TRY = GC=F × USDTRY=X / 31.1035 (gram TL)
+  //            SILVER_TRY = SI=F × USDTRY=X / 31.1035
+  if (cfg.composite) {
+    const baseYahoo = cfg.yahoo === 'GOLD_TRY' ? 'GC=F' : 'SI=F';
+    const [base, fx] = await Promise.all([
+      fetchYahooDaily(baseYahoo, '1y'),
+      fetchYahooDaily('USDTRY=X', '1y'),
+    ]);
+    if (!base || !fx) return null;
+    const fxByDate = new Map(fx.map(r => [r.date, r]));
+    return base.map(b => {
+      const f = fxByDate.get(b.date);
+      if (!f) return null;
+      return {
+        date: b.date,
+        open: +(b.open * f.open / GRAMS_PER_TROY_OUNCE_SNR).toFixed(4),
+        high: +(b.high * f.high / GRAMS_PER_TROY_OUNCE_SNR).toFixed(4),
+        low:  +(b.low  * f.low  / GRAMS_PER_TROY_OUNCE_SNR).toFixed(4),
+        close: +(b.close * f.close / GRAMS_PER_TROY_OUNCE_SNR).toFixed(4),
+        volume: 0,
+      };
+    }).filter(Boolean);
+  }
+
+  return fetchYahooDaily(cfg.yahoo, '1y');
+}
+
 app.get('/api/snr/:symbol', async (req, res, next) => {
   // 'scanner' literal path /api/snr/scanner ile çakışıyor — onu sonraki handler'a bırak
   if (req.params.symbol === 'scanner') return next();
   try {
     const rawSym = req.params.symbol.toUpperCase().replace('.IS', '');
-    const assetType = (req.query.type || 'stock').toLowerCase(); // 'stock' | 'crypto'
+    const assetType = (req.query.type || 'stock').toLowerCase(); // 'stock' | 'crypto' | 'commodity'
 
     // Kripto semboller için Yahoo Finance'te "-USD" eki kullan
     // Hisseler için normal .IS eki kullanılır (getYahooSymbol)
     const isCrypto = assetType === 'crypto';
+    const isCommodity = assetType === 'commodity';
     const symbol = rawSym; // display symbol
 
     // Geçmiş veri al — liveDataService.fetchHistoricalData kullan (6 ay)
     let historicalData = null;
     try {
       let raw;
-      if (isCrypto) {
+      if (isCommodity) {
+        raw = await fetchCommodityHistoricalForSNR(rawSym);
+        if (!raw || raw.length === 0) {
+          throw new Error(`${rawSym} için emtia verisi alınamadı`);
+        }
+      } else if (isCrypto) {
         const ticker = rawSym.replace('-USD', '').toUpperCase();
         // ── CoinGecko ID mapping (en yaygın 60 coin) ──────────────────────
         const GECKO_IDS = {
@@ -2458,6 +2556,114 @@ app.get('/api/snr/scanner/bist30', async (req, res) => {
   }
 });
 
+// Emtia (gold/silver) SNR tarayıcı — tüm para birimlerinde altın+gümüş
+const COMMODITY_SCAN_UNIVERSE = [
+  { symbol: 'XAUUSD',     name: 'Altın (Ons)',  unit: 'USD/oz' },
+  { symbol: 'XAGUSD',     name: 'Gümüş (Ons)',  unit: 'USD/oz' },
+  { symbol: 'XAUTRY',     name: 'Gram Altın',    unit: 'TL/gr' },
+  { symbol: 'XAGTRY',     name: 'Gram Gümüş',    unit: 'TL/gr' },
+];
+
+async function runCommoditySnrScan() {
+  const results = [];
+  for (const item of COMMODITY_SCAN_UNIVERSE) {
+    try {
+      const raw = await fetchCommodityHistoricalForSNR(item.symbol);
+      if (!raw || raw.length < 20) continue;
+      const candles = raw.map(r => ({
+        time: Math.floor(new Date(r.date).getTime() / 1000),
+        open: r.open, high: r.high, low: r.low, close: r.close, volume: r.volume || 0,
+      }));
+      const analysis = await snrService.analyzeSNR(item.symbol, candles, { assetType: 'commodity' });
+      if (analysis.signals && analysis.signals.length > 0) {
+        results.push({
+          symbol: item.symbol,
+          name: item.name,
+          unit: item.unit,
+          assetType: 'commodity',
+          topSignal: analysis.signals[0],
+          storyline: analysis.storyline,
+          lastClose: analysis.lastClose,
+        });
+      }
+    } catch (e) {
+      console.warn(`[SNR Commodity Scan] ${item.symbol} hatası: ${e.message}`);
+    }
+  }
+  results.sort((a, b) => b.topSignal.score - a.topSignal.score);
+  return results;
+}
+
+app.get('/api/snr/scanner/commodity', async (req, res) => {
+  try {
+    const cached = snrScannerCacheMap.get('commodity');
+    if (cached && Date.now() - cached.ts < SNR_SCANNER_TTL_FAST) {
+      return res.json({ success: true, scope: 'commodity', results: cached.results });
+    }
+    const results = await runCommoditySnrScan();
+    snrScannerCacheMap.set('commodity', { results, ts: Date.now() });
+    res.json({ success: true, scope: 'commodity', results });
+  } catch (err) {
+    console.error('[SNR Commodity Scanner] Hata:', err.message);
+    res.status(500).json({ success: false, error: 'Emtia taraması yapılamadı' });
+  }
+});
+
+// Kripto SNR tarayıcı — top 20 coin
+const CRYPTO_SNR_UNIVERSE = [
+  'BTC','ETH','BNB','SOL','XRP','ADA','AVAX','DOGE','TRX','LINK',
+  'TON','DOT','MATIC','LTC','BCH','NEAR','UNI','APT','ATOM','OP',
+];
+
+async function runCryptoSnrScan() {
+  const results = [];
+  const BATCH = 6;
+  for (let i = 0; i < CRYPTO_SNR_UNIVERSE.length; i += BATCH) {
+    const batch = CRYPTO_SNR_UNIVERSE.slice(i, i + BATCH);
+    const batchRes = await Promise.allSettled(batch.map(async (ticker) => {
+      try {
+        const raw = await fetchYahooDaily(`${ticker}-USD`, '6mo');
+        if (!raw || raw.length < 20) return null;
+        const candles = raw.map(r => ({
+          time: Math.floor(new Date(r.date).getTime() / 1000),
+          open: r.open, high: r.high, low: r.low, close: r.close, volume: r.volume || 0,
+        }));
+        const analysis = await snrService.analyzeSNR(ticker, candles, { assetType: 'crypto' });
+        if (analysis.signals && analysis.signals.length > 0) {
+          return {
+            symbol: ticker,
+            name: ticker,
+            assetType: 'crypto',
+            topSignal: analysis.signals[0],
+            storyline: analysis.storyline,
+            lastClose: analysis.lastClose,
+          };
+        }
+        return null;
+      } catch { return null; }
+    }));
+    batchRes.forEach(r => { if (r.status === 'fulfilled' && r.value) results.push(r.value); });
+    if (i + BATCH < CRYPTO_SNR_UNIVERSE.length) await new Promise(r => setTimeout(r, 250));
+  }
+  results.sort((a, b) => b.topSignal.score - a.topSignal.score);
+  return results;
+}
+
+app.get('/api/snr/scanner/crypto', async (req, res) => {
+  try {
+    const cached = snrScannerCacheMap.get('crypto');
+    if (cached && Date.now() - cached.ts < SNR_SCANNER_TTL_FAST) {
+      return res.json({ success: true, scope: 'crypto', results: cached.results });
+    }
+    const results = await runCryptoSnrScan();
+    snrScannerCacheMap.set('crypto', { results, ts: Date.now() });
+    res.json({ success: true, scope: 'crypto', results });
+  } catch (err) {
+    console.error('[SNR Crypto Scanner] Hata:', err.message);
+    res.status(500).json({ success: false, error: 'Kripto taraması yapılamadı' });
+  }
+});
+
 // ============ DAILY SIGNALS (09:55 pre-market + 11:00 revision) ============
 const dailySignalsService = require('./services/dailySignalsService');
 const snapshotStore = require('./services/snapshotStore');
@@ -2585,6 +2791,73 @@ app.get('/api/daily-signals/backtest', async (req, res) => {
     const horizon = Math.min(Math.max(parseInt(req.query.horizon || '5', 10), 1), 30);
     const result = await dailySignalsService.backtestAsOf(asOf, horizon);
     res.json({ success: true, ...result });
+  } catch (e) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
+// ============ SIGNAL CONFIDENCE (backtest tabanlı historicalWinRate) ============
+// Cron Pazar 03:00 TR'de otomatik güncellenir; admin manuel tetikleyebilir.
+const signalConfidenceService = require('./services/signalConfidenceService');
+
+// Mevcut summary'i getir (UI debug / admin için)
+app.get('/api/signal-confidence/summary', (req, res) => {
+  try {
+    const summary = signalConfidenceService.getSummary();
+    if (!summary) {
+      return res.json({
+        success: true,
+        empty: true,
+        message: 'Henüz confidence summary yok. Pazar 03:00\'da otomatik üretilir veya POST /refresh ile manuel tetikle.',
+      });
+    }
+    // Bucket sayılarını özetle (full bucket'lar büyük olabilir)
+    const totals = Object.fromEntries(
+      Object.entries(summary.buckets || {}).map(([k, v]) => [
+        k,
+        {
+          totalSamples: Object.values(v).reduce((s, b) => s + (b.sampleSize || 0), 0),
+          scoreBuckets: Object.keys(v).length,
+        },
+      ])
+    );
+    res.json({ success: true, generatedAt: summary.generatedAt, asOfRun: summary.asOfRun, totals, buckets: summary.buckets });
+  } catch (e) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
+// Manuel summary güncelleme — admin için. Pazar cron'unu beklemek istemeyen için.
+// Yavaş bir iştir (BIST100 + Top100 kripto × N tarih). Async başlatır, hemen 202 döner.
+// Body: { days?, gap?, horizonBist?, horizonCrypto?, skipBist?, skipCrypto?, replace?, sync? }
+app.post('/api/signal-confidence/refresh', async (req, res) => {
+  try {
+    const opts = {
+      days: Math.min(Math.max(parseInt(req.body?.days || '3', 10), 1), 8),
+      gap: Math.min(Math.max(parseInt(req.body?.gap || '7', 10), 1), 14),
+      horizonBist: Math.min(Math.max(parseInt(req.body?.horizonBist || '5', 10), 1), 14),
+      horizonCrypto: Math.min(Math.max(parseInt(req.body?.horizonCrypto || '7', 10), 1), 14),
+      skipBist: !!req.body?.skipBist,
+      skipCrypto: !!req.body?.skipCrypto,
+      replace: !!req.body?.replace,
+    };
+
+    // Sync mod istenirse bekle, default async (uzun sürer)
+    if (req.body?.sync) {
+      const result = await signalConfidenceService.updateSummary(opts);
+      return res.json({ success: true, mode: 'sync', generatedAt: result.generatedAt, durationMs: result.durationMs });
+    }
+
+    // Async: background'da çalış, hemen yanıt
+    signalConfidenceService.updateSummary(opts).catch((e) => {
+      console.error('[SignalConfidence] async refresh hata:', e.message);
+    });
+    res.status(202).json({
+      success: true,
+      mode: 'async',
+      message: 'Confidence summary güncellemesi arka planda başlatıldı. Bu işlem dakikalar sürebilir.',
+      opts,
+    });
   } catch (e) {
     res.status(500).json({ success: false, error: e.message });
   }
@@ -3241,25 +3514,69 @@ const SCAN_NAMES = {
   'ichimoku-bearish': 'Ichimoku Ayı',
 };
 
+// Crypto + Commodity scan universes
+const CRYPTO_SCAN_UNIVERSE = [
+  { symbol: 'BTC', name: 'Bitcoin' }, { symbol: 'ETH', name: 'Ethereum' },
+  { symbol: 'BNB', name: 'BNB' }, { symbol: 'SOL', name: 'Solana' },
+  { symbol: 'XRP', name: 'XRP' }, { symbol: 'ADA', name: 'Cardano' },
+  { symbol: 'AVAX', name: 'Avalanche' }, { symbol: 'DOGE', name: 'Dogecoin' },
+  { symbol: 'TRX', name: 'TRON' }, { symbol: 'LINK', name: 'Chainlink' },
+  { symbol: 'TON', name: 'Toncoin' }, { symbol: 'DOT', name: 'Polkadot' },
+  { symbol: 'MATIC', name: 'Polygon' }, { symbol: 'LTC', name: 'Litecoin' },
+  { symbol: 'BCH', name: 'Bitcoin Cash' }, { symbol: 'NEAR', name: 'NEAR' },
+  { symbol: 'UNI', name: 'Uniswap' }, { symbol: 'APT', name: 'Aptos' },
+  { symbol: 'ATOM', name: 'Cosmos' }, { symbol: 'OP', name: 'Optimism' },
+];
+
+const COMMODITY_SCAN_LIST = [
+  { symbol: 'XAUUSD', name: 'Altın (Ons)', unit: 'USD/oz' },
+  { symbol: 'XAGUSD', name: 'Gümüş (Ons)', unit: 'USD/oz' },
+  { symbol: 'XAUTRY', name: 'Gram Altın',   unit: 'TL/gr' },
+  { symbol: 'XAGTRY', name: 'Gram Gümüş',   unit: 'TL/gr' },
+];
+
 app.get('/api/market/scans/:type', async (req, res) => {
   const { type } = req.params;
+  const assets = (req.query.assets || 'bist').toLowerCase(); // 'bist' | 'crypto' | 'commodity'
 
-  // Cache kontrolü
+  // Cache kontrolü — assets'i de cache anahtarına ekle
+  const cacheKey = `${type}::${assets}`;
   const now = Date.now();
-  if (scanCache[type] && now - scanCache[type].ts < SCAN_CACHE_TTL) {
-    return res.json(scanCache[type].data);
+  if (scanCache[cacheKey] && now - scanCache[cacheKey].ts < SCAN_CACHE_TTL) {
+    return res.json(scanCache[cacheKey].data);
   }
 
-  const stocks = bist30Stocks.map(s => ({ symbol: s.symbol || s, name: s.name || s.symbol || s }));
+  // Universe seç
+  let stocks;
+  if (assets === 'crypto') {
+    stocks = CRYPTO_SCAN_UNIVERSE.slice();
+  } else if (assets === 'commodity') {
+    stocks = COMMODITY_SCAN_LIST.slice();
+  } else {
+    stocks = bist30Stocks.map(s => ({ symbol: s.symbol || s, name: s.name || s.symbol || s }));
+  }
+
   const matchingStocks = [];
   const BATCH = 5;
   const DELAY = 300;
+
+  // Asset tipine göre tarihsel veri kaynağı
+  const fetchHist = async (sym) => {
+    if (assets === 'crypto') {
+      const rows = await fetchYahooDaily(`${sym}-USD`, '6mo');
+      return rows;
+    }
+    if (assets === 'commodity') {
+      return await fetchCommodityHistoricalForSNR(sym);
+    }
+    return await liveDataService.fetchHistoricalData(sym, '3mo', '1d');
+  };
 
   for (let i = 0; i < stocks.length; i += BATCH) {
     const batch = stocks.slice(i, i + BATCH);
     await Promise.all(batch.map(async (stock) => {
       try {
-        const hist = await liveDataService.fetchHistoricalData(stock.symbol, '3mo', '1d');
+        const hist = await fetchHist(stock.symbol);
         if (!hist || hist.length < 50) return;
 
         const ind = liveDataService.calculateIndicators(hist);
@@ -3389,9 +3706,10 @@ app.get('/api/market/scans/:type', async (req, res) => {
     total: matchingStocks.length,
     scanned: stocks.length,
     strategy: SCAN_NAMES[type] || type,
+    assets,
     timestamp: new Date().toISOString(),
   };
-  scanCache[type] = { data: result, ts: now };
+  scanCache[cacheKey] = { data: result, ts: now };
   res.json(result);
 });
 
@@ -4325,8 +4643,9 @@ function buildTechnicalFibonacci(bars, fallbackCurrentPrice) {
   };
 }
 
-// --- Helper: EMA series ---
-function calcEMASeries(closes, period) {
+// --- Helper: EMA series (CONDENSED legacy — sadece detectAllPatterns için kullanılır) ---
+// Yeni kod için aşağıdaki Pine-uyumlu `calcEMASeries` (full array) kullanılmalı.
+function calcEMASeriesCondensed(closes, period) {
   if (closes.length < period) return [];
   const k = 2 / (period + 1);
   const series = [];
@@ -4370,8 +4689,8 @@ function detectAllPatterns(historicalData, indicators) {
   if (!historicalData || historicalData.length < 30) return patterns;
 
   const closes = historicalData.map(d => d.close);
-  const ema50s = calcEMASeries(closes, 50);
-  const ema200s = calcEMASeries(closes, 200);
+  const ema50s = calcEMASeriesCondensed(closes, 50);
+  const ema200s = calcEMASeriesCondensed(closes, 200);
   const currentPrice = closes[closes.length - 1];
 
   // Golden / Death Cross
@@ -5636,16 +5955,75 @@ app.post('/api/requests/:id/vote', requireAuth, (req, res) => {
   res.json({ success: true, votes: item.votes });
 });
 
-// ─── EMA34 Takip Sistemi ─────────────────────────────────────────────────────
-// EMA hesapla (standart formül, k = 2/(n+1))
-function calcEMA(closes, period) {
-  if (closes.length < period) return null;
-  const k = 2 / (period + 1);
-  let ema = closes.slice(0, period).reduce((a, b) => a + b, 0) / period;
-  for (let i = period; i < closes.length; i++) {
-    ema = closes[i] * k + ema * (1 - k);
+// ─── TEMA34 & EMA34 Takip Sistemleri ─────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════════
+// Pine Script `ta.ema()` ile BİREBİR uyumlu EMA hesaplaması.
+//
+// Pine kaynağı (TradingView v6 docs):
+//   alpha = 2 / (length + 1)
+//   ema = alpha * source + (1 - alpha) * ema[1]
+// İlk bardaki ema[1] na'dır → Pine, kaynağın ilk değerini seed olarak kullanır
+// (na nin değerle değişimi). Yani EMA bar 0'da `close[0]`'a eşittir, sonra
+// recursive olarak ilerler. SMA seed YOK.
+//
+// Doğrulama: bkz. test/test-pine-equivalence.js (Pine reference vs my code).
+// ═══════════════════════════════════════════════════════════════════════════
+
+// EMA serisi — Pine convention (full array, seed = closes[0], no nulls)
+function calcEMASeries(closes, period) {
+  const n = closes.length;
+  if (n === 0) return [];
+  const alpha = 2 / (period + 1);
+  const out = new Array(n);
+  out[0] = closes[0];
+  for (let i = 1; i < n; i++) {
+    out[i] = alpha * closes[i] + (1 - alpha) * out[i - 1];
   }
-  return ema;
+  return out;
+}
+
+// EMA son değer — Pine convention
+function calcEMA(closes, period) {
+  if (!closes || closes.length === 0) return null;
+  const s = calcEMASeries(closes, period);
+  return s[s.length - 1];
+}
+
+// Wilder's RMA (Pine `ta.rma()`) — alpha = 1/length, seed = src[0]
+// Pine `ta.atr()` ATR hesabında bunu kullanır.
+function calcRMASeries(src, period) {
+  const n = src.length;
+  if (n === 0) return [];
+  const alpha = 1 / period;
+  const out = new Array(n);
+  out[0] = src[0];
+  for (let i = 1; i < n; i++) {
+    out[i] = alpha * src[i] + (1 - alpha) * out[i - 1];
+  }
+  return out;
+}
+
+// True Range serisi — Pine `ta.tr()`:
+//   tr = max(high - low, abs(high - close[1]), abs(low - close[1]))
+//   Bar 0'da close[-1] na → tr = high - low
+function calcTRSeries(highs, lows, closes) {
+  const n = closes.length;
+  if (n === 0) return [];
+  const tr = new Array(n);
+  tr[0] = highs[0] - lows[0];
+  for (let i = 1; i < n; i++) {
+    tr[i] = Math.max(
+      highs[i] - lows[i],
+      Math.abs(highs[i] - closes[i - 1]),
+      Math.abs(lows[i] - closes[i - 1])
+    );
+  }
+  return tr;
+}
+
+// ATR serisi — Pine `ta.atr(length)` = RMA(TR, length) ile birebir
+function calcATRSeries(highs, lows, closes, period = 14) {
+  return calcRMASeries(calcTRSeries(highs, lows, closes), period);
 }
 
 // TEMA — Triple Exponential Moving Average (TradingView Pine v6 ile aynı)
@@ -5681,18 +6059,18 @@ function calcTEMA(closes, period) {
   return series[series.length - 1];
 }
 
-// EMA34 tarayıcı cache
-const ema34Cache = new Map();
-const EMA34_CACHE_TTL = 10 * 60 * 1000; // 10 dakika
+// TEMA34 tarayıcı cache (eski adıyla EMA34 — aslında TEMA tabanlıydı)
+const tema34Cache = new Map();
+const TEMA34_CACHE_TTL = 10 * 60 * 1000; // 10 dakika
 
-// GET /api/ema34/scan?list=bist30|bist100|all
-app.get('/api/ema34/scan', async (req, res) => {
+// GET /api/tema34/scan?list=bist30|bist100|all   (eski /api/ema34/scan — TEMA34 mantığı)
+app.get('/api/tema34/scan', async (req, res) => {
   try {
     const listParam = req.query.list || 'bist30';
     const isCryptoList = listParam === 'crypto';
-    const cacheKey = `ema34-${listParam}`;
-    const cached = ema34Cache.get(cacheKey);
-    if (cached && Date.now() - cached.ts < EMA34_CACHE_TTL) {
+    const cacheKey = `tema34-${listParam}`;
+    const cached = tema34Cache.get(cacheKey);
+    if (cached && Date.now() - cached.ts < TEMA34_CACHE_TTL) {
       return res.json(cached.data);
     }
 
@@ -5722,45 +6100,48 @@ app.get('/api/ema34/scan', async (req, res) => {
             const closes = hist.map(c => c.close);
             // TEMA34 (Triple EMA) — 3*(ema1-ema2)+ema3, length=34
             const temaSeries = calcTEMASeries(closes, 34);
-            const ema34_today = temaSeries[temaSeries.length - 1];
-            const ema34_prev  = temaSeries[temaSeries.length - 2];
+            const tema_today = temaSeries[temaSeries.length - 1];
+            const tema_prev  = temaSeries[temaSeries.length - 2];
             const lastClose = closes[closes.length - 1];
             const prevClose = closes[closes.length - 2];
-            if (ema34_today == null || ema34_prev == null) return null;
+            if (tema_today == null || tema_prev == null) return null;
 
             // Durum tespiti
-            const aboveNow = lastClose > ema34_today;
-            const abovePrev = prevClose > ema34_prev;
+            const aboveNow = lastClose > tema_today;
+            const abovePrev = prevClose > tema_prev;
             let signal = null;
-            if (!abovePrev && aboveNow) signal = 'cross_above'; // EMA34 üzerine çıktı
-            else if (abovePrev && !aboveNow) signal = 'cross_below'; // EMA34 altına indi
-            else if (aboveNow) signal = 'above'; // EMA34 üzerinde devam
-            else signal = 'below'; // EMA34 altında devam
+            if (!abovePrev && aboveNow) signal = 'cross_above'; // TEMA34 üzerine çıktı
+            else if (abovePrev && !aboveNow) signal = 'cross_below'; // TEMA34 altına indi
+            else if (aboveNow) signal = 'above'; // TEMA34 üzerinde devam
+            else signal = 'below'; // TEMA34 altında devam
 
-            // EMA34'e uzaklık yüzdesi
-            const distPct = ((lastClose - ema34_today) / ema34_today * 100).toFixed(2);
+            // TEMA34'e uzaklık yüzdesi
+            const distPct = ((lastClose - tema_today) / tema_today * 100).toFixed(2);
 
-            // EMA34 skoru (0-100)
-            // Pozitif: EMA üzerinde, güçlü trend; Negatif: altında
+            // TEMA34 skoru (0-100)
             let score = 50;
             if (aboveNow) {
-              score += 20; // üzerinde
-              if (signal === 'cross_above') score += 20; // yeni kesişim
+              score += 20;
+              if (signal === 'cross_above') score += 20;
               const pctNum = parseFloat(distPct);
-              if (pctNum > 0 && pctNum < 3) score += 10; // EMA'ya yakın ama üstünde (temiz)
+              if (pctNum > 0 && pctNum < 3) score += 10;
               if (pctNum >= 3 && pctNum < 8) score += 5;
             } else {
               score -= 20;
-              if (signal === 'cross_below') score -= 15; // yeni kırılım
+              if (signal === 'cross_below') score -= 15;
             }
             score = Math.min(100, Math.max(0, score));
 
             return {
               symbol: sym,
               lastClose,
-              ema34: parseFloat(ema34_today.toFixed(2)),
-              ema34Prev: parseFloat(ema34_prev.toFixed(2)),
+              tema34: parseFloat(tema_today.toFixed(2)),
+              tema34Prev: parseFloat(tema_prev.toFixed(2)),
+              // Geriye uyumluluk: eski FE alanlarını da gönder
+              ema34: parseFloat(tema_today.toFixed(2)),
+              ema34Prev: parseFloat(tema_prev.toFixed(2)),
               signal,
+              aboveTema34: aboveNow,
               aboveEma34: aboveNow,
               distancePct: distPct,
               score,
@@ -5787,16 +6168,16 @@ app.get('/api/ema34/scan', async (req, res) => {
       below: results.filter(r => r.signal === 'below').length,
       results,
     };
-    ema34Cache.set(cacheKey, { data, ts: Date.now() });
+    tema34Cache.set(cacheKey, { data, ts: Date.now() });
     res.json(data);
   } catch (err) {
-    console.error('EMA34 scan error:', err);
-    res.status(500).json({ error: 'EMA34 tarama hatası', detail: err.message });
+    console.error('TEMA34 scan error:', err);
+    res.status(500).json({ error: 'TEMA34 tarama hatası', detail: err.message });
   }
 });
 
-// GET /api/ema34/track/:symbol — Tek hisse EMA34 detayı + geçmiş
-app.get('/api/ema34/track/:symbol', async (req, res) => {
+// GET /api/tema34/track/:symbol — Tek hisse TEMA34 detayı + geçmiş
+app.get('/api/tema34/track/:symbol', async (req, res) => {
   try {
     const sym = req.params.symbol.toUpperCase().replace('-USD', '');
     const isCrypto = (req.query.type || '').toLowerCase() === 'crypto';
@@ -5852,6 +6233,272 @@ app.get('/api/ema34/track/:symbol', async (req, res) => {
       consecutiveDaysAbove: consecutiveDays,
       activeSignal: last.above ? 'AL_DEVAM' : 'ÇIKIŞ',
       series: ema34Series.slice(-60), // son 60 gün
+    });
+  } catch (err) {
+    res.status(500).json({ error: 'TEMA34 takip hatası', detail: err.message });
+  }
+});
+
+// ─── EMA34 (Bill Williams) — Wave Rider Sistemi ──────────────────────────────
+// Klasik tek-geçişli EMA34. Fibonacci sayısı 34, doğal destek/direnç. Strateji:
+//   • Trend filtresi: 5+ ardışık bar EMA34'ün bir tarafında → trend onaylı
+//   • Pullback/Wave: Trend yönünden geri çekilip EMA34'e dokunma + tepki = giriş
+//   • Eğim (slope): EMA34 yönü ek teyit (yukarı / yatay / aşağı)
+const ema34Cache = new Map();
+const EMA34_CACHE_TTL = 10 * 60 * 1000;
+
+function analyzeEMA34(hist, lookback = 5) {
+  if (!hist || hist.length < 50) return null;
+  const closes = hist.map(c => c.close);
+  const highs  = hist.map(c => c.high);
+  const lows   = hist.map(c => c.low);
+  const emaSeries = calcEMASeries(closes, 34);
+  const n = closes.length;
+  const ema_now = emaSeries[n - 1];
+  const ema_prev = emaSeries[n - 2];
+  if (ema_now == null || ema_prev == null) return null;
+
+  const lastClose = closes[n - 1];
+  const prevClose = closes[n - 2];
+  const aboveNow = lastClose > ema_now;
+  const abovePrev = prevClose > ema_prev;
+
+  // Slope: 5 bar % değişim
+  const ema_5ago = emaSeries[n - 6];
+  const slopePct = ema_5ago ? ((ema_now - ema_5ago) / ema_5ago * 100) : 0;
+  let slopeDir = 'flat';
+  if (slopePct > 0.3) slopeDir = 'up';
+  else if (slopePct < -0.3) slopeDir = 'down';
+
+  // Ardışık bar (pozitif = üstte, negatif = altta)
+  let consecutive = 0;
+  if (aboveNow) {
+    for (let i = n - 1; i >= 0 && emaSeries[i] != null && closes[i] > emaSeries[i]; i--) consecutive++;
+  } else {
+    for (let i = n - 1; i >= 0 && emaSeries[i] != null && closes[i] <= emaSeries[i]; i--) consecutive--;
+  }
+
+  // ATR(14) — Pine `ta.atr(14)` = RMA(TR, 14) ile birebir
+  const atrSeries = calcATRSeries(highs, lows, closes, 14);
+  const atr = atrSeries[n - 1] || 0;
+  const distPct = ((lastClose - ema_now) / ema_now * 100);
+  const distAtr = atr > 0 ? ((lastClose - ema_now) / atr) : 0;
+
+  // Wave/Pullback tespiti: son `lookback` bar içinde EMA34'e dokundu mu?
+  let touched = false;
+  let touchIdx = -1;
+  let touchSide = null; // 'support' | 'resistance'
+  for (let i = Math.max(0, n - lookback); i < n; i++) {
+    const ema_i = emaSeries[i];
+    if (ema_i == null) continue;
+    if (lows[i] <= ema_i && highs[i] >= ema_i) {
+      touched = true;
+      touchIdx = i;
+      if (i > 0 && emaSeries[i - 1] != null) {
+        touchSide = closes[i - 1] > emaSeries[i - 1] ? 'support' : 'resistance';
+      }
+    }
+  }
+
+  // Trend gücü: dokunuştan önce kaç bar tek yönde gitmişti?
+  let priorTrendBars = 0;
+  if (touched && touchIdx > 0) {
+    const direction = touchSide === 'support' ? 1 : -1;
+    for (let i = touchIdx - 1; i >= 0; i--) {
+      const ema_i = emaSeries[i];
+      if (ema_i == null) break;
+      if (direction === 1 && closes[i] > ema_i) priorTrendBars++;
+      else if (direction === -1 && closes[i] <= ema_i) priorTrendBars++;
+      else break;
+    }
+  }
+
+  // Sinyal kararı (öncelik sırası)
+  let signal;
+  if (!abovePrev && aboveNow) signal = 'cross_above';
+  else if (abovePrev && !aboveNow) signal = 'cross_below';
+  else if (touched && touchSide === 'support' && aboveNow && priorTrendBars >= 5) signal = 'wave_long';
+  else if (touched && touchSide === 'resistance' && !aboveNow && priorTrendBars >= 5) signal = 'wave_short';
+  else if (aboveNow && consecutive >= 5 && slopeDir === 'up') signal = 'trending_up';
+  else if (!aboveNow && consecutive <= -5 && slopeDir === 'down') signal = 'trending_down';
+  else if (aboveNow) signal = 'above';
+  else signal = 'below';
+
+  // Skor (0-100)
+  let score = 50;
+  if (signal === 'wave_long') score = 90;
+  else if (signal === 'cross_above') score = 80;
+  else if (signal === 'trending_up') score = 75;
+  else if (signal === 'above') score = 60;
+  else if (signal === 'below') score = 40;
+  else if (signal === 'trending_down') score = 25;
+  else if (signal === 'cross_below') score = 20;
+  else if (signal === 'wave_short') score = 10;
+  if (aboveNow && slopeDir === 'up') score += 5;
+  if (!aboveNow && slopeDir === 'down') score -= 5;
+  score = Math.min(100, Math.max(0, score));
+
+  return {
+    ema34: parseFloat(ema_now.toFixed(2)),
+    ema34Prev: parseFloat(ema_prev.toFixed(2)),
+    slopePct: parseFloat(slopePct.toFixed(2)),
+    slopeDir,
+    aboveEma34: aboveNow,
+    consecutive,
+    distancePct: parseFloat(distPct.toFixed(2)),
+    distanceAtr: parseFloat(distAtr.toFixed(2)),
+    atr: parseFloat(atr.toFixed(2)),
+    touched,
+    touchSide,
+    priorTrendBars,
+    signal,
+    score,
+    lastClose,
+    emaSeries,
+  };
+}
+
+// GET /api/ema34/scan?list=bist30|bist100|all|crypto
+app.get('/api/ema34/scan', async (req, res) => {
+  try {
+    const listParam = req.query.list || 'bist30';
+    const isCryptoList = listParam === 'crypto';
+    const cacheKey = `ema34-${listParam}`;
+    const cached = ema34Cache.get(cacheKey);
+    if (cached && Date.now() - cached.ts < EMA34_CACHE_TTL) {
+      return res.json(cached.data);
+    }
+
+    let symbols;
+    if (listParam === 'bist30') symbols = bist30Stocks.map(s => s.symbol || s);
+    else if (listParam === 'bist100') symbols = bist100Stocks.map(s => s.symbol || s);
+    else if (isCryptoList) symbols = CRYPTO_SCAN_SYMBOLS;
+    else symbols = allBistStocks.map(s => s.symbol || s);
+
+    const results = [];
+    const BATCH = isCryptoList ? 5 : 10;
+    for (let i = 0; i < symbols.length; i += BATCH) {
+      const batch = symbols.slice(i, i + BATCH);
+      const batchResults = await Promise.allSettled(
+        batch.map(async (sym) => {
+          try {
+            let hist;
+            if (isCryptoList) {
+              const raw = await fetchCryptoHistorical(sym);
+              if (!raw || raw.length < 100) return null;
+              hist = raw;
+            } else {
+              hist = await liveDataService.fetchHistoricalData(sym, '1y', '1d');
+              if (!hist || hist.length < 100) return null;
+            }
+            const a = analyzeEMA34(hist, 5);
+            if (!a) return null;
+            return {
+              symbol: sym,
+              lastClose: a.lastClose,
+              ema34: a.ema34,
+              ema34Prev: a.ema34Prev,
+              slopePct: a.slopePct,
+              slopeDir: a.slopeDir,
+              signal: a.signal,
+              aboveEma34: a.aboveEma34,
+              consecutive: a.consecutive,
+              distancePct: a.distancePct.toFixed(2),
+              distanceAtr: a.distanceAtr,
+              priorTrendBars: a.priorTrendBars,
+              touched: a.touched,
+              touchSide: a.touchSide,
+              score: a.score,
+              candleCount: hist.length,
+              isCrypto: isCryptoList,
+            };
+          } catch { return null; }
+        })
+      );
+      batchResults.forEach(r => { if (r.status === 'fulfilled' && r.value) results.push(r.value); });
+      if (isCryptoList && i + BATCH < symbols.length) await new Promise(r => setTimeout(r, 300));
+    }
+
+    const ORDER = {
+      wave_long: 0, cross_above: 1, trending_up: 2, above: 3,
+      below: 4, trending_down: 5, cross_below: 6, wave_short: 7
+    };
+    results.sort((a, b) => ORDER[a.signal] - ORDER[b.signal] || b.score - a.score);
+
+    const data = {
+      scannedAt: new Date().toISOString(),
+      total: results.length,
+      waveLong:     results.filter(r => r.signal === 'wave_long').length,
+      crossAbove:   results.filter(r => r.signal === 'cross_above').length,
+      trendingUp:   results.filter(r => r.signal === 'trending_up').length,
+      above:        results.filter(r => r.signal === 'above').length,
+      below:        results.filter(r => r.signal === 'below').length,
+      trendingDown: results.filter(r => r.signal === 'trending_down').length,
+      crossBelow:   results.filter(r => r.signal === 'cross_below').length,
+      waveShort:    results.filter(r => r.signal === 'wave_short').length,
+      results,
+    };
+    ema34Cache.set(cacheKey, { data, ts: Date.now() });
+    res.json(data);
+  } catch (err) {
+    console.error('EMA34 scan error:', err);
+    res.status(500).json({ error: 'EMA34 tarama hatası', detail: err.message });
+  }
+});
+
+// GET /api/ema34/track/:symbol — Tek hisse EMA34 detayı + geçmiş
+app.get('/api/ema34/track/:symbol', async (req, res) => {
+  try {
+    const sym = req.params.symbol.toUpperCase().replace('-USD', '');
+    const isCrypto = (req.query.type || '').toLowerCase() === 'crypto';
+    let hist;
+    if (isCrypto) hist = await fetchCryptoHistorical(sym);
+    else hist = await liveDataService.fetchHistoricalData(sym, '1y', '1d');
+    if (!hist || hist.length < 100) {
+      return res.status(404).json({ error: 'Yetersiz veri (EMA34 için en az 100 mum gerekli)' });
+    }
+
+    const a = analyzeEMA34(hist, 5);
+    if (!a) return res.status(404).json({ error: 'EMA34 hesaplanamadı' });
+
+    const closes = hist.map(c => c.close);
+    const series = [];
+    for (let i = 34; i < hist.length; i++) {
+      const ema_i = a.emaSeries[i];
+      if (ema_i == null) continue;
+      const dateStr = hist[i].date || (hist[i].time ? new Date(hist[i].time * 1000).toISOString().slice(0, 10) : null);
+      series.push({
+        time: hist[i].time || (dateStr ? Math.floor(new Date(dateStr).getTime() / 1000) : i),
+        date: dateStr,
+        close: closes[i],
+        ema34: parseFloat(ema_i.toFixed(2)),
+        above: closes[i] > ema_i,
+        signal: null,
+      });
+    }
+    for (let i = 1; i < series.length; i++) {
+      if (!series[i - 1].above && series[i].above) series[i].signal = 'cross_above';
+      else if (series[i - 1].above && !series[i].above) series[i].signal = 'cross_below';
+    }
+
+    res.json({
+      symbol: sym,
+      lastClose: a.lastClose,
+      ema34: a.ema34,
+      slopePct: a.slopePct,
+      slopeDir: a.slopeDir,
+      aboveEma34: a.aboveEma34,
+      consecutiveDaysAbove: Math.max(0, a.consecutive),
+      consecutiveDaysBelow: Math.max(0, -a.consecutive),
+      distancePct: a.distancePct,
+      distanceAtr: a.distanceAtr,
+      atr: a.atr,
+      touched: a.touched,
+      touchSide: a.touchSide,
+      priorTrendBars: a.priorTrendBars,
+      activeSignal: a.signal,
+      score: a.score,
+      series: series.slice(-90),
     });
   } catch (err) {
     res.status(500).json({ error: 'EMA34 takip hatası', detail: err.message });
@@ -6083,6 +6730,58 @@ function runStrategies(closes, ohlcv) {
   if (macdData && macdData.prevMacd > macdData.prevSignal && macdData.macd < macdData.signal)
     result.macdBearish = true;
 
+  // EMA34 (Bill Williams Wave Rider) — uzun vadeli trend filtresi
+  // 3 ay (60 bar) yeterli — 100+ bar varsa daha güvenilir
+  if (closes.length >= 60) {
+    const ema34Series = calcEMASeries(closes, 34);
+    const ema34_now = ema34Series[last];
+    const ema34_prev = ema34Series[last - 1];
+    if (ema34_now != null && ema34_prev != null) {
+      const aboveNow = closes[last] > ema34_now;
+      const abovePrev = closes[last - 1] > ema34_prev;
+      const ema_5ago = ema34Series[last - 5];
+      const slopeUp = ema_5ago != null && (ema34_now - ema_5ago) / ema_5ago > 0.003;
+      const slopeDown = ema_5ago != null && (ema34_now - ema_5ago) / ema_5ago < -0.003;
+
+      // Ardışık bar sayısı
+      let consec = 0;
+      if (aboveNow) {
+        for (let i = last; i >= 0 && ema34Series[i] != null && closes[i] > ema34Series[i]; i--) consec++;
+      } else {
+        for (let i = last; i >= 0 && ema34Series[i] != null && closes[i] <= ema34Series[i]; i--) consec--;
+      }
+
+      // EMA34 Wave Long: trendde + EMA34'e geri çekilme + yukarı tepki
+      // Son 5 barda en az 1 bar EMA34'e dokundu mu? Sonra fiyat yukarı tepki verdi mi?
+      let touchedBelow = false;
+      for (let i = Math.max(0, last - 4); i < last; i++) {
+        const ema_i = ema34Series[i];
+        if (ema_i != null && Math.abs(closes[i] - ema_i) / ema_i < 0.015) {
+          touchedBelow = true;
+          break;
+        }
+      }
+      if (aboveNow && slopeUp && consec >= 3 && touchedBelow && closes[last] > closes[last - 1])
+        result.ema34WaveLong = true;
+
+      // EMA34 Wave Short: aynı mantık aşağı yönlü
+      let touchedAbove = false;
+      for (let i = Math.max(0, last - 4); i < last; i++) {
+        const ema_i = ema34Series[i];
+        if (ema_i != null && Math.abs(closes[i] - ema_i) / ema_i < 0.015) {
+          touchedAbove = true;
+          break;
+        }
+      }
+      if (!aboveNow && slopeDown && consec <= -3 && touchedAbove && closes[last] < closes[last - 1])
+        result.ema34WaveShort = true;
+
+      // EMA34 Cross — kesişim sinyalleri
+      if (!abovePrev && aboveNow) result.ema34CrossAbove = true;
+      else if (abovePrev && !aboveNow) result.ema34CrossBelow = true;
+    }
+  }
+
   return result;
 }
 
@@ -6096,12 +6795,16 @@ const BOGA_STRATEGIES = [
   { name: 'Stokastik Dönüş', key: 'stochOversold', type: '1D', success: 65, peak: 8.6, speed: 3.4, riskReward: '3.8:1', avgChange: 7.1 },
   { name: 'EMA Merdiveni Boğa', key: 'emaLadder', type: '1D', success: 72, peak: 10.3, speed: 4.0, riskReward: '4.6:1', avgChange: 8.7 },
   { name: 'VWAP Üstünde', key: 'vwapAbove', type: '1D', success: 61, peak: 7.4, speed: 2.9, riskReward: '3.1:1', avgChange: 5.9 },
+  { name: 'EMA34 Wave Long', key: 'ema34WaveLong', type: '1D', success: 74, peak: 12.6, speed: 4.5, riskReward: '5.1:1', avgChange: 9.8 },
+  { name: 'EMA34 Yukarı Kesişim', key: 'ema34CrossAbove', type: '1D', success: 67, peak: 9.4, speed: 3.6, riskReward: '4.0:1', avgChange: 7.6 },
 ];
 const AYI_STRATEGIES = [
   { name: 'İchimoku Ayı', key: 'ichimokuBearish', type: '1D', success: 63, peak: 10.7, speed: 4.8, riskReward: '4.1:1', avgChange: 8.5 },
   { name: 'Trend Zirvesi', key: 'trendZirvesi', type: '1D', success: 51, peak: 9.54, speed: 6.9, riskReward: '3.84:1', avgChange: 1.8 },
   { name: 'Stokastik Zirve', key: 'stochOverbought', type: '1D', success: 58, peak: 7.8, speed: 4.2, riskReward: '3.3:1', avgChange: 6.4 },
   { name: 'MACD Ölüm Çaprazı', key: 'macdBearish', type: '1D', success: 55, peak: 8.3, speed: 5.5, riskReward: '3.0:1', avgChange: 5.2 },
+  { name: 'EMA34 Wave Short', key: 'ema34WaveShort', type: '1D', success: 64, peak: 9.1, speed: 4.7, riskReward: '3.6:1', avgChange: 6.8 },
+  { name: 'EMA34 Aşağı Kesişim', key: 'ema34CrossBelow', type: '1D', success: 58, peak: 7.5, speed: 3.9, riskReward: '3.1:1', avgChange: 5.3 },
 ];
 
 // Strategy-scan cache key'i scope'a göre değişir
@@ -7047,6 +7750,15 @@ if (process.env.NODE_ENV === 'production' || process.env.RENDER) {
 }
 
 // Start server with Socket.IO
+// Server error event handler — port bind fail, EADDRINUSE, vs. crash etmesin.
+server.on('error', (err) => {
+  console.error('[server.error]', err?.code || '', err?.message || err);
+  if (err?.code === 'EADDRINUSE') {
+    console.error(`Port ${PORT} kullanımda — başka instance çalışıyor olabilir.`);
+    process.exit(1);  // Render restart eder, bu beklenir davranış
+  }
+});
+
 server.listen(PORT, () => {
   console.log('');
   console.log('========================================================================');

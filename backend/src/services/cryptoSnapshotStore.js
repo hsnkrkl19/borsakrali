@@ -25,8 +25,12 @@ const SNAPSHOT_DIR = path.join(__dirname, '..', 'data', 'crypto-signals');
 const PHASE_NAMES = ['morning', 'midday', 'evening', 'night'];
 
 function ensureDir() {
-  if (!fs.existsSync(SNAPSHOT_DIR)) {
-    fs.mkdirSync(SNAPSHOT_DIR, { recursive: true });
+  try {
+    if (!fs.existsSync(SNAPSHOT_DIR)) {
+      fs.mkdirSync(SNAPSHOT_DIR, { recursive: true });
+    }
+  } catch (e) {
+    console.warn(`[CryptoSnapshotStore] ensureDir hatası: ${e.message}`);
   }
 }
 

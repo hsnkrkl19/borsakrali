@@ -33,7 +33,12 @@ const priceCache = new Map();
 const PRICE_TTL_MS = 30 * 1000;
 
 function ensureDir() {
-  if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
+  try {
+    if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
+  } catch (e) {
+    // Render ephemeral disk olabilir, EACCES vs. — sessiz geç, in-memory devam
+    logger.warn(`[PaperTrading] ensureDir başarısız: ${e.message}`);
+  }
 }
 
 function filePath(userId) {
@@ -75,14 +80,15 @@ function load(userId) {
 }
 
 function save(userId) {
-  ensureDir();
   const p = cache.get(userId);
   if (!p) return;
   p.updatedAt = new Date().toISOString();
   try {
+    ensureDir();
     fs.writeFileSync(filePath(userId), JSON.stringify(p, null, 2), 'utf8');
   } catch (e) {
-    logger.error(`[PaperTrading] save hata ${userId}: ${e.message}`);
+    // Disk yazma başarısızsa in-memory durum korunur, sessiz geç
+    logger.warn(`[PaperTrading] save hata ${userId}: ${e.message}`);
   }
 }
 
