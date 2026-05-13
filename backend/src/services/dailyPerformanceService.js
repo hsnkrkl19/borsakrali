@@ -48,8 +48,17 @@ function evaluateSignalToday(signal, candle) {
   const direction = isSpotStrategy ? 'spot' : (signal.direction || 'long');
   const long = isLongLike(direction);
 
+  // Sinyalin üretildiği an — yoksa phase'in generatedAt'ine düşer (geriye uyumluluk).
+  const createdAt = signal.createdAt || signal._phaseGeneratedAt || null;
+  const phase = signal.phase || signal._phaseName || null;
+  const signalId = signal.signalId || null;
+  const sequence = signal.sequence || null;
+
+  const meta = { createdAt, phase, signalId, sequence };
+
   if (!candle || !Number.isFinite(entry) || !Number.isFinite(stop) || !Number.isFinite(target)) {
     return {
+      ...meta,
       symbol: signal.symbol,
       name: signal.name,
       direction,
@@ -116,6 +125,7 @@ function evaluateSignalToday(signal, candle) {
   const whatIf10KPnL = whatIf10K - SAMPLE_INVESTMENT;
 
   return {
+    ...meta,
     symbol: signal.symbol,
     name: signal.name,
     direction,
@@ -199,8 +209,126 @@ function aggregate(rows) {
 }
 
 /**
+ * Bir günün tüm fazlarındaki sinyalleri kronolojik olarak toplar.
+ * Her sembol+strateji+direction kombinasyonu için sıra numarası ve signalId üretir
+ * (örn: ASELS_1, ASELS_2 — aynı sembol farklı zamanlarda yeniden üretildiğinde).
+ *
+ * Geriye dönük düzeltme YOK: bir sinyalin createdAt'i ve sequence'ı, üretildiği faza ait
+ * snapshot satırından gelir; sonraki fazlar bu kayıtları değiştirmez.
+ */
+function collectStockSignals(stockSnap) {
+  if (!stockSnap) return [];
+  const out = [];
+
+  const addFromPhase = (phaseData, phaseName) => {
+    if (!phaseData) return;
+    const genAt = phaseData.generatedAt || null;
+    const buckets = [
+      { key: 'trend',     strat: 'trend' },
+      { key: 'reversion', strat: 'reversion' },
+    ];
+    for (const b of buckets) {
+      const list = phaseData?.[b.key]?.signals || [];
+      for (const s of list) {
+        out.push({
+          ...s,
+          strategy: s.strategy || b.strat,
+          // Geriye uyumluluk: eski snapshot'larda createdAt sinyal seviyesinde yoksa phase'den al
+          _phaseGeneratedAt: s.createdAt || genAt,
+          _phaseName: s.phase || phaseName,
+        });
+      }
+    }
+  };
+
+  addFromPhase(stockSnap.premarket, 'premarket');
+  addFromPhase(stockSnap.revision,  'revision');
+  if (Array.isArray(stockSnap.intraday)) {
+    for (const ip of stockSnap.intraday) addFromPhase(ip, 'intraday');
+  }
+  return out;
+}
+
+function collectCryptoSignals(cryptoSnap) {
+  if (!cryptoSnap) return [];
+  const out = [];
+  const addFromPhase = (phaseData, phaseName) => {
+    if (!phaseData) return;
+    const genAt = phaseData.generatedAt || null;
+    const buckets = [
+      { key: 'spot_long',     strat: 'spot_long' },
+      { key: 'futures_long',  strat: 'futures_long' },
+      { key: 'futures_short', strat: 'futures_short' },
+    ];
+    for (const b of buckets) {
+      const list = phaseData?.[b.key]?.signals || [];
+      for (const s of list) {
+        out.push({
+          ...s,
+          strategy: s.strategy || b.strat,
+          _phaseGeneratedAt: s.createdAt || genAt,
+          _phaseName: s.phase || phaseName,
+        });
+      }
+    }
+  };
+
+  for (const p of ['morning', 'midday', 'evening', 'night']) {
+    addFromPhase(cryptoSnap[p], p);
+  }
+  if (Array.isArray(cryptoSnap.intraday)) {
+    for (const ip of cryptoSnap.intraday) addFromPhase(ip, 'intraday');
+  }
+  return out;
+}
+
+/**
+ * Her sembol+strateji+direction grubu için kronolojik sıra ata.
+ * Sequence 1, 2, 3 … ve signalId = `${SYMBOL}_${N}` (kullanıcı talebi).
+ */
+function assignSequenceNumbers(signals) {
+  // createdAt'e göre kararlı sırala — aynı zamanlıları phase + index ile ayır
+  const indexed = signals.map((s, i) => ({ s, i }));
+  indexed.sort((a, b) => {
+    const ta = new Date(a.s._phaseGeneratedAt || 0).getTime();
+    const tb = new Date(b.s._phaseGeneratedAt || 0).getTime();
+    if (ta !== tb) return ta - tb;
+    return a.i - b.i;
+  });
+
+  // Her sembol için sayaç
+  const counters = new Map();
+  for (const { s } of indexed) {
+    const key = `${s.symbol}::${s.strategy}::${s.direction || ''}`;
+    const next = (counters.get(key) || 0) + 1;
+    counters.set(key, next);
+    s.sequence = next;
+    s.signalId = `${s.symbol}_${next}`;
+  }
+  return signals;
+}
+
+/**
+ * Tüm versiyonları içeren tarihçeden, her sembol+strateji için EN SON versiyonu seçer.
+ * Ana "Gün Sonu" tablosu bunu kullanır (geri uyumluluk).
+ */
+function pickLatestPerSymbol(rows) {
+  const byKey = new Map();
+  for (const r of rows) {
+    const key = `${r.symbol}::${r.strategy}::${r.direction || ''}`;
+    const ex = byKey.get(key);
+    if (!ex) { byKey.set(key, r); continue; }
+    const ta = new Date(ex.createdAt || 0).getTime();
+    const tb = new Date(r.createdAt || 0).getTime();
+    if (tb >= ta) byKey.set(key, r);
+  }
+  return Array.from(byKey.values());
+}
+
+/**
  * O günün snapshot'ından hisse + (varsa) kripto sinyallerini al,
- * gün sonu performansını hesapla.
+ * gün sonu performansını hesapla. Tüm fazlardaki sinyaller tarihçeye girer;
+ * "signals" alanı sembol başına en son versiyonu içerir.
  */
 async function computePerformance(date) {
   const targetDate = date || snapshotStore.dateKey();
@@ -210,69 +338,45 @@ async function computePerformance(date) {
     ? cryptoSnapshotStore.read(targetDate)
     : null;
 
-  // ── Hisse sinyalleri (premarket trend + reversion birleşik) ──
-  const stockSignals = [];
-  const stockPhase = stockSnap?.premarket || stockSnap?.revision;
-  if (stockPhase) {
-    const trend = stockPhase.trend?.signals || [];
-    const rev   = stockPhase.reversion?.signals || [];
-    for (const s of trend) stockSignals.push({ ...s, strategy: s.strategy || 'trend' });
-    for (const s of rev)   stockSignals.push({ ...s, strategy: s.strategy || 'reversion' });
-  }
+  // ── Tüm fazlardan sinyalleri topla + sıra numarası ata ──
+  const stockSignalsRaw  = assignSequenceNumbers(collectStockSignals(stockSnap));
+  const cryptoSignalsRaw = assignSequenceNumbers(collectCryptoSignals(cryptoSnap));
 
-  // ── Kripto sinyalleri ──
-  // cryptoSnapshot fazları: morning/midday/evening/night + intraday[]
-  // Her faz içinde: spot_long, futures_long, futures_short
-  const cryptoSignals = [];
-  if (cryptoSnap) {
-    let phase = null;
-    if (typeof cryptoSnapshotStore.getCurrentPhase === 'function') {
-      phase = cryptoSnapshotStore.getCurrentPhase(cryptoSnap);
-    }
-    // getCurrentPhase yoksa veya null döndüyse manuel sırayla dene
-    if (!phase) {
-      for (const p of ['morning', 'midday', 'evening', 'night']) {
-        if (cryptoSnap[p]) { phase = cryptoSnap[p]; break; }
-      }
-    }
-    if (phase) {
-      const buckets = [
-        { key: 'spot_long', strat: 'spot_long' },
-        { key: 'futures_long', strat: 'futures_long' },
-        { key: 'futures_short', strat: 'futures_short' },
-      ];
-      for (const b of buckets) {
-        const list = phase?.[b.key]?.signals || [];
-        for (const s of list) cryptoSignals.push({ ...s, strategy: s.strategy || b.strat });
-      }
-    }
-  }
-
-  if (stockSignals.length === 0 && cryptoSignals.length === 0) {
+  if (stockSignalsRaw.length === 0 && cryptoSignalsRaw.length === 0) {
     return {
       date: targetDate,
       generatedAt: new Date().toISOString(),
-      stocks: { signals: [], summary: aggregate([]) },
-      crypto: { signals: [], summary: aggregate([]) },
+      stocks: { signals: [], history: [], summary: aggregate([]) },
+      crypto: { signals: [], history: [], summary: aggregate([]) },
       hasStockSnapshot: !!stockSnap,
       hasCryptoSnapshot: !!cryptoSnap,
       note: 'O tarih için snapshot bulunamadı.',
     };
   }
 
-  logger.info(`[DailyPerformance] ${targetDate} için ${stockSignals.length} hisse + ${cryptoSignals.length} kripto sinyali değerlendiriliyor...`);
+  logger.info(`[DailyPerformance] ${targetDate} için ${stockSignalsRaw.length} hisse + ${cryptoSignalsRaw.length} kripto sinyali değerlendiriliyor (tüm fazlar dahil)...`);
 
-  const [stockRows, cryptoRows] = await Promise.all([
-    evaluateSignalsBatch(stockSignals, { crypto: false }),
-    evaluateSignalsBatch(cryptoSignals, { crypto: true }),
+  const [stockHistory, cryptoHistory] = await Promise.all([
+    evaluateSignalsBatch(stockSignalsRaw, { crypto: false }),
+    evaluateSignalsBatch(cryptoSignalsRaw, { crypto: true }),
   ]);
+
+  // History: kronolojik (en yeni en üstte) tüm versiyonlar
+  const sortByCreatedDesc = (a, b) =>
+    new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
+  stockHistory.sort(sortByCreatedDesc);
+  cryptoHistory.sort(sortByCreatedDesc);
+
+  // Ana tablo: sembol başına en son versiyon
+  const stockRows  = pickLatestPerSymbol(stockHistory);
+  const cryptoRows = pickLatestPerSymbol(cryptoHistory);
 
   return {
     date: targetDate,
     generatedAt: new Date().toISOString(),
     sampleInvestment: SAMPLE_INVESTMENT,
-    stocks: { signals: stockRows, summary: aggregate(stockRows) },
-    crypto: { signals: cryptoRows, summary: aggregate(cryptoRows) },
+    stocks: { signals: stockRows,  history: stockHistory,  summary: aggregate(stockRows) },
+    crypto: { signals: cryptoRows, history: cryptoHistory, summary: aggregate(cryptoRows) },
     hasStockSnapshot: !!stockSnap,
     hasCryptoSnapshot: !!cryptoSnap,
   };

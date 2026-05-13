@@ -226,8 +226,18 @@ async function generatePhase(phase) {
 
   // Backtest tabanlı confidence enrichment — her sinyale historicalWinRate ekler.
   // signalConfidenceService disk cache'inden okur; cache yoksa null/unknown döner (UI tolere eder).
-  const enrichedTrend     = trendList.map(s => signalConfidenceService.enrichSignal(s, 'trend'));
-  const enrichedReversion = reversionList.map(s => signalConfidenceService.enrichSignal(s, 'reversion'));
+  // createdAt/phase: sinyalin üretildiği anı sinyalin kendisine bağlar (snapshot dosyasında kalıcı).
+  // Retroaktif düzeltme yok — bir sonraki faz yeni sinyaller üretirse onların kendi createdAt'i olur.
+  const enrichedTrend = trendList.map(s => ({
+    ...signalConfidenceService.enrichSignal(s, 'trend'),
+    createdAt: generatedAt,
+    phase,
+  }));
+  const enrichedReversion = reversionList.map(s => ({
+    ...signalConfidenceService.enrichSignal(s, 'reversion'),
+    createdAt: generatedAt,
+    phase,
+  }));
 
   return {
     phase, generatedAt,
