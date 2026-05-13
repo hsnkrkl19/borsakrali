@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import {
   ArrowRight,
   CandlestickChart,
@@ -11,6 +11,7 @@ import {
   Plus,
   ShieldCheck,
   Smartphone,
+  Sparkles,
   Sun,
   Type,
   User,
@@ -18,6 +19,8 @@ import {
 import { useAuthStore } from '../store/authStore'
 import { applyTheme, getStoredTheme } from '../utils/theme'
 import ConnectionTester from '../components/ConnectionTester'
+
+const WELCOME_SEEN_KEY = 'bk-welcome-seen-v1'
 
 const FONT_LEVELS = [80, 87, 93, 100, 108, 116]
 const DEFAULT_LEVEL = 3
@@ -131,11 +134,17 @@ function SectionCard({ icon, title, subtitle, children }) {
 
 export default function Ayarlar() {
   const { user } = useAuthStore()
+  const navigate = useNavigate()
   const [fontLevel, setFontLevel] = useState(getFontLevel)
   const [chartColor, setChartColor] = useState(() => localStorage.getItem('bk-chart-color') || 'default')
   const [chartType, setChartType] = useState(() => localStorage.getItem('bk-chart-type') || 'candlestick')
   const [theme, setTheme] = useState(() => getStoredTheme())
   const [savedMsg, setSavedMsg] = useState('')
+
+  const replayWelcome = () => {
+    try { localStorage.removeItem(WELCOME_SEEN_KEY) } catch {}
+    navigate('/yenilikler')
+  }
 
   const saveTheme = (value) => {
     setTheme(applyTheme(value))
@@ -377,6 +386,34 @@ export default function Ayarlar() {
         <p className="mt-3 text-[11px] text-gray-600">
           Mum grafik en fazla bilgiyi sunar. Cizgi daha sade bir gorunum saglar.
         </p>
+      </SectionCard>
+
+      <SectionCard
+        icon={<Sparkles className="h-5 w-5 text-gold-400" />}
+        title="Hosgeldin Ekrani"
+        subtitle="Yenilikler ekranini tekrar gor"
+      >
+        <p className="mb-3 text-[12px] text-gray-400 leading-relaxed">
+          Siteye ilk girdiginde gosterilen tanitim ekranlarini (Hero, felsefe,
+          strateji, eski sik sorulan sorular vs.) bir daha gormek istersen
+          asagidaki butona bas. Bir sonraki ziyaretinde Login sayfasinda da
+          tekrar gosterilir.
+        </p>
+        <button
+          onClick={replayWelcome}
+          className="group flex items-center justify-between gap-3 w-full rounded-2xl border border-gold-500/30 bg-dark-800 px-4 py-3 text-sm text-gray-200 transition-all hover:border-gold-500/60 hover:bg-dark-700"
+        >
+          <div className="flex items-center gap-3 text-left">
+            <Sparkles className="h-4 w-4 text-gold-400" />
+            <div>
+              <div className="font-medium text-white">Yenilikleri tekrar goster</div>
+              <div className="text-xs text-gray-500">
+                /yenilikler sayfasi acilir, isaret sifirlanir
+              </div>
+            </div>
+          </div>
+          <ArrowRight className="h-4 w-4 text-gold-400 transition-transform group-hover:translate-x-0.5" />
+        </button>
       </SectionCard>
 
       <SectionCard

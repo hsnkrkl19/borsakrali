@@ -8,23 +8,8 @@ import {
 import apiClient from '../services/api'
 import GuestCTA from '../components/GuestCTA'
 import MTFConfluenceSummary from '../components/MTFConfluenceSummary'
-import HomeHero from '../components/home/HomeHero'
-import HomeHowItWorks from '../components/home/HomeHowItWorks'
-import HomePhilosophy from '../components/home/HomePhilosophy'
-import HomeKnownVsUnknown from '../components/home/HomeKnownVsUnknown'
-import HomeStrategyShowcase from '../components/home/HomeStrategyShowcase'
-import HomeEducation from '../components/home/HomeEducation'
 import HomeFooter from '../components/home/HomeFooter'
-import HomeGuestProof from '../components/home/HomeGuestProof'
-import HomeSectionNav from '../components/home/HomeSectionNav'
-import HomeStickyCTA from '../components/home/HomeStickyCTA'
-import HomeScrollProgress from '../components/home/HomeScrollProgress'
-import HomeFAQ from '../components/home/HomeFAQ'
-import HomeTestimonials from '../components/home/HomeTestimonials'
-import HomeDataSources from '../components/home/HomeDataSources'
-import HomeChangelog from '../components/home/HomeChangelog'
 import { useScrollReveal, useHoverTilt } from '../hooks/useAnime'
-import { useAuthStore } from '../store/authStore'
 
 const fmt = (n, d = 2) => n == null ? '—' : n.toLocaleString('tr-TR', { minimumFractionDigits: d, maximumFractionDigits: d })
 
@@ -339,48 +324,6 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-10 sm:space-y-14 lg:space-y-16">
-      {/* ─── Scroll Progress Bar (üst altın çubuk) ──────────────────── */}
-      <HomeScrollProgress />
-
-      {/* ─── Sticky CTA (guest, scroll'da görünür) ─────────────────── */}
-      <HomeStickyCTA />
-
-      {/* ─── Bölüm Navigasyonu (sağ kenarda, lg+) ──────────────────── */}
-      <HomeSectionNav />
-
-      {/* ─── HERO ──────────────────────────────────────────────────────── */}
-      <div id="hero"><HomeHero /></div>
-
-      {/* ─── MİSAFİR İÇİN SOSYAL KANIT (auth ise null döner) ─────────── */}
-      <HomeGuestProof />
-
-      {/* ─── FELSEFE ───────────────────────────────────────────────────── */}
-      <div id="philosophy"><HomePhilosophy /></div>
-
-      {/* ─── BİLİNEN vs BİLİNMEYEN — derinlik karşılaştırması ─────────── */}
-      <div id="depth"><HomeKnownVsUnknown /></div>
-
-      {/* ─── STRATEJİ DÖNÜŞLERİ — somut backtest sayıları ─────────────── */}
-      <div id="strategies"><HomeStrategyShowcase /></div>
-
-      {/* ─── VERİ KAYNAKLARI — entegrasyon güveni ───────────────────── */}
-      <div id="sources"><HomeDataSources /></div>
-
-      {/* ─── NASIL ÇALIŞIR? Timeline ─────────────────────────────────── */}
-      <div id="how"><HomeHowItWorks /></div>
-
-      {/* ─── EĞİTİM İÇERİKLERİ — site'nin eğitim odağı vitrini ───────── */}
-      <div id="education"><HomeEducation /></div>
-
-      {/* ─── KULLANICI YORUMLARI — sosyal kanıt ─────────────────────── */}
-      <div id="testimonials"><HomeTestimonials /></div>
-
-      {/* ─── SÜRÜM TİMELİNE — aktif gelişim göstergesi ──────────────── */}
-      <div id="changelog"><HomeChangelog /></div>
-
-      {/* ─── SIK SORULAN SORULAR — eğitim + AdSense içerik zenginliği ─ */}
-      <div id="faq"><HomeFAQ /></div>
-
       {/* ─── PİYASA KOKPİTİ (canlı veriler) ──────────────────────────── */}
       <div id="cockpit" ref={cockpitRef} className="space-y-5 scroll-mt-20">
       <GuestCTA />

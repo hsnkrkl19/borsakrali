@@ -9,8 +9,13 @@ import {
 import { loginWithPassword } from '../services/auth'
 import BrandMark from '../components/BrandMark'
 import GoogleSignInButton from '../components/GoogleSignInButton'
+import WelcomeIntro from '../components/home/WelcomeIntro'
 import { getApiBase } from '../config'
 import { getStoredTheme } from '../utils/theme'
+
+/** Tarayıcı başına bir kerelik welcome ekranı flag'i. Ayarlar > Hoşgeldin
+ *  Ekranı bölümündeki "Yenilikleri tekrar göster" butonu bunu temizler. */
+const WELCOME_SEEN_KEY = 'bk-welcome-seen-v1'
 
 /**
  * Subscribe the component to the global theme so colors update when the
@@ -260,12 +265,25 @@ export default function Login() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [waking, setWaking] = useState(false)
+  // Welcome paneli: tarayıcı başına bir kerelik. localStorage flag yoksa göster.
+  const [showWelcome, setShowWelcome] = useState(() => {
+    try { return localStorage.getItem(WELCOME_SEEN_KEY) !== '1' } catch { return false }
+  })
   const macro = useMacroSnapshot()
   const theme = useTheme()
   const isLight = theme === 'light'
 
   if (isAuthenticated) {
     return <Navigate to="/" replace />
+  }
+
+  const handleContinueToLogin = () => {
+    try { localStorage.setItem(WELCOME_SEEN_KEY, '1') } catch {}
+    setShowWelcome(false)
+    // Mobilde welcome scroll'undan login formuna geçişi rahatlatmak için yukarı al
+    if (typeof window !== 'undefined') {
+      window.scrollTo({ top: 0, behavior: 'smooth' })
+    }
   }
 
   const handleLogin = async (e) => {
@@ -320,6 +338,292 @@ export default function Login() {
     { icon: Lightbulb, title: 'Akıllı Sinyal Motoru', stat: 'Live', subtitle: 'günlük tespitler · al-sat alarmı' },
   ]
 
+  // ═══════════════════════════════════════════════════════════════════════
+  // Login form panel — hem cinematic hem welcome layout tarafından kullanılır.
+  // Tüm form state'i closure üzerinden gelir, ekstra prop geçmeye gerek yok.
+  // ═══════════════════════════════════════════════════════════════════════
+  const loginPanel = (
+    <div className="max-w-[400px] w-full relative z-10">
+      {/* Mobile brand */}
+      <div className="text-center mb-8 lg:hidden">
+        <div className="inline-flex mb-4">
+          <BrandMark size="xl" />
+        </div>
+        <h1 className="text-2xl font-bold text-gold-shimmer tracking-wider">BORSA KRALI</h1>
+        <p className="text-amber-400/80 text-[10px] uppercase tracking-[0.22em] font-bold mt-1">Obsidian Edition</p>
+      </div>
+
+      {/* Form card */}
+      <div className="surface-card-gold p-7 sm:p-8 relative overflow-hidden">
+        <div
+          className="absolute top-0 left-0 right-0 h-[2px]"
+          style={{ background: 'linear-gradient(90deg, transparent, var(--gold-300), transparent)' }}
+        />
+
+        <div className="mb-6">
+          <h2
+            className="text-2xl font-bold tracking-tight mb-1.5"
+            style={{ color: isLight ? '#0f172a' : '#ffffff' }}
+          >
+            Tekrar Hoş Geldiniz
+          </h2>
+          <p
+            className="text-[13px]"
+            style={{ color: isLight ? '#64748b' : '#94a3b8' }}
+          >
+            Premium hesabınıza giriş yapın
+          </p>
+        </div>
+
+        {error && (
+          <div className="mb-5 p-3.5 rounded-xl flex items-start gap-2.5 text-[13px]"
+            style={{
+              background: 'rgba(255, 59, 70, 0.08)',
+              border: '1px solid rgba(255, 59, 70, 0.25)',
+              color: '#fca5a5',
+            }}
+          >
+            <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+            <span className="leading-relaxed">{error}</span>
+          </div>
+        )}
+
+        {waking && !error && (
+          <div className="mb-5 p-3.5 rounded-xl flex items-center gap-2.5 text-[13px]"
+            style={{
+              background: 'rgba(212, 175, 55, 0.08)',
+              border: '1px solid rgba(212, 175, 55, 0.25)',
+              color: '#fcd34d',
+            }}
+          >
+            <Loader className="w-4 h-4 flex-shrink-0 animate-spin" />
+            <span>Sunucu uyandırılıyor… ilk açılışta ~30 saniye sürebilir.</span>
+          </div>
+        )}
+
+        <form onSubmit={handleLogin} className="space-y-4">
+          {/* Email */}
+          <label className="block">
+            <div className="text-[10px] uppercase tracking-[0.16em] text-amber-400/80 font-bold mb-2 flex items-center gap-1.5">
+              <span className="status-dot bg-amber-400/70" />
+              E-posta
+            </div>
+            <div className="relative">
+              <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-amber-400/70 pointer-events-none" />
+              <input
+                type="email"
+                placeholder="ornek@borsakrali.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="input-premium pl-11"
+                autoComplete="email"
+                required
+              />
+            </div>
+          </label>
+
+          {/* Password */}
+          <label className="block">
+            <div className="text-[10px] uppercase tracking-[0.16em] text-amber-400/80 font-bold mb-2 flex items-center gap-1.5">
+              <span className="status-dot bg-amber-400/70" />
+              Şifre
+            </div>
+            <div className="relative">
+              <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-amber-400/70 pointer-events-none" />
+              <input
+                type={showPassword ? 'text' : 'password'}
+                placeholder="••••••••••"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="input-premium pl-11 pr-11"
+                autoComplete="current-password"
+                required
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(v => !v)}
+                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-amber-400 transition-colors"
+                aria-label={showPassword ? 'Şifreyi gizle' : 'Şifreyi göster'}
+              >
+                {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
+            </div>
+          </label>
+
+          <button
+            type="submit"
+            disabled={loading || !email.trim() || !password}
+            className="btn-gold w-full text-[13.5px] py-3 mt-1.5"
+          >
+            {loading ? (
+              <><Loader className="w-4 h-4 animate-spin" /> Giriş yapılıyor…</>
+            ) : (
+              <>Krallığa Gir <ArrowRight className="w-4 h-4" /></>
+            )}
+          </button>
+        </form>
+
+        {/* Divider */}
+        <div className="relative my-5">
+          <div className="absolute inset-0 flex items-center">
+            <div className="w-full divider-gold" />
+          </div>
+          <div className="relative flex justify-center">
+            <span className="px-3 text-[10px] uppercase tracking-[0.22em] font-bold text-amber-400/70 bg-[var(--bg-card)]">
+              veya
+            </span>
+          </div>
+        </div>
+
+        {/* Google Sign-In */}
+        <GoogleSignInButton
+          onError={(msg) => setError(msg)}
+          redirectTo="/"
+          label="Google ile giriş yap"
+        />
+
+        <div className="my-3" />
+
+        {/* Demo */}
+        <button
+          onClick={handleDemoLogin}
+          className="w-full relative overflow-hidden rounded-xl py-3 px-4 flex items-center justify-center gap-2.5 font-semibold text-[13px] transition-all group"
+          style={{
+            background: isLight
+              ? 'linear-gradient(135deg, rgba(59, 130, 246, 0.10), rgba(99, 102, 241, 0.05))'
+              : 'linear-gradient(135deg, rgba(59, 130, 246, 0.12), rgba(99, 102, 241, 0.06))',
+            border: '1px solid rgba(59, 130, 246, 0.30)',
+            color: isLight ? '#1e40af' : '#bfdbfe',
+          }}
+        >
+          <PlayCircle className="w-4 h-4 text-blue-400 group-hover:text-blue-300" />
+          Demo Hesapla Keşfet
+          <span className="pill pill-azure ml-1 !text-[9px]">Tam Erişim</span>
+        </button>
+        <p
+          className="text-[11px] text-center mt-2"
+          style={{ color: isLight ? '#64748b' : '#64748b' }}
+        >
+          Demo modunda tüm analiz araçlarına gerçek verilerle erişin
+        </p>
+
+        <div className="mt-6 text-center">
+          <p
+            className="text-[13px]"
+            style={{ color: isLight ? '#475569' : '#94a3b8' }}
+          >
+            Henüz üye değil misiniz?{' '}
+            <Link to="/register" className="text-amber-400 hover:text-amber-300 font-bold transition-colors">
+              Krallığa Katılın →
+            </Link>
+          </p>
+        </div>
+      </div>
+
+      <p
+        className="text-center text-[10px] mt-5 leading-relaxed"
+        style={{ color: isLight ? '#94a3b8' : '#475569' }}
+      >
+        Yatırım tavsiyesi değildir · Eğitim amaçlı platform
+      </p>
+
+      <div
+        className="mt-3 flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-[10px]"
+        style={{ color: isLight ? '#94a3b8' : '#64748b' }}
+      >
+        <Link to="/hakkimizda" className="hover:text-amber-400">Hakkımızda</Link>
+        <span>·</span>
+        <Link to="/iletisim" className="hover:text-amber-400">İletişim</Link>
+        <span>·</span>
+        <Link to="/privacy-policy" className="hover:text-amber-400">Gizlilik</Link>
+        <span>·</span>
+        <Link to="/terms-of-use" className="hover:text-amber-400">Kullanım Koşulları</Link>
+        <span>·</span>
+        <Link to="/account-deletion" className="hover:text-amber-400">Hesap Silme</Link>
+      </div>
+    </div>
+  )
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // WELCOME LAYOUT — sol kolon scroll'lanan yenilikler, sağ kolon sticky login.
+  // localStorage flag set olduğunda devre dışı kalır, normal cinematic layout
+  // gösterilir.
+  // ═══════════════════════════════════════════════════════════════════════
+  if (showWelcome) {
+    return (
+      <div className="min-h-screen auth-backdrop" style={{ backgroundColor: 'var(--bg-base)' }}>
+        <div className="flex flex-col lg:flex-row">
+          {/* SOL: yenilikler — sayfa boyu scroll */}
+          <div className="w-full lg:w-[58%] px-4 sm:px-6 lg:px-10 pt-6 pb-10 lg:pt-10 lg:pb-16">
+            {/* Brand bar + ticker chips */}
+            <div className="flex items-center justify-between gap-3 mb-8 lg:mb-10 flex-wrap">
+              <div className="flex items-center gap-3">
+                <BrandMark size="lg" />
+                <div>
+                  <h1 className="text-xl font-bold text-gold-shimmer tracking-wider leading-none">BORSA KRALI</h1>
+                  <p
+                    className="text-[10px] uppercase tracking-[0.22em] font-bold mt-1"
+                    style={{ color: isLight ? '#92400e' : 'rgba(252, 211, 77, 0.70)' }}
+                  >
+                    Obsidian Edition · Yenilikler
+                  </p>
+                </div>
+              </div>
+              <div className="hidden xl:flex items-center gap-2">
+                {macro.bist100 && (
+                  <HeroTickerChip
+                    label="BIST 100"
+                    value={formatTr(macro.bist100.value, { frac: 2 })}
+                    change={macro.bist100.change ?? 0}
+                    theme={theme}
+                  />
+                )}
+                {macro.usdtry && (
+                  <HeroTickerChip
+                    label="USD/TRY"
+                    value={formatTr(macro.usdtry.value, { frac: 2 })}
+                    change={macro.usdtry.change ?? 0}
+                    theme={theme}
+                  />
+                )}
+              </div>
+            </div>
+
+            <WelcomeIntro onContinue={handleContinueToLogin} />
+          </div>
+
+          {/* SAĞ: sticky login — desktop'ta yan panel olarak kalır */}
+          <div
+            className="w-full lg:w-[42%] lg:sticky lg:top-0 lg:h-screen flex items-center justify-center p-6 sm:p-10 relative z-10"
+            style={{
+              background: isLight
+                ? 'linear-gradient(180deg, rgba(255,255,255,0.92) 0%, rgba(254,243,199,0.78) 100%)'
+                : 'linear-gradient(180deg, rgba(6,10,20,0.92) 0%, rgba(10,16,32,0.88) 100%)',
+              backdropFilter: 'blur(10px)',
+              WebkitBackdropFilter: 'blur(10px)',
+              borderLeft: '1px solid var(--border-gold)',
+            }}
+          >
+            {/* Sol panelden taşan altın huzme */}
+            <div
+              aria-hidden="true"
+              className="hidden lg:block absolute inset-y-0 left-0 w-[55%] pointer-events-none"
+              style={{
+                background: isLight
+                  ? 'radial-gradient(ellipse 80% 60% at 0% 50%, rgba(254, 243, 199, 0.55) 0%, rgba(254, 243, 199, 0.18) 35%, transparent 70%)'
+                  : 'radial-gradient(ellipse 80% 60% at 0% 50%, rgba(212, 175, 55, 0.10) 0%, rgba(212, 175, 55, 0.04) 35%, transparent 70%)',
+              }}
+            />
+            {loginPanel}
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // CINEMATIC LAYOUT — varsayılan, welcome görüldükten sonra.
+  // ═══════════════════════════════════════════════════════════════════════
   return (
     <div className="min-h-screen flex auth-backdrop" style={{ backgroundColor: 'var(--bg-base)' }}>
       {/* ═════════════════════════════════════════════════════════════════════
@@ -545,205 +849,7 @@ export default function Login() {
           }}
         />
 
-        <div className="max-w-[400px] w-full relative z-10">
-          {/* Mobile brand */}
-          <div className="text-center mb-8 lg:hidden">
-            <div className="inline-flex mb-4">
-              <BrandMark size="xl" />
-            </div>
-            <h1 className="text-2xl font-bold text-gold-shimmer tracking-wider">BORSA KRALI</h1>
-            <p className="text-amber-400/80 text-[10px] uppercase tracking-[0.22em] font-bold mt-1">Obsidian Edition</p>
-          </div>
-
-          {/* Form card */}
-          <div className="surface-card-gold p-7 sm:p-8 relative overflow-hidden">
-            <div
-              className="absolute top-0 left-0 right-0 h-[2px]"
-              style={{ background: 'linear-gradient(90deg, transparent, var(--gold-300), transparent)' }}
-            />
-
-            <div className="mb-6">
-              <h2
-                className="text-2xl font-bold tracking-tight mb-1.5"
-                style={{ color: isLight ? '#0f172a' : '#ffffff' }}
-              >
-                Tekrar Hoş Geldiniz
-              </h2>
-              <p
-                className="text-[13px]"
-                style={{ color: isLight ? '#64748b' : '#94a3b8' }}
-              >
-                Premium hesabınıza giriş yapın
-              </p>
-            </div>
-
-            {error && (
-              <div className="mb-5 p-3.5 rounded-xl flex items-start gap-2.5 text-[13px]"
-                style={{
-                  background: 'rgba(255, 59, 70, 0.08)',
-                  border: '1px solid rgba(255, 59, 70, 0.25)',
-                  color: '#fca5a5',
-                }}
-              >
-                <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
-                <span className="leading-relaxed">{error}</span>
-              </div>
-            )}
-
-            {waking && !error && (
-              <div className="mb-5 p-3.5 rounded-xl flex items-center gap-2.5 text-[13px]"
-                style={{
-                  background: 'rgba(212, 175, 55, 0.08)',
-                  border: '1px solid rgba(212, 175, 55, 0.25)',
-                  color: '#fcd34d',
-                }}
-              >
-                <Loader className="w-4 h-4 flex-shrink-0 animate-spin" />
-                <span>Sunucu uyandırılıyor… ilk açılışta ~30 saniye sürebilir.</span>
-              </div>
-            )}
-
-            <form onSubmit={handleLogin} className="space-y-4">
-              {/* Email */}
-              <label className="block">
-                <div className="text-[10px] uppercase tracking-[0.16em] text-amber-400/80 font-bold mb-2 flex items-center gap-1.5">
-                  <span className="status-dot bg-amber-400/70" />
-                  E-posta
-                </div>
-                <div className="relative">
-                  <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-amber-400/70 pointer-events-none" />
-                  <input
-                    type="email"
-                    placeholder="ornek@borsakrali.com"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="input-premium pl-11"
-                    autoComplete="email"
-                    required
-                  />
-                </div>
-              </label>
-
-              {/* Password */}
-              <label className="block">
-                <div className="text-[10px] uppercase tracking-[0.16em] text-amber-400/80 font-bold mb-2 flex items-center gap-1.5">
-                  <span className="status-dot bg-amber-400/70" />
-                  Şifre
-                </div>
-                <div className="relative">
-                  <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-amber-400/70 pointer-events-none" />
-                  <input
-                    type={showPassword ? 'text' : 'password'}
-                    placeholder="••••••••••"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="input-premium pl-11 pr-11"
-                    autoComplete="current-password"
-                    required
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(v => !v)}
-                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-amber-400 transition-colors"
-                    aria-label={showPassword ? 'Şifreyi gizle' : 'Şifreyi göster'}
-                  >
-                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                  </button>
-                </div>
-              </label>
-
-              <button
-                type="submit"
-                disabled={loading || !email.trim() || !password}
-                className="btn-gold w-full text-[13.5px] py-3 mt-1.5"
-              >
-                {loading ? (
-                  <><Loader className="w-4 h-4 animate-spin" /> Giriş yapılıyor…</>
-                ) : (
-                  <>Krallığa Gir <ArrowRight className="w-4 h-4" /></>
-                )}
-              </button>
-            </form>
-
-            {/* Divider */}
-            <div className="relative my-5">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full divider-gold" />
-              </div>
-              <div className="relative flex justify-center">
-                <span className="px-3 text-[10px] uppercase tracking-[0.22em] font-bold text-amber-400/70 bg-[var(--bg-card)]">
-                  veya
-                </span>
-              </div>
-            </div>
-
-            {/* Google Sign-In */}
-            <GoogleSignInButton
-              onError={(msg) => setError(msg)}
-              redirectTo="/"
-              label="Google ile giriş yap"
-            />
-
-            <div className="my-3" />
-
-            {/* Demo */}
-            <button
-              onClick={handleDemoLogin}
-              className="w-full relative overflow-hidden rounded-xl py-3 px-4 flex items-center justify-center gap-2.5 font-semibold text-[13px] transition-all group"
-              style={{
-                background: isLight
-                  ? 'linear-gradient(135deg, rgba(59, 130, 246, 0.10), rgba(99, 102, 241, 0.05))'
-                  : 'linear-gradient(135deg, rgba(59, 130, 246, 0.12), rgba(99, 102, 241, 0.06))',
-                border: '1px solid rgba(59, 130, 246, 0.30)',
-                color: isLight ? '#1e40af' : '#bfdbfe',
-              }}
-            >
-              <PlayCircle className="w-4 h-4 text-blue-400 group-hover:text-blue-300" />
-              Demo Hesapla Keşfet
-              <span className="pill pill-azure ml-1 !text-[9px]">Tam Erişim</span>
-            </button>
-            <p
-              className="text-[11px] text-center mt-2"
-              style={{ color: isLight ? '#64748b' : '#64748b' }}
-            >
-              Demo modunda tüm analiz araçlarına gerçek verilerle erişin
-            </p>
-
-            <div className="mt-6 text-center">
-              <p
-                className="text-[13px]"
-                style={{ color: isLight ? '#475569' : '#94a3b8' }}
-              >
-                Henüz üye değil misiniz?{' '}
-                <Link to="/register" className="text-amber-400 hover:text-amber-300 font-bold transition-colors">
-                  Krallığa Katılın →
-                </Link>
-              </p>
-            </div>
-          </div>
-
-          <p
-            className="text-center text-[10px] mt-5 leading-relaxed"
-            style={{ color: isLight ? '#94a3b8' : '#475569' }}
-          >
-            Yatırım tavsiyesi değildir · Eğitim amaçlı platform
-          </p>
-
-          <div
-            className="mt-3 flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-[10px]"
-            style={{ color: isLight ? '#94a3b8' : '#64748b' }}
-          >
-            <Link to="/hakkimizda" className="hover:text-amber-400">Hakkımızda</Link>
-            <span>·</span>
-            <Link to="/iletisim" className="hover:text-amber-400">İletişim</Link>
-            <span>·</span>
-            <Link to="/privacy-policy" className="hover:text-amber-400">Gizlilik</Link>
-            <span>·</span>
-            <Link to="/terms-of-use" className="hover:text-amber-400">Kullanım Koşulları</Link>
-            <span>·</span>
-            <Link to="/account-deletion" className="hover:text-amber-400">Hesap Silme</Link>
-          </div>
-        </div>
+        {loginPanel}
       </div>
     </div>
   )

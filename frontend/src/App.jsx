@@ -56,6 +56,7 @@ import KriptoDegerleme from './pages/KriptoDegerleme' // YENİ: kripto composite
 import SiteHaritasi from './pages/SiteHaritasi'       // Site haritasi (eski Yenilikler yerine)
 import GunSonuPerformans from './pages/GunSonuPerformans' // YENİ: günün sinyallerinin gün sonu performansı
 import TradingBot from './pages/TradingBot' // YENİ v5.1: Freqtrade port + sınama katmanı
+import Yenilikler from './pages/Yenilikler' // YENİ v5.2: Hoşgeldin / yenilikler ekranı (tekrar göster)
 
 import { useAuthStore } from './store/authStore'
 import { fetchCurrentUser } from './services/auth'
@@ -174,7 +175,7 @@ function App() {
                 <Route path="/ekonomik-takvim" element={<EkonomikTakvim />} />
                 <Route path="/site-haritasi" element={<SiteHaritasi />} />
                 <Route path="/endeks/:symbol" element={<EndeksDetay />} />
-                <Route path="/yenilikler" element={<Navigate to="/site-haritasi" replace />} />
+                <Route path="/yenilikler" element={<Yenilikler />} />
 
                 {/* === EGITIM / BLOG (public, AdSense icin kritik icerik) === */}
                 <Route path="/egitim" element={<Egitim />} />
