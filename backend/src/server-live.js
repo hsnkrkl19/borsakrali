@@ -96,14 +96,36 @@ app.use(helmet({
         // Google Identity Services (Google ile giriş)
         'accounts.google.com', '*.gstatic.com',
         'apis.google.com',
+        // Google AdSense
+        'pagead2.googlesyndication.com', '*.googlesyndication.com',
+        'partner.googleadservices.com', '*.googleadservices.com',
+        'tpc.googlesyndication.com', 'googleads.g.doubleclick.net',
+        '*.google.com', 'adservice.google.com',
+      ],
+      scriptSrcElem: [
+        "'self'", "'unsafe-inline'",
+        '*.tradingview.com', 's3.tradingview.com',
+        'cdn.tradingview.com', 'cdnjs.cloudflare.com',
+        '*.cloudflare.com', 'cdn.jsdelivr.net',
+        'accounts.google.com', '*.gstatic.com', 'apis.google.com',
+        'pagead2.googlesyndication.com', '*.googlesyndication.com',
+        'partner.googleadservices.com', '*.googleadservices.com',
+        'tpc.googlesyndication.com', 'googleads.g.doubleclick.net',
+        '*.google.com', 'adservice.google.com',
       ],
       // GIS ve Google OAuth iframe/popup iletişimi için
       frameSrc: [
         "'self'", '*', '*.tradingview.com', 'data:',
         'accounts.google.com', '*.google.com',
+        '*.googlesyndication.com', 'googleads.g.doubleclick.net',
+        'tpc.googlesyndication.com',
       ],
       imgSrc: ["'self'", 'data:', 'blob:', '*'],
-      connectSrc: ["'self'", '*', 'accounts.google.com', '*.googleapis.com'],
+      connectSrc: [
+        "'self'", '*', 'accounts.google.com', '*.googleapis.com',
+        'pagead2.googlesyndication.com', '*.googlesyndication.com',
+        '*.google.com', 'googleads.g.doubleclick.net',
+      ],
       styleSrc: ["'self'", "'unsafe-inline'", '*', 'accounts.google.com'],
       fontSrc: ["'self'", 'data:', '*'],
       workerSrc: ["'self'", 'blob:'],
@@ -1158,31 +1180,49 @@ async function fetchCommodityPrice(yahooSymbol) {
   }
 }
 
+function rangeToStartDate(range) {
+  const now = new Date();
+  const d = new Date(now);
+  switch (range) {
+    case '5d':  d.setDate(now.getDate() - 7); break;
+    case '1mo': d.setMonth(now.getMonth() - 1); break;
+    case '3mo': d.setMonth(now.getMonth() - 3); break;
+    case '6mo': d.setMonth(now.getMonth() - 6); break;
+    case '1y':  d.setFullYear(now.getFullYear() - 1); break;
+    case '2y':  d.setFullYear(now.getFullYear() - 2); break;
+    case '5y':  d.setFullYear(now.getFullYear() - 5); break;
+    default:    d.setMonth(now.getMonth() - 3);
+  }
+  return d;
+}
+
 async function fetchCommodityHistoricalSeries(yahooSymbol, range, interval) {
-  const encoded = encodeURIComponent(yahooSymbol);
-  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encoded}?interval=${interval || '1d'}&range=${range}`;
+  try {
+    const YF = (await import('yahoo-finance2')).default;
+    const yf = new YF();
+    if (yf.suppressNotices) yf.suppressNotices(['yahooSurvey', 'ripHistorical']);
 
-  const response = await axios.get(url, {
-    headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
-    timeout: 15000
-  });
+    const period1 = rangeToStartDate(range);
+    const chart = await yf.chart(yahooSymbol, {
+      period1,
+      interval: interval || '1d',
+    }, { validateResult: false });
 
-  const result = response.data?.chart?.result?.[0];
-  if (!result) return null;
-
-  const timestamps = result.timestamp || [];
-  const quotes = result.indicators?.quote?.[0] || {};
-
-  return timestamps
-    .map((ts, i) => ({
-      time: new Date(ts * 1000).toISOString().split('T')[0],
-      open:  quotes.open?.[i]  != null ? +quotes.open[i].toFixed(4)  : null,
-      high:  quotes.high?.[i]  != null ? +quotes.high[i].toFixed(4)  : null,
-      low:   quotes.low?.[i]   != null ? +quotes.low[i].toFixed(4)   : null,
-      close: quotes.close?.[i] != null ? +quotes.close[i].toFixed(4) : null,
-      volume: quotes.volume?.[i] || 0
-    }))
-    .filter(d => d.open && d.close);
+    const quotes = chart?.quotes || [];
+    return quotes
+      .map((q) => ({
+        time: q.date instanceof Date ? q.date.toISOString().split('T')[0] : String(q.date).slice(0, 10),
+        open:  q.open  != null ? +Number(q.open).toFixed(4)  : null,
+        high:  q.high  != null ? +Number(q.high).toFixed(4)  : null,
+        low:   q.low   != null ? +Number(q.low).toFixed(4)   : null,
+        close: q.close != null ? +Number(q.close).toFixed(4) : null,
+        volume: q.volume || 0,
+      }))
+      .filter((d) => d.open && d.close);
+  } catch (err) {
+    console.error(`fetchCommodityHistoricalSeries(${yahooSymbol}) hatasi:`, err.message);
+    return null;
+  }
 }
 
 app.get('/api/market/commodities', async (req, res) => {
@@ -1317,8 +1357,14 @@ app.get('/api/market/commodity/:symbol/historical', async (req, res) => {
     const { symbol } = req.params; // 'gold_usd', 'silver_usd', 'gold_try', 'usd_try'
     const { period = '3mo', interval = '1d' } = req.query;
 
-    const rangeMap = { '1w':'5d','1mo':'1mo','3mo':'3mo','6mo':'6mo','1y':'1y','2y':'2y','5y':'5y' };
-    const range = rangeMap[period] || '3mo';
+    // Intraday aralıklar (30m/60m vb) Yahoo'da kısa range gerektiriyor; günlük/haftalık serbest.
+    const intradayIntervals = new Set(['1m', '2m', '5m', '15m', '30m', '60m', '90m', '1h']);
+    const isIntraday = intradayIntervals.has(interval);
+
+    const rangeMap = isIntraday
+      ? { '1d':'1d','5d':'5d','7d':'5d','1w':'5d','1mo':'1mo','3mo':'1mo','6mo':'1mo','60d':'60d' }
+      : { '1d':'5d','5d':'5d','7d':'5d','1w':'5d','1mo':'1mo','3mo':'3mo','6mo':'6mo','1y':'1y','2y':'2y','5y':'5y','1wk':'5y' };
+    const range = rangeMap[period] || (isIntraday ? '5d' : '3mo');
 
     if (symbol === 'gold_try') {
       const [goldUsdSeries, usdTrySeries] = await Promise.all([
@@ -1708,6 +1754,7 @@ async function fetchCryptoHistorical(ticker) {
     GMT:'stepn',APE:'apecoin',CHZ:'chiliz',BAT:'basic-attention-token',
     KSM:'kusama',DCR:'decred',ZEC:'zcash',DASH:'dash',EOS:'eos',
     XTZ:'tezos',IOTA:'iota',
+    DEEP:'deep',PAXG:'pax-gold',
   };
   const cryptoApis = [
     // ── 0) Yahoo Finance (BTC-USD format) — Türkiye'den erişilebilir, BIST için de kullanılan aynı API ──

@@ -397,25 +397,12 @@ async function generatePhase(phase) {
   futuresLongList.sort(sortFn);
   futuresShortList.sort(sortFn);
 
-  const generatedAt = new Date().toISOString();
-
   // Backtest tabanlı confidence enrichment — her sinyale historicalWinRate ekler.
-  // createdAt/phase: sinyalin üretildiği an sinyalin kendisine bağlanır (retroaktif düzeltme yok).
-  const enrichedSpot = spotLongList.map(s => ({
-    ...signalConfidenceService.enrichSignal(s, 'spot_long'),
-    createdAt: generatedAt,
-    phase,
-  }));
-  const enrichedFutLong = futuresLongList.map(s => ({
-    ...signalConfidenceService.enrichSignal(s, 'futures_long'),
-    createdAt: generatedAt,
-    phase,
-  }));
-  const enrichedFutShort = futuresShortList.map(s => ({
-    ...signalConfidenceService.enrichSignal(s, 'futures_short'),
-    createdAt: generatedAt,
-    phase,
-  }));
+  const enrichedSpot     = spotLongList.map(s     => signalConfidenceService.enrichSignal(s, 'spot_long'));
+  const enrichedFutLong  = futuresLongList.map(s  => signalConfidenceService.enrichSignal(s, 'futures_long'));
+  const enrichedFutShort = futuresShortList.map(s => signalConfidenceService.enrichSignal(s, 'futures_short'));
+
+  const generatedAt = new Date().toISOString();
   return {
     phase,
     generatedAt,

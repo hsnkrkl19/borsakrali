@@ -33,6 +33,7 @@ const BATCH_SIZE = 5;
 const BATCH_PAUSE_MS = 250;
 
 const BINANCE_BASE = 'https://api.binance.com';
+const BINANCE_FAPI_BASE = 'https://fapi.binance.com';
 
 // TF → bir üst TF (macro context için)
 const HIGHER_TF_MAP = {
@@ -94,25 +95,37 @@ async function fetchKlines(symbol, interval, limit = 250) {
   const ttl = TF_CACHE_TTL[interval] || 10 * 60 * 1000;
   if (cached && now - cached.t < ttl) return cached.data;
 
-  try {
-    const res = await axios.get(`${BINANCE_BASE}/api/v3/klines`, {
-      params: { symbol: `${symbol}USDT`, interval, limit },
-      timeout: 15000,
-    });
-    const candles = (res.data || []).map(k => ({
-      time: Math.floor(k[0] / 1000),
-      open: +k[1], high: +k[2], low: +k[3], close: +k[4],
-      volume: +k[5],
-    }));
-    klinesCache.set(cacheKey, { data: candles, t: now });
-    return candles;
-  } catch (e) {
-    if (e.response?.status === 400) {
-      klinesCache.set(cacheKey, { data: null, t: now });
-      return null;
+  // Önce SPOT, başarısız olursa USDT-M FUTURES (DEEP gibi futures-only coin'ler için)
+  const sources = [
+    `${BINANCE_BASE}/api/v3/klines`,
+    `${BINANCE_FAPI_BASE}/fapi/v1/klines`,
+  ];
+  let symbolNotFound = false;
+  for (const url of sources) {
+    try {
+      const res = await axios.get(url, {
+        params: { symbol: `${symbol}USDT`, interval, limit },
+        timeout: 15000,
+      });
+      const candles = (res.data || []).map(k => ({
+        time: Math.floor(k[0] / 1000),
+        open: +k[1], high: +k[2], low: +k[3], close: +k[4],
+        volume: +k[5],
+      }));
+      klinesCache.set(cacheKey, { data: candles, t: now });
+      return candles;
+    } catch (e) {
+      if (e.response?.status === 400) {
+        symbolNotFound = true;
+        continue;
+      }
+      // Transient hata — fallback dene
     }
-    return null;
   }
+  if (symbolNotFound) {
+    klinesCache.set(cacheKey, { data: null, t: now });
+  }
+  return null;
 }
 
 // ── İndikatör hesaplamaları (cryptoSignalsService'in light kopyası) ───────
@@ -276,8 +289,8 @@ async function scanUniverseForTF(tf) {
   const universe = await cryptoSignalsService.getTop100Coins();
   if (!universe.length) return { signals: [], allSignals: [], analyzedCount: 0 };
 
-  const { spot } = await cryptoSignalsService.getBinanceUsdtSymbols();
-  const tradable = universe.filter(c => spot.has(c.symbol)).slice(0, tierLimit);
+  const { tradable: tradableSet } = await cryptoSignalsService.getBinanceUsdtSymbols();
+  const tradable = universe.filter(c => tradableSet.has(c.symbol)).slice(0, tierLimit);
 
   const longList = [], shortList = [];
   let analyzedCount = 0;

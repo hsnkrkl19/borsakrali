@@ -193,7 +193,7 @@ export default function Header() {
     let cancelled = false
     const load = async () => {
       try {
-        const res = await apiClient.get('/market/algorithm-signals?limit=6')
+        const res = await apiClient.get('/market/signals?limit=6')
         if (cancelled) return
         const list = res.data?.signals || res.data?.stocks || res.data || []
         setSignals(Array.isArray(list) ? list.slice(0, 6) : [])

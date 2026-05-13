@@ -523,16 +523,18 @@ function analyzeSymbol(symbol, candles, timeframe = 'daily') {
   };
 }
 
-// ===================== Narrative generator (dexter-style brief reasoning) =====================
+// ===================== Narrative generator (kısa prose özet) =====================
+// Sadece bir cümlelik metin döner — tekrarlanacağı için reasons bullet'ları burada eklenmez.
+// Kart başlığında zaten side chip, %başarı/ortalama hareket, RSI ve fiyat ayrı ayrı gösterilir.
 function buildNarrative(combo, result, ctx, price, tf) {
-  const reasonsTxt = (result.reasons || []).slice(0, 3).map(r => `• ${r}`).join('\n');
   const tfLabel = tf?.barLabel || 'günlük mum';
-  const sideTxt = combo.side === 'boga'
-    ? `Yükseliş sinyali (${tfLabel} bazında). Tarihsel olarak bu kombo %${combo.success} oranında devam etmiş, ortalama %${combo.avgChange} hareket beklenir.`
-    : combo.side === 'ayi'
-      ? `Düşüş sinyali (${tfLabel} bazında). Bu kombo %${combo.success} oranında izleyen barlarda düşüş getirmiş, ortalama %${combo.avgChange} aşağı baskı.`
-      : `Yatay/kararsız sinyal (${tfLabel} bazında). Tetikleyici beklemek mantıklı.`;
-  return `${sideTxt}\nMevcut fiyat ₺${price.toFixed(2)}, RSI ${ctx.rsi}.\n${reasonsTxt}`;
+  if (combo.side === 'boga') {
+    return `Yükseliş kurulumu (${tfLabel}) — geçmişte %${combo.success} başarı, ortalama %${combo.avgChange} hareket.`;
+  }
+  if (combo.side === 'ayi') {
+    return `Düşüş kurulumu (${tfLabel}) — geçmişte %${combo.success} başarı, ortalama %${combo.avgChange} aşağı baskı.`;
+  }
+  return `Yatay/kararsız sinyal (${tfLabel}). Tetikleyici beklemek mantıklı.`;
 }
 
 // ===================== Public: combo catalog (no scan, just list) =====================

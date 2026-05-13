@@ -46,7 +46,7 @@ const SYMBOL_TO_ID = {
   WIF: 'dogwifcoin',      BONK: 'bonk',            ORDI: 'ordinals',
   SATS: 'sats-ordinals',  BOME: 'book-of-meme',    ENA: 'ethena',
   ETHFI: 'ether-fi',      REZ: 'renzo',            NOT: 'notcoin',
-  ZK: 'zksync',
+  ZK: 'zksync',           DEEP: 'deep',            PAXG: 'pax-gold',
 };
 
 function getId(symbol) {

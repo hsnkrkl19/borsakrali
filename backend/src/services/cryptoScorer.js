@@ -521,8 +521,11 @@ function score(stratKey, ctx) {
 }
 
 function scoreAll(ctx) {
+  // Spot paritesi olmayan (yalnızca futures'ta listelenmiş) coin'lerde
+  // SPOT_LONG anlamsız — kullanıcı spot pazarda alım yapamaz.
+  const spotEligible = ctx?.hasSpot !== false;
   return {
-    spot_long:     score('spot_long', ctx),
+    spot_long:     spotEligible ? score('spot_long', ctx) : null,
     futures_long:  score('futures_long', ctx),
     futures_short: score('futures_short', ctx),
   };

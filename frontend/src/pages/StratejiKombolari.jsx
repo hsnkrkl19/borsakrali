@@ -351,7 +351,7 @@ function Stat({ icon: Icon, label, value, color }) {
 function ComboCard({ combo, expanded, onToggle, timeframeLabel, timeframeShort }) {
   const style = SIDE_STYLE[combo.side] || SIDE_STYLE.notr
   const tier = TIER_BADGE[combo.tier] || TIER_BADGE.B
-  const Icon = ICONS[combo.icon] || Sparkles
+  const hasMatches = combo.matchCount > 0
 
   return (
     <div className={`rounded-2xl border ${style.border} bg-gradient-to-br ${style.bg} overflow-hidden`}>
@@ -360,10 +360,11 @@ function ComboCard({ combo, expanded, onToggle, timeframeLabel, timeframeShort }
         className="w-full text-left p-4 hover:bg-white/[0.02] transition"
       >
         <div className="flex items-start gap-3">
-          <div className="text-3xl shrink-0">{combo.emoji}</div>
+          <div className="text-3xl shrink-0 leading-none mt-0.5">{combo.emoji}</div>
           <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 flex-wrap">
-              <h3 className="text-base font-bold text-white">{combo.name}</h3>
+            {/* İsim satırı: ad + tier + taraf + TF */}
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <h3 className="text-lg font-bold text-white tracking-tight leading-tight">{combo.name}</h3>
               <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded border ${tier.cls}`}>{tier.label}</span>
               <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${style.chip} border`}>{style.label}</span>
               {timeframeShort && (
@@ -371,27 +372,56 @@ function ComboCard({ combo, expanded, onToggle, timeframeLabel, timeframeShort }
                   <Clock className="w-2.5 h-2.5" /> {timeframeLabel}
                 </span>
               )}
-              {combo.matchCount > 0 && (
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-white/10 text-white border border-white/20">
-                  {combo.matchCount} EŞLEŞME
+            </div>
+
+            {/* Açıklama — daha okunabilir punto */}
+            <p className="text-[13px] text-gray-300/90 mt-1.5 leading-relaxed">{combo.desc}</p>
+
+            {/* İndikatör chip'leri — referans bilgi, kısık tutuldu */}
+            {combo.indicators?.length > 0 && (
+              <div className="flex flex-wrap gap-1 mt-2.5">
+                {combo.indicators.map(ind => (
+                  <span key={ind} className="text-[10px] px-2 py-0.5 rounded-full bg-dark-800/60 text-gray-500 border border-dark-700">
+                    {ind}
+                  </span>
+                ))}
+              </div>
+            )}
+
+            {/* Performans şeridi — etiketli mini stat satırı */}
+            <div className="flex items-center gap-2 mt-3 flex-wrap text-xs">
+              {combo.success > 0 && (
+                <span className="inline-flex items-baseline gap-1 px-2 py-0.5 rounded-md bg-emerald-500/10 border border-emerald-500/20">
+                  <span className="text-[10px] text-emerald-400/80 uppercase tracking-wider">Başarı</span>
+                  <span className="text-emerald-300 font-bold tabular-nums">%{combo.success}</span>
+                </span>
+              )}
+              {combo.avgChange > 0 && (
+                <span className="inline-flex items-baseline gap-1 px-2 py-0.5 rounded-md bg-amber-500/10 border border-amber-500/20">
+                  <span className="text-[10px] text-amber-400/80 uppercase tracking-wider">Ortalama</span>
+                  <span className="text-amber-300 font-bold tabular-nums">%{combo.avgChange}</span>
+                </span>
+              )}
+              {combo.riskReward !== '—' && (
+                <span className="inline-flex items-baseline gap-1 px-2 py-0.5 rounded-md bg-sky-500/10 border border-sky-500/20">
+                  <span className="text-[10px] text-sky-400/80 uppercase tracking-wider">R/R</span>
+                  <span className="text-sky-300 font-bold tabular-nums">{combo.riskReward}</span>
                 </span>
               )}
             </div>
-            <p className="text-xs text-gray-400 mt-1.5 leading-relaxed">{combo.desc}</p>
-            <div className="flex flex-wrap gap-1 mt-2">
-              {(combo.indicators || []).map(ind => (
-                <span key={ind} className="text-[10px] px-2 py-0.5 rounded-full bg-dark-800/80 text-gray-400 border border-dark-600">
-                  {ind}
-                </span>
-              ))}
-            </div>
-            <div className="flex items-center gap-3 mt-2.5 text-[11px]">
-              {combo.success > 0 && <span className="text-emerald-400">✓ %{combo.success} başarı</span>}
-              {combo.avgChange > 0 && <span className="text-amber-400">⌀ %{combo.avgChange}</span>}
-              {combo.riskReward !== '—' && <span className="text-sky-400">R/R {combo.riskReward}</span>}
-            </div>
           </div>
-          <div className="shrink-0 self-center">
+
+          {/* Sağ sütun: eşleşme rozeti + chevron */}
+          <div className="shrink-0 self-stretch flex flex-col items-end justify-between gap-2">
+            {hasMatches ? (
+              <span className={`text-xs font-bold px-2.5 py-1 rounded-lg ${style.chip} border whitespace-nowrap`}>
+                {combo.matchCount} EŞLEŞME
+              </span>
+            ) : (
+              <span className="text-[10px] font-semibold px-2 py-0.5 rounded text-gray-500 border border-dark-700 bg-dark-900/40 whitespace-nowrap">
+                eşleşme yok
+              </span>
+            )}
             {expanded ? <ChevronUp className="w-4 h-4 text-gray-400" /> : <ChevronDown className="w-4 h-4 text-gray-400" />}
           </div>
         </div>
@@ -399,11 +429,9 @@ function ComboCard({ combo, expanded, onToggle, timeframeLabel, timeframeShort }
 
       {expanded && combo.matches && combo.matches.length > 0 && (
         <div className="border-t border-dark-700 p-3 space-y-2">
-          <div className="text-[10px] uppercase tracking-wider text-amber-400/80 font-bold flex items-center justify-between gap-1.5">
-            <span className="flex items-center gap-1.5"><Flame className="w-3 h-3" /> Tetikleyen Semboller</span>
-            <span className="text-sky-400/80 flex items-center gap-1 normal-case tracking-normal text-[10px] font-semibold">
-              <Clock className="w-3 h-3" /> {timeframeLabel} mum bazında
-            </span>
+          <div className="text-[10px] uppercase tracking-wider text-amber-400/80 font-bold flex items-center gap-1.5">
+            <Flame className="w-3 h-3" /> Tetikleyen Semboller
+            <span className="text-gray-500 font-semibold normal-case tracking-normal">· {combo.matches.length} sembol</span>
           </div>
           {combo.matches.map(m => (
             <MatchRow key={m.symbol} match={m} side={combo.side} />
@@ -421,34 +449,42 @@ function ComboCard({ combo, expanded, onToggle, timeframeLabel, timeframeShort }
 
 function MatchRow({ match, side }) {
   const style = SIDE_STYLE[side] || SIDE_STYLE.notr
-  const dayChangeColor = match.dayChange >= 0 ? 'text-emerald-400' : 'text-rose-400'
+  const dayUp = (match.dayChange ?? 0) >= 0
+  const dayChangeColor = dayUp ? 'text-emerald-400' : 'text-rose-400'
+  const scoreCls =
+    match.score >= 85 ? 'bg-amber-500/20 text-amber-200 border-amber-500/40' :
+    match.score >= 70 ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30' :
+                        'bg-slate-500/15 text-slate-300 border-slate-500/30'
   return (
     <div className="rounded-xl border border-dark-700 bg-dark-900/40 p-3">
-      <div className="flex items-center justify-between gap-2 flex-wrap">
-        <div className="flex items-center gap-2">
-          <span className="text-sm font-bold text-white">{match.symbol}</span>
-          <span className="text-xs text-gray-400">₺{match.lastPrice?.toFixed(2)}</span>
-          <span className={`text-xs font-semibold ${dayChangeColor}`}>
-            {match.dayChange >= 0 ? '+' : ''}{match.dayChange?.toFixed(2)}%
+      {/* Header: sembol · fiyat · günlük değişim · skor */}
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <div className="flex items-baseline gap-2 min-w-0">
+          <span className="text-base font-bold text-white tracking-tight">{match.symbol}</span>
+          <span className="text-sm text-gray-200 tabular-nums">₺{match.lastPrice?.toFixed(2)}</span>
+          <span className={`text-xs font-semibold tabular-nums ${dayChangeColor}`}>
+            {dayUp ? '+' : ''}{match.dayChange?.toFixed(2)}%
           </span>
         </div>
-        <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${style.chip} border`}>
+        <span className={`text-[11px] font-bold px-2 py-0.5 rounded-md border shrink-0 ${scoreCls}`}>
           Skor {match.score?.toFixed(0)}
         </span>
       </div>
+
+      {/* Tetikleyiciler — combo bazlı koşullar (kombo başlığında zaten %başarı/ortalama hareket var, burada tekrar etmiyoruz) */}
       {match.reasons && match.reasons.length > 0 && (
-        <ul className="mt-2 space-y-0.5">
-          {match.reasons.slice(0, 4).map((r, i) => (
-            <li key={i} className="text-[11px] text-gray-400 leading-relaxed">• {r}</li>
-          ))}
-        </ul>
-      )}
-      {match.narrative && (
-        <div className="mt-2 pt-2 border-t border-dark-700/60">
-          <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-amber-400/70 font-bold mb-1">
-            <Brain className="w-3 h-3" /> AI Yorum
+        <div className="mt-2.5 pt-2.5 border-t border-dark-700/60">
+          <div className="text-[10px] uppercase tracking-wider text-gray-500 font-semibold mb-1.5">
+            Tetikleyiciler
           </div>
-          <p className="text-[11px] text-gray-300 leading-relaxed whitespace-pre-line">{match.narrative}</p>
+          <ul className="space-y-1">
+            {match.reasons.slice(0, 5).map((r, i) => (
+              <li key={i} className="text-xs text-gray-300 leading-snug flex gap-2">
+                <span className={`${style.text} shrink-0`} aria-hidden>•</span>
+                <span>{r}</span>
+              </li>
+            ))}
+          </ul>
         </div>
       )}
     </div>
@@ -496,24 +532,40 @@ function SymbolCard({ sym, timeframeLabel, timeframeShort }) {
       {open && (
         <div className="border-t border-dark-700 p-3 space-y-2">
           {sym.hits.map(h => {
-            const I = ICONS[h.icon] || Sparkles
             const hStyle = SIDE_STYLE[h.side] || SIDE_STYLE.notr
+            const scoreCls =
+              h.score >= 85 ? 'bg-amber-500/20 text-amber-200 border-amber-500/40' :
+              h.score >= 70 ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30' :
+                              'bg-slate-500/15 text-slate-300 border-slate-500/30'
             return (
               <div key={h.key} className="rounded-xl border border-dark-700 bg-dark-900/40 p-3">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="text-xl">{h.emoji}</span>
-                  <span className="text-sm font-bold text-white">{h.name}</span>
-                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${hStyle.chip} border`}>
-                    Skor {h.score?.toFixed(0)}
-                  </span>
-                  <span className="text-[10px] text-gray-500">%{h.success} başarı · ⌀%{h.avgChange}</span>
+                <div className="flex items-center justify-between gap-3 flex-wrap">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="text-xl shrink-0">{h.emoji}</span>
+                    <span className="text-sm font-bold text-white">{h.name}</span>
+                    <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${hStyle.chip} border`}>{hStyle.label}</span>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span className="text-[10px] text-gray-500 hidden sm:inline">%{h.success} başarı · ⌀%{h.avgChange}</span>
+                    <span className={`text-[11px] font-bold px-2 py-0.5 rounded-md border ${scoreCls}`}>
+                      Skor {h.score?.toFixed(0)}
+                    </span>
+                  </div>
                 </div>
                 {h.reasons && h.reasons.length > 0 && (
-                  <ul className="mt-2 space-y-0.5">
-                    {h.reasons.slice(0, 3).map((r, i) => (
-                      <li key={i} className="text-[11px] text-gray-400 leading-relaxed">• {r}</li>
-                    ))}
-                  </ul>
+                  <div className="mt-2 pt-2 border-t border-dark-700/60">
+                    <div className="text-[10px] uppercase tracking-wider text-gray-500 font-semibold mb-1.5">
+                      Tetikleyiciler
+                    </div>
+                    <ul className="space-y-1">
+                      {h.reasons.slice(0, 4).map((r, i) => (
+                        <li key={i} className="text-xs text-gray-300 leading-snug flex gap-2">
+                          <span className={`${hStyle.text} shrink-0`} aria-hidden>•</span>
+                          <span>{r}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
                 )}
               </div>
             )
