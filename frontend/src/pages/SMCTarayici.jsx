@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import {
   Search, RefreshCw, TrendingUp, TrendingDown, Target, Activity,
-  Layers, Zap, GitBranch, ChevronRight, ArrowUpRight, ArrowDownRight,
+  Layers, Zap, GitBranch, ChevronRight, ArrowUpRight, ArrowDownRight, X,
 } from 'lucide-react'
 import api from '../services/api'
 import InfoTooltip from '../components/InfoTooltip'
@@ -42,6 +42,7 @@ export default function SMCTarayici() {
   const [trackLoading, setTrackLoading] = useState(false)
   const [filterType, setFilterType] = useState('all') // all | long | short
   const [filterGrade, setFilterGrade] = useState('all') // all | A+ | A | B
+  const [trackModalOpen, setTrackModalOpen] = useState(false)
 
   const runScan = async (newScope = scope) => {
     setScanLoading(true)
@@ -62,6 +63,7 @@ export default function SMCTarayici() {
     const isCrypto = scope === 'crypto'
     setTrackLoading(true)
     setTrack(null)
+    setTrackModalOpen(true)
     try {
       const r = await api.get(`/smc/${s}${isCrypto ? '?type=crypto' : ''}`)
       setTrack(r.data)
@@ -70,6 +72,12 @@ export default function SMCTarayici() {
     } finally {
       setTrackLoading(false)
     }
+  }
+
+  const closeTrackModal = () => {
+    setTrackModalOpen(false)
+    setTrack(null)
+    setTrackLoading(false)
   }
 
   useEffect(() => { runScan() }, []) // eslint-disable-line
@@ -305,156 +313,189 @@ export default function SMCTarayici() {
             Analiz Et
           </button>
         </div>
-
-        {trackLoading && (
-          <div className="flex items-center justify-center py-6">
-            <RefreshCw className="w-5 h-5 text-amber-400 animate-spin" />
-            <span className="text-gray-400 ml-2">Hesaplanıyor...</span>
-          </div>
-        )}
-
-        {track?.error && (
-          <p className="text-red-400 mt-4 text-sm">{track.error}</p>
-        )}
-
-        {track && !track.error && (
-          <div className="mt-4 space-y-4">
-            {/* Üst panel: bias + son fiyat + son yapı */}
-            <div className="flex items-center gap-3 flex-wrap">
-              <span className="text-xl font-bold text-white">{track.symbol}</span>
-              {track.bias && (
-                <span className={`text-xs px-2 py-1 rounded border ${BIAS_BADGE[track.bias]?.color}`}>
-                  {BIAS_BADGE[track.bias]?.label}
-                </span>
-              )}
-              <span className="text-gray-400 text-sm">
-                Son: <span className="font-mono text-white">{track.lastClose?.toFixed(2)}</span>
-              </span>
-              <span className="text-gray-500 text-xs">
-                {track.candleCount} bar · ATR ≈ {track.atr?.toFixed(2)}
-              </span>
-            </div>
-
-            {/* Sinyaller */}
-            {track.signals && track.signals.length > 0 ? (
-              <div>
-                <h4 className="text-sm font-semibold text-gray-300 mb-2 flex items-center gap-1.5">
-                  <Target className="w-4 h-4 text-amber-400" /> Aktif Sinyaller ({track.signals.length})
-                </h4>
-                <div className="space-y-2">
-                  {track.signals.map((s, idx) => {
-                    const Ic = s.type === 'long' ? TrendingUp : TrendingDown
-                    return (
-                      <div key={idx} className={`p-3 rounded-lg border ${
-                        s.type === 'long'
-                          ? 'bg-emerald-500/5 border-emerald-500/30'
-                          : 'bg-red-500/5 border-red-500/30'
-                      }`}>
-                        <div className="flex items-center gap-2 flex-wrap mb-2">
-                          <Ic className={`w-4 h-4 ${s.type === 'long' ? 'text-emerald-400' : 'text-red-400'}`} />
-                          <span className={`font-bold text-sm ${s.type === 'long' ? 'text-emerald-300' : 'text-red-300'}`}>
-                            {s.type === 'long' ? 'LONG' : 'SHORT'}
-                          </span>
-                          <span className="text-[11px] text-gray-400">
-                            {s.source === 'order_block' ? `Order Block (${s.obSource})` : 'Fair Value Gap'}
-                          </span>
-                          <span className={`text-[10px] px-1.5 py-0.5 rounded border font-bold ml-auto ${GRADE_COLOR[s.grade]}`}>
-                            {s.grade} · {s.score}
-                          </span>
-                        </div>
-                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
-                          <div>
-                            <div className="text-gray-500">Giriş</div>
-                            <div className="font-mono font-bold text-white">{s.entry?.toFixed(2)}</div>
-                          </div>
-                          <div>
-                            <div className="text-gray-500">Stop</div>
-                            <div className="font-mono font-bold text-red-300">{s.stop?.toFixed(2)}</div>
-                          </div>
-                          <div>
-                            <div className="text-gray-500">Hedef</div>
-                            <div className="font-mono font-bold text-emerald-300">{s.target?.toFixed(2)}</div>
-                          </div>
-                          <div>
-                            <div className="text-gray-500">R/R</div>
-                            <div className="font-mono font-bold text-amber-300">{s.rr}</div>
-                          </div>
-                        </div>
-                        <div className="text-[10px] text-gray-500 mt-1.5">
-                          Yaş: {s.ageBars} bar önce
-                        </div>
-                      </div>
-                    )
-                  })}
-                </div>
-              </div>
-            ) : (
-              <p className="text-gray-500 text-sm">Aktif SMC sinyali yok — yapı temiz, fiyat boş bölgede.</p>
-            )}
-
-            {/* Yapı (BOS/CHoCH) */}
-            {track.structure && track.structure.length > 0 && (
-              <div>
-                <h4 className="text-sm font-semibold text-gray-300 mb-2">Son Yapı Olayları</h4>
-                <div className="flex flex-wrap gap-2">
-                  {track.structure.slice(-5).reverse().map((e, idx) => {
-                    const ic = STRUCTURE_ICON[e.type]
-                    const Ic = ic?.icon
-                    return (
-                      <div key={idx} className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-dark-800 border border-dark-700 text-xs`}>
-                        {Ic && <Ic className={`w-3.5 h-3.5 ${ic.color}`} />}
-                        <span className={ic?.color || ''}>{ic?.label}</span>
-                        <span className={e.direction === 'bullish' ? 'text-emerald-400' : 'text-red-400'}>
-                          {e.direction === 'bullish' ? '↑' : '↓'}
-                        </span>
-                        <span className="text-gray-400 font-mono">{e.level?.toFixed(2)}</span>
-                      </div>
-                    )
-                  })}
-                </div>
-              </div>
-            )}
-
-            {/* Order Block + FVG sayıları */}
-            <div className="grid grid-cols-3 gap-3 text-center">
-              <div className="bg-dark-800/50 rounded-lg p-3">
-                <div className="text-2xl font-bold text-blue-300">{track.orderBlocks?.length || 0}</div>
-                <div className="text-[11px] text-gray-500 mt-1">Order Block</div>
-              </div>
-              <div className="bg-dark-800/50 rounded-lg p-3">
-                <div className="text-2xl font-bold text-purple-300">{track.fvgs?.length || 0}</div>
-                <div className="text-[11px] text-gray-500 mt-1">Fair Value Gap</div>
-              </div>
-              <div className="bg-dark-800/50 rounded-lg p-3">
-                <div className="text-2xl font-bold text-amber-300">{track.liquidity?.length || 0}</div>
-                <div className="text-[11px] text-gray-500 mt-1">Likidite Bölgesi</div>
-              </div>
-            </div>
-
-            {/* Likidite sweep'leri */}
-            {track.liquidity && track.liquidity.some(l => l.sweptIndex) && (
-              <div>
-                <h4 className="text-sm font-semibold text-gray-300 mb-2 flex items-center gap-1.5">
-                  <Zap className="w-4 h-4 text-amber-400" /> Likidite Sweep'leri
-                </h4>
-                <div className="flex flex-wrap gap-2">
-                  {track.liquidity.filter(l => l.sweptIndex).slice(-5).map((l, idx) => (
-                    <div key={idx} className={`px-2.5 py-1.5 rounded-lg text-xs border ${
-                      l.type === 'buy_side'
-                        ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-200'
-                        : 'bg-red-500/10 border-red-500/30 text-red-200'
-                    }`}>
-                      {l.type === 'buy_side' ? '↓ Alt Sweep' : '↑ Üst Sweep'}
-                      <span className="font-mono ml-1">{l.level?.toFixed(2)}</span>
-                      <span className="text-gray-500 ml-1">({l.count} pivot)</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        )}
+        <p className="text-[11px] text-gray-500 mt-2">
+          Analiz sonucu açılır pencerede gösterilir.
+        </p>
       </div>
+
+      {/* Tekil sembol — modal pencere */}
+      {trackModalOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-3 sm:p-6"
+          onClick={closeTrackModal}
+        >
+          <div
+            className="bg-dark-950 border border-amber-500/30 rounded-2xl w-full max-w-3xl max-h-[90vh] overflow-y-auto custom-scrollbar"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="sticky top-0 bg-dark-950/95 backdrop-blur border-b border-dark-700 px-4 py-3 flex items-center justify-between z-10">
+              <div className="flex items-center gap-2 min-w-0">
+                <Activity className="w-4 h-4 text-amber-400 shrink-0" />
+                <h3 className="text-lg font-bold text-white truncate">
+                  {track?.symbol || trackInput || 'SMC Analizi'}
+                </h3>
+                {track && !track.error && track.bias && (
+                  <span className={`text-[10px] px-1.5 py-0.5 rounded border ${BIAS_BADGE[track.bias]?.color}`}>
+                    {BIAS_BADGE[track.bias]?.label}
+                  </span>
+                )}
+              </div>
+              <button
+                onClick={closeTrackModal}
+                className="p-1.5 rounded-lg hover:bg-dark-800 text-gray-400 hover:text-white transition-colors"
+                aria-label="Kapat"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-4">
+              {trackLoading && (
+                <div className="flex items-center justify-center py-12">
+                  <RefreshCw className="w-5 h-5 text-amber-400 animate-spin" />
+                  <span className="text-gray-400 ml-2">Hesaplanıyor...</span>
+                </div>
+              )}
+
+              {track?.error && (
+                <p className="text-red-400 text-center py-8 text-sm">{track.error}</p>
+              )}
+
+              {track && !track.error && (
+                <div className="space-y-4">
+                  {/* Üst panel: son fiyat + bar/ATR */}
+                  <div className="flex items-center gap-3 flex-wrap text-sm">
+                    <span className="text-gray-400">
+                      Son: <span className="font-mono text-white">{track.lastClose?.toFixed(2)}</span>
+                    </span>
+                    <span className="text-gray-500 text-xs">
+                      {track.candleCount} bar · ATR ≈ {track.atr?.toFixed(2)}
+                    </span>
+                  </div>
+
+                  {/* Sinyaller */}
+                  {track.signals && track.signals.length > 0 ? (
+                    <div>
+                      <h4 className="text-sm font-semibold text-gray-300 mb-2 flex items-center gap-1.5">
+                        <Target className="w-4 h-4 text-amber-400" /> Aktif Sinyaller ({track.signals.length})
+                      </h4>
+                      <div className="space-y-2">
+                        {track.signals.map((s, idx) => {
+                          const Ic = s.type === 'long' ? TrendingUp : TrendingDown
+                          return (
+                            <div key={idx} className={`p-3 rounded-lg border ${
+                              s.type === 'long'
+                                ? 'bg-emerald-500/5 border-emerald-500/30'
+                                : 'bg-red-500/5 border-red-500/30'
+                            }`}>
+                              <div className="flex items-center gap-2 flex-wrap mb-2">
+                                <Ic className={`w-4 h-4 ${s.type === 'long' ? 'text-emerald-400' : 'text-red-400'}`} />
+                                <span className={`font-bold text-sm ${s.type === 'long' ? 'text-emerald-300' : 'text-red-300'}`}>
+                                  {s.type === 'long' ? 'LONG' : 'SHORT'}
+                                </span>
+                                <span className="text-[11px] text-gray-400">
+                                  {s.source === 'order_block' ? `Order Block (${s.obSource})` : 'Fair Value Gap'}
+                                </span>
+                                <span className={`text-[10px] px-1.5 py-0.5 rounded border font-bold ml-auto ${GRADE_COLOR[s.grade]}`}>
+                                  {s.grade} · {s.score}
+                                </span>
+                              </div>
+                              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+                                <div>
+                                  <div className="text-gray-500">Giriş</div>
+                                  <div className="font-mono font-bold text-white">{s.entry?.toFixed(2)}</div>
+                                </div>
+                                <div>
+                                  <div className="text-gray-500">Stop</div>
+                                  <div className="font-mono font-bold text-red-300">{s.stop?.toFixed(2)}</div>
+                                </div>
+                                <div>
+                                  <div className="text-gray-500">Hedef</div>
+                                  <div className="font-mono font-bold text-emerald-300">{s.target?.toFixed(2)}</div>
+                                </div>
+                                <div>
+                                  <div className="text-gray-500">R/R</div>
+                                  <div className="font-mono font-bold text-amber-300">{s.rr}</div>
+                                </div>
+                              </div>
+                              <div className="text-[10px] text-gray-500 mt-1.5">
+                                Yaş: {s.ageBars} bar önce
+                              </div>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="text-gray-500 text-sm">Aktif SMC sinyali yok — yapı temiz, fiyat boş bölgede.</p>
+                  )}
+
+                  {/* Yapı (BOS/CHoCH) */}
+                  {track.structure && track.structure.length > 0 && (
+                    <div>
+                      <h4 className="text-sm font-semibold text-gray-300 mb-2">Son Yapı Olayları</h4>
+                      <div className="flex flex-wrap gap-2">
+                        {track.structure.slice(-5).reverse().map((e, idx) => {
+                          const ic = STRUCTURE_ICON[e.type]
+                          const Ic = ic?.icon
+                          return (
+                            <div key={idx} className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-dark-800 border border-dark-700 text-xs`}>
+                              {Ic && <Ic className={`w-3.5 h-3.5 ${ic.color}`} />}
+                              <span className={ic?.color || ''}>{ic?.label}</span>
+                              <span className={e.direction === 'bullish' ? 'text-emerald-400' : 'text-red-400'}>
+                                {e.direction === 'bullish' ? '↑' : '↓'}
+                              </span>
+                              <span className="text-gray-400 font-mono">{e.level?.toFixed(2)}</span>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Order Block + FVG sayıları */}
+                  <div className="grid grid-cols-3 gap-3 text-center">
+                    <div className="bg-dark-800/50 rounded-lg p-3">
+                      <div className="text-2xl font-bold text-blue-300">{track.orderBlocks?.length || 0}</div>
+                      <div className="text-[11px] text-gray-500 mt-1">Order Block</div>
+                    </div>
+                    <div className="bg-dark-800/50 rounded-lg p-3">
+                      <div className="text-2xl font-bold text-purple-300">{track.fvgs?.length || 0}</div>
+                      <div className="text-[11px] text-gray-500 mt-1">Fair Value Gap</div>
+                    </div>
+                    <div className="bg-dark-800/50 rounded-lg p-3">
+                      <div className="text-2xl font-bold text-amber-300">{track.liquidity?.length || 0}</div>
+                      <div className="text-[11px] text-gray-500 mt-1">Likidite Bölgesi</div>
+                    </div>
+                  </div>
+
+                  {/* Likidite sweep'leri */}
+                  {track.liquidity && track.liquidity.some(l => l.sweptIndex) && (
+                    <div>
+                      <h4 className="text-sm font-semibold text-gray-300 mb-2 flex items-center gap-1.5">
+                        <Zap className="w-4 h-4 text-amber-400" /> Likidite Sweep'leri
+                      </h4>
+                      <div className="flex flex-wrap gap-2">
+                        {track.liquidity.filter(l => l.sweptIndex).slice(-5).map((l, idx) => (
+                          <div key={idx} className={`px-2.5 py-1.5 rounded-lg text-xs border ${
+                            l.type === 'buy_side'
+                              ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-200'
+                              : 'bg-red-500/10 border-red-500/30 text-red-200'
+                          }`}>
+                            {l.type === 'buy_side' ? '↓ Alt Sweep' : '↑ Üst Sweep'}
+                            <span className="font-mono ml-1">{l.level?.toFixed(2)}</span>
+                            <span className="text-gray-500 ml-1">({l.count} pivot)</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
