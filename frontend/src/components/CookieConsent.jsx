@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Cookie, ShieldCheck, X, ChevronDown, ChevronUp } from 'lucide-react'
+import { Cookie, ShieldCheck, ChevronDown, ChevronUp } from 'lucide-react'
 
 const STORAGE_KEY = 'bk-cookie-consent-v1'
 const CURRENT_VERSION = 1
@@ -81,11 +81,6 @@ export default function CookieConsent() {
     setVisible(false)
   }
 
-  const rejectAll = () => {
-    saveConsent({ analytics: false, marketing: false })
-    setVisible(false)
-  }
-
   const saveSelection = () => {
     saveConsent({ analytics, marketing })
     setVisible(false)
@@ -95,55 +90,44 @@ export default function CookieConsent() {
     <div
       role="dialog"
       aria-label="Cerez tercihleri"
-      className="fixed inset-x-0 bottom-0 z-[200] px-3 pb-3 sm:px-6 sm:pb-6"
-      style={{ paddingBottom: 'max(env(safe-area-inset-bottom, 0px), 12px)' }}
+      className="fixed inset-x-0 bottom-0 z-[200] px-2 pb-2 sm:px-4 sm:pb-4"
+      style={{ paddingBottom: 'max(env(safe-area-inset-bottom, 0px), 8px)' }}
     >
       <div
-        className="mx-auto max-w-3xl overflow-hidden rounded-2xl border border-gold-500/30 bg-dark-900/95 shadow-2xl backdrop-blur-xl"
-        style={{ boxShadow: '0 20px 60px rgba(0,0,0,0.6), 0 0 0 1px rgba(212,175,55,0.15)' }}
+        className="mx-auto max-w-xl overflow-hidden rounded-xl border border-gold-500/30 bg-dark-900/95 shadow-2xl backdrop-blur-xl"
+        style={{ boxShadow: '0 12px 40px rgba(0,0,0,0.5), 0 0 0 1px rgba(212,175,55,0.15)' }}
       >
-        <div className="flex items-start gap-3 p-4 sm:p-5">
-          <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-gold-500/15 text-gold-400">
-            <Cookie className="h-5 w-5" />
+        <div className="flex items-center gap-2.5 p-3">
+          <div className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg bg-gold-500/15 text-gold-400">
+            <Cookie className="h-3.5 w-3.5" />
           </div>
-          <div className="min-w-0 flex-1">
-            <h2 className="text-base font-semibold text-white">Cerezleri kullaniyoruz</h2>
-            <p className="mt-1 text-sm leading-6 text-gray-300">
-              Sitemizin calismasi, kullanim istatistikleri ve kisisellestirilmis reklamlar icin cerezler
-              kullaniyoruz. Tercihinizi istediginiz zaman degistirebilirsiniz.{' '}
-              <Link to="/privacy-policy" className="text-gold-400 underline-offset-2 hover:underline">
-                Gizlilik Politikasi
-              </Link>
-            </p>
-          </div>
-          <button
-            onClick={rejectAll}
-            aria-label="Kapat ve reddet"
-            className="hidden rounded-lg p-1 text-gray-400 transition hover:bg-white/5 hover:text-white sm:block"
-          >
-            <X className="h-4 w-4" />
-          </button>
+          <p className="min-w-0 flex-1 text-xs leading-5 text-gray-300">
+            Site deneyimi ve reklamlar icin cerez kullaniyoruz.{' '}
+            <Link to="/privacy-policy" className="text-gold-400 underline-offset-2 hover:underline">
+              Gizlilik
+            </Link>
+          </p>
         </div>
 
         {showDetails && (
-          <div className="border-t border-white/5 px-4 py-3 sm:px-5">
-            <div className="space-y-3">
+          <div className="border-t border-white/5 px-3 py-2">
+            <div className="space-y-1.5">
               <ConsentRow
-                icon={<ShieldCheck className="h-4 w-4 text-emerald-400" />}
-                title="Zorunlu cerezler"
-                description="Oturum, guvenlik ve temel site ozelliklerinin calismasi icin gereklidir. Devre disi birakilamaz."
+                icon={<ShieldCheck className="h-3 w-3 text-emerald-400" />}
+                title="Zorunlu"
+                description="Oturum ve guvenlik icin gerekli; her zaman aktif."
                 checked
                 disabled
               />
               <ConsentRow
-                title="Analitik cerezler"
-                description="Sayfa goruntulemeleri ve hata raporlari ile site performansini olcmemize yardimci olur."
+                title="Analitik"
+                description="Site performansini olcmek icin."
                 checked={analytics}
                 onChange={setAnalytics}
               />
               <ConsentRow
-                title="Reklam / Pazarlama cerezleri"
-                description="Google AdSense gibi servislerin daha alakali reklamlar gostermesini saglar. Kapatilirsa genel reklamlar gosterilir."
+                title="Reklam"
+                description="Daha alakali reklamlar gostermek icin."
                 checked={marketing}
                 onChange={setMarketing}
               />
@@ -151,40 +135,34 @@ export default function CookieConsent() {
           </div>
         )}
 
-        <div className="flex flex-col gap-2 border-t border-white/5 bg-black/20 p-3 sm:flex-row sm:items-center sm:justify-between sm:p-4">
+        <div className="flex items-center justify-between gap-2 border-t border-white/5 bg-black/20 px-3 py-2">
           <button
             onClick={() => setShowDetails((s) => !s)}
-            className="inline-flex items-center justify-center gap-1 rounded-xl px-3 py-2 text-xs text-gray-400 transition hover:bg-white/5 hover:text-white"
+            className="inline-flex items-center gap-1 rounded-lg px-2 py-1.5 text-[11px] text-gray-400 transition hover:bg-white/5 hover:text-white"
           >
             {showDetails ? (
               <>
-                Detaylari gizle <ChevronUp className="h-3.5 w-3.5" />
+                Gizle <ChevronUp className="h-3 w-3" />
               </>
             ) : (
               <>
-                Tercihleri yonet <ChevronDown className="h-3.5 w-3.5" />
+                Tercihleri yonet <ChevronDown className="h-3 w-3" />
               </>
             )}
           </button>
 
-          <div className="flex flex-col gap-2 sm:flex-row">
-            <button
-              onClick={rejectAll}
-              className="rounded-xl border border-white/10 bg-dark-800 px-4 py-2.5 text-sm font-medium text-gray-200 transition hover:bg-dark-700"
-            >
-              Reddet
-            </button>
+          <div className="flex items-center gap-1.5">
             {showDetails && (
               <button
                 onClick={saveSelection}
-                className="rounded-xl border border-gold-500/30 bg-gold-500/10 px-4 py-2.5 text-sm font-medium text-gold-300 transition hover:bg-gold-500/15"
+                className="rounded-lg border border-gold-500/30 bg-gold-500/10 px-3 py-1.5 text-xs font-medium text-gold-300 transition hover:bg-gold-500/15"
               >
-                Secimi kaydet
+                Kaydet
               </button>
             )}
             <button
               onClick={acceptAll}
-              className="rounded-xl bg-gradient-to-r from-gold-500 to-gold-600 px-4 py-2.5 text-sm font-semibold text-dark-950 transition hover:from-gold-400 hover:to-gold-500"
+              className="rounded-lg bg-gradient-to-r from-gold-500 to-gold-600 px-3 py-1.5 text-xs font-semibold text-dark-950 transition hover:from-gold-400 hover:to-gold-500"
             >
               Tumunu kabul et
             </button>
@@ -198,7 +176,7 @@ export default function CookieConsent() {
 function ConsentRow({ icon, title, description, checked, onChange, disabled }) {
   return (
     <label
-      className={`flex items-start gap-3 rounded-xl border border-white/5 bg-black/20 p-3 ${
+      className={`flex items-center gap-2 rounded-lg border border-white/5 bg-black/20 px-2.5 py-1.5 ${
         disabled ? 'opacity-80' : 'cursor-pointer hover:bg-black/30'
       }`}
     >
@@ -207,14 +185,14 @@ function ConsentRow({ icon, title, description, checked, onChange, disabled }) {
         checked={checked}
         disabled={disabled}
         onChange={(e) => onChange?.(e.target.checked)}
-        className="mt-1 h-4 w-4 cursor-pointer accent-gold-500 disabled:cursor-not-allowed"
+        className="h-3.5 w-3.5 cursor-pointer accent-gold-500 disabled:cursor-not-allowed"
       />
       <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5">
           {icon}
-          <span className="text-sm font-medium text-white">{title}</span>
+          <span className="text-xs font-medium text-white">{title}</span>
+          <span className="text-[10px] text-gray-500">— {description}</span>
         </div>
-        <p className="mt-1 text-xs leading-5 text-gray-400">{description}</p>
       </div>
     </label>
   )
