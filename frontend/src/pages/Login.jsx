@@ -550,11 +550,42 @@ export default function Login() {
   // gösterilir.
   // ═══════════════════════════════════════════════════════════════════════
   if (showWelcome) {
+    // NOT: global `html { overflow-x: hidden }` ve `auth-backdrop` overflow
+    // ayarları `position: sticky`'yi kırıyor. Bu yüzden welcome layout'unda
+    // window scroll yerine sol kolonun KENDİ İÇİNDE scroll'lanması yaklaşımını
+    // tercih ediyoruz: dış konteyner h-screen + overflow-hidden, sol kolon
+    // overflow-y: auto, sağ kolon statik (ama görüntüsel olarak sabit).
+    // Mobile'da ise lg breakpoint'in altında flex-col + normal window scroll.
     return (
-      <div className="min-h-screen auth-backdrop" style={{ backgroundColor: 'var(--bg-base)' }}>
-        <div className="flex flex-col lg:flex-row">
-          {/* SOL: yenilikler — sayfa boyu scroll */}
-          <div className="w-full lg:w-[58%] px-4 sm:px-6 lg:px-10 pt-6 pb-10 lg:pt-10 lg:pb-16">
+      <div className="min-h-screen relative" style={{ backgroundColor: 'var(--bg-base)' }}>
+        {/* Backdrop ışıltıları — fixed, layout dışında */}
+        <div aria-hidden="true" className="fixed inset-0 pointer-events-none overflow-hidden z-0">
+          <div
+            className="absolute rounded-full float-slow"
+            style={{
+              top: '-25%', left: '-10%', width: '720px', height: '720px',
+              background: isLight
+                ? 'radial-gradient(circle, rgba(212, 175, 55, 0.18) 0%, transparent 70%)'
+                : 'radial-gradient(circle, rgba(212, 175, 55, 0.35) 0%, transparent 70%)',
+              filter: 'blur(120px)',
+            }}
+          />
+          <div
+            className="absolute rounded-full float-slow"
+            style={{
+              bottom: '-25%', right: '-10%', width: '720px', height: '720px',
+              background: isLight
+                ? 'radial-gradient(circle, rgba(184, 144, 30, 0.12) 0%, transparent 70%)'
+                : 'radial-gradient(circle, rgba(184, 144, 30, 0.25) 0%, transparent 70%)',
+              filter: 'blur(120px)',
+              animationDirection: 'reverse',
+            }}
+          />
+        </div>
+
+        <div className="lg:h-screen flex flex-col lg:flex-row lg:overflow-hidden relative z-10">
+          {/* SOL: yenilikler — desktop'ta internal scroll, mobile'da window scroll */}
+          <div className="w-full lg:w-[58%] lg:overflow-y-auto px-4 sm:px-6 lg:px-10 pt-6 pb-10 lg:pt-10 lg:pb-16">
             {/* Brand bar + ticker chips */}
             <div className="flex items-center justify-between gap-3 mb-8 lg:mb-10 flex-wrap">
               <div className="flex items-center gap-3">
@@ -592,9 +623,9 @@ export default function Login() {
             <WelcomeIntro onContinue={handleContinueToLogin} />
           </div>
 
-          {/* SAĞ: sticky login — desktop'ta yan panel olarak kalır */}
+          {/* SAĞ: login formu — desktop'ta h-screen statik (görsel olarak sabit) */}
           <div
-            className="w-full lg:w-[42%] lg:sticky lg:top-0 lg:h-screen flex items-center justify-center p-6 sm:p-10 relative z-10"
+            className="w-full lg:w-[42%] lg:h-screen lg:overflow-y-auto flex items-center justify-center p-6 sm:p-10 relative"
             style={{
               background: isLight
                 ? 'linear-gradient(180deg, rgba(255,255,255,0.92) 0%, rgba(254,243,199,0.78) 100%)'
