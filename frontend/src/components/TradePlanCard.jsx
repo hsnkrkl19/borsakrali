@@ -100,8 +100,9 @@ export default function TradePlanCard({ signal, compact = false, showWhy = true,
               color: 'var(--gold-400)',
               border: '1px solid var(--border-gold)',
             }}
+            title={`Kazanç ihtimali zarardan ~${plan.rrRatio} kat fazla`}
           >
-            R/R 1:{plan.rrRatio}
+            Kazanç: {plan.rrRatio}×
           </div>
         )}
       </div>
@@ -145,12 +146,12 @@ export default function TradePlanCard({ signal, compact = false, showWhy = true,
             style={{ color: 'var(--ember)' }}
           >
             <Shield className="w-3 h-3" />
-            <span>Stop</span>
+            <span>Zarar Durdur</span>
             <InfoTooltip
               size="sm"
-              title="Stop Loss (Zarar Kes)"
-              description="Maksimum kabul edilen zarar noktası. Fiyat buraya gelirse pozisyon kapatılmalı — sermaye korunur. Stop'u asla gevşetme."
-              formula={`Default Stop = Giriş × (1 - 0.03)\n             = Giriş - %3\n\nDaha güvenli: ATR×1.5 veya teknik destek altı.`}
+              title="Zarar Durdur"
+              description="Fiyat çok düşerse sistem burada çıkış yapar. Sermayeni korumak için sınırı sabit tut, gevşetme."
+              formula={`Varsayılan = Giriş × (1 - 0.03)\n            = Giriş - %3\n\nDaha güvenli: oynaklığa göre 1.5 kat aşağı veya teknik destek altı.`}
             />
           </div>
           <div className="text-[15px] font-bold font-mono" style={{ color: 'var(--ember)' }}>
@@ -172,12 +173,12 @@ export default function TradePlanCard({ signal, compact = false, showWhy = true,
             style={{ color: 'var(--jade)' }}
           >
             <Zap className="w-3 h-3" />
-            <span>Hedef</span>
+            <span>Kâr Al</span>
             <InfoTooltip
               size="sm"
-              title="Take Profit (Kâr Al)"
-              description="Hedeflenen kâr alma seviyesi. Bu fiyata gelirse pozisyon kapatılır. R/R 1:2 standart hedef; iyi sinyallerde 1:3+ mümkün."
-              formula={`Default TP = Giriş + (Risk × 2)\nR/R = (TP - Giriş) / (Giriş - SL)\n\nKısmi kâr: TP'nin yarısında %50, kalanı trailing stop ile.`}
+              title="Kâr Al"
+              description="Hedefe ulaşınca satış yapılır. Standart hedef: kazanç ihtimali zarardan ~2 kat fazla; güçlü sinyallerde ~3 kat veya daha fazla mümkün."
+              formula={`Varsayılan Hedef = Giriş + (Risk × 2)\nKazanç/Zarar = (Hedef - Giriş) / (Giriş - Zarar Durdur)\n\nKısmi kâr: hedefin yarısında %50, kalan için akıllı zarar durdur.`}
             />
           </div>
           <div className="text-[15px] font-bold font-mono" style={{ color: 'var(--jade)' }}>
@@ -239,7 +240,7 @@ export default function TradePlanCard({ signal, compact = false, showWhy = true,
             <strong style={{ color: 'var(--text-secondary)' }}>Neden bu sinyal?</strong> {plan.meta.summary}
             {!plan.isExplicit && (
               <span style={{ color: 'var(--text-faint)' }}>
-                {' '}— Giriş/SL/TP değerleri standart risk yönetimine göre hesaplandı (%3 risk, 1:{plan.rrRatio} R/R).
+                {' '}— Giriş/Zarar Durdur/Kâr Al değerleri standart risk yönetimine göre hesaplandı (%3 risk, kazanç ihtimali zarardan ~{plan.rrRatio} kat fazla).
               </span>
             )}
           </span>

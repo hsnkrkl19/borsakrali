@@ -140,7 +140,7 @@ export default function PaperTrading() {
           <h1 className="text-xl md:text-2xl font-bold text-white flex items-center gap-2">
             <Wallet className="w-6 h-6 text-gold-400" />
             Paper Trading
-            <span className="text-[10px] px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/30">
+            <span className="text-[10px] px-2 py-0.5 rounded-full bg-gold-400/20 text-gold-400 border border-gold-400/30">
               Dummy Portfolio
             </span>
           </h1>
@@ -196,9 +196,9 @@ export default function PaperTrading() {
           color="amber"
         />
         <StatCard
-          label="Win Rate"
+          label="Kârlı işlem oranı"
           value={`%${winRate}`}
-          sub={`${totalTrades} toplam trade`}
+          sub={`${totalTrades} toplam işlem`}
           icon={Trophy}
           color="sky"
         />
@@ -238,7 +238,7 @@ export default function PaperTrading() {
         <Sparkles className="w-3.5 h-3.5 text-blue-400 mt-0.5 flex-shrink-0" />
         <p className="leading-relaxed">
           <span className="text-white">Nasıl kullanılır:</span>{' '}
-          <button onClick={() => navigate('/gunluk-tespitler?tab=mtf')} className="text-purple-300 hover:text-purple-200 underline">
+          <button onClick={() => navigate('/gunluk-tespitler?tab=mtf')} className="text-gold-400 hover:text-gold-400 underline">
             MTF tarayıcı
           </button>'da bir sinyale tıkla → "7-TF Detay" → "Paper Trade Aç". $1,000 fixed pozisyon
           açılır (sinyaldeki kaldıraçla). Stop/Target tetiklenince otomatik kapanır.
@@ -352,7 +352,7 @@ function PositionCard({ pos, onClose, closing }) {
               </span>
             )}
             {pos.leverage > 1 && (
-              <span className="text-[10px] px-2 py-0.5 rounded-full bg-fuchsia-500/10 text-fuchsia-300 border border-fuchsia-500/30">
+              <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/30">
                 {pos.leverage}x
               </span>
             )}
@@ -403,7 +403,7 @@ function PositionCard({ pos, onClose, closing }) {
         <span className="text-[10px] text-gray-500">
           Boyut: <span className="text-gray-300 font-mono">{pos.size?.toFixed(6)}</span> {pos.symbol}
           {pos.winProbability != null && (
-            <span className="ml-2">· Sinyal güveni: <span className="text-purple-300">%{(pos.winProbability * 100).toFixed(0)}</span></span>
+            <span className="ml-2">· Sinyal güveni: <span className="text-gold-400">%{(pos.winProbability * 100).toFixed(0)}</span></span>
           )}
         </span>
         <div className="flex items-center gap-2">
@@ -516,9 +516,9 @@ function LeaderboardTab({ leaderboard }) {
           <tr className="border-b border-dark-700 text-gray-500">
             <th className="text-left py-2 px-2">#</th>
             <th className="text-left py-2 px-2">Kullanıcı</th>
-            <th className="text-right py-2 px-2">Toplam PnL</th>
-            <th className="text-right py-2 px-2">Trade</th>
-            <th className="text-right py-2 px-2">Win Rate</th>
+            <th className="text-right py-2 px-2">Toplam Kâr / Zarar</th>
+            <th className="text-right py-2 px-2">İşlem</th>
+            <th className="text-right py-2 px-2">Kârlı Oran</th>
           </tr>
         </thead>
         <tbody>

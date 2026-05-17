@@ -310,7 +310,7 @@ export default function KriptoDegerleme() {
           {/* Signal cards */}
           <div className="grid sm:grid-cols-2 gap-3">
             {sig.drawdown && (
-              <SignalRow icon={TrendingDown} title="ATH Drawdown" signal={sig.drawdown.signal} score={sig.drawdown.score}>
+              <SignalRow icon={TrendingDown} title="Zirveden Düşüş" signal={sig.drawdown.signal} score={sig.drawdown.score}>
                 <div className="flex justify-between"><span>ATH'tan uzaklık</span><span className="text-white font-semibold">{sig.drawdown.drawdownPct}%</span></div>
                 <div className="flex justify-between"><span>ATH</span><span className="text-gray-300">{fmtUSD(inputs.ath)}</span></div>
               </SignalRow>

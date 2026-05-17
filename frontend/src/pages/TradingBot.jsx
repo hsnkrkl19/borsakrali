@@ -13,13 +13,23 @@
  */
 
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import {
   Bot, Play, Activity, ShieldCheck, Search, BookOpen, TrendingUp,
   TrendingDown, AlertTriangle, CheckCircle2, XCircle, BarChart3, Target,
   Zap, RefreshCw, Info, Award, Trophy, Sliders, ArrowDownToLine, ArrowUpFromLine,
+  FlaskConical,
 } from 'lucide-react'
 import { createChart } from 'lightweight-charts'
 import api from '../services/api'
+import BotRiskCard from '../components/BotRiskCard'
+import BotSetupWizard from '../components/BotSetupWizard'
+import BotStatusCard from '../components/BotStatusCard'
+import RiskAcknowledgeModal from '../components/RiskAcknowledgeModal'
+import {
+  BOT_PROFILES, BOT_PROFILE_LIST,
+  getActiveBot, isBoldAcknowledged, setBoldAcknowledged,
+} from '../utils/botProfiles'
 
 const TABS = [
   { id: 'backtest', label: 'Backtest',     icon: Play         },
@@ -131,8 +141,8 @@ function SignalPill({ signal }) {
   if (!signal || signal === 'NONE' || signal === 'no_data') {
     return <span className="px-2 py-0.5 text-xs rounded bg-slate-700 text-slate-400">YOK</span>
   }
-  if (signal === 'ENTRY_LONG')  return <span className="px-2 py-0.5 text-xs rounded bg-green-500/20 text-green-300 inline-flex items-center gap-1"><ArrowUpFromLine className="h-3 w-3" />LONG</span>
-  if (signal === 'ENTRY_SHORT') return <span className="px-2 py-0.5 text-xs rounded bg-red-500/20 text-red-300 inline-flex items-center gap-1"><ArrowDownToLine className="h-3 w-3" />SHORT</span>
+  if (signal === 'ENTRY_LONG')  return <span className="px-2 py-0.5 text-xs rounded bg-green-500/20 text-green-300 inline-flex items-center gap-1"><ArrowUpFromLine className="h-3 w-3" />AL</span>
+  if (signal === 'ENTRY_SHORT') return <span className="px-2 py-0.5 text-xs rounded bg-red-500/20 text-red-300 inline-flex items-center gap-1"><ArrowDownToLine className="h-3 w-3" />SAT</span>
   if (signal === 'EXIT_LONG' || signal === 'EXIT_SHORT') return <span className="px-2 py-0.5 text-xs rounded bg-amber-500/20 text-amber-300">ÇIKIŞ</span>
   return <span className="px-2 py-0.5 text-xs rounded bg-slate-700">{signal}</span>
 }
@@ -207,24 +217,24 @@ function WalkForwardChart({ windows }) {
               style={{ width: `${(Math.abs(w.inSample.ret) / maxAbs) * 50}%` }}
             />
             <div
-              className={`absolute top-2.5 bottom-0.5 ${w.outSample.ret >= 0 ? 'left-1/2 bg-purple-500/60' : 'right-1/2 bg-purple-500/60'}`}
+              className={`absolute top-2.5 bottom-0.5 ${w.outSample.ret >= 0 ? 'left-1/2 bg-gold-400/60' : 'right-1/2 bg-gold-400/60'}`}
               style={{ width: `${(Math.abs(w.outSample.ret) / maxAbs) * 50}%` }}
             />
           </div>
           <span className={`w-12 text-right ${w.inSample.ret >= 0 ? 'text-blue-300' : 'text-red-300'}`}>{fmtPct(w.inSample.ret, 1)}</span>
-          <span className={`w-12 text-right ${w.outSample.ret >= 0 ? 'text-purple-300' : 'text-red-300'}`}>{fmtPct(w.outSample.ret, 1)}</span>
+          <span className={`w-12 text-right ${w.outSample.ret >= 0 ? 'text-gold-400' : 'text-red-300'}`}>{fmtPct(w.outSample.ret, 1)}</span>
           <span className="w-4">{w.consistent ? '✓' : '✗'}</span>
         </div>
       ))}
       <div className="flex gap-3 text-[10px] text-slate-500 pt-1">
         <span className="flex items-center gap-1"><span className="w-2 h-2 bg-blue-500/40 inline-block" />In-Sample</span>
-        <span className="flex items-center gap-1"><span className="w-2 h-2 bg-purple-500/60 inline-block" />Out-Sample</span>
+        <span className="flex items-center gap-1"><span className="w-2 h-2 bg-gold-400/60 inline-block" />Out-Sample</span>
       </div>
     </div>
   )
 }
 
-export default function TradingBot() {
+function TradingBotAdvanced() {
   const [tab, setTab] = useState('backtest')
   const [strategies, setStrategies] = useState([])
   const [market, setMarket] = useState('crypto')
@@ -446,14 +456,14 @@ export default function TradingBot() {
           <div className="space-y-4">
             <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
               <MetricCard label="Toplam Getiri" value={fmtPct(backtest.metrics.totalReturnPct)} tone={backtest.metrics.totalReturnPct > 0 ? 'pos' : 'neg'} />
-              <MetricCard label="Sharpe (yıllık)" value={fmtNum(backtest.metrics.sharpe)} tone={backtest.metrics.sharpe > 1 ? 'pos' : backtest.metrics.sharpe < 0 ? 'neg' : 'warn'} />
+              <MetricCard label="Risk-Getiri (Sharpe)" value={fmtNum(backtest.metrics.sharpe)} tone={backtest.metrics.sharpe > 1 ? 'pos' : backtest.metrics.sharpe < 0 ? 'neg' : 'warn'} />
               <MetricCard label="Sortino" value={fmtNum(backtest.metrics.sortino)} tone={backtest.metrics.sortino > 1 ? 'pos' : 'neutral'} />
-              <MetricCard label="Profit Factor" value={fmtPF(backtest.metrics.profitFactor)} tone={backtest.metrics.profitFactor > 1.5 ? 'pos' : 'neutral'} />
-              <MetricCard label="Max DD" value={fmtPct(-backtest.metrics.maxDDPct)} tone="neg" />
-              <MetricCard label="Win Rate" value={`${backtest.metrics.winRate}%`} tone={backtest.metrics.winRate > 50 ? 'pos' : 'warn'} />
+              <MetricCard label="Kâr Katsayısı" value={fmtPF(backtest.metrics.profitFactor)} tone={backtest.metrics.profitFactor > 1.5 ? 'pos' : 'neutral'} />
+              <MetricCard label="En Kötü Düşüş" value={fmtPct(-backtest.metrics.maxDDPct)} tone="neg" />
+              <MetricCard label="Kârlı Oran" value={`${backtest.metrics.winRate}%`} tone={backtest.metrics.winRate > 50 ? 'pos' : 'warn'} />
               <MetricCard label="Toplam İşlem" value={backtest.metrics.totalTrades} />
-              <MetricCard label="Expectancy (R)" value={fmtNum(backtest.metrics.expectancyR, 3)} tone={backtest.metrics.expectancyR > 0 ? 'pos' : 'neg'} />
-              <MetricCard label="Ort Bar Tutma" value={backtest.metrics.avgTradeBars} />
+              <MetricCard label="Beklenen Kazanç (R)" value={fmtNum(backtest.metrics.expectancyR, 3)} tone={backtest.metrics.expectancyR > 0 ? 'pos' : 'neg'} />
+              <MetricCard label="Ort. Tutma Süresi" value={backtest.metrics.avgTradeBars} />
               <MetricCard label="Brüt Kâr" value={fmtMoney(backtest.metrics.grossProfit)} tone="pos" />
               <MetricCard label="Brüt Zarar" value={fmtMoney(backtest.metrics.grossLoss)} tone="neg" />
               <MetricCard label="Bakiye" value={fmtMoney(backtest.finalBalance)} tone={backtest.finalBalance > backtest.initialBalance ? 'pos' : 'neg'} />
@@ -782,6 +792,135 @@ export default function TradingBot() {
           </div>
         )}
       </div>
+    </div>
+  )
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+   Parça 3 — Sade kapak.
+   - ?advanced=true → eski TradingBotAdvanced ekranı
+   - aktif bot varsa → BotStatusCard
+   - yoksa → 3 BotRiskCard + Kağıt Üzerinde Dene linki
+   - kart seçilirse → BotSetupWizard
+   - Cesur Bot ilk kez seçilirse → RiskAcknowledgeModal
+   ───────────────────────────────────────────────────────────────────────── */
+export default function TradingBot() {
+  const [searchParams, setSearchParams] = useSearchParams()
+  const advanced = searchParams.get('advanced') === 'true'
+  const [active, setActive] = useState(() => getActiveBot())
+  const [chosenProfile, setChosenProfile] = useState(null)
+  const [riskModal, setRiskModal] = useState(null)   // 'bold' | null
+
+  // localStorage değişikliklerini izle (başka tab'dan da gelirse)
+  useEffect(() => {
+    const refresh = () => setActive(getActiveBot())
+    window.addEventListener('storage', refresh)
+    return () => window.removeEventListener('storage', refresh)
+  }, [])
+
+  if (advanced) {
+    return <TradingBotAdvanced />
+  }
+
+  const handleSelectProfile = (id) => {
+    if (id === 'bold' && !isBoldAcknowledged()) {
+      setRiskModal('bold')
+      return
+    }
+    setChosenProfile(id)
+  }
+
+  const handleAckBold = () => {
+    setBoldAcknowledged()
+    setRiskModal(null)
+    setChosenProfile('bold')
+  }
+
+  const handleStarted = () => {
+    setChosenProfile(null)
+    setActive(getActiveBot())
+  }
+
+  const handleStop = () => {
+    setActive(null)
+    setChosenProfile(null)
+  }
+
+  const openAdvanced = () => {
+    const params = new URLSearchParams(searchParams)
+    params.set('advanced', 'true')
+    setSearchParams(params)
+  }
+
+  // 1) Aktif bot varsa StatusCard
+  if (active) {
+    return (
+      <div className="space-y-4 max-w-4xl mx-auto">
+        <BotStatusCard active={active} onStop={handleStop} onAdvanced={openAdvanced} />
+      </div>
+    )
+  }
+
+  // 2) Profil seçildi → Wizard
+  if (chosenProfile) {
+    return (
+      <div className="space-y-4 max-w-2xl mx-auto">
+        <BotSetupWizard
+          profileId={chosenProfile}
+          onCancel={() => setChosenProfile(null)}
+          onStarted={handleStarted}
+        />
+      </div>
+    )
+  }
+
+  // 3) Risk seçim ekranı
+  return (
+    <div className="space-y-6 max-w-5xl mx-auto">
+      <header className="space-y-2">
+        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight" style={{ color: 'var(--text-primary)' }}>
+          Bot kurulumu
+        </h1>
+        <p className="text-sm sm:text-base" style={{ color: 'var(--text-secondary)' }}>
+          Hangi riski tercih edersin? Sonraki adımda bütçe seçeceksin, sonra başlat.
+        </p>
+      </header>
+
+      <a
+        href="/botlar?tab=paper"
+        className="inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold"
+        style={{
+          background: 'rgba(212, 175, 55, 0.10)',
+          color: 'var(--gold-400)',
+          border: '1px solid var(--border-gold)',
+        }}
+      >
+        <FlaskConical className="w-4 h-4" />
+        İlk kez mi? Önce Kağıt Üzerinde Dene →
+      </a>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4">
+        {BOT_PROFILE_LIST.map((p) => (
+          <BotRiskCard key={p.id} profile={p} onSelect={handleSelectProfile} />
+        ))}
+      </div>
+
+      <button
+        type="button"
+        onClick={openAdvanced}
+        className="text-[12px] underline"
+        style={{ color: 'var(--text-faint)' }}
+      >
+        Gelişmiş mod (eski ekran)
+      </button>
+
+      <RiskAcknowledgeModal
+        open={riskModal === 'bold'}
+        onClose={() => setRiskModal(null)}
+        onAcknowledge={handleAckBold}
+        title="Cesur Bot — yüksek risk"
+        body={BOT_PROFILES.bold.desc + ' Bu seçim büyük kazanç ihtimali olduğu kadar büyük kayıp ihtimali de taşır.'}
+      />
     </div>
   )
 }

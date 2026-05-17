@@ -27,8 +27,8 @@ const DIRECTION_STYLES = {
 }
 
 const STRATEGY_LABELS = {
-  trend:     { label: 'Trend Takip', sub: 'Market Entry · 1.5×ATR stop · 2.5×ATR target' },
-  reversion: { label: 'Reversion',   sub: 'Zone Entry · 1.5×ATR stop · 2:1 R/R · DENEYSEL' },
+  trend:     { label: 'Yön Takibi',    sub: 'Anlık giriş · oynaklık-bazlı zarar durdur · 2.5× hedef' },
+  reversion: { label: 'Dönüş Bölgesi', sub: 'Bölge girişi · oynaklık-bazlı zarar durdur · kazanç 2× zarar · DENEYSEL' },
 }
 
 // Pratik tarihler — geçmiş trade haftaları
@@ -203,7 +203,7 @@ export default function BacktestPanel() {
               <StatCard label="Stop Oldu"     value={stats.hitStop}     color="red" />
               <StatCard label="Tetiklenmedi"  value={stats.noTrigger}   color="gray" />
               <StatCard label="Açık Pozisyon" value={stats.stillRunning} color="blue" />
-              <StatCard label="Win Rate"      value={`%${stats.winRate}`} color={stats.winRate >= 50 ? 'emerald' : 'amber'} highlight />
+              <StatCard label="Kârlı oran"    value={`%${stats.winRate}`} color={stats.winRate >= 50 ? 'emerald' : 'amber'} highlight />
             </div>
           )}
 
