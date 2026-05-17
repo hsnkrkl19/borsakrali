@@ -170,14 +170,14 @@ export default function Taramalar() {
     { id: 'golden-cross', name: 'Golden Cross (50/200)', category: 'alis', description: "EMA 50 EMA 200'ü yukarı kesti - Uzun vadeli boğa", icon: Star, color: 'text-yellow-400', bg: 'bg-yellow-500/10 border-yellow-500/30', badge: 'Güçlü', badgeColor: 'bg-yellow-500/20 text-yellow-400' },
     { id: 'bollinger-lower', name: 'Bollinger Alt Bant', category: 'alis', description: 'Fiyat alt Bollinger bandına değdi - Dönüş potansiyeli', icon: Target, color: 'text-cyan-400', bg: 'bg-cyan-500/10 border-cyan-500/30', badge: 'Bounce', badgeColor: 'bg-cyan-500/20 text-cyan-400' },
     { id: 'stoch-oversold', name: 'Stokastik Aşırı Satım', category: 'alis', description: "Stokastik < 20 + %K %D'yi yukarı kesti", icon: Activity, color: 'text-teal-400', bg: 'bg-teal-500/10 border-teal-500/30', badge: 'Stoch', badgeColor: 'bg-teal-500/20 text-teal-400' },
-    { id: 'williams-oversold', name: 'Williams %R Aşırı Satım', category: 'alis', description: 'Williams %R < -80 - Aşırı satım + geri dönüş', icon: ArrowUpRight, color: 'text-indigo-400', bg: 'bg-indigo-500/10 border-indigo-500/30', badge: '%R', badgeColor: 'bg-indigo-500/20 text-indigo-400' },
-    { id: 'cci-oversold', name: 'CCI Aşırı Satım', category: 'alis', description: 'CCI < -100 - Commodity Channel Index dönüş bölgesi', icon: Gauge, color: 'text-violet-400', bg: 'bg-violet-500/10 border-violet-500/30', badge: 'CCI', badgeColor: 'bg-violet-500/20 text-violet-400' },
+    { id: 'williams-oversold', name: 'Williams %R Aşırı Satım', category: 'alis', description: 'Williams %R < -80 - Aşırı satım + geri dönüş', icon: ArrowUpRight, color: 'text-gold-400', bg: 'bg-gold-400/10 border-gold-400/30', badge: '%R', badgeColor: 'bg-gold-400/20 text-gold-400' },
+    { id: 'cci-oversold', name: 'CCI Aşırı Satım', category: 'alis', description: 'CCI < -100 - Commodity Channel Index dönüş bölgesi', icon: Gauge, color: 'text-amber-400', bg: 'bg-amber-500/10 border-amber-500/30', badge: 'CCI', badgeColor: 'bg-amber-500/20 text-amber-400' },
     { id: 'supertrend-buy', name: 'Supertrend Alış', category: 'alis', description: 'Supertrend alış modunda veya yeni sinyal üretti', icon: Zap, color: 'text-orange-400', bg: 'bg-orange-500/10 border-orange-500/30', badge: 'ST', badgeColor: 'bg-orange-500/20 text-orange-400' },
     { id: 'rsi-overbought', name: 'RSI Aşırı Alım', category: 'satis', description: 'RSI > 70 olan hisseler - Satış baskısı bölgesi', icon: TrendingDown, color: 'text-red-400', bg: 'bg-red-500/10 border-red-500/30', badge: 'Dikkat', badgeColor: 'bg-red-500/20 text-red-400' },
     { id: 'rsi-adx-strong', name: 'RSI + ADX Güçlü Trend', category: 'trend', description: 'ADX > 25 ve RSI 40-65 arası - Sağlıklı yükseliş trendi', icon: Layers, color: 'text-primary-400', bg: 'bg-primary-500/10 border-primary-500/30', badge: 'ADX', badgeColor: 'bg-primary-500/20 text-primary-400' },
     { id: 'volume-spike', name: 'Hacim Patlaması', category: 'hacim', description: '20 günlük ortalamanın 2 katı hacim - Kurumsal hareketler', icon: BarChart3, color: 'text-amber-400', bg: 'bg-amber-500/10 border-amber-500/30', badge: 'Hacim', badgeColor: 'bg-amber-500/20 text-amber-400' },
     { id: 'price-above-vwap', name: 'VWAP Üstünde', category: 'hacim', description: 'Fiyat VWAP üstünde + RSI 45-65 - Sağlıklı yükseliş', icon: TrendingUp, color: 'text-lime-400', bg: 'bg-lime-500/10 border-lime-500/30', badge: 'VWAP', badgeColor: 'bg-lime-500/20 text-lime-400' },
-    { id: 'bollinger-squeeze', name: 'Bollinger Sıkışması', category: 'momentum', description: 'Bollinger bantları daraldı - Büyük hareket bekleniyor', icon: Triangle, color: 'text-purple-400', bg: 'bg-purple-500/10 border-purple-500/30', badge: 'Sıkışma', badgeColor: 'bg-purple-500/20 text-purple-400' }
+    { id: 'bollinger-squeeze', name: 'Bollinger Sıkışması', category: 'momentum', description: 'Bollinger bantları daraldı - Büyük hareket bekleniyor', icon: Triangle, color: 'text-gold-400', bg: 'bg-gold-400/10 border-gold-400/30', badge: 'Sıkışma', badgeColor: 'bg-gold-400/20 text-gold-400' }
   ]
 
   useEffect(() => {
@@ -591,7 +591,7 @@ export default function Taramalar() {
               { name: 'Kijun-Sen', period: '26 dönem', desc: 'Orta vadeli yön.', color: 'text-blue-400' },
               { name: 'Senkou Span A', period: '(T+K)/2', desc: 'Bulutun üst sınırı.', color: 'text-green-400' },
               { name: 'Senkou Span B', period: '52 dönem', desc: 'Bulutun alt sınırı.', color: 'text-orange-400' },
-              { name: 'Chikou Span', period: 'Kapanış -26', desc: 'Gecikmeli çizgi.', color: 'text-purple-400' },
+              { name: 'Chikou Span', period: 'Kapanış -26', desc: 'Gecikmeli çizgi.', color: 'text-gold-400' },
               { name: 'Kumo (Bulut)', period: 'A-B arası', desc: 'Yeşil = Boğa, Kırmızı = Ayı', color: 'text-yellow-400' }
             ].map(item => (
               <div key={item.name} className="bg-dark-800 rounded-lg p-3 border border-dark-700">
@@ -979,9 +979,9 @@ export default function Taramalar() {
       {/* Bollinger Squeeze */}
       {activeTab === 'sikisan' && !loading && scanResults.length > 0 && (
         <div>
-          <div className="bg-purple-500/10 border border-purple-500/30 rounded-xl p-4 mb-4">
+          <div className="bg-gold-400/10 border border-gold-400/30 rounded-xl p-4 mb-4">
             <h3 className="font-semibold text-white mb-1 flex items-center gap-2">
-              <Triangle className="w-5 h-5 text-purple-400" />
+              <Triangle className="w-5 h-5 text-gold-400" />
               Bollinger Sıkışması Tespit Edildi
             </h3>
             <p className="text-xs text-gray-400">Bollinger bant genişliği %6'nın altına indi. Kırılım yönüne göre AL veya SAT pozisyonu alınabilir.</p>
@@ -996,7 +996,7 @@ export default function Taramalar() {
                 <p className="text-xs text-gray-500 mb-2">{stock.name}</p>
                 <p className="text-lg font-bold text-white mb-3">{stock.price?.toFixed(2)} ₺</p>
                 <div className="grid grid-cols-2 gap-2 text-xs">
-                  <div className="bg-dark-800 rounded p-2"><p className="text-gray-500">Bant Genişliği</p><p className="text-purple-400 font-bold">{stock.indicators?.bandwidth?.toFixed(1)}%</p></div>
+                  <div className="bg-dark-800 rounded p-2"><p className="text-gray-500">Bant Genişliği</p><p className="text-gold-400 font-bold">{stock.indicators?.bandwidth?.toFixed(1)}%</p></div>
                   <div className="bg-dark-800 rounded p-2"><p className="text-gray-500">RSI</p><p className={`font-bold ${getRSIColor(stock.indicators?.rsi)}`}>{stock.indicators?.rsi || '-'}</p></div>
                   <div className="bg-dark-800 rounded p-2"><p className="text-gray-500">Üst Band</p><p className="text-red-400 font-medium">{stock.indicators?.upper?.toFixed(2)}</p></div>
                   <div className="bg-dark-800 rounded p-2"><p className="text-gray-500">Alt Band</p><p className="text-emerald-400 font-medium">{stock.indicators?.lower?.toFixed(2)}</p></div>

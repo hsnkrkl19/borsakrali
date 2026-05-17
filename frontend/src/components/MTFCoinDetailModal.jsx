@@ -32,13 +32,13 @@ const TF_LIST = [
 ]
 
 const VERDICT_STYLES = {
-  STRONG_LONG:  { label: '⇈ STRONG LONG',  color: 'text-emerald-300', bg: 'bg-emerald-500/15', border: 'border-emerald-500/40' },
-  LONG:         { label: '↑ LONG',         color: 'text-emerald-400', bg: 'bg-emerald-500/10', border: 'border-emerald-500/30' },
-  WEAK_LONG:    { label: '↗ Zayıf Long',   color: 'text-emerald-200', bg: 'bg-emerald-500/5',  border: 'border-emerald-500/20' },
-  NEUTRAL:      { label: '— NÖTR',         color: 'text-gray-400',    bg: 'bg-gray-500/10',    border: 'border-gray-500/30' },
-  WEAK_SHORT:   { label: '↘ Zayıf Short',  color: 'text-rose-200',    bg: 'bg-rose-500/5',     border: 'border-rose-500/20' },
-  SHORT:        { label: '↓ SHORT',        color: 'text-rose-400',    bg: 'bg-rose-500/10',    border: 'border-rose-500/30' },
-  STRONG_SHORT: { label: '⇊ STRONG SHORT', color: 'text-rose-300',    bg: 'bg-rose-500/15',    border: 'border-rose-500/40' },
+  STRONG_LONG:  { label: '⇈ GÜÇLÜ AL',     color: 'text-emerald-300', bg: 'bg-emerald-500/15', border: 'border-emerald-500/40' },
+  LONG:         { label: '↑ AL',           color: 'text-emerald-400', bg: 'bg-emerald-500/10', border: 'border-emerald-500/30' },
+  WEAK_LONG:    { label: '↗ Zayıf AL',     color: 'text-emerald-200', bg: 'bg-emerald-500/5',  border: 'border-emerald-500/20' },
+  NEUTRAL:      { label: '— BEKLE',        color: 'text-gray-400',    bg: 'bg-gray-500/10',    border: 'border-gray-500/30' },
+  WEAK_SHORT:   { label: '↘ Zayıf SAT',    color: 'text-rose-200',    bg: 'bg-rose-500/5',     border: 'border-rose-500/20' },
+  SHORT:        { label: '↓ SAT',          color: 'text-rose-400',    bg: 'bg-rose-500/10',    border: 'border-rose-500/30' },
+  STRONG_SHORT: { label: '⇊ GÜÇLÜ SAT',    color: 'text-rose-300',    bg: 'bg-rose-500/15',    border: 'border-rose-500/40' },
 }
 
 function formatUsd(v) {
@@ -52,10 +52,39 @@ function formatUsd(v) {
   return `$${n.toFixed(8)}`
 }
 
+// Parça 2: TF grupları — uzun / orta / kısa vade. SimpleView bu 3 grubun
+// ✓/✗ özetini gösterir. Detay modunda eski 4-tab × 7-TF görünümü açılır.
+const TF_GROUPS = [
+  { id: 'long',  label: 'Uzun vade',  tfs: ['1w', '1d'] },
+  { id: 'mid',   label: 'Orta vade',  tfs: ['4h', '1h'] },
+  { id: 'short', label: 'Kısa vade',  tfs: ['15m', '5m', '1m'] },
+]
+
+// confluence.tfDirections içinden grup yönünü çıkar.
+// majority long ⇒ ✓ AL, majority short ⇒ ✗ SAT, dengeli ⇒ – BEKLE
+function groupDirection(tfDirections = {}, tfs = []) {
+  let long = 0, short = 0
+  for (const tf of tfs) {
+    const d = tfDirections[tf]
+    if (d === 'long') long++
+    else if (d === 'short') short++
+  }
+  if (long > short && long >= 1) return 'long'
+  if (short > long && short >= 1) return 'short'
+  return 'neutral'
+}
+
+const GROUP_SENTENCES = {
+  long:  { sentence: 'aynı yönde güçlü.', icon: '✓', color: 'var(--jade)' },
+  short: { sentence: 'aksi yönde — dikkat.', icon: '✗', color: 'var(--ember)' },
+  neutral: { sentence: 'net yön yok.', icon: '–', color: 'var(--text-faint)' },
+}
+
 export default function MTFCoinDetailModal({ symbol, onClose }) {
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
-  const [activeTab, setActiveTab] = useState('chart') // 'chart' | 'signals' | 'indicators' | 'ai'
+  const [mode, setMode] = useState('simple')      // 'simple' | 'detailed' (Parça 2)
+  const [activeTab, setActiveTab] = useState('chart') // detaylı modda kullanılır
 
   useEffect(() => {
     if (!symbol) return
@@ -102,24 +131,36 @@ export default function MTFCoinDetailModal({ symbol, onClose }) {
           </div>
         ) : (
           <>
-            {/* Confluence top panel */}
-            <ConfluencePanel confluence={data.confluence} />
-
-            {/* Tab selector */}
-            <div className="flex gap-1 px-3 pt-3 border-b border-dark-700 overflow-x-auto scrollbar-thin">
-              <TabBtn active={activeTab === 'chart'} onClick={() => setActiveTab('chart')} icon={LineChart}>Grafik</TabBtn>
-              <TabBtn active={activeTab === 'signals'} onClick={() => setActiveTab('signals')} icon={Layers}>Sinyaller</TabBtn>
-              <TabBtn active={activeTab === 'indicators'} onClick={() => setActiveTab('indicators')} icon={BarChart3}>İndikatörler</TabBtn>
-              <TabBtn active={activeTab === 'ai'} onClick={() => setActiveTab('ai')} icon={Activity}>AI / Math</TabBtn>
+            {/* Basit / Detaylı toggle (Parça 2) */}
+            <div className="flex items-center gap-1 px-3 pt-3">
+              <ModeBtn active={mode === 'simple'}   onClick={() => setMode('simple')}>Basit</ModeBtn>
+              <ModeBtn active={mode === 'detailed'} onClick={() => setMode('detailed')}>Detaylı</ModeBtn>
             </div>
 
-            {/* Tab content */}
-            <div className="p-3">
-              {activeTab === 'chart'      && <ChartTab      timeframes={data.timeframes} symbol={symbol} />}
-              {activeTab === 'signals'    && <SignalsTab    timeframes={data.timeframes} symbol={symbol} />}
-              {activeTab === 'indicators' && <IndicatorsTab timeframes={data.timeframes} />}
-              {activeTab === 'ai'         && <AITab         timeframes={data.timeframes} />}
-            </div>
+            {mode === 'simple' ? (
+              <SimpleView confluence={data.confluence} symbol={symbol} onClose={onClose} />
+            ) : (
+              <>
+                {/* Confluence top panel */}
+                <ConfluencePanel confluence={data.confluence} />
+
+                {/* Tab selector */}
+                <div className="flex gap-1 px-3 pt-3 border-b border-dark-700 overflow-x-auto scrollbar-thin">
+                  <TabBtn active={activeTab === 'chart'} onClick={() => setActiveTab('chart')} icon={LineChart}>Grafik</TabBtn>
+                  <TabBtn active={activeTab === 'signals'} onClick={() => setActiveTab('signals')} icon={Layers}>Sinyaller</TabBtn>
+                  <TabBtn active={activeTab === 'indicators'} onClick={() => setActiveTab('indicators')} icon={BarChart3}>İndikatörler</TabBtn>
+                  <TabBtn active={activeTab === 'ai'} onClick={() => setActiveTab('ai')} icon={Activity}>AI / Math</TabBtn>
+                </div>
+
+                {/* Tab content */}
+                <div className="p-3">
+                  {activeTab === 'chart'      && <ChartTab      timeframes={data.timeframes} symbol={symbol} />}
+                  {activeTab === 'signals'    && <SignalsTab    timeframes={data.timeframes} symbol={symbol} />}
+                  {activeTab === 'indicators' && <IndicatorsTab timeframes={data.timeframes} />}
+                  {activeTab === 'ai'         && <AITab         timeframes={data.timeframes} />}
+                </div>
+              </>
+            )}
 
             {/* Footer */}
             <div className="px-3 pb-3 pt-2 border-t border-dark-700/50 flex items-center justify-between gap-2 flex-wrap">
@@ -189,7 +230,7 @@ function ConfluencePanel({ confluence }) {
           <span className="text-[11px] text-gray-400">
             net: <span className="text-white font-mono font-bold">{confluence.net > 0 ? '+' : ''}{confluence.net?.toFixed(1)}</span>
             <span className="mx-1.5 text-gray-600">·</span>
-            güven: <span className="text-purple-300 font-mono font-bold">%{((confluence.confidence || 0) * 100).toFixed(0)}</span>
+            güven: <span className="text-gold-400 font-mono font-bold">%{((confluence.confidence || 0) * 100).toFixed(0)}</span>
           </span>
         </div>
         <span className="text-[10px] text-gray-400">
@@ -218,6 +259,141 @@ function ConfluencePanel({ confluence }) {
             </span>
           )
         })}
+      </div>
+    </div>
+  )
+}
+
+function ModeBtn({ active, onClick, children }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="text-[11px] font-semibold px-3 py-1.5 rounded-lg transition-colors"
+      style={{
+        background: active ? 'rgba(212, 175, 55, 0.15)' : 'transparent',
+        color: active ? 'var(--gold-400)' : 'var(--text-faint)',
+        border: `1px solid ${active ? 'var(--border-gold)' : 'transparent'}`,
+      }}
+    >
+      {children}
+    </button>
+  )
+}
+
+// Parça 2 — Basit Mod görünümü
+// Büyük etiket + 3 vade satırı + 2 CTA. Hiç ham sayı yok.
+function SimpleView({ confluence, symbol, onClose }) {
+  if (!confluence) {
+    return (
+      <div className="p-6 text-center text-sm" style={{ color: 'var(--text-secondary)' }}>
+        Henüz yeterli veri yok. Birkaç dakika sonra tekrar bak.
+      </div>
+    )
+  }
+  const verdict = VERDICT_STYLES[confluence.verdict] || VERDICT_STYLES.NEUTRAL
+  const directions = confluence.tfDirections || {}
+
+  // Üst başlık cümlesi
+  const headline = (() => {
+    const groups = TF_GROUPS.map(g => ({ ...g, dir: groupDirection(directions, g.tfs) }))
+    const longCount = groups.filter(g => g.dir === 'long').length
+    const shortCount = groups.filter(g => g.dir === 'short').length
+    if (longCount === 3) return 'Hem kısa, hem uzun vade aynı yönde — güçlü AL.'
+    if (shortCount === 3) return 'Hem kısa, hem uzun vade aynı yönde — sert düşüş.'
+    if (longCount >= 2) return 'Birden fazla vade aynı yönde — yükseliş.'
+    if (shortCount >= 2) return 'Birden fazla vade aksi yönde — dikkat.'
+    return 'Vadeler arasında uyum yok, beklemede kal.'
+  })()
+
+  return (
+    <div className="p-4 sm:p-5 space-y-4">
+      {/* Büyük etiket */}
+      <div
+        className="rounded-2xl border p-4 sm:p-5 text-center"
+        style={{
+          background: 'var(--bg-card)',
+          borderColor: 'var(--border-main)',
+        }}
+      >
+        <span
+          className={`inline-block text-2xl sm:text-3xl font-extrabold tracking-tight ${verdict.color}`}
+        >
+          {verdict.label}
+        </span>
+        <p
+          className="text-sm sm:text-base mt-2"
+          style={{ color: 'var(--text-secondary)' }}
+        >
+          {headline}
+        </p>
+      </div>
+
+      {/* 3 vade satırı */}
+      <div className="space-y-2">
+        {TF_GROUPS.map(g => {
+          const dir = groupDirection(directions, g.tfs)
+          const meta = GROUP_SENTENCES[dir]
+          return (
+            <div
+              key={g.id}
+              className="flex items-center gap-3 rounded-xl border p-3"
+              style={{
+                background: 'var(--bg-card)',
+                borderColor: 'var(--border-main)',
+              }}
+            >
+              <span
+                className="text-xl font-bold w-6 text-center flex-shrink-0"
+                style={{ color: meta.color }}
+              >
+                {meta.icon}
+              </span>
+              <div className="flex-1 min-w-0">
+                <p
+                  className="text-[13px] sm:text-sm font-semibold"
+                  style={{ color: 'var(--text-primary)' }}
+                >
+                  {g.label}
+                </p>
+                <p
+                  className="text-[12px]"
+                  style={{ color: 'var(--text-secondary)' }}
+                >
+                  {meta.sentence}
+                </p>
+              </div>
+            </div>
+          )
+        })}
+      </div>
+
+      {/* CTA */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-2">
+        <button
+          type="button"
+          onClick={() => { onClose?.(); window.location.href = '/botlar' }}
+          className="rounded-xl px-4 py-2.5 text-sm font-semibold transition-colors"
+          style={{
+            background: 'rgba(212, 175, 55, 0.15)',
+            color: 'var(--gold-400)',
+            border: '1px solid var(--border-gold)',
+          }}
+        >
+          Bot ile takip et
+        </button>
+        <button
+          type="button"
+          onClick={() => { onClose?.(); window.location.href = `/hesabim?tab=takip&add=${encodeURIComponent(symbol)}` }}
+          className="rounded-xl px-4 py-2.5 text-sm font-semibold transition-colors"
+          style={{
+            background: 'var(--bg-card)',
+            color: 'var(--text-primary)',
+            border: '1px solid var(--border-main)',
+          }}
+        >
+          Takip listeme ekle
+        </button>
       </div>
     </div>
   )
@@ -275,7 +451,7 @@ function ChartTab({ timeframes, symbol }) {
             {bestSignal.tf} · {direction === 'long' ? '↑ LONG' : '↓ SHORT'} · {bestSignal.totalScore}/{bestSignal.applicableMax} {bestSignal.grade}
           </span>
           {bestSignal.winProbability && (
-            <span className="px-2 py-0.5 rounded-full bg-purple-500/15 text-purple-300 border border-purple-500/30">
+            <span className="px-2 py-0.5 rounded-full bg-gold-400/15 text-gold-400 border border-gold-400/30">
               %{(bestSignal.winProbability.probability * 100).toFixed(0)} kazanma
             </span>
           )}
@@ -402,14 +578,14 @@ function DirectionPanel({ direction, signal }) {
       {(wp || signal.leverage_suggest > 1) && (
         <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
           {wp && (
-            <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-purple-500/15 text-purple-300 border border-purple-500/30"
+            <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-gold-400/15 text-gold-400 border border-gold-400/30"
               title={`Bayesian — bucket ${wp.bucket}, prior %${(wp.prior * 100).toFixed(0)}, n=${wp.samples}`}>
               %{(wp.probability * 100).toFixed(0)} kazanma
               {wp.samples >= 30 ? ' ★' : wp.samples > 0 ? ` ·n${wp.samples}` : ' prior'}
             </span>
           )}
           {signal.leverage_suggest > 1 && (
-            <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-fuchsia-500/15 text-fuchsia-300 border border-fuchsia-500/30">
+            <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-amber-500/15 text-amber-400 border border-amber-500/30">
               {signal.leverage_suggest}x
             </span>
           )}
@@ -425,7 +601,7 @@ function DirectionPanel({ direction, signal }) {
             ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/40 cursor-default'
             : paperState === 'error'
             ? 'bg-rose-500/15 text-rose-300 border-rose-500/40'
-            : 'bg-purple-500/10 text-purple-300 border-purple-500/30 hover:bg-purple-500/20'
+            : 'bg-gold-400/10 text-gold-400 border-gold-400/30 hover:bg-gold-400/20'
         } disabled:opacity-70`}
         title={paperMsg || `$1,000 paper trade — ${direction} ${signal.symbol || ''}`}
       >

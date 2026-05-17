@@ -120,8 +120,8 @@ function SnrChart({ symbol, assetType, data }) {
       if (data.signals[1]) {
         const s2 = data.signals[1]
         const ageTag2 = s2.daysAgo != null ? ` · ${s2.daysAgo}g` : ''
-        cs.createPriceLine({ price: s2.entry,  color: '#8b5cf6', lineWidth: 1, lineStyle: LineStyle.Dotted, axisLabelVisible: true, title: `▶ GİRİŞ2 ${s2.entry?.toFixed(2)}${ageTag2}` })
-        cs.createPriceLine({ price: s2.target, color: '#a78bfa', lineWidth: 1, lineStyle: LineStyle.Dotted, axisLabelVisible: true, title: `★ TP2 ${s2.target?.toFixed(2)}` })
+        cs.createPriceLine({ price: s2.entry,  color: '#fbbf24', lineWidth: 1, lineStyle: LineStyle.Dotted, axisLabelVisible: true, title: `▶ GİRİŞ2 ${s2.entry?.toFixed(2)}${ageTag2}` })
+        cs.createPriceLine({ price: s2.target, color: '#fcd34d', lineWidth: 1, lineStyle: LineStyle.Dotted, axisLabelVisible: true, title: `★ TP2 ${s2.target?.toFixed(2)}` })
       }
     }
 
@@ -301,8 +301,8 @@ const TIPS = {
     source: 'snrService.js scoreZones() — Trading SNR the Malaysian Way'
   },
   stop: {
-    title: 'Stop Loss — Neden Bu Fiyat?',
-    description: 'Stop Loss zone sınırının ÖTESINE 0.5×ATR tampon mesafe eklenerek yerleştirilir. Bu tampon kritiktir: "Likidite Süpürmesi" (wick saldırısı) sırasında fiyat kısa süreliğine zone sınırını aşabilir ama orada KAPANAMAZ. 0.5×ATR tampon bu sahte kırılmaları filtreler ve pozisyonu korur.',
+    title: 'Zarar Durdur (Stop Loss) — Neden Bu Fiyat?',
+    description: 'Zarar Durdur seviyesi zone sınırının ÖTESINE 0.5×ATR tampon mesafe eklenerek yerleştirilir. Bu tampon kritiktir: "Likidite Süpürmesi" (wick saldırısı) sırasında fiyat kısa süreliğine zone sınırını aşabilir ama orada KAPANAMAZ. 0.5×ATR tampon bu sahte kırılmaları filtreler ve pozisyonu korur.',
     formula: 'Destek zone (long) stop:\n  Stop = zone.bottom − 0.5 × ATR\n  Neden bottom altı? Çünkü gerçek kırılma\n  ancak zone altında GÖVDE kapanışı olunca\n  gerçekleşir.\n\nDirenç zone (short) stop:\n  Stop = zone.top + 0.5 × ATR\n\nRisk = |Giriş − Stop|\n\n0.5×ATR tampon:\n  Likidite sweep (wick baskısı) koruması!\n  Küçük yatırımcı stop\'ları taranırken\n  pozisyonunuz ayakta kalır.',
     source: 'snrService.js scoreZones() — Trading SNR the Malaysian Way'
   },
@@ -470,7 +470,7 @@ export default function MalaysianSNR() {
         {assetType === 'crypto' && TOTAL_MARKET.map(m => (
           <button key={m.symbol}
             onClick={() => { setInputVal(m.symbol); analyze(m.symbol, 'crypto') }}
-            className="px-3 py-2 bg-purple-500/20 text-purple-400 border border-purple-500/30 text-xs rounded-xl hover:bg-purple-500/30 transition-colors font-medium">
+            className="px-3 py-2 bg-gold-400/20 text-gold-400 border border-gold-400/30 text-xs rounded-xl hover:bg-gold-400/30 transition-colors font-medium">
             {m.label}
           </button>
         ))}
@@ -573,7 +573,7 @@ export default function MalaysianSNR() {
 
       {/* ── Toplam Piyasa Endeksi bilgi kartı (sadece TOTAL* semboller için) ── */}
       {symbol && MARKET_INDEX_SYMBOLS.has(symbol) && !data && !loading && (
-        <div className="p-4 bg-purple-500/10 border border-purple-500/30 rounded-xl flex items-center gap-3">
+        <div className="p-4 bg-gold-400/10 border border-gold-400/30 rounded-xl flex items-center gap-3">
           <span className="text-2xl">🌐</span>
           <div>
             <p className="text-white font-semibold">
@@ -1192,7 +1192,7 @@ function SignalCard({ sig, rank, stale = false }) {
         <span className="flex items-center gap-1 text-[10px] px-2 py-0.5 bg-dark-700 text-gray-400 rounded-full">
           {sig.touchCount} dokunma <InfoTooltip {...TIPS.touchCount} />
         </span>
-        <span className="flex items-center gap-1 text-[10px] px-2 py-0.5 bg-purple-500/20 text-purple-400 rounded-full">
+        <span className="flex items-center gap-1 text-[10px] px-2 py-0.5 bg-gold-400/20 text-gold-400 rounded-full">
           1:{(risk > 0 ? (Math.abs((sig.target || 0) - (sig.entry || 0)) / risk).toFixed(1) : '2')} RR
         </span>
       </div>

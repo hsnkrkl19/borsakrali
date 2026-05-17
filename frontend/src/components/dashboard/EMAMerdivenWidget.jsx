@@ -4,7 +4,7 @@ export default function EMAMerdivenWidget() {
     { period: 'EMA 9', value: 13804.56, color: 'text-success-500', bgColor: 'bg-success-500/20' },
     { period: 'EMA 21', value: 12595.89, color: 'text-warning-500', bgColor: 'bg-warning-500/20' },
     { period: 'EMA 50', value: 11957.33, color: 'text-primary-500', bgColor: 'bg-primary-500/20' },
-    { period: 'EMA 200', value: 10858.05, color: 'text-purple-500', bgColor: 'bg-purple-500/20' },
+    { period: 'EMA 200', value: 10858.05, color: 'text-gold-400', bgColor: 'bg-gold-400/20' },
   ]
 
   return (

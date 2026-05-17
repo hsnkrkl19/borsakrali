@@ -50,13 +50,13 @@ const GRADE_STYLES = {
 }
 
 const VERDICT_STYLES = {
-  STRONG_LONG:  { label: '⇈ STRONG LONG',  color: 'text-emerald-300', bg: 'bg-emerald-500/15', border: 'border-emerald-500/40' },
-  LONG:         { label: '↑ LONG',         color: 'text-emerald-400', bg: 'bg-emerald-500/10', border: 'border-emerald-500/30' },
-  WEAK_LONG:    { label: '↗ Zayıf Long',   color: 'text-emerald-200', bg: 'bg-emerald-500/5',  border: 'border-emerald-500/20' },
-  NEUTRAL:      { label: '— NÖTR',         color: 'text-gray-400',    bg: 'bg-gray-500/10',    border: 'border-gray-500/30' },
-  WEAK_SHORT:   { label: '↘ Zayıf Short',  color: 'text-rose-200',    bg: 'bg-rose-500/5',     border: 'border-rose-500/20' },
-  SHORT:        { label: '↓ SHORT',        color: 'text-rose-400',    bg: 'bg-rose-500/10',    border: 'border-rose-500/30' },
-  STRONG_SHORT: { label: '⇊ STRONG SHORT', color: 'text-rose-300',    bg: 'bg-rose-500/15',    border: 'border-rose-500/40' },
+  STRONG_LONG:  { label: '⇈ GÜÇLÜ AL',     color: 'text-emerald-300', bg: 'bg-emerald-500/15', border: 'border-emerald-500/40' },
+  LONG:         { label: '↑ AL',           color: 'text-emerald-400', bg: 'bg-emerald-500/10', border: 'border-emerald-500/30' },
+  WEAK_LONG:    { label: '↗ Zayıf AL',     color: 'text-emerald-200', bg: 'bg-emerald-500/5',  border: 'border-emerald-500/20' },
+  NEUTRAL:      { label: '— BEKLE',        color: 'text-gray-400',    bg: 'bg-gray-500/10',    border: 'border-gray-500/30' },
+  WEAK_SHORT:   { label: '↘ Zayıf SAT',    color: 'text-rose-200',    bg: 'bg-rose-500/5',     border: 'border-rose-500/20' },
+  SHORT:        { label: '↓ SAT',          color: 'text-rose-400',    bg: 'bg-rose-500/10',    border: 'border-rose-500/30' },
+  STRONG_SHORT: { label: '⇊ GÜÇLÜ SAT',    color: 'text-rose-300',    bg: 'bg-rose-500/15',    border: 'border-rose-500/40' },
 }
 
 const VOLATILITY_STYLES = {
@@ -318,7 +318,7 @@ export default function MTFSinyalleri() {
             <div>
               <h3 className="text-white font-bold flex items-center gap-2 flex-wrap">
                 Çoklu Zaman Dilimi Sinyalleri
-                <span className="text-[10px] px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/30">
+                <span className="text-[10px] px-2 py-0.5 rounded-full bg-gold-400/20 text-gold-400 border border-gold-400/30">
                   AI + Math
                 </span>
               </h3>
@@ -708,7 +708,7 @@ function SignalCard({ sig, rank, direction, tf, expanded, onToggle, confluenceFo
                 {sig.grade}
               </span>
               {sig.leverage_suggest > 1 && (
-                <span className="text-[10px] px-2 py-0.5 rounded-full border bg-fuchsia-500/10 text-fuchsia-300 border-fuchsia-500/30">
+                <span className="text-[10px] px-2 py-0.5 rounded-full border bg-amber-500/10 text-amber-400 border-amber-500/30">
                   {sig.leverage_suggest}x
                 </span>
               )}
@@ -727,10 +727,10 @@ function SignalCard({ sig, rank, direction, tf, expanded, onToggle, confluenceFo
                 const isCalibrated = n >= 30
                 const isMid = n >= 5
                 const cls = isCalibrated
-                  ? 'bg-purple-500/25 text-purple-200 border-purple-500/50'
+                  ? 'bg-gold-400/25 text-gold-300 border-gold-400/50'
                   : isMid
-                  ? 'bg-purple-500/15 text-purple-300 border-purple-500/30'
-                  : 'bg-purple-500/5 text-purple-300/80 border-purple-500/20'
+                  ? 'bg-gold-400/15 text-gold-400 border-gold-400/30'
+                  : 'bg-gold-400/5 text-gold-400/80 border-gold-400/20'
                 const tooltip = n === 0
                   ? `Prior (henüz backtest verisi yok): %${(sig.winProbability.prior * 100).toFixed(0)}`
                   : `Bayesian — bucket ${sig.winProbability.bucket}, prior %${(sig.winProbability.prior * 100).toFixed(0)} → posterior %${(p * 100).toFixed(0)} (${n} örneklem, α=${sig.winProbability.posteriorAlpha?.toFixed(2)} β=${sig.winProbability.posteriorBeta?.toFixed(2)})`
@@ -845,8 +845,8 @@ function SignalCard({ sig, rank, direction, tf, expanded, onToggle, confluenceFo
               <div className="p-2 rounded-lg bg-dark-800 border border-dark-700">
                 <div className="text-[9px] text-gray-500 uppercase tracking-wider mb-1">Momentum İvmesi</div>
                 <div className="flex items-center gap-2">
-                  <Activity className="w-3 h-3 text-fuchsia-300" />
-                  <span className="text-fuchsia-300 text-[10px] capitalize">
+                  <Activity className="w-3 h-3 text-amber-400" />
+                  <span className="text-amber-400 text-[10px] capitalize">
                     {sig.momentum.type?.replace(/_/g, ' ')}
                   </span>
                 </div>
@@ -885,9 +885,9 @@ function SignalCard({ sig, rank, direction, tf, expanded, onToggle, confluenceFo
 
           {/* Confluence detayı (varsa) */}
           {confluenceForCoin && (
-            <div className="p-2 rounded-lg bg-purple-500/5 border border-purple-500/20">
+            <div className="p-2 rounded-lg bg-gold-400/5 border border-gold-400/20">
               <div className="flex items-center justify-between gap-2 mb-1">
-                <span className="text-[10px] text-purple-300 uppercase tracking-wider font-semibold">
+                <span className="text-[10px] text-gold-400 uppercase tracking-wider font-semibold">
                   7-TF Confluence
                 </span>
                 <span className={`text-[10px] px-2 py-0.5 rounded-full border ${VERDICT_STYLES[confluenceForCoin.verdict]?.bg} ${VERDICT_STYLES[confluenceForCoin.verdict]?.border} ${VERDICT_STYLES[confluenceForCoin.verdict]?.color}`}>
@@ -914,7 +914,7 @@ function SignalCard({ sig, rank, direction, tf, expanded, onToggle, confluenceFo
               <div className="flex items-center gap-3 mt-1 text-[10px] text-gray-400">
                 <span>Net: <span className="text-white font-mono">{confluenceForCoin.net}</span></span>
                 <span>·</span>
-                <span>Güven: <span className="text-purple-300 font-mono">{(confluenceForCoin.confidence * 100).toFixed(0)}%</span></span>
+                <span>Güven: <span className="text-gold-400 font-mono">{(confluenceForCoin.confidence * 100).toFixed(0)}%</span></span>
                 <span>·</span>
                 <span>{confluenceForCoin.alignedLong}L / {confluenceForCoin.alignedShort}S</span>
               </div>
@@ -925,7 +925,7 @@ function SignalCard({ sig, rank, direction, tf, expanded, onToggle, confluenceFo
           <div className="flex items-center gap-3 flex-wrap">
             <button
               onClick={(e) => { e.stopPropagation(); onOpenDetail?.(sig.symbol) }}
-              className="inline-flex items-center gap-1.5 text-[11px] px-2.5 py-1 rounded-lg bg-purple-500/15 text-purple-300 border border-purple-500/30 hover:bg-purple-500/25"
+              className="inline-flex items-center gap-1.5 text-[11px] px-2.5 py-1 rounded-lg bg-gold-400/15 text-gold-400 border border-gold-400/30 hover:bg-gold-400/25"
               title="Bu coin için 7 timeframe full detay modalı"
             >
               <Layers className="w-3 h-3" />
@@ -1002,13 +1002,13 @@ function ConfluenceView({ data, expandedSymbol, setExpandedSymbol, watchlistOnly
 
       {/* Özet sayaçları */}
       <div className="card p-3 grid grid-cols-3 sm:grid-cols-7 gap-2 text-[10px]">
-        <Tally label="STRONG LONG" value={data.strongLong} cls="text-emerald-300 bg-emerald-500/15" />
-        <Tally label="LONG" value={data.long} cls="text-emerald-400 bg-emerald-500/10" />
-        <Tally label="WEAK LONG" value={data.all?.filter(c => c.verdict === 'WEAK_LONG').length || 0} cls="text-emerald-200 bg-emerald-500/5" />
-        <Tally label="NÖTR" value={data.neutral} cls="text-gray-400 bg-gray-500/10" />
-        <Tally label="WEAK SHORT" value={data.all?.filter(c => c.verdict === 'WEAK_SHORT').length || 0} cls="text-rose-200 bg-rose-500/5" />
-        <Tally label="SHORT" value={data.short} cls="text-rose-400 bg-rose-500/10" />
-        <Tally label="STRONG SHORT" value={data.strongShort} cls="text-rose-300 bg-rose-500/15" />
+        <Tally label="GÜÇLÜ AL" value={data.strongLong} cls="text-emerald-300 bg-emerald-500/15" />
+        <Tally label="AL" value={data.long} cls="text-emerald-400 bg-emerald-500/10" />
+        <Tally label="ZAYIF AL" value={data.all?.filter(c => c.verdict === 'WEAK_LONG').length || 0} cls="text-emerald-200 bg-emerald-500/5" />
+        <Tally label="BEKLE" value={data.neutral} cls="text-gray-400 bg-gray-500/10" />
+        <Tally label="ZAYIF SAT" value={data.all?.filter(c => c.verdict === 'WEAK_SHORT').length || 0} cls="text-rose-200 bg-rose-500/5" />
+        <Tally label="SAT" value={data.short} cls="text-rose-400 bg-rose-500/10" />
+        <Tally label="GÜÇLÜ SAT" value={data.strongShort} cls="text-rose-300 bg-rose-500/15" />
       </div>
 
       {/* Top confluence list */}
@@ -1040,7 +1040,7 @@ function Tally({ label, value, cls }) {
 function ConfluenceRow({ c, rank, expanded, onToggle, onOpenDetail }) {
   const verdict = VERDICT_STYLES[c.verdict] || VERDICT_STYLES.NEUTRAL
   return (
-    <div className={`card border-2 ${expanded ? 'border-purple-500/40' : 'border-dark-700'} transition-colors`}>
+    <div className={`card border-2 ${expanded ? 'border-gold-400/40' : 'border-dark-700'} transition-colors`}>
       <div className="cursor-pointer" onClick={onToggle}>
         <div className="flex items-center gap-3">
           <span className="text-gray-500 font-bold w-6 text-center text-sm flex-shrink-0">#{rank}</span>
@@ -1082,7 +1082,7 @@ function ConfluenceRow({ c, rank, expanded, onToggle, onOpenDetail }) {
               {c.net > 0 ? '+' : ''}{c.net?.toFixed(1)}
             </div>
             <div className="text-[9px] text-gray-500 mt-0.5">net skor</div>
-            <div className="text-[9px] text-purple-300 mt-0.5">
+            <div className="text-[9px] text-gold-400 mt-0.5">
               %{(c.confidence * 100).toFixed(0)} güven
             </div>
           </div>
@@ -1097,7 +1097,7 @@ function ConfluenceRow({ c, rank, expanded, onToggle, onOpenDetail }) {
           <div className="mt-3 pt-3 border-t border-dark-700/50">
             <button
               onClick={(e) => { e.stopPropagation(); onOpenDetail?.(c.symbol) }}
-              className="text-[11px] px-2.5 py-1 rounded-lg bg-purple-500/15 text-purple-300 border border-purple-500/30 hover:bg-purple-500/25 inline-flex items-center gap-1.5"
+              className="text-[11px] px-2.5 py-1 rounded-lg bg-gold-400/15 text-gold-400 border border-gold-400/30 hover:bg-gold-400/25 inline-flex items-center gap-1.5"
               title="Tüm 7 TF + AI/Math katmanı modal'da"
             >
               <Layers className="w-3 h-3" />
@@ -1170,7 +1170,7 @@ function CoinDetailExpanded({ symbol, confluence }) {
                   <span className="text-rose-300">S: {formatUsd(sig.stop)}</span>
                   <span className="text-emerald-300">T: {formatUsd(sig.target1)}</span>
                   {sig.leverage_suggest > 1 && (
-                    <span className="text-fuchsia-300">{sig.leverage_suggest}x</span>
+                    <span className="text-amber-400">{sig.leverage_suggest}x</span>
                   )}
                 </div>
               ) : (
@@ -1235,8 +1235,8 @@ function CalibrationView({ data, activeTF, onCalibrate, running, progress }) {
       <div className="card p-3 flex items-center justify-between gap-3 flex-wrap">
         <div className="flex items-center gap-3 text-[11px]">
           <span className="flex items-center gap-1 text-gray-400">
-            <Activity className="w-3.5 h-3.5 text-purple-300" />
-            <span className="text-purple-300 font-semibold">Bayesian Calibration</span>
+            <Activity className="w-3.5 h-3.5 text-gold-400" />
+            <span className="text-gold-400 font-semibold">Bayesian Calibration</span>
           </span>
           <span className="text-gray-600">·</span>
           <span className="text-gray-400">
@@ -1328,11 +1328,11 @@ function CalibrationProgressBar({ progress }) {
     : null
 
   return (
-    <div className="card p-3 space-y-2 border-purple-500/30">
+    <div className="card p-3 space-y-2 border-gold-400/30">
       <div className="flex items-center justify-between text-[11px] flex-wrap gap-2">
         <div className="flex items-center gap-2">
-          <RefreshCw className={`w-3.5 h-3.5 text-purple-300 ${phase === 'running' ? 'animate-spin' : ''}`} />
-          <span className="text-purple-300 font-semibold">Calibration</span>
+          <RefreshCw className={`w-3.5 h-3.5 text-gold-400 ${phase === 'running' ? 'animate-spin' : ''}`} />
+          <span className="text-gold-400 font-semibold">Calibration</span>
           <span className="text-gray-400">— {phaseLabel}</span>
         </div>
         <div className="text-gray-400 font-mono text-[10px]">
@@ -1344,7 +1344,7 @@ function CalibrationProgressBar({ progress }) {
       {/* Progress bar */}
       <div className="h-2 bg-dark-700 rounded-full overflow-hidden">
         <div
-          className="h-full bg-gradient-to-r from-purple-500 to-emerald-500 transition-all"
+          className="h-full bg-gradient-to-r from-gold-400 to-emerald-500 transition-all"
           style={{ width: `${pct}%` }}
         />
       </div>
@@ -1456,7 +1456,7 @@ function BacktestView({ activeTF, data, onRun, running }) {
       {/* Form */}
       <div className="card p-3 space-y-3">
         <div className="flex items-center gap-2">
-          <Target className="w-4 h-4 text-purple-300" />
+          <Target className="w-4 h-4 text-gold-400" />
           <span className="text-sm font-semibold text-white">Geçmiş Tarihli Backtest</span>
           <span className="text-[10px] text-gray-500">— Binance klines leak-proof simülasyon</span>
         </div>
@@ -1518,10 +1518,10 @@ function BacktestView({ activeTF, data, onRun, running }) {
             type="checkbox"
             checked={feedToCalibration}
             onChange={(e) => setFeedToCalibration(e.target.checked)}
-            className="rounded border-dark-600 bg-dark-800 text-purple-500 focus:ring-purple-500/30 focus:ring-offset-0 w-3.5 h-3.5"
+            className="rounded border-dark-600 bg-dark-800 text-gold-400 focus:ring-purple-500/30 focus:ring-offset-0 w-3.5 h-3.5"
           />
           <span className="text-[11px] text-gray-400 group-hover:text-gray-300">
-            Sonuçları <span className="text-purple-300 font-semibold">kalibrasyona ekle</span> — Beta posterior güncellenir, win probability iyileşir
+            Sonuçları <span className="text-gold-400 font-semibold">kalibrasyona ekle</span> — Beta posterior güncellenir, win probability iyileşir
           </span>
         </label>
 
@@ -1590,7 +1590,7 @@ function BacktestResults({ data }) {
           <span>analiz: <span className="text-white font-mono">{data.analyzedCount}</span></span>
         </div>
         {data.calibration && (
-          <span className="text-[10px] px-2 py-0.5 rounded-full bg-purple-500/15 text-purple-300 border border-purple-500/30 flex items-center gap-1">
+          <span className="text-[10px] px-2 py-0.5 rounded-full bg-gold-400/15 text-gold-400 border border-gold-400/30 flex items-center gap-1">
             <Activity className="w-3 h-3" />
             Calibration: +{data.calibration.updated} update
             {data.calibration.skipped > 0 && <span className="opacity-60">· {data.calibration.skipped} atlandı</span>}
@@ -1630,7 +1630,7 @@ function StatPanel({ direction, stats, totalSignals }) {
       </div>
       <div className="grid grid-cols-2 gap-1.5 text-[11px]">
         <div className="p-1.5 rounded bg-dark-800 border border-dark-700">
-          <div className="text-[9px] text-gray-500 uppercase">Win Rate</div>
+          <div className="text-[9px] text-gray-500 uppercase">Kârlı Oran</div>
           <div className="text-base font-bold text-white">%{stats.winRate || 0}</div>
         </div>
         <div className="p-1.5 rounded bg-dark-800 border border-dark-700">

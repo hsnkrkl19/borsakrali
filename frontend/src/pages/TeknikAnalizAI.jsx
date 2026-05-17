@@ -788,7 +788,7 @@ export default function TeknikAnalizAI() {
 
 
           {/* Başlık */}
-          <div className={`card bg-gradient-to-r ${analysis.isCrypto ? 'from-orange-900/30 to-dark-900' : 'from-purple-900/50 to-dark-900'}`}>
+          <div className={`card bg-gradient-to-r ${analysis.isCrypto ? 'from-orange-900/30 to-dark-900' : 'from-gold-400/50 to-dark-900'}`}>
             <div className="flex items-center justify-between">
               <div>
                 <div className="flex items-center gap-2">
@@ -970,7 +970,7 @@ export default function TeknikAnalizAI() {
                   { label: '%38.2', key: 'level_382', color: 'text-yellow-400' },
                   { label: '%50', key: 'level_500', color: 'text-white' },
                   { label: '%61.8', key: 'level_618', color: 'text-blue-400', tip: true },
-                  { label: '%78.6', key: 'level_786', color: 'text-purple-400' },
+                  { label: '%78.6', key: 'level_786', color: 'text-gold-400' },
                   { label: '%100', key: 'level_100', color: 'text-green-400' }
                 ].map((fib) => (
                   <div key={fib.key} className="bg-dark-800 rounded-lg p-3 text-center">

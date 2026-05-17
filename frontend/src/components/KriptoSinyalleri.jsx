@@ -243,8 +243,11 @@ export default function KriptoSinyalleri() {
       {/* ── Sinyal listesi ──────────────────────────────────────────── */}
       {visible.length === 0 ? (
         <div className="card p-6 text-center">
-          <p className="text-sm text-gray-400">Bu strateji için şu an sinyal yok.</p>
-          <p className="text-xs text-gray-500 mt-1">Diğer stratejileri deneyebilirsin.</p>
+          <p className="text-sm text-gray-400">Henüz güçlü fırsat bulunamadı.</p>
+          <p className="text-xs text-gray-500 mt-1">Yeni fırsat çıktığında burada göreceksin.</p>
+          <a href="/hesabim?tab=ayarlar" className="inline-block text-[12px] font-semibold mt-3 text-gold-400">
+            Bildirim aç →
+          </a>
         </div>
       ) : (
         <div className="space-y-2">
@@ -283,8 +286,8 @@ export default function KriptoSinyalleri() {
 function CoinCard({ sig, rank, strategy, expanded, onToggle }) {
   const isLong = sig.direction === 'long'
   const dirStyle = isLong
-    ? { label: '↑ LONG', color: 'text-emerald-400', bg: 'bg-emerald-500/10', border: 'border-emerald-500/30' }
-    : { label: '↓ SHORT', color: 'text-red-400', bg: 'bg-red-500/10', border: 'border-red-500/30' }
+    ? { label: '↑ AL',  color: 'text-emerald-400', bg: 'bg-emerald-500/10', border: 'border-emerald-500/30' }
+    : { label: '↓ SAT', color: 'text-red-400',     bg: 'bg-red-500/10',     border: 'border-red-500/30' }
   const gradeColor = GRADE_STYLES[sig.grade] || GRADE_STYLES.ZAYIF
   const confStyle = CONFIDENCE_STYLES[sig.confidence] || CONFIDENCE_STYLES.unknown
 
@@ -339,7 +342,7 @@ function CoinCard({ sig, rank, strategy, expanded, onToggle }) {
                 {sig.grade}
               </span>
               {sig.leverage_suggest > 1 && (
-                <span className="text-[10px] px-2 py-0.5 rounded-full border bg-fuchsia-500/10 text-fuchsia-300 border-fuchsia-500/30">
+                <span className="text-[10px] px-2 py-0.5 rounded-full border bg-amber-500/10 text-amber-400 border-amber-500/30">
                   {sig.leverage_suggest}x
                 </span>
               )}
@@ -435,10 +438,10 @@ function CoinCard({ sig, rank, strategy, expanded, onToggle }) {
 
           {/* Funding rate (futures'larda) */}
           {sig.funding && (
-            <div className="flex items-center gap-2 p-2 bg-fuchsia-500/5 border border-fuchsia-500/20 rounded-lg text-[11px]">
-              <Zap className="w-3.5 h-3.5 text-fuchsia-300 flex-shrink-0" />
+            <div className="flex items-center gap-2 p-2 bg-amber-500/5 border border-amber-500/20 rounded-lg text-[11px]">
+              <Zap className="w-3.5 h-3.5 text-amber-400 flex-shrink-0" />
               <span className="text-gray-400">Funding rate:</span>
-              <span className={`font-mono font-bold ${sig.funding.rate >= 0 ? 'text-fuchsia-300' : 'text-emerald-300'}`}>
+              <span className={`font-mono font-bold ${sig.funding.rate >= 0 ? 'text-amber-400' : 'text-emerald-300'}`}>
                 {sig.funding.ratePct.toFixed(4)}%
               </span>
               <span className="text-gray-500 ml-auto">/ 8 saat</span>
@@ -483,8 +486,8 @@ function CoinCard({ sig, rank, strategy, expanded, onToggle }) {
               </div>
               {sig.historicalWinRate != null && (
                 <div className="flex items-center gap-3 text-[11px]">
-                  <span title="Bu skor bantında geçmiş backtestlerde hedefe ulaşan sinyal oranı">
-                    Win Rate: <span className="font-mono font-bold">%{sig.historicalWinRate}</span>
+                  <span title="Bu skor bantında geçmiş testlerde hedefe ulaşan sinyal oranı">
+                    Kârlı oran: <span className="font-mono font-bold">%{sig.historicalWinRate}</span>
                   </span>
                   {sig.historicalAvgReturn != null && (
                     <span title="Ortalama getiri (tüm sinyaller)">

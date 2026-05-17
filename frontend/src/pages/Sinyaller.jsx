@@ -19,6 +19,7 @@ import {
 } from 'lucide-react'
 import api from '../services/api'
 import MTFConfluenceSummary from '../components/MTFConfluenceSummary'
+import HelpBubble from '../components/HelpBubble'
 
 // ── Stiller ───────────────────────────────────────────────────────────────
 const GRADE_STYLES = {
@@ -36,11 +37,11 @@ const CONFIDENCE_STYLES = {
 }
 
 const TABS = [
-  { key: 'trend',         label: 'BIST · Trend',     icon: TrendingUp, color: 'emerald', source: 'bist',   block: 'trend' },
-  { key: 'reversion',     label: 'BIST · Reversion', icon: RotateCcw,  color: 'amber',   source: 'bist',   block: 'reversion' },
-  { key: 'spot_long',     label: 'Kripto · Spot',    icon: Coins,      color: 'emerald', source: 'crypto', block: 'spot_long' },
-  { key: 'futures_long',  label: 'Kripto · Long',    icon: Sparkles,   color: 'sky',     source: 'crypto', block: 'futures_long' },
-  { key: 'futures_short', label: 'Kripto · Short',   icon: TrendingDown, color: 'rose', source: 'crypto', block: 'futures_short' },
+  { key: 'trend',         label: 'BIST · Yön Takibi',    icon: TrendingUp,   color: 'emerald', source: 'bist',   block: 'trend' },
+  { key: 'reversion',     label: 'BIST · Dönüş Bölgesi', icon: RotateCcw,    color: 'amber',   source: 'bist',   block: 'reversion' },
+  { key: 'spot_long',     label: 'Kripto · Spot AL',     icon: Coins,        color: 'emerald', source: 'crypto', block: 'spot_long' },
+  { key: 'futures_long',  label: 'Kripto · Yükseliş',    icon: Sparkles,     color: 'sky',     source: 'crypto', block: 'futures_long' },
+  { key: 'futures_short', label: 'Kripto · Düşüş',       icon: TrendingDown, color: 'rose',    source: 'crypto', block: 'futures_short' },
 ]
 
 const TOP_N_PER_TAB = 5
@@ -158,6 +159,7 @@ export default function Sinyaller() {
             <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 uppercase tracking-wider">
               Komuta Merkezi
             </span>
+            <HelpBubble text="Şu an hareket eden hisseler burada." />
           </h1>
           <p className="text-xs text-gray-400 mt-1.5 max-w-2xl leading-relaxed">
             BIST + Kripto sinyallerinin tek noktadan özeti. Her sinyal backtest tabanlı{' '}
@@ -221,9 +223,9 @@ export default function Sinyaller() {
       {/* ── MTF Confluence özeti ──────────────────────────────────────────── */}
       <div>
         <h2 className="text-xs uppercase tracking-wider text-gray-500 mb-2.5 flex items-center gap-2">
-          <Layers className="w-3.5 h-3.5 text-purple-300" />
+          <Layers className="w-3.5 h-3.5 text-gold-400" />
           MTF Confluence — 7 Timeframe Birleşimi
-          <span className="text-[9px] px-1.5 py-0.5 rounded-md bg-purple-500/10 text-purple-300/80 border border-purple-500/30 font-semibold normal-case ml-auto sm:ml-0">
+          <span className="text-[9px] px-1.5 py-0.5 rounded-md bg-gold-400/10 text-gold-400/80 border border-gold-400/30 font-semibold normal-case ml-auto sm:ml-0">
             Kendi Bayesian kalibrasyonu
           </span>
         </h2>

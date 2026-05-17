@@ -21,7 +21,7 @@ const REASON_STYLES = {
   direction_flip:  { bg: 'bg-orange-500/10',  border: 'border-orange-500/30',  text: 'text-orange-300',  icon: '↔' },
   dropped:         { bg: 'bg-red-500/10',     border: 'border-red-500/30',     text: 'text-red-300',     icon: '✕' },
   new:             { bg: 'bg-emerald-500/10', border: 'border-emerald-500/30', text: 'text-emerald-300', icon: '＋' },
-  news_correlated: { bg: 'bg-purple-500/10',  border: 'border-purple-500/30',  text: 'text-purple-300',  icon: '📰' },
+  news_correlated: { bg: 'bg-gold-400/10',  border: 'border-gold-400/30',  text: 'text-gold-400',  icon: '📰' },
 }
 
 const GRADE_STYLES = {
@@ -247,8 +247,11 @@ export default function BugununSinyalleri() {
       {/* ── Sinyal listesi ──────────────────────────────────────────────── */}
       {visible.length === 0 ? (
         <div className="card p-6 text-center">
-          <p className="text-sm text-gray-400">Bu strateji için bugün sinyal yok.</p>
-          <p className="text-xs text-gray-500 mt-1">Diğer stratejiyi deneyebilirsin.</p>
+          <p className="text-sm text-gray-400">Henüz güçlü fırsat bulunamadı.</p>
+          <p className="text-xs text-gray-500 mt-1">Yeni fırsat çıktığında burada göreceksin.</p>
+          <a href="/hesabim?tab=ayarlar" className="inline-block text-[12px] font-semibold mt-3 text-gold-400">
+            Bildirim aç →
+          </a>
         </div>
       ) : (
         <div className="space-y-2">
@@ -501,8 +504,8 @@ function SignalCard({ sig, rank, diff, reasonsCatalog, expanded, onToggle }) {
 
           {/* Haber */}
           {sig.news?.latest && (
-            <div className="bg-purple-500/5 border border-purple-500/20 rounded-lg p-2.5 text-[11px]">
-              <p className="text-[10px] uppercase tracking-wider text-purple-300 mb-1">Son haber</p>
+            <div className="bg-gold-400/5 border border-gold-400/20 rounded-lg p-2.5 text-[11px]">
+              <p className="text-[10px] uppercase tracking-wider text-gold-400 mb-1">Son haber</p>
               <p className="text-gray-300 leading-relaxed">{sig.news.latest.title}</p>
               {sig.news.latest.publishedAt && (
                 <p className="text-gray-500 text-[10px] mt-1">
@@ -545,8 +548,8 @@ function SignalCard({ sig, rank, diff, reasonsCatalog, expanded, onToggle }) {
               </div>
               {sig.historicalWinRate != null && (
                 <div className="flex items-center gap-3 text-[11px]">
-                  <span title="Bu skor bantında geçmiş backtestlerde hedefe ulaşan sinyal oranı">
-                    Win Rate: <span className="font-mono font-bold">%{sig.historicalWinRate}</span>
+                  <span title="Bu skor bantında geçmiş testlerde hedefe ulaşan sinyal oranı">
+                    Kârlı oran: <span className="font-mono font-bold">%{sig.historicalWinRate}</span>
                   </span>
                   {sig.historicalAvgReturn != null && (
                     <span title="Ortalama getiri (tüm sinyaller, açık dahil)">

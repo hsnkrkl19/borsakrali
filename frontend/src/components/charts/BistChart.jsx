@@ -34,7 +34,7 @@ export default function BistChart({ period: propPeriod = '1D', refreshInterval =
       setLoading(true)
       const response = await fetch('/api/market/bist100')
       if (!response.ok) {
-        throw new Error('Endeks verisi alinamadi')
+        throw new Error('Endeks verisi alınamadı')
       }
 
       const data = await response.json()
@@ -60,7 +60,7 @@ export default function BistChart({ period: propPeriod = '1D', refreshInterval =
         { signal: controller.signal },
       )
       if (!response.ok) {
-        throw new Error('Grafik verisi alinamadi')
+        throw new Error('Grafik verisi alınamadı')
       }
 
       const data = await response.json()
@@ -75,7 +75,7 @@ export default function BistChart({ period: propPeriod = '1D', refreshInterval =
       console.error('Chart data error:', err)
       if (requestId === chartRequestIdRef.current) {
         setChartData([])
-        setError('Grafik verisi alinamadi')
+        setError('Grafik verisi alınamadı')
       }
     }
   }, [])

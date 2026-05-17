@@ -78,7 +78,7 @@ export default function StockChart({ symbol, assetType = 'stock' }) {
       setLoading(true)
       const response = await fetch(`/api/market/stock/${symbol}${getAssetQuery(assetType)}`)
       if (!response.ok) {
-        throw new Error(`${assetLabel} verisi alinamadi`)
+        throw new Error(`${assetLabel} verisi alınamadı`)
       }
 
       const data = await response.json()
@@ -88,7 +88,7 @@ export default function StockChart({ symbol, assetType = 'stock' }) {
       setError(null)
     } catch {
       if (requestId === stockRequestIdRef.current) {
-        setError(`${assetLabel} verisi alinamadi`)
+        setError(`${assetLabel} verisi alınamadı`)
       }
     } finally {
       if (requestId === stockRequestIdRef.current) {
@@ -112,7 +112,7 @@ export default function StockChart({ symbol, assetType = 'stock' }) {
         { signal: controller.signal },
       )
       if (!response.ok) {
-        throw new Error('Grafik verisi alinamadi')
+        throw new Error('Grafik verisi alınamadı')
       }
 
       const data = await response.json()
@@ -136,7 +136,7 @@ export default function StockChart({ symbol, assetType = 'stock' }) {
       if (requestId === chartRequestIdRef.current) {
         setChartData([])
         setVolumeData([])
-        setError('Grafik verisi alinamadi')
+        setError('Grafik verisi alınamadı')
       }
     }
   }, [assetType, symbol])

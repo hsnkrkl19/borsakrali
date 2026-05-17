@@ -16,7 +16,7 @@ const SMC_TIP = {
 
 const STRUCTURE_ICON = {
   bos:   { label: 'BOS',   icon: GitBranch, color: 'text-blue-300' },
-  choch: { label: 'CHoCH', icon: Zap,        color: 'text-purple-300' },
+  choch: { label: 'CHoCH', icon: Zap,        color: 'text-gold-400' },
 }
 
 const BIAS_BADGE = {
@@ -460,7 +460,7 @@ export default function SMCTarayici() {
                       <div className="text-[11px] text-gray-500 mt-1">Order Block</div>
                     </div>
                     <div className="bg-dark-800/50 rounded-lg p-3">
-                      <div className="text-2xl font-bold text-purple-300">{track.fvgs?.length || 0}</div>
+                      <div className="text-2xl font-bold text-gold-400">{track.fvgs?.length || 0}</div>
                       <div className="text-[11px] text-gray-500 mt-1">Fair Value Gap</div>
                     </div>
                     <div className="bg-dark-800/50 rounded-lg p-3">

@@ -6,14 +6,14 @@ import InfoTooltip from '../components/InfoTooltip'
 
 // Sinyal yapılandırması — 8 farklı durum
 const SIGNAL_CONFIG = {
-  wave_long:     { label: '🌊 Wave Long (Pullback)', short: '🌊 Wave LONG', color: 'text-emerald-300', bg: 'bg-emerald-500/25 border-emerald-500/60', icon: Waves },
-  cross_above:   { label: '↑ EMA34 Üstüne Çıktı',    short: '↑ Cross UP',  color: 'text-green-400',   bg: 'bg-green-500/20 border-green-500/40',     icon: ArrowUp },
-  trending_up:   { label: '⇈ Trend Boğa (5+ bar)',   short: '⇈ TrendUP',   color: 'text-green-300',   bg: 'bg-green-500/15 border-green-500/30',     icon: ChevronsUp },
-  above:         { label: '✓ EMA34 Üzerinde',         short: '✓ Üstünde',    color: 'text-green-200',   bg: 'bg-green-500/10 border-green-500/20',     icon: TrendingUp },
-  below:         { label: '✗ EMA34 Altında',           short: '✗ Altında',    color: 'text-red-200',     bg: 'bg-red-500/10 border-red-500/20',         icon: TrendingDown },
-  trending_down: { label: '⇊ Trend Ayı (5+ bar)',      short: '⇊ TrendDN',   color: 'text-red-300',     bg: 'bg-red-500/15 border-red-500/30',         icon: ChevronsDown },
-  cross_below:   { label: '↓ EMA34 Altına İndi',       short: '↓ Cross DN',  color: 'text-red-400',     bg: 'bg-red-500/20 border-red-500/40',         icon: ArrowDown },
-  wave_short:    { label: '🌊 Wave Short (Pullback)',  short: '🌊 Wave SHORT',color: 'text-red-300',     bg: 'bg-red-500/25 border-red-500/60',         icon: Waves },
+  wave_long:     { label: '🌊 Dalga AL (Dönüş)',         short: '🌊 Dalga AL',   color: 'text-emerald-300', bg: 'bg-emerald-500/25 border-emerald-500/60', icon: Waves },
+  cross_above:   { label: '↑ Yön Yukarı Döndü',           short: '↑ Yön Yukarı',  color: 'text-green-400',   bg: 'bg-green-500/20 border-green-500/40',     icon: ArrowUp },
+  trending_up:   { label: '⇈ Güçlü Yükseliş (5+ bar)',    short: '⇈ Yükselişte',  color: 'text-green-300',   bg: 'bg-green-500/15 border-green-500/30',     icon: ChevronsUp },
+  above:         { label: '✓ Yön Yukarıda',               short: '✓ Yukarıda',    color: 'text-green-200',   bg: 'bg-green-500/10 border-green-500/20',     icon: TrendingUp },
+  below:         { label: '✗ Yön Aşağıda',                short: '✗ Aşağıda',     color: 'text-red-200',     bg: 'bg-red-500/10 border-red-500/20',         icon: TrendingDown },
+  trending_down: { label: '⇊ Güçlü Düşüş (5+ bar)',       short: '⇊ Düşüşte',     color: 'text-red-300',     bg: 'bg-red-500/15 border-red-500/30',         icon: ChevronsDown },
+  cross_below:   { label: '↓ Yön Aşağı Döndü',            short: '↓ Yön Aşağı',   color: 'text-red-400',     bg: 'bg-red-500/20 border-red-500/40',         icon: ArrowDown },
+  wave_short:    { label: '🌊 Dalga SAT (Dönüş)',         short: '🌊 Dalga SAT',  color: 'text-red-300',     bg: 'bg-red-500/25 border-red-500/60',         icon: Waves },
 }
 
 const SLOPE_BADGE = {

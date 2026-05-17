@@ -404,7 +404,7 @@ export default function GunlukTespitler() {
             </div>
 
             <div className="bg-dark-800 p-3 rounded-lg border border-dark-700">
-              <h4 className="font-bold text-purple-500 mb-1">EMA (Hareketli Ortalamalar)</h4>
+              <h4 className="font-bold text-gold-400 mb-1">EMA (Hareketli Ortalamalar)</h4>
               <p className="text-xs text-gray-400">
                 <span className="text-white font-semibold">Golden Cross:</span> 50 günlük ortalama, 200 günlük ortalamayı yukarı kestiğinde.<br />
                 <span className="text-white font-semibold">Death Cross:</span> 50 günlük ortalama, 200 günlük ortalamayı aşağı kestiğinde.
@@ -412,7 +412,7 @@ export default function GunlukTespitler() {
             </div>
 
             <div className="bg-dark-800 p-3 rounded-lg border border-dark-700">
-              <h4 className="font-bold text-purple-400 mb-1">Bollinger Bantları</h4>
+              <h4 className="font-bold text-gold-400 mb-1">Bollinger Bantları</h4>
               <p className="text-xs text-gray-400">
                 <span className="text-white font-semibold">Alt Bant Kırılımı:</span> Fiyat alt bandın altına indiğinde (Alım Fırsatı).<br />
                 <span className="text-white font-semibold">Üst Bant Kırılımı:</span> Fiyat üst bandın üzerine çıktığında (Satış Fırsatı).
@@ -891,7 +891,7 @@ export default function GunlukTespitler() {
               {[
                 { name: 'RSI Asiri Satim', count: signals.filter(s => s.strategy?.includes('RSI')).length, color: 'bg-green-500' },
                 { name: 'MACD Kesisim', count: signals.filter(s => s.strategy?.includes('MACD')).length, color: 'bg-blue-500' },
-                { name: 'EMA Kesisim', count: signals.filter(s => s.strategy?.includes('EMA')).length, color: 'bg-purple-500' },
+                { name: 'EMA Kesisim', count: signals.filter(s => s.strategy?.includes('EMA')).length, color: 'bg-gold-400' },
                 { name: 'Bollinger', count: signals.filter(s => s.strategy?.includes('Bollinger')).length, color: 'bg-yellow-500' }
               ].map((stat, idx) => (
                 <div key={idx} className="flex items-center justify-between bg-dark-800 rounded-lg p-2.5 md:p-3">

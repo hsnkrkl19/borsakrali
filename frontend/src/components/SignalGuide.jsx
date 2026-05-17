@@ -217,17 +217,17 @@ export default function SignalGuide({ open, onClose }) {
               İşlem Planı Terimleri
             </h3>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-              <ConceptCard icon={Target} title="Giriş (Entry)" color="#3b82f6">
+              <ConceptCard icon={Target} title="Giriş" color="#3b82f6">
                 <p>İşleme başlama fiyatı. Sinyalin tespit edildiği fiyat veya ona çok yakın bir limit emir.</p>
-                <p className="text-[11px]" style={{ color: 'var(--text-faint)' }}>Default: tespit fiyatı.</p>
+                <p className="text-[11px]" style={{ color: 'var(--text-faint)' }}>Varsayılan: tespit fiyatı.</p>
               </ConceptCard>
-              <ConceptCard icon={Shield} title="Stop Loss (SL)" color="#ff3b46">
-                <p>Kabul edilen <strong>maksimum zarar</strong> noktası. Fiyat buraya gelirse pozisyon kapanmalı — sermaye korunur.</p>
-                <p className="text-[11px]" style={{ color: 'var(--text-faint)' }}>Default: girişin %3 altı.</p>
+              <ConceptCard icon={Shield} title="Zarar Durdur" color="#ff3b46">
+                <p>Fiyat çok düşerse sistem burada çıkış yapar. <strong>Sermayeni korur</strong>; sınırı sabit tut.</p>
+                <p className="text-[11px]" style={{ color: 'var(--text-faint)' }}>Varsayılan: girişin %3 altı.</p>
               </ConceptCard>
-              <ConceptCard icon={Zap} title="Take Profit (TP)" color="#22c55e">
-                <p>Hedeflenen <strong>kâr alma</strong> seviyesi. Bu fiyata gelirse kâr realize edilir.</p>
-                <p className="text-[11px]" style={{ color: 'var(--text-faint)' }}>Default: 1:2 R/R (girişin %6 üstü).</p>
+              <ConceptCard icon={Zap} title="Kâr Al" color="#22c55e">
+                <p>Hedefe ulaşınca <strong>satış yapılır</strong>. Standart hedef: kazanç ihtimali zarardan ~2 kat fazla.</p>
+                <p className="text-[11px]" style={{ color: 'var(--text-faint)' }}>Varsayılan: girişin %6 üstü.</p>
               </ConceptCard>
             </div>
           </section>

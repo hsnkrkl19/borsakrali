@@ -37,11 +37,11 @@ export default function MTFConfluenceSummary({ navigate }) {
     return (
       <div className="card p-4">
         <div className="flex items-center gap-2 mb-2">
-          <Layers className="w-4 h-4 text-purple-300" />
-          <span className="text-xs uppercase tracking-wider font-semibold text-purple-300/80">Kripto MTF Confluence</span>
+          <Layers className="w-4 h-4 text-gold-400" />
+          <span className="text-xs uppercase tracking-wider font-semibold text-gold-400/80">Kripto — Birleşik Görüntü</span>
         </div>
         <div className="flex items-center justify-center py-3">
-          <RefreshCw className="w-4 h-4 text-purple-300 animate-spin" />
+          <RefreshCw className="w-4 h-4 text-gold-400 animate-spin" />
         </div>
       </div>
     )
@@ -61,8 +61,8 @@ export default function MTFConfluenceSummary({ navigate }) {
       <div className="card p-4">
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-2">
-            <Layers className="w-4 h-4 text-purple-300" />
-            <span className="text-xs uppercase tracking-wider font-semibold text-purple-300/80">Kripto MTF Confluence</span>
+            <Layers className="w-4 h-4 text-gold-400" />
+            <span className="text-xs uppercase tracking-wider font-semibold text-gold-400/80">Kripto — Birleşik Görüntü</span>
           </div>
           <button
             onClick={() => navigate('/gunluk-tespitler?tab=mtf')}
@@ -80,12 +80,12 @@ export default function MTFConfluenceSummary({ navigate }) {
     <div className="card p-4">
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
-          <Layers className="w-4 h-4 text-purple-300" />
-          <span className="text-xs uppercase tracking-wider font-semibold text-purple-300/80">
-            Kripto MTF Confluence
+          <Layers className="w-4 h-4 text-gold-400" />
+          <span className="text-xs uppercase tracking-wider font-semibold text-gold-400/80">
+            Kripto — Birleşik Görüntü
           </span>
-          <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-purple-500/15 text-purple-300 border border-purple-500/30">
-            7-TF Bayesian
+          <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-gold-400/15 text-gold-400 border border-gold-400/30">
+            7 vade
           </span>
         </div>
         <button
@@ -102,7 +102,7 @@ export default function MTFConfluenceSummary({ navigate }) {
           <div className="space-y-1.5">
             <div className="flex items-center gap-1.5 text-[10px] text-emerald-300 font-semibold uppercase tracking-wider">
               <TrendingUp className="w-3 h-3" />
-              Strong Long ({strongLongs.length})
+              Güçlü AL ({strongLongs.length})
             </div>
             <div className="space-y-1">
               {strongLongs.map(c => (
@@ -121,7 +121,7 @@ export default function MTFConfluenceSummary({ navigate }) {
                   </div>
                   <div className="flex items-center gap-2 flex-shrink-0">
                     <span className="text-emerald-300 font-mono font-bold">+{c.net?.toFixed(1)}</span>
-                    <span className="text-[9px] text-purple-300">%{(c.confidence * 100).toFixed(0)}</span>
+                    <span className="text-[9px] text-gold-400">%{(c.confidence * 100).toFixed(0)}</span>
                   </div>
                 </button>
               ))}
@@ -134,7 +134,7 @@ export default function MTFConfluenceSummary({ navigate }) {
           <div className="space-y-1.5">
             <div className="flex items-center gap-1.5 text-[10px] text-rose-300 font-semibold uppercase tracking-wider">
               <TrendingDown className="w-3 h-3" />
-              Strong Short ({strongShorts.length})
+              Güçlü SAT ({strongShorts.length})
             </div>
             <div className="space-y-1">
               {strongShorts.map(c => (
@@ -153,7 +153,7 @@ export default function MTFConfluenceSummary({ navigate }) {
                   </div>
                   <div className="flex items-center gap-2 flex-shrink-0">
                     <span className="text-rose-300 font-mono font-bold">{c.net?.toFixed(1)}</span>
-                    <span className="text-[9px] text-purple-300">%{(c.confidence * 100).toFixed(0)}</span>
+                    <span className="text-[9px] text-gold-400">%{(c.confidence * 100).toFixed(0)}</span>
                   </div>
                 </button>
               ))}
@@ -164,7 +164,7 @@ export default function MTFConfluenceSummary({ navigate }) {
 
       <div className="text-[10px] text-gray-500 mt-3 pt-2 border-t border-dark-700/50 flex items-center justify-between">
         <span>{data.totalCoins || 0} coin tarandı</span>
-        <span>Bayesian win prob entegre</span>
+        <span>Kısa + uzun vade birlikte değerlendirildi</span>
       </div>
     </div>
   )
