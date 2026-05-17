@@ -2865,6 +2865,18 @@ app.get('/api/liquidation/summary', (req, res) => {
   }
 });
 
+app.get('/api/liquidation/events/:symbol', (req, res) => {
+  try {
+    const symbol = String(req.params.symbol || '').toUpperCase();
+    const sym = symbol.endsWith('USDT') ? symbol : `${symbol}USDT`;
+    const hours = +req.query.hours || 12;
+    const data = liquidationService.getSymbolEvents(sym, { hours });
+    res.json({ success: true, ...data });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 app.get('/api/liquidation/recent', (req, res) => {
   try {
     const data = liquidationService.getRecentLarge({

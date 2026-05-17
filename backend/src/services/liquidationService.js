@@ -353,6 +353,55 @@ function emptySummary(sym, hours) {
 }
 
 /**
+ * Bir sembolün son N saatteki HAM olaylarını döndür (scatter map için).
+ * Mock veri yoktur — sadece RAM buffer'daki gerçek Bybit WS olayları.
+ *
+ * @returns { events: [{ t, p, s:'l'|'s', n, q }], priceRange, timeRange, summary }
+ */
+function getSymbolEvents(symbol, opts = {}) {
+  const sym = String(symbol || '').toUpperCase();
+  const hours = Math.min(24, Math.max(1, +opts.hours || 12));
+  const since = Date.now() - hours * 3600 * 1000;
+  const list = (buffer.get(sym) || []).filter(e => e.time >= since);
+  if (list.length === 0) {
+    return {
+      symbol: sym, hours, empty: true,
+      timeRange: { from: since, to: Date.now() },
+      priceRange: { min: 0, max: 0 },
+      events: [],
+      summary: { events: 0, longUsd: 0, shortUsd: 0, totalUsd: 0 },
+    };
+  }
+  const prices = list.map(e => e.price);
+  const minPrice = Math.min(...prices);
+  const maxPrice = Math.max(...prices);
+  const longUsd = list.filter(e => e.side === 'long').reduce((a, e) => a + e.notional, 0);
+  const shortUsd = list.filter(e => e.side === 'short').reduce((a, e) => a + e.notional, 0);
+  // Zaman sırasına göre asc — scatter render için
+  list.sort((a, b) => a.time - b.time);
+  return {
+    symbol: sym,
+    hours,
+    timeRange: { from: since, to: Date.now() },
+    priceRange: { min: minPrice, max: maxPrice },
+    summary: {
+      events: list.length,
+      longUsd: Math.round(longUsd),
+      shortUsd: Math.round(shortUsd),
+      totalUsd: Math.round(longUsd + shortUsd),
+    },
+    // Kısa key'ler: t=time, p=price, s='l'|'s' side, n=notional$, q=qty
+    events: list.map(e => ({
+      t: e.time,
+      p: e.price,
+      s: e.side === 'long' ? 'l' : 's',
+      n: Math.round(e.notional),
+      q: e.qty,
+    })),
+  };
+}
+
+/**
  * Tüm semboller toplam likidasyon özeti (son N saat).
  * Top N coin sıralı liste.
  */
@@ -421,5 +470,6 @@ module.exports = {
   getHeatmap,
   getMarketSummary,
   getRecentLarge,
+  getSymbolEvents,
   getStats,
 };

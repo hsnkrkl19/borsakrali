@@ -1,12 +1,12 @@
-import { useState, useEffect, useMemo, useCallback } from 'react'
-import { Flame, RefreshCw, TrendingUp, TrendingDown, Activity, Clock, AlertTriangle } from 'lucide-react'
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
+import { Flame, RefreshCw, TrendingUp, TrendingDown, Activity, AlertTriangle } from 'lucide-react'
 import api from '../services/api'
 import InfoTooltip from './InfoTooltip'
 
 const LIQUIDATION_TIP = {
   title: 'Likidasyon Haritası — Kurumsal Pozisyon Akışı',
-  description: 'Bybit Futures `allLiquidation` canlı akışından üretilen Coinglass-tarzı ısı haritası. Her likidasyon, fiyatın o seviyeyi geçtiğinde zincirleme likidasyona yol açabilecek "para magneti"dir. Yoğunluk arttıkça fiyatın o bölgeye çekilme olasılığı yükselir. Long likidasyonları (kırmızı) destek bölgelerinde, short likidasyonları (yeşil) direnç bölgelerinde küme yapar.',
-  formula: '══ Veri Kaynağı ══\n  wss://stream.bybit.com/v5/public/linear\n  allLiquidation.{SYMBOL} (USDT-perp, top 30+ coin)\n  taker=Sell → bir LONG pozisyonu likide edildi (kırmızı)\n  taker=Buy  → bir SHORT pozisyonu likide edildi (yeşil)\n\n══ Filtre ══\n  Notional < $1000 likidasyonlar süzülür (gürültü)\n  Son 24 saatlik veri RAM\'de tutulur (process restart\'ta sıfırlanır)\n\n══ Bant Agregasyonu ══\n  Min/max fiyat aralığı 40 bant\'a bölünür\n  Her bant: longUsd + shortUsd + count\n  Renk yoğunluğu = bantUsd / maxBantUsd\n\n══ Yorumlama ══\n  Fiyatın altındaki yoğun long küme → magneti aşağı çeker (short fırsatı)\n  Fiyatın üstündeki yoğun short küme → magneti yukarı çeker (long fırsatı)\n  Sweep sonrası dönüş = klasik likidite avı pattern\'i',
+  description: 'Bybit Futures `allLiquidation` canlı akışından üretilen 2D likidasyon haritası. X ekseni: zaman (sağ = şimdi), Y ekseni: fiyat. Her nokta gerçek bir likidasyon olayı; nokta boyutu likide edilen dolar miktarıyla orantılı, renk yönü gösterir. Long likidasyonları (kırmızı) destek bölgelerinde, short likidasyonları (yeşil) direnç bölgelerinde küme yapar — yoğun küme = para magneti.',
+  formula: '══ Veri Kaynağı ══\n  wss://stream.bybit.com/v5/public/linear\n  allLiquidation.{SYMBOL} (top 100 USDT-perp coin, 24sa hacim)\n  taker=Sell → bir LONG pozisyonu likide edildi (kırmızı)\n  taker=Buy  → bir SHORT pozisyonu likide edildi (yeşil)\n\n══ Filtre ══\n  Notional < $100 likidasyonlar süzülür (gürültü)\n  Son 24 saatlik veri RAM\'de tutulur (process restart\'ta sıfırlanır)\n\n══ Görselleştirme ══\n  Her likidasyon = bir nokta @ (zaman, fiyat)\n  Nokta yarıçapı ∝ √(notional / maxNotional)\n  Renk = yön; opaklık ≈ yakın geçmiş\n\n══ Yorumlama ══\n  Fiyatın altındaki yoğun long küme → magneti aşağı çeker (short fırsatı)\n  Fiyatın üstündeki yoğun short küme → magneti yukarı çeker (long fırsatı)\n  Sweep sonrası dönüş = klasik likidite avı pattern\'i',
   source: 'Bybit V5 USDT-perp — public allLiquidation stream',
 }
 
@@ -40,28 +40,212 @@ function fmtAgo(ms) {
   return `${Math.floor(h / 24)}g`
 }
 
+function fmtClock(ms) {
+  const d = new Date(ms)
+  return `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`
+}
+
+// ── 2D Scatter Map: zaman × fiyat ──────────────────────────────────────────
+function LiquidationScatterMap({ data, hours, symbol }) {
+  const [hover, setHover] = useState(null)
+  const svgRef = useRef(null)
+
+  const layout = useMemo(() => {
+    if (!data || data.empty || !data.events?.length) return null
+
+    const events = data.events
+    const { from, to } = data.timeRange
+    const { min: pMin, max: pMax } = data.priceRange
+    const pad = (pMax - pMin) * 0.06 || (pMax || 1) * 0.001
+    const pLo = pMin - pad
+    const pHi = pMax + pad
+    const maxN = events.reduce((m, e) => Math.max(m, e.n), 1)
+
+    const W = 1000, H = 520
+    const M = { top: 16, right: 64, bottom: 28, left: 12 }
+    const plotW = W - M.left - M.right
+    const plotH = H - M.top - M.bottom
+
+    const xOf = (t) => M.left + ((t - from) / Math.max(to - from, 1)) * plotW
+    const yOf = (p) => M.top + (1 - (p - pLo) / Math.max(pHi - pLo, 1e-12)) * plotH
+    const rOf = (n) => 2 + Math.sqrt(n / maxN) * 18 // 2..20 px
+
+    return { events, from, to, pLo, pHi, maxN, W, H, M, plotW, plotH, xOf, yOf, rOf }
+  }, [data])
+
+  if (!data) {
+    return (
+      <div className="flex items-center justify-center py-16">
+        <RefreshCw className="w-5 h-5 text-orange-400 animate-spin mr-2" />
+        <span className="text-gray-400">Yükleniyor...</span>
+      </div>
+    )
+  }
+  if (data.empty || !data.events?.length || !layout) {
+    return (
+      <div className="text-center py-16 text-gray-500">
+        <AlertTriangle className="w-8 h-8 mx-auto mb-3 text-amber-500/50" />
+        <p>{symbol} için son {hours} saatte likidasyon yok</p>
+        <p className="text-[11px] mt-1">Bybit WS buffer'ı bu coinde dolduğunda haritada görünür</p>
+      </div>
+    )
+  }
+
+  const { events, from, to, pLo, pHi, W, H, M, plotW, plotH, xOf, yOf, rOf } = layout
+
+  // Gridlines
+  const priceGrid = [0, 0.2, 0.4, 0.6, 0.8, 1].map((f) => pLo + f * (pHi - pLo))
+  const timeStepHrs = hours <= 1 ? 0.25 : hours <= 4 ? 1 : hours <= 12 ? 2 : 4
+  const timeGrid = []
+  for (let off = 0; off <= hours + 0.001; off += timeStepHrs) {
+    timeGrid.push(to - off * 3600 * 1000)
+  }
+
+  return (
+    <div className="relative">
+      <svg
+        ref={svgRef}
+        viewBox={`0 0 ${W} ${H}`}
+        preserveAspectRatio="none"
+        className="w-full h-[420px] sm:h-[480px] bg-dark-950 rounded select-none"
+      >
+        {/* Plot bg */}
+        <rect
+          x={M.left} y={M.top} width={plotW} height={plotH}
+          fill="url(#liq-grad)"
+        />
+        <defs>
+          <linearGradient id="liq-grad" x1="0" x2="0" y1="0" y2="1">
+            <stop offset="0%" stopColor="rgba(16,185,129,0.04)" />
+            <stop offset="50%" stopColor="rgba(0,0,0,0)" />
+            <stop offset="100%" stopColor="rgba(239,68,68,0.04)" />
+          </linearGradient>
+        </defs>
+
+        {/* Price gridlines + labels */}
+        {priceGrid.map((p, i) => (
+          <g key={`p${i}`}>
+            <line
+              x1={M.left} y1={yOf(p)} x2={W - M.right} y2={yOf(p)}
+              stroke="rgba(255,255,255,0.06)" strokeDasharray="3,4"
+            />
+            <text
+              x={W - M.right + 6} y={yOf(p) + 4}
+              fill="#9CA3AF" style={{ fontSize: 11, fontFamily: 'ui-monospace,SFMono-Regular,Menlo,monospace' }}
+            >
+              {fmtPrice(p)}
+            </text>
+          </g>
+        ))}
+
+        {/* Time gridlines + labels */}
+        {timeGrid.map((t, i) => (
+          <g key={`t${i}`}>
+            <line
+              x1={xOf(t)} y1={M.top} x2={xOf(t)} y2={H - M.bottom}
+              stroke="rgba(255,255,255,0.05)" strokeDasharray="3,4"
+            />
+            <text
+              x={xOf(t)} y={H - M.bottom + 16}
+              fill={i === 0 ? '#FBBF24' : '#6B7280'}
+              textAnchor={i === 0 ? 'end' : 'middle'}
+              style={{ fontSize: 11, fontFamily: 'ui-monospace,SFMono-Regular,Menlo,monospace' }}
+            >
+              {i === 0 ? 'şimdi' : fmtClock(t)}
+            </text>
+          </g>
+        ))}
+
+        {/* Scatter dots — her nokta bir likidasyon */}
+        {events.map((e, i) => {
+          const cx = xOf(e.t)
+          const cy = yOf(e.p)
+          const r = rOf(e.n)
+          const isLong = e.s === 'l'
+          const ageRatio = (Date.now() - e.t) / (hours * 3600 * 1000)
+          const opacity = 0.35 + 0.55 * (1 - Math.min(1, ageRatio))
+          return (
+            <circle
+              key={i}
+              cx={cx} cy={cy} r={r}
+              fill={isLong ? '#EF4444' : '#10B981'}
+              fillOpacity={opacity}
+              stroke={isLong ? 'rgba(252,165,165,0.9)' : 'rgba(110,231,183,0.9)'}
+              strokeWidth={0.6}
+              onMouseEnter={() => setHover({ e, cx, cy })}
+              onMouseLeave={() => setHover(null)}
+              style={{ cursor: 'crosshair' }}
+            />
+          )
+        })}
+
+        {/* Hover tooltip — SVG içinde, viewBox koordinatlarında */}
+        {hover && (() => {
+          const TW = 170, TH = 70
+          let tx = hover.cx + 14
+          let ty = hover.cy - TH - 8
+          if (tx + TW > W - M.right) tx = hover.cx - TW - 14
+          if (ty < M.top) ty = hover.cy + 14
+          const isLong = hover.e.s === 'l'
+          return (
+            <g pointerEvents="none">
+              <rect
+                x={tx} y={ty} width={TW} height={TH} rx={6}
+                fill="#0B1220" stroke="#1F2937" strokeWidth={1}
+              />
+              <text x={tx + 10} y={ty + 18} fill={isLong ? '#FCA5A5' : '#6EE7B7'}
+                style={{ fontSize: 12, fontWeight: 700 }}>
+                {isLong ? 'LONG ↓ LİKİDE' : 'SHORT ↑ LİKİDE'}
+              </text>
+              <text x={tx + 10} y={ty + 36} fill="#E5E7EB"
+                style={{ fontSize: 11, fontFamily: 'ui-monospace,SFMono-Regular,Menlo,monospace' }}>
+                @ {fmtPrice(hover.e.p)}
+              </text>
+              <text x={tx + 10} y={ty + 51} fill="#FCD34D"
+                style={{ fontSize: 12, fontWeight: 700, fontFamily: 'ui-monospace,SFMono-Regular,Menlo,monospace' }}>
+                {fmtUsd(hover.e.n)}
+              </text>
+              <text x={tx + 10} y={ty + 64} fill="#6B7280"
+                style={{ fontSize: 10 }}>
+                {fmtClock(hover.e.t)} · {fmtAgo(hover.e.t)} önce
+              </text>
+            </g>
+          )
+        })()}
+      </svg>
+
+      {/* Açıklama satırı */}
+      <div className="px-3 pt-2 flex items-center gap-3 text-[11px] text-gray-500 flex-wrap">
+        <span className="flex items-center gap-1.5">
+          <span className="w-2.5 h-2.5 rounded-full bg-red-500/80" /> LONG likidasyonu (taker satış)
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="w-2.5 h-2.5 rounded-full bg-emerald-500/80" /> SHORT likidasyonu (taker alış)
+        </span>
+        <span className="ml-auto">Nokta boyutu ∝ $ büyüklüğü · noktaya dokun → detay</span>
+      </div>
+    </div>
+  )
+}
+
 export default function LikidasyonHaritasi() {
   const [symbol, setSymbol] = useState('BTC')
   const [hours, setHours] = useState(12)
-  const [heatmap, setHeatmap] = useState(null)
+  const [mapData, setMapData] = useState(null)
   const [summary, setSummary] = useState(null)
-  const [recent, setRecent] = useState([])
   const [stats, setStats] = useState(null)
   const [loading, setLoading] = useState(false)
 
   const refresh = useCallback(async (sym = symbol, hr = hours) => {
     setLoading(true)
     try {
-      const [h, s, r, st] = await Promise.all([
-        api.get(`/liquidation/heatmap/${sym}?hours=${hr}&buckets=40`),
+      const [ev, s, st] = await Promise.all([
+        api.get(`/liquidation/events/${sym}?hours=${hr}`),
         api.get(`/liquidation/summary?hours=${hr}&limit=20`),
-        // Tüm yakın likidasyonları al — küçük olanlar dahil tek tek görelim
-        api.get(`/liquidation/recent?hours=${hr}&limit=80&minUsd=100`),
         api.get('/liquidation/stats'),
       ])
-      setHeatmap(h.data)
+      setMapData(ev.data)
       setSummary(s.data)
-      setRecent(r.data?.items || [])
       setStats(st.data)
     } catch (e) {
       // sessiz — endpoint daha yeni boot ettiyse boş döner
@@ -72,21 +256,11 @@ export default function LikidasyonHaritasi() {
 
   useEffect(() => { refresh(symbol, hours) }, [refresh, symbol, hours])
 
-  // Her 20 saniyede bir otomatik yenile (akış gerçek-zamanlı)
+  // Her 15 saniyede bir otomatik yenile (akış gerçek-zamanlı)
   useEffect(() => {
-    const id = setInterval(() => refresh(symbol, hours), 20000)
+    const id = setInterval(() => refresh(symbol, hours), 15000)
     return () => clearInterval(id)
   }, [refresh, symbol, hours])
-
-  const maxBin = heatmap?.summary?.maxBinUsd || 0
-  const orderedBins = useMemo(() => {
-    if (!heatmap?.bins) return []
-    // Sadece olay olan bantları göster — boş satırlar mock data izlenimi verir.
-    // Üstte yüksek fiyat — alta sırala (sell-side üstte, buy-side altta).
-    return [...heatmap.bins]
-      .filter((b) => (b.longUsd + b.shortUsd) > 0)
-      .reverse()
-  }, [heatmap])
 
   return (
     <div className="space-y-4">
@@ -103,7 +277,7 @@ export default function LikidasyonHaritasi() {
               <InfoTooltip size="lg" {...LIQUIDATION_TIP} />
             </h1>
             <p className="text-xs sm:text-sm text-gray-400">
-              Bybit USDT-perp canlı allLiquidation akışı — Coinglass-tarzı para magneti
+              Bybit USDT-perp · 2D harita (zaman × fiyat) — her nokta gerçek bir likidasyon
             </p>
           </div>
           {stats && (
@@ -162,89 +336,47 @@ export default function LikidasyonHaritasi() {
       </div>
 
       {/* Özet kartlar */}
-      {heatmap?.summary && (
+      {mapData?.summary && (
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           <div className="card text-center bg-dark-800/50">
-            <div className="text-2xl font-bold text-white">{heatmap.summary.events?.toLocaleString()}</div>
+            <div className="text-2xl font-bold text-white">{mapData.summary.events?.toLocaleString()}</div>
             <div className="text-xs text-gray-500 mt-1">Likidasyon Olayı</div>
           </div>
           <div className="card text-center bg-red-500/10">
-            <div className="text-2xl font-bold text-red-300">{fmtUsd(heatmap.summary.longUsd)}</div>
+            <div className="text-2xl font-bold text-red-300">{fmtUsd(mapData.summary.longUsd)}</div>
             <div className="text-xs text-gray-500 mt-1">Long Likide</div>
           </div>
           <div className="card text-center bg-emerald-500/10">
-            <div className="text-2xl font-bold text-emerald-300">{fmtUsd(heatmap.summary.shortUsd)}</div>
+            <div className="text-2xl font-bold text-emerald-300">{fmtUsd(mapData.summary.shortUsd)}</div>
             <div className="text-xs text-gray-500 mt-1">Short Likide</div>
           </div>
           <div className="card text-center bg-amber-500/10">
-            <div className="text-2xl font-bold text-amber-300">{fmtUsd(heatmap.summary.totalUsd)}</div>
+            <div className="text-2xl font-bold text-amber-300">{fmtUsd(mapData.summary.totalUsd)}</div>
             <div className="text-xs text-gray-500 mt-1">Toplam {hours}sa</div>
           </div>
         </div>
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        {/* Heatmap kolonu */}
+        {/* 2D Harita kolonu */}
         <div className="lg:col-span-2 card !p-0 overflow-hidden">
           <div className="px-4 py-3 border-b border-dark-700 flex items-center justify-between">
             <h3 className="font-semibold text-white flex items-center gap-2">
               <Flame className="w-4 h-4 text-orange-400" />
-              {symbol}/USDT Heatmap · Son {hours}sa
+              {symbol}/USDT · 2D Harita · Son {hours}sa
             </h3>
-            {heatmap?.priceRange && (
+            {mapData?.priceRange && !mapData.empty && (
               <span className="text-xs text-gray-500">
-                {fmtPrice(heatmap.priceRange.min)} → {fmtPrice(heatmap.priceRange.max)}
+                {fmtPrice(mapData.priceRange.min)} → {fmtPrice(mapData.priceRange.max)}
               </span>
             )}
           </div>
-
-          {heatmap?.empty ? (
-            <div className="text-center py-12 text-gray-500">
-              <AlertTriangle className="w-8 h-8 mx-auto mb-3 text-amber-500/50" />
-              <p>Bu sembolde {hours} saatlik veri yok</p>
-              <p className="text-[11px] mt-1">WebSocket buffer dolduğunda görünecek (genelde 1-5 dk)</p>
-            </div>
-          ) : !heatmap ? (
-            <div className="flex items-center justify-center py-12">
-              <RefreshCw className="w-5 h-5 text-orange-400 animate-spin mr-2" />
-              <span className="text-gray-400">Yükleniyor...</span>
-            </div>
-          ) : (
-            <div className="p-3 space-y-0.5 font-mono text-[11px]">
-              {orderedBins.map((b, idx) => {
-                const total = b.longUsd + b.shortUsd
-                const intensity = maxBin > 0 ? total / maxBin : 0
-                const longPct = total > 0 ? b.longUsd / total : 0
-                const shortPct = total > 0 ? b.shortUsd / total : 0
-                const midPrice = (b.priceLow + b.priceHigh) / 2
-                return (
-                  <div key={idx} className="flex items-center gap-2 hover:bg-dark-800/40 rounded px-1">
-                    <span className="w-16 text-right text-gray-400">{fmtPrice(midPrice)}</span>
-                    <div className="flex-1 h-5 bg-dark-900 rounded overflow-hidden flex relative">
-                      {b.longUsd > 0 && (
-                        <div
-                          className="bg-red-500/80 h-full"
-                          style={{ width: `${intensity * longPct * 100}%` }}
-                          title={`Long: ${fmtUsd(b.longUsd)}`}
-                        />
-                      )}
-                      {b.shortUsd > 0 && (
-                        <div
-                          className="bg-emerald-500/80 h-full"
-                          style={{ width: `${intensity * shortPct * 100}%` }}
-                          title={`Short: ${fmtUsd(b.shortUsd)}`}
-                        />
-                      )}
-                    </div>
-                    <span className="w-20 text-right text-gray-300">{fmtUsd(total)}</span>
-                  </div>
-                )
-              })}
-            </div>
-          )}
+          <div className="p-3">
+            <LiquidationScatterMap data={mapData} hours={hours} symbol={symbol} />
+          </div>
         </div>
 
-        {/* Sağ kolon: market özeti + recent feed */}
+        {/* Sağ kolon: Top Coins */}
         <div className="space-y-4">
           <div className="card !p-0 overflow-hidden">
             <div className="px-4 py-3 border-b border-dark-700">
@@ -252,18 +384,18 @@ export default function LikidasyonHaritasi() {
                 <Activity className="w-4 h-4 text-amber-400" />
                 Top Likidasyon Coin'leri
               </h3>
-              <p className="text-[11px] text-gray-500">Son {summary?.hours || hours}sa, $ olarak</p>
+              <p className="text-[11px] text-gray-500">Son {summary?.hours || hours}sa · coine tıkla → harita</p>
             </div>
-            <div className="divide-y divide-dark-700/50">
-              {(summary?.items || []).slice(0, 12).map(it => (
+            <div className="divide-y divide-dark-700/50 max-h-[28rem] overflow-y-auto custom-scrollbar">
+              {(summary?.items || []).slice(0, 20).map(it => (
                 <button
                   key={it.symbol}
                   onClick={() => setSymbol(it.coin)}
                   className={`w-full px-4 py-2 flex items-center gap-2 text-xs hover:bg-dark-800/40 transition-colors ${
-                    it.coin === symbol ? 'bg-orange-500/5' : ''
+                    it.coin === symbol ? 'bg-orange-500/10' : ''
                   }`}
                 >
-                  <span className="font-bold text-white w-12 text-left">{it.coin}</span>
+                  <span className="font-bold text-white w-14 text-left truncate">{it.coin}</span>
                   <div className="flex-1 flex items-center gap-1">
                     <TrendingDown className="w-3 h-3 text-red-400" />
                     <span className="text-red-300">{fmtUsd(it.longUsd)}</span>
@@ -276,36 +408,6 @@ export default function LikidasyonHaritasi() {
               {(!summary?.items || summary.items.length === 0) && (
                 <div className="px-4 py-6 text-center text-gray-500 text-xs">
                   Henüz veri yok — buffer doluyor...
-                </div>
-              )}
-            </div>
-          </div>
-
-          <div className="card !p-0 overflow-hidden">
-            <div className="px-4 py-3 border-b border-dark-700">
-              <h3 className="font-semibold text-white flex items-center gap-2">
-                <Clock className="w-4 h-4 text-orange-400" />
-                Likidasyon Akışı · Tek Tek
-              </h3>
-              <p className="text-[11px] text-gray-500">Son {hours}sa, $100+ — hangi fiyatta hangi likidasyon</p>
-            </div>
-            <div className="divide-y divide-dark-700/50 max-h-[28rem] overflow-y-auto custom-scrollbar">
-              {recent.map((e, idx) => (
-                <div key={idx} className="px-4 py-1.5 flex items-center gap-2 text-[11px]">
-                  <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${
-                    e.side === 'long' ? 'bg-red-500/20 text-red-300' : 'bg-emerald-500/20 text-emerald-300'
-                  }`}>
-                    {e.side === 'long' ? 'LONG ↓' : 'SHRT ↑'}
-                  </span>
-                  <span className="font-bold text-white w-14 truncate">{e.symbol.replace('USDT', '')}</span>
-                  <span className="font-mono text-gray-400">{fmtPrice(e.price)}</span>
-                  <span className="font-mono text-amber-300 ml-auto">{fmtUsd(e.notional)}</span>
-                  <span className="text-gray-500 text-[10px] w-8 text-right">{fmtAgo(e.time)}</span>
-                </div>
-              ))}
-              {recent.length === 0 && (
-                <div className="px-4 py-6 text-center text-gray-500 text-xs">
-                  Son {hours} saatte $100+ likidasyon yok — buffer doluyor
                 </div>
               )}
             </div>
