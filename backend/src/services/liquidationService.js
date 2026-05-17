@@ -21,6 +21,7 @@
 
 const WebSocket = require('ws');
 const https = require('https');
+const zlib = require('zlib');
 
 const BYBIT_WS_URL = 'wss://stream.bybit.com/v5/public/linear';
 const BYBIT_TICKERS_URL = 'https://api.bybit.com/v5/market/tickers?category=linear';
@@ -70,15 +71,31 @@ let symbolRefreshTimer = null;
 let backoff = 1000;
 const MAX_BACKOFF = 60 * 1000;
 
-// Bybit REST'den top N USDT-perp coin'i hacim sırasına göre çek.
+// Bybit REST'den top N USDT-perp coin'i hacki sırasına göre çek.
 // API ulaşılmazsa mevcut activeSymbols'u (fallback ya da önceki başarılı çek) koru.
+// NOT: Bybit edge bazı IP'lerde (Render dahil) varsayılan olarak gzip dönüyor;
+// Node `https.get` otomatik decompress etmez. Explicit `Accept-Encoding: identity`
+// ile düz JSON istiyoruz, defensive olarak Content-Encoding'i de zlib ile açıyoruz.
 function fetchTopSymbols() {
   return new Promise((resolve) => {
-    const req = https.get(BYBIT_TICKERS_URL, { timeout: 10000 }, (res) => {
-      let body = '';
-      res.on('data', (c) => { body += c; });
+    const req = https.get(BYBIT_TICKERS_URL, {
+      timeout: 10000,
+      headers: {
+        'Accept-Encoding': 'identity',
+        'Accept': 'application/json',
+        'User-Agent': 'borsa-krali-liquidation/1.0',
+      },
+    }, (res) => {
+      const chunks = [];
+      res.on('data', (c) => { chunks.push(c); });
       res.on('end', () => {
         try {
+          let buf = Buffer.concat(chunks);
+          const enc = String(res.headers['content-encoding'] || '').toLowerCase();
+          if (enc === 'gzip') buf = zlib.gunzipSync(buf);
+          else if (enc === 'deflate') buf = zlib.inflateSync(buf);
+          else if (enc === 'br') buf = zlib.brotliDecompressSync(buf);
+          const body = buf.toString('utf8');
           const j = JSON.parse(body);
           if (!j.result || !Array.isArray(j.result.list)) {
             stats.lastError = 'Bybit tickers: malformed response';
@@ -93,6 +110,7 @@ function fetchTopSymbols() {
           if (top.length >= 10) {
             activeSymbols = top;
             activeSymbolSet = new Set(top);
+            stats.lastError = null;
             console.log(`[Liquidation] Top ${top.length} sembol hacim sırasına göre güncellendi`);
             return resolve(true);
           }
