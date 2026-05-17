@@ -33,13 +33,32 @@ const BYBIT_TICKERS_URL = 'https://api.bybit.com/v5/market/tickers?category=line
 // her sembol için ayrı `subscribe` op'u gönderiyoruz (subscribe-per-symbol).
 const TOP_SYMBOL_COUNT = 100;
 const SYMBOL_REFRESH_INTERVAL_MS = 6 * 60 * 60 * 1000; // 6 saatte bir top liste yenile
+// REST API ulaşılamazsa (örn. Render IP'leri Bybit CloudFront 403 alıyor) bu liste
+// devreye girer. Bybit'te 2026-05-17 itibarıyla doğrulanmış ~80 likit USDT-perp.
+// Tek sembol delist olursa o subscribe sessizce hata düşer, diğerleri etkilenmez.
 const FALLBACK_SYMBOLS = [
-  'BTCUSDT', 'ETHUSDT', 'SOLUSDT', 'XRPUSDT', 'DOGEUSDT', 'BNBUSDT', 'ADAUSDT',
-  'TRXUSDT', 'LINKUSDT', 'AVAXUSDT', 'SUIUSDT', 'DOTUSDT', 'TONUSDT', 'NEARUSDT',
-  'OPUSDT', 'ARBUSDT', 'APTUSDT', 'ATOMUSDT', 'LTCUSDT', 'BCHUSDT', 'INJUSDT',
-  'AAVEUSDT', 'WIFUSDT', 'JUPUSDT', 'ORDIUSDT', 'TIAUSDT', 'ENAUSDT',
-  'HBARUSDT', 'POLUSDT', 'SHIB1000USDT', '1000PEPEUSDT', 'FILUSDT', 'LDOUSDT',
-  'RENDERUSDT', 'ICPUSDT', 'CRVUSDT', 'RUNEUSDT', 'XLMUSDT', 'ETCUSDT', 'UNIUSDT',
+  // Top mcap / blue chips
+  'BTCUSDT', 'ETHUSDT', 'SOLUSDT', 'XRPUSDT', 'BNBUSDT', 'DOGEUSDT', 'ADAUSDT',
+  'TRXUSDT', 'TONUSDT', 'AVAXUSDT', 'LINKUSDT', 'DOTUSDT', 'BCHUSDT', 'LTCUSDT',
+  'XLMUSDT', 'ETCUSDT', 'HBARUSDT', 'XMRUSDT', 'DASHUSDT', 'ZECUSDT',
+  // Yeni listings / hype
+  'HYPEUSDT', 'SUIUSDT', 'NEARUSDT', 'APTUSDT', 'TIAUSDT', 'SEIUSDT', 'STRKUSDT',
+  'ENAUSDT', 'ONDOUSDT', 'TAOUSDT', 'KAIAUSDT', 'WLDUSDT', 'VIRTUALUSDT',
+  'JTOUSDT', 'JUPUSDT', 'PENDLEUSDT', 'PYTHUSDT',
+  // L2 / scaling
+  'OPUSDT', 'ARBUSDT', 'POLUSDT', 'MNTUSDT',
+  // DeFi
+  'AAVEUSDT', 'UNIUSDT', 'LDOUSDT', 'CRVUSDT', 'COMPUSDT',
+  'RUNEUSDT', 'INJUSDT', 'ATOMUSDT', 'FILUSDT', 'ICPUSDT', 'GRTUSDT',
+  // AI / RWA
+  'RENDERUSDT', 'AKTUSDT', 'NMRUSDT',
+  // Memes (Bybit naming — bazıları 1000x kontrat)
+  '1000PEPEUSDT', 'SHIB1000USDT', '1000BONKUSDT', '1000FLOKIUSDT', '1000LUNCUSDT',
+  'WIFUSDT', 'TRUMPUSDT', 'PENGUUSDT', 'FARTCOINUSDT', 'GIGAUSDT',
+  // Gaming / NFT
+  'GALAUSDT', 'APEUSDT', 'CHZUSDT', 'IMXUSDT', 'AXSUSDT', 'SANDUSDT', 'MANAUSDT',
+  // Infra / data
+  'ORDIUSDT', 'STORJUSDT', 'ARUSDT', 'ZILUSDT', 'ALGOUSDT', 'VETUSDT', 'KASUSDT',
 ];
 let activeSymbols = FALLBACK_SYMBOLS.slice();
 let activeSymbolSet = new Set(activeSymbols);
