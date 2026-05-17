@@ -22,12 +22,39 @@ const signalConfidenceService = require('./signalConfidenceService');
 // ── Yapılandırma ──────────────────────────────────────────────────────────
 const TOP_LIMIT = 10;
 const COIN_UNIVERSE_SIZE = 100;
+// CoinGecko'dan fazla çekiyoruz; stablecoin/wrapped filtre sonrası ~100 trade
+// edilebilir coin kalsın diye margin bırakıldı (top 100'de ~17 stable+wrapped).
+const COIN_FETCH_SIZE = 130;
 const BATCH_SIZE = 5;             // Binance batch (her batch'te 2 endpoint × 5 coin)
 const BATCH_PAUSE_MS = 250;
 const CACHE_TTL_MS = 5 * 60 * 1000;  // CoinGecko 5 dk (rate limit zorunlu)
 const KLINES_CACHE_TTL_MS = 10 * 60 * 1000; // Binance klines 10 dk
 // v5: Sinyal kalitesi sıkılaştırma — 10 koşuldan en az 6 (cryptoScorer'da alt-zorunlular eklendi)
 const MIN_SCORE = 6;
+
+// Stablecoin'ler ve peg edilmiş tokenlar — fiyat ~$1, mikro dalgalanmalar
+// RSI sağlıklı (35-70) + EMA stack + "uptrend" kriterlerini yanlış-pozitif
+// tetikliyor ve top sinyal listesini dolduruyor. Trade için işe yaramaz.
+// Wrapped/staked tokenlar da asıl varlığın gölgesi olduğu için dahil edildi.
+const EXCLUDED_SYMBOLS = new Set([
+  // USD stablecoinler
+  'USDT', 'USDC', 'USDS', 'USDE', 'USD1', 'USD0', 'USDD', 'USDG', 'USDY', 'USDF',
+  'USDP', 'USDN', 'USDJ', 'USDM', 'USDTB', 'USDO', 'USDX', 'USX', 'PUSD', 'PYUSD',
+  'RLUSD', 'BFUSD', 'BUSD', 'TUSD', 'FDUSD', 'GUSD', 'DAI', 'GHO', 'FRAX', 'CRVUSD',
+  'YLDS', 'A7A5', 'APXUSD', 'BUIDL', 'U',
+  // EUR / diğer fiat-peg stablecoinler
+  'EURC', 'EURS', 'EURT', 'AGEUR',
+  // Not: Altın-peg (PAXG, XAUT) hariç tutulmuyor — altın fiyatı kendi
+  //      dinamiğine sahip, RSI/EMA sinyalleri anlamlı.
+  // Tokenized real-world asset (mikro floor-price hareketleri, trade edilmez)
+  'FIGR_HELOC', 'FIGR',
+  // Wrapped/staked (asıl coin'in gölgesi — duplicate sinyal üretir)
+  'WBTC', 'TBTC', 'CBBTC',
+  'WETH', 'STETH', 'WSTETH', 'WBETH', 'CBETH', 'RETH', 'SWETH', 'METH', 'FRXETH', 'SFRXETH', 'LSETH', 'LETH', 'EZETH', 'WEETH', 'RSETH',
+  'WBNB', 'STBNB',
+  'WSOL', 'JITOSOL', 'MSOL', 'JUPSOL', 'BSOL',
+  'STMATIC', 'STTRX',
+]);
 
 const COINGECKO_BASE = 'https://api.coingecko.com/api/v3';
 const BINANCE_BASE = 'https://api.binance.com';
@@ -52,7 +79,7 @@ async function getTop100Coins() {
       params: {
         vs_currency: 'usd',
         order: 'market_cap_desc',
-        per_page: COIN_UNIVERSE_SIZE,
+        per_page: COIN_FETCH_SIZE,
         page: 1,
         sparkline: false,
         price_change_percentage: '24h',
@@ -60,7 +87,7 @@ async function getTop100Coins() {
       timeout: 20000,
       headers: { 'User-Agent': 'BorsaKraliCryptoSignals/1.0' },
     });
-    const data = (res.data || []).map(c => ({
+    const raw = (res.data || []).map(c => ({
       id: c.id,
       symbol: (c.symbol || '').toUpperCase(),
       name: c.name,
@@ -71,8 +98,21 @@ async function getTop100Coins() {
       change24h: c.price_change_percentage_24h,
       volume24h: c.total_volume,
     }));
-    universeCache = { data, t: now };
-    return data;
+    // Stablecoin/wrapped filtreleme — peg'li tokenlar mikro dalgalanmalarla
+    // skor kriterlerini yanlış-pozitif tetikliyor. Ayrıca defansif fiyat-peg
+    // koruması: |fiyat-1| < %1.5 AND |24h değişim| < %0.5 → stablecoin gibi
+    // davranıyor demektir, blacklist'te olmasa da çıkar.
+    const filtered = raw.filter(c => {
+      if (EXCLUDED_SYMBOLS.has(c.symbol)) return false;
+      const p = c.currentPrice;
+      const ch = c.change24h;
+      if (p != null && p >= 0.985 && p <= 1.015 && ch != null && Math.abs(ch) < 0.5) {
+        return false;
+      }
+      return true;
+    }).slice(0, COIN_UNIVERSE_SIZE);
+    universeCache = { data: filtered, t: now };
+    return filtered;
   } catch (e) {
     console.error('[CryptoSignals] CoinGecko top 100 hata:', e.message);
     // Cache'te eski veri varsa onu döndür (kısa süreliğine de olsa)
