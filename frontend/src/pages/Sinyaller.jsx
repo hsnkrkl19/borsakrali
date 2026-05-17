@@ -147,7 +147,7 @@ export default function Sinyaller() {
   }
 
   return (
-    <div className="max-w-7xl mx-auto px-3 sm:px-6 py-4 sm:py-6 space-y-5">
+    <div className="w-full px-1 sm:px-2 py-4 sm:py-6 space-y-5">
       {/* ── Sayfa başlığı ─────────────────────────────────────────────────── */}
       <div className="flex items-start justify-between flex-wrap gap-3">
         <div>
