@@ -57,7 +57,7 @@ async function runMarketOpen() {
     logger.info('⏰ Market open broadcast başlatıldı');
     const result = await pushNotificationService.broadcastNotification({
       title: '📈 Borsa açıldı',
-      body: 'BIST seansı başladı. Bugünün sinyalleri için tıklayın.',
+      body: 'BIST seansı başladı. Bugünün fırsatları seni bekliyor.',
       path: '/gunluk-tespitler?tab=bugun',
       topic: 'all',
     });
@@ -85,7 +85,7 @@ async function runMarketClose() {
     logger.info('⏰ Market close broadcast başlatıldı');
     const result = await pushNotificationService.broadcastNotification({
       title: '📉 Borsa kapandı',
-      body: 'Seans bitti. Gün sonu performans raporu hazır.',
+      body: 'Seans bitti. Gün sonu raporu hazır.',
       path: '/gun-sonu-performans',
       topic: 'all',
     });
@@ -122,7 +122,7 @@ async function runCalendarWarning() {
       .filter(Boolean)
       .join(', ');
     const tail = events.length > 3 ? ` ve ${events.length - 3} daha` : '';
-    const body = `TR/US: ${previewTitles}${tail}. Pozisyonlarınızı gözden geçirin.`;
+    const body = `Yarın gündemde: ${previewTitles}${tail}. Pozisyonlarını gözden geçir.`;
 
     const result = await pushNotificationService.broadcastNotification({
       title: `⚠️ Yarın ${events.length} kritik veri var`,
@@ -164,14 +164,15 @@ async function runDailyPhase(phase, options = {}) {
 
     // FCM push (sadece premarket + revision; intraday sessiz)
     if (!options.silent && (phase === 'premarket' || phase === 'revision')) {
-      const trendTop     = (result.trend?.signals     || []).slice(0, 3).map(s => `${s.symbol}(${s.totalScore})`).join(', ');
-      const reversionTop = (result.reversion?.signals || []).slice(0, 3).map(s => `${s.symbol}(${s.totalScore})`).join(', ');
+      // Sembol listelerini sade göster — skoru çıplak göstermeyelim, kullanıcıya bir şey ifade etmiyor.
+      const trendTop     = (result.trend?.signals     || []).slice(0, 3).map(s => s.symbol).join(', ');
+      const reversionTop = (result.reversion?.signals || []).slice(0, 3).map(s => s.symbol).join(', ');
       const title = phase === 'premarket'
-        ? '📊 Borsa Açılış Sinyalleri (09:55)'
-        : '🔄 Sinyal Revizyonu (11:00)';
+        ? '📊 Bugünün fırsat listesi hazır (09:55)'
+        : '🔄 Fırsat listesi güncellendi (11:00)';
       const body = phase === 'premarket'
-        ? `Trend: ${trendTop || '—'} · Reversion: ${reversionTop || '—'}`
-        : `Trend ${trendDiff} · Reversion ${reversionDiff} değişiklik. Trend: ${trendTop} · Rev: ${reversionTop}`;
+        ? `Güçlü hisseler: ${trendTop || '—'} · Dönüş bölgesi: ${reversionTop || '—'}`
+        : `${trendDiff + reversionDiff} hisse değişti. Güçlü: ${trendTop || '—'} · Dönüş: ${reversionTop || '—'}`;
       try {
         await pushNotificationService.broadcastNotification({
           title, body,
@@ -222,8 +223,8 @@ async function runCryptoPhase(phase, options = {}) {
       const spotTop  = (result.spot_long?.signals     || []).slice(0, 3).map(s => s.symbol).join(', ');
       const title = CRYPTO_PHASE_TITLE[phase] || '🪙 Kripto Sinyalleri';
       const body =
-        `Long: ${longTop || spotTop || '—'}` +
-        (shortTop ? ` · Short: ${shortTop}` : '');
+        `Al sinyali: ${longTop || spotTop || '—'}` +
+        (shortTop ? ` · Düşüş bölgesi: ${shortTop}` : '');
       try {
         await pushNotificationService.broadcastNotification({
           title, body,

@@ -1,8 +1,13 @@
 import axios from 'axios'
 import { useAuthStore } from '../store/authStore'
 import { getApiBase } from '../config'
+import { mapApiError as mapApiErrorMessage } from '../utils/locale'
 
 const API_BASE_URL = getApiBase() + '/api'
+
+// Merkezi hata mesajı çevirici — try/catch'lerde toast/uyarı için kullanılır.
+// Örnek: catch (err) { setError(mapApiError(err)) }
+export const mapApiError = mapApiErrorMessage
 
 // Capacitor (APK) ortamında Render uyuyorsa ilk istek 30-50sn sürebilir.
 const isNative = typeof window !== 'undefined'

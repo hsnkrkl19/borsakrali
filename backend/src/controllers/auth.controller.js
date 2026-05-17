@@ -31,7 +31,7 @@ class AuthController {
       if (!firstName || !lastName || !email || !password) {
         return res.status(400).json({
           success: false,
-          error: 'Ad, soyad, e-posta ve sifre gerekli',
+          error: 'Ad, soyad, e-posta ve şifre gerekli',
         });
       }
 
@@ -39,7 +39,7 @@ class AuthController {
       if (!emailRegex.test(String(email || '').trim())) {
         return res.status(400).json({
           success: false,
-          error: 'Gecerli bir e-posta adresi girin',
+          error: 'Geçerli bir e-posta adresi girin',
         });
       }
 
@@ -48,7 +48,7 @@ class AuthController {
         if (digits.length !== 10 || digits[0] !== '5') {
           return res.status(400).json({
             success: false,
-            error: 'Telefon numarasi 5XX XXX XX XX formatinda olmali',
+            error: 'Telefon numarası 5XX XXX XX XX formatında olmalı',
           });
         }
       }
@@ -84,7 +84,7 @@ class AuthController {
       if (!email || !password) {
         return res.status(400).json({
           success: false,
-          error: 'E-posta ve sifre gerekli',
+          error: 'E-posta ve şifre gerekli',
         });
       }
 
@@ -100,7 +100,7 @@ class AuthController {
         refreshToken: result.refreshToken,
         expiresAt: result.expiresAt,
         user: result.user,
-        message: 'Giris basarili!',
+        message: 'Giriş başarılı!',
       });
     } catch (error) {
       logger.error('Login error:', error);
@@ -135,7 +135,7 @@ class AuthController {
         token: result.token,
         refreshToken: result.refreshToken,
         user: result.user,
-        message: 'Google ile giris basarili!',
+        message: 'Google ile giriş başarılı!',
       });
     } catch (error) {
       logger.error('Google login error:', error);
@@ -150,14 +150,14 @@ class AuthController {
       if (!email || !code) {
         return res.status(400).json({
           success: false,
-          error: 'E-posta ve dogrulama kodu gerekli',
+          error: 'E-posta ve doğrulama kodu gerekli',
         });
       }
 
       if (typeof authService.verifyLoginCode !== 'function') {
         return res.status(501).json({
           success: false,
-          error: 'Kod dogrulama bu surumde aktif degil',
+          error: 'Kod doğrulama bu sürümde aktif değil',
         });
       }
 
@@ -171,7 +171,7 @@ class AuthController {
         success: true,
         token: result.token,
         user: result.user,
-        message: 'Giris basarili!',
+        message: 'Giriş başarılı!',
       });
     } catch (error) {
       logger.error('Verify code error:', error);
@@ -183,7 +183,7 @@ class AuthController {
     try {
       return res.json({
         success: true,
-        message: 'Telegram botuna /giris yazarak dogrulama kodunuzu alin.',
+        message: 'Telegram botuna /giris yazarak doğrulama kodunuzu alın.',
       });
     } catch (error) {
       logger.error('Send code error:', error);
@@ -274,7 +274,7 @@ class AuthController {
       if (!currentPassword || !newPassword) {
         return res.status(400).json({
           success: false,
-          error: 'Mevcut sifre ve yeni sifre gerekli',
+          error: 'Mevcut şifre ve yeni şifre gerekli',
         });
       }
 
@@ -299,7 +299,7 @@ class AuthController {
     try {
       return res.json({
         success: true,
-        message: 'Cikis yapildi',
+        message: 'Çıkış yapıldı',
       });
     } catch (error) {
       return res.status(500).json({ success: false, error: error.message });
@@ -353,7 +353,7 @@ class AuthController {
 
       return res.json({
         success: true,
-        message: 'Hesabiniz silindi',
+        message: 'Hesabınız silindi',
       });
     } catch (error) {
       logger.error('Delete account error:', error);

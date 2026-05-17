@@ -62,7 +62,7 @@ async function httpPostJson(url, payload, { token } = {}) {
     const data = typeof rawData === 'string' ? safeParseJson(rawData) || {} : (rawData || {})
     if (!ok || !data.success) {
       const message = data.error || data.message
-        || (status === 0 ? 'Sunucuya ulasilamiyor (ag hatasi)' : `Sunucu hatasi (${status})`)
+        || (status === 0 ? 'Sunucuya ulaşılamıyor (ağ hatası)' : `Sunucu hatası (${status})`)
       throw new Error(message)
     }
     return data
@@ -80,7 +80,7 @@ async function parseJsonResponse(response) {
   const data = await response.json().catch(() => ({}))
 
   if (!response.ok || !data.success) {
-    throw new Error(data.error || data.message || 'Islem basarisiz')
+    throw new Error(data.error || data.message || 'İşlem başarısız')
   }
 
   return data
@@ -99,13 +99,13 @@ function unwrapAxios(promise) {
   return promise.then((r) => {
     const data = r.data || {}
     if (data.success === false) {
-      throw new Error(data.error || data.message || 'Islem basarisiz')
+      throw new Error(data.error || data.message || 'İşlem başarısız')
     }
     return data
   }).catch((err) => {
     if (err?.response) {
       const data = err.response.data || {}
-      throw new Error(data.error || data.message || 'Islem basarisiz')
+      throw new Error(data.error || data.message || 'İşlem başarısız')
     }
     throw err
   })

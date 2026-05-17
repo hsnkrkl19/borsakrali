@@ -106,14 +106,14 @@ async function evaluateAndPush(confluences) {
   const newCount  = top.length - flipCount;
 
   const titleParts = [];
-  if (newCount > 0)  titleParts.push(`${newCount} yeni STRONG`);
+  if (newCount > 0)  titleParts.push(`${newCount} güçlü hareket`);
   if (flipCount > 0) titleParts.push(`${flipCount} yön döndü`);
-  const title = `📡 MTF Confluence — ${titleParts.join(' · ')}`;
+  const title = `📡 Yeni fırsat — ${titleParts.join(' · ')}`;
 
   const bodyParts = [];
-  if (longCoins.length)  bodyParts.push(`Long: ${longCoins.join(', ')}`);
-  if (shortCoins.length) bodyParts.push(`Short: ${shortCoins.join(', ')}`);
-  const body = bodyParts.join(' · ') || 'STRONG confluence güncellemesi';
+  if (longCoins.length)  bodyParts.push(`Al sinyali: ${longCoins.join(', ')}`);
+  if (shortCoins.length) bodyParts.push(`Düşüş bölgesi: ${shortCoins.join(', ')}`);
+  const body = bodyParts.join(' · ') || 'Güçlü fırsat güncellemesi';
 
   try {
     await pushNotificationService.broadcastNotification({
@@ -144,13 +144,14 @@ async function evaluateAndPush(confluences) {
 
 // Telegram için zengin HTML mesaj formatı
 function formatTelegramMessage(upgrades) {
-  const lines = ['<b>📡 BORSA KRALI — MTF Confluence</b>', ''];
+  const lines = ['<b>📡 BORSA KRALI — Yeni Fırsatlar</b>', ''];
   for (const c of upgrades) {
     const arrow = c.verdict === 'STRONG_LONG' ? '🟢⬆️' : '🔴⬇️';
-    const verdictLabel = c.verdict === 'STRONG_LONG' ? 'STRONG LONG' : 'STRONG SHORT';
+    const verdictLabel = c.verdict === 'STRONG_LONG' ? 'GÜÇLÜ AL' : 'GÜÇLÜ DÜŞÜŞ';
     const flipMark = c.isFlip ? ' 🔁' : ' ⭐';
+    const confLabel = (c.confidence || 0) >= 0.7 ? 'Güçlü' : (c.confidence || 0) >= 0.4 ? 'Orta' : 'Zayıf';
     lines.push(`${arrow} <b>${c.symbol}</b> — <i>${verdictLabel}</i>${flipMark}`);
-    lines.push(`   net: <code>${c.net > 0 ? '+' : ''}${c.net?.toFixed(1)}</code> · güven: <code>%${((c.confidence || 0) * 100).toFixed(0)}</code> · ${c.alignedLong}L / ${c.alignedShort}S aligned`);
+    lines.push(`   İşaret: <code>${confLabel}</code> · Birleşik görüntü: ${c.alignedLong} yükseliş / ${c.alignedShort} düşüş`);
     lines.push('');
   }
   lines.push('<a href="https://borsakrali.com/gunluk-tespitler?tab=mtf">📊 Detay için tıkla</a>');

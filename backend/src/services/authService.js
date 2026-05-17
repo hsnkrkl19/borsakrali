@@ -160,12 +160,12 @@ async function initiateLogin(emailOrUsername, password) {
 
   if (error || !data?.session) {
     if (/invalid login credentials/i.test(error?.message || '')) {
-      return { success: false, error: 'E-posta veya sifre hatali!' };
+      return { success: false, error: 'E-posta veya şifre hatalı!' };
     }
     if (/email not confirmed/i.test(error?.message || '')) {
-      return { success: false, error: 'E-posta adresiniz dogrulanmamis.' };
+      return { success: false, error: 'E-posta adresiniz doğrulanmamış.' };
     }
-    return { success: false, error: error?.message || 'Giris basarisiz' };
+    return { success: false, error: error?.message || 'Giriş başarısız' };
   }
 
   const profile = await fetchProfile(data.user.id);
@@ -339,7 +339,7 @@ async function changePassword(userId, currentPassword, newPassword) {
   // Verify current password by re-authenticating
   const { data: authUser, error: getErr } = await supabaseAdmin.auth.admin.getUserById(userId);
   if (getErr || !authUser?.user) {
-    return { success: false, error: 'Kullanici bulunamadi' };
+    return { success: false, error: 'Kullanıcı bulunamadı' };
   }
 
   const { error: signInErr } = await supabaseAdmin.auth.signInWithPassword({
@@ -348,11 +348,11 @@ async function changePassword(userId, currentPassword, newPassword) {
   });
 
   if (signInErr) {
-    return { success: false, error: 'Mevcut sifre hatali' };
+    return { success: false, error: 'Mevcut şifre hatalı' };
   }
 
   if (currentPassword === newPassword) {
-    return { success: false, error: 'Yeni sifre mevcut sifre ile ayni olamaz' };
+    return { success: false, error: 'Yeni şifre mevcut şifre ile aynı olamaz' };
   }
 
   const { data, error } = await supabaseAdmin.auth.admin.updateUserById(userId, {
@@ -473,7 +473,7 @@ async function deleteUserAccount(userId) {
 
   const { data: existing } = await supabaseAdmin.auth.admin.getUserById(userId);
   if (!existing?.user) {
-    return { success: false, error: 'Kullanici bulunamadi' };
+    return { success: false, error: 'Kullanıcı bulunamadı' };
   }
 
   const email = existing.user.email;

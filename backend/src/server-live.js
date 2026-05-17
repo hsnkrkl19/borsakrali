@@ -584,7 +584,7 @@ async function requireAuth(req, res, next) {
 // Kullanicinin aktif plan durumu
 app.get('/api/subscription/status', requireAuth, async (req, res) => {
   const status = await authService.getSubscriptionStatus(req.user.id);
-  if (!status) return res.status(404).json({ success: false, error: 'Kullanici bulunamadi' });
+  if (!status) return res.status(404).json({ success: false, error: 'Kullanıcı bulunamadı' });
   const plan = SUBSCRIPTION_PLANS.find(p => p.id === status.plan) || SUBSCRIPTION_PLANS[0];
   res.json({ success: true, ...status, planDetails: plan });
 });
@@ -881,7 +881,7 @@ app.get('/api/market/stock/:symbol/historical', async (req, res) => {
     const data = await liveDataService.fetchHistoricalData(marketSymbol, period, interval);
 
     if (!data) {
-      return res.status(404).json({ error: 'Gecmis veri bulunamadi' });
+      return res.status(404).json({ error: 'Geçmiş veri bulunamadı' });
     }
 
     res.json({
@@ -1373,7 +1373,7 @@ app.get('/api/market/commodity/:symbol/historical', async (req, res) => {
       ]);
 
       if (!goldUsdSeries || !usdTrySeries) {
-        return res.status(404).json({ error: 'Veri bulunamadi' });
+        return res.status(404).json({ error: 'Veri bulunamadı' });
       }
 
       const usdTryByTime = new Map(usdTrySeries.map(item => [item.time, item]));
@@ -1418,15 +1418,15 @@ app.get('/api/market/commodity/:symbol/historical', async (req, res) => {
     }
 
     const comm = COMMODITIES.find(c => c.key === symbol || c.symbol === symbol);
-    if (!comm) return res.status(404).json({ error: 'Sembol bulunamadi' });
+    if (!comm) return res.status(404).json({ error: 'Sembol bulunamadı' });
 
     const chartData = await fetchCommodityHistoricalSeries(comm.symbol, range, interval);
-    if (!chartData) return res.status(404).json({ error: 'Veri bulunamadi' });
+    if (!chartData) return res.status(404).json({ error: 'Veri bulunamadı' });
 
     res.json({ symbol: comm.symbol, name: comm.name, unit: comm.unit, data: chartData });
   } catch (err) {
-    console.error('Commodity historical hatasi:', err.message);
-    res.status(500).json({ error: 'Gecmis veri alinamadi' });
+    console.error('Commodity historical hatası:', err.message);
+    res.status(500).json({ error: 'Geçmiş veri alınamadı' });
   }
 });
 
@@ -2916,13 +2916,28 @@ app.get('/api/market/daily-performance/:date', async (req, res) => {
 });
 
 // Bugünün snapshot'ı — premarket + revision + intraday hepsi tek payload'da
-app.get('/api/daily-signals/today', (req, res) => {
+app.get('/api/daily-signals/today', async (req, res) => {
   try {
     const date = snapshotStore.dateKey();
-    const data = snapshotStore.read(date) || { date, premarket: null, revision: null, intraday: [] };
+    let data = snapshotStore.read(date);
+    const isEmpty = !data || (!data.premarket && !data.revision && (!data.intraday || data.intraday.length === 0));
+
+    if (isEmpty) {
+      // Snapshot boş — TR saatine göre uygun fazı üret (crypto/MTF endpoint'leriyle aynı kalıp).
+      // Server boot 09:55'ten sonra olduğunda kullanıcı boş ekran görmesin.
+      const trHour = parseInt(new Date().toLocaleString('en-GB', { timeZone: 'Europe/Istanbul', hour: '2-digit', hour12: false }), 10);
+      const phase = trHour < 10 ? 'premarket' : (trHour < 11 ? 'premarket' : (trHour < 18 ? 'revision' : 'intraday'));
+      try {
+        await cronJobsService.triggerDailyPhase(phase);
+        data = snapshotStore.read(date);
+      } catch (genErr) {
+        console.error('[DailySignals] lazy-generate hata:', genErr.message);
+      }
+    }
+
     res.json({
       success: true,
-      ...data,
+      ...(data || { date, premarket: null, revision: null, intraday: [] }),
       reasons: dailySignalsService.REVISION_REASONS,
     });
   } catch (e) {
@@ -3687,7 +3702,7 @@ app.get('/api/chart/data/:symbol', async (req, res) => {
     const data = await liveDataService.fetchHistoricalData(symbol.toUpperCase(), range, interval);
 
     if (!data) {
-      return res.status(404).json({ error: 'Veri bulunamadi' });
+      return res.status(404).json({ error: 'Veri bulunamadı' });
     }
 
     res.json({
@@ -4073,12 +4088,12 @@ app.post('/api/admin/update-all', async (req, res) => {
     await liveDataService.updateAllStocks();
     res.json({
       success: true,
-      message: 'Tum hisseler guncellendi',
+      message: 'Tüm hisseler güncellendi',
       stockCount: liveDataService.getAllStocks().length,
       lastUpdate: liveDataService.getLastUpdateTime()?.toISOString()
     });
   } catch (error) {
-    res.status(500).json({ error: 'Guncelleme basarisiz' });
+    res.status(500).json({ error: 'Güncelleme başarısız' });
   }
 });
 
@@ -4278,7 +4293,7 @@ app.get('/api/kap/financials/:symbol', async (req, res) => {
 
   const stock = allBistStocks.find(s => s.symbol === upperSymbol);
   if (!stock) {
-    return res.status(404).json({ error: 'Hisse bulunamadi' });
+    return res.status(404).json({ error: 'Hisse bulunamadı' });
   }
 
   try {
@@ -6126,7 +6141,7 @@ app.put('/api/notes/:id', requireAuth, (req, res) => {
   const { symbol, title, content, category } = req.body;
   const userNotes = notesStore.get(req.user.id) || [];
   const idx = userNotes.findIndex(n => n.id === req.params.id);
-  if (idx === -1) return res.status(404).json({ success: false, error: 'Not bulunamadi' });
+  if (idx === -1) return res.status(404).json({ success: false, error: 'Not bulunamadı' });
   userNotes[idx] = { ...userNotes[idx], symbol: symbol?.toUpperCase() || '', title: title?.trim() || '', content: content?.trim() || userNotes[idx].content, category: category || userNotes[idx].category, updatedAt: new Date().toISOString() };
   notesStore.set(req.user.id, userNotes);
   res.json({ success: true, note: userNotes[idx] });
@@ -6166,7 +6181,7 @@ app.post('/api/requests', requireAuth, (req, res) => {
 
 app.post('/api/requests/:id/vote', requireAuth, (req, res) => {
   const item = requestsStore.find(r => r.id === req.params.id);
-  if (!item) return res.status(404).json({ success: false, error: 'İstek bulunamadi' });
+  if (!item) return res.status(404).json({ success: false, error: 'İstek bulunamadı' });
   if (!item.voters.includes(req.user.id)) {
     item.votes = (item.votes || 0) + 1;
     item.voters.push(req.user.id);
@@ -7937,13 +7952,13 @@ app.get('*', (req, res, next) => {
   res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
   res.setHeader('Pragma', 'no-cache');
   res.sendFile(path.join(frontendDist, 'index.html'), err => {
-    if (err) res.status(404).json({ error: 'Endpoint bulunamadi', path: req.path });
+    if (err) res.status(404).json({ error: 'Sayfa bulunamadı', path: req.path });
   });
 });
 
 // 404 Handler (API için)
 app.use((req, res) => {
-  res.status(404).json({ error: 'Endpoint bulunamadi', path: req.path });
+  res.status(404).json({ error: 'Sayfa bulunamadı', path: req.path });
 });
 
 // === RENDER SELF-KEEPALIVE ===
@@ -8000,9 +8015,51 @@ server.listen(PORT, () => {
   // Otomatik guncellemeyi baslat (1 dakika = 60000ms)
   liveDataService.startAutoUpdate(60 * 1000);
 
+  // Cron jobs — BIST sinyal (09:55/11:00/intraday), kripto (09/13/19/01), MTF (5m-1w),
+  //   indikatör, KAP, push notifier, market open/close.
+  //   ENV GATE (CRON_DISABLED=true): Tüm cron'ları kapat (Render fail debug için).
+  if (process.env.CRON_DISABLED !== 'true') {
+    try {
+      cronJobsService.start();
+    } catch (e) {
+      console.error('[Cron] Başlatma hata:', e.message);
+    }
+  } else {
+    console.log('[Cron] ENV CRON_DISABLED=true — cron jobs atlandı');
+  }
+
+  // Boot warmup — server restart sonrası snapshot'lar boşsa hemen doldur.
+  //   Render ephemeral fs'de her deploy snapshot'ı siler; cron sonraki tetiklemeye
+  //   kadar bekleyemeyiz. Background fire-and-forget; boot'u bloke etmez.
+  if (process.env.BOOT_WARMUP_DISABLED !== 'true') {
+    setTimeout(async () => {
+      try {
+        const date = snapshotStore.dateKey();
+        const existing = snapshotStore.read(date);
+        const empty = !existing || (!existing.premarket && !existing.revision && (!existing.intraday || existing.intraday.length === 0));
+        if (empty) {
+          const trHour = parseInt(new Date().toLocaleString('en-GB', { timeZone: 'Europe/Istanbul', hour: '2-digit', hour12: false }), 10);
+          const phase = trHour < 11 ? 'premarket' : (trHour < 18 ? 'revision' : 'intraday');
+          console.log(`[Warmup] BIST daily signals (${phase}) tetikleniyor...`);
+          cronJobsService.triggerDailyPhase(phase).catch(e => console.error('[Warmup] daily fail:', e.message));
+        }
+      } catch (e) {
+        console.error('[Warmup] daily check hata:', e.message);
+      }
+      try {
+        const cdate = require('./services/cryptoSnapshotStore').dateKey();
+        const csnap = require('./services/cryptoSnapshotStore').read(cdate);
+        if (!csnap) {
+          console.log('[Warmup] Crypto signals intraday tetikleniyor...');
+          cronJobsService.triggerCryptoPhase('intraday').catch(e => console.error('[Warmup] crypto fail:', e.message));
+        }
+      } catch (e) {
+        console.error('[Warmup] crypto check hata:', e.message);
+      }
+    }, 5000);
+  }
+
   // MTF live loop — 1m taraması her 10 sn (top 10 coin, sessiz).
-  //     Diğer cron'lar (BIST sinyaller, daha uzun TF'ler) henüz auto-start değil;
-  //     hâlâ endpoint trigger ya da elle çağırılır.
   //   ENV GATE (MTF_LOOP_DISABLED=true): Render/prod'da boot stability için
   //   kapatılabilir; manuel endpoint tetiklemesi her zaman çalışır.
   if (process.env.MTF_LOOP_DISABLED !== 'true') {

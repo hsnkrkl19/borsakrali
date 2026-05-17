@@ -181,9 +181,9 @@ export default function CommandPalette() {
         icon: theme === 'dark' ? Sun : Moon, hint: 'Tema',
         run: () => setTheme(applyTheme(theme === 'dark' ? 'light' : 'dark')),
       },
-      { kind: 'action', label: 'Piyasa verilerini yenile', icon: ArrowRight, hint: 'Refresh',
+      { kind: 'action', label: 'Piyasa verilerini yenile', icon: ArrowRight, hint: 'Yenile',
         run: () => window.dispatchEvent(new CustomEvent('bk-refresh-market')) },
-      { kind: 'action', label: 'Çıkış yap', icon: LogOut, hint: 'Auth',
+      { kind: 'action', label: 'Çıkış yap', icon: LogOut, hint: 'Hesap',
         run: () => { logout(); navigate('/login') } },
     ]
     if (!q) return items.slice(0, 2)

@@ -74,7 +74,7 @@ const STRATEGIES = [
     id: 'algo',
     name: 'Algoritma Performansı',
     desc: 'Her stratejinin geriye dönük başarısı. Şeffaf metrikler — gerçek dönüşler, abartı yok.',
-    indicators: ['Win %', 'Sharpe', 'Max DD'],
+    indicators: ['Kârlı %', 'Risk-Getiri', 'En Kötü Düşüş'],
     metric: null, label: 'Şeffaf',
     period: 'Sürekli güncellenir · public dashboard',
     color: '34,197,94',

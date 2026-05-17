@@ -89,7 +89,7 @@ export default function CookieConsent() {
   return (
     <div
       role="dialog"
-      aria-label="Cerez tercihleri"
+      aria-label="Çerez tercihleri"
       className="fixed inset-x-0 bottom-0 z-[200] px-2 pb-2 sm:px-4 sm:pb-4"
       style={{ paddingBottom: 'max(env(safe-area-inset-bottom, 0px), 8px)' }}
     >
@@ -102,7 +102,7 @@ export default function CookieConsent() {
             <Cookie className="h-3.5 w-3.5" />
           </div>
           <p className="min-w-0 flex-1 text-xs leading-5 text-gray-300">
-            Site deneyimi ve reklamlar icin cerez kullaniyoruz.{' '}
+            Site deneyimi ve reklamlar için çerez kullanıyoruz.{' '}
             <Link to="/privacy-policy" className="text-gold-400 underline-offset-2 hover:underline">
               Gizlilik
             </Link>
@@ -115,19 +115,19 @@ export default function CookieConsent() {
               <ConsentRow
                 icon={<ShieldCheck className="h-3 w-3 text-emerald-400" />}
                 title="Zorunlu"
-                description="Oturum ve guvenlik icin gerekli; her zaman aktif."
+                description="Oturum ve güvenlik için gerekli; her zaman aktif."
                 checked
                 disabled
               />
               <ConsentRow
                 title="Analitik"
-                description="Site performansini olcmek icin."
+                description="Site performansını ölçmek için."
                 checked={analytics}
                 onChange={setAnalytics}
               />
               <ConsentRow
                 title="Reklam"
-                description="Daha alakali reklamlar gostermek icin."
+                description="Daha alakalı reklamlar göstermek için."
                 checked={marketing}
                 onChange={setMarketing}
               />
@@ -146,7 +146,7 @@ export default function CookieConsent() {
               </>
             ) : (
               <>
-                Tercihleri yonet <ChevronDown className="h-3 w-3" />
+                Tercihleri yönet <ChevronDown className="h-3 w-3" />
               </>
             )}
           </button>
@@ -164,7 +164,7 @@ export default function CookieConsent() {
               onClick={acceptAll}
               className="rounded-lg bg-gradient-to-r from-gold-500 to-gold-600 px-3 py-1.5 text-xs font-semibold text-dark-950 transition hover:from-gold-400 hover:to-gold-500"
             >
-              Tumunu kabul et
+              Tümünü kabul et
             </button>
           </div>
         </div>

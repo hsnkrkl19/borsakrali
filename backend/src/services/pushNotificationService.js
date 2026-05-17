@@ -81,7 +81,7 @@ function ensureFirebaseApp() {
     if (!serviceAccount) {
       return {
         success: false,
-        error: 'Firebase service account tanimli degil. Render env degiskenlerini kontrol edin.',
+        error: 'Firebase servis hesabı tanımlı değil. Render env değişkenlerini kontrol edin.',
         statusCode: 503,
       };
     }
@@ -98,7 +98,7 @@ function ensureFirebaseApp() {
     console.error('[PUSH] Firebase init error:', error.message);
     return {
       success: false,
-      error: `Firebase baslatilamadi: ${error.message}`,
+      error: `Firebase başlatılamadı: ${error.message}`,
       statusCode: 500,
     };
   }
@@ -157,13 +157,13 @@ async function registerDevice(payload) {
       topic,
       channelId: DEFAULT_CHANNEL_ID,
       registeredDeviceCount: Object.keys(store.devices).length,
-      message: 'Push bildirimi kaydi tamamlandi',
+      message: 'Push bildirimi kaydı tamamlandı',
     };
   } catch (error) {
     console.error('[PUSH] Register error:', error.message);
     return {
       success: false,
-      error: `Push token kaydi basarisiz: ${error.message}`,
+      error: `Push token kaydı başarısız: ${error.message}`,
       statusCode: 500,
     };
   }
@@ -193,7 +193,7 @@ async function unregisterDevice(payload) {
       success: true,
       topic,
       registeredDeviceCount: Object.keys(store.devices).length,
-      message: 'Push bildirimi kaydi kaldirildi',
+      message: 'Push bildirimi kaydı kaldırıldı',
     };
   } catch (error) {
     console.error('[PUSH] Unregister error:', error.message);
@@ -229,7 +229,7 @@ async function broadcastNotification(payload) {
   if (!title || !body) {
     return {
       success: false,
-      error: 'Bildirim basligi ve mesaji zorunludur',
+      error: 'Bildirim başlığı ve mesajı zorunludur',
       statusCode: 400,
     };
   }
@@ -304,12 +304,12 @@ async function broadcastNotification(payload) {
   persistBroadcastEntry(store, broadcastEntry);
   if (!broadcastEntry.dryRun) emitBroadcast(broadcastEntry);
 
-  const inAppNote = 'Web kullanicilarina anlik olarak iletildi.';
+  const inAppNote = 'Web kullanıcılarına anlık olarak iletildi.';
   const successMsg = broadcastEntry.dryRun
-    ? `Deneme bildirimi hazirlandi. ${inAppNote}`
+    ? `Deneme bildirimi hazırlandı. ${inAppNote}`
     : (broadcastEntry.fcmStatus === 'sent'
-        ? `Bildirim tum uygulamalara gonderildi. ${inAppNote}`
-        : `Bildirim web kullanicilarina iletildi. (Telefon: ${fcmError || firebaseState.error || 'yapilandirma eksik'})`);
+        ? `Bildirim tüm uygulamalara gönderildi. ${inAppNote}`
+        : `Bildirim web kullanıcılarına iletildi. (Telefon: ${fcmError || firebaseState.error || 'yapılandırma eksik'})`);
 
   return {
     success: true,
@@ -341,7 +341,7 @@ function getSummary() {
     success: true,
     configured: firebaseState.success,
     configurationMessage: firebaseState.success
-      ? 'Firebase push servisi hazir'
+      ? 'Firebase push servisi hazır'
       : firebaseState.error,
     topic: DEFAULT_TOPIC,
     channelId: DEFAULT_CHANNEL_ID,
