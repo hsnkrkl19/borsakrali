@@ -21,5 +21,21 @@ export default defineConfig({
         changeOrigin: true
       }
     }
+  },
+  build: {
+    minify: 'esbuild',
+    sourcemap: false,
+    target: 'es2018',
+    cssCodeSplit: true,
+    chunkSizeWarningLimit: 2000,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          react: ['react', 'react-dom', 'react-router-dom'],
+          charts: ['lightweight-charts', 'recharts'],
+          icons: ['lucide-react'],
+        }
+      }
+    }
   }
 })
