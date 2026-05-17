@@ -21,6 +21,9 @@ const SCOPES_BY_TYPE = {
   ],
 }
 
+// Warmer'ın canlı tuttuğu evrenler — UI'da default seçim bunlar
+const DEFAULT_SCOPE = { stock: 'bist30', crypto: 'crypto' }
+
 const TABS = [
   { id: 'top',      label: 'En Çok Konuşulanlar', icon: Flame },
   { id: 'trending', label: 'Yükselişte',          icon: TrendingUp },
@@ -52,6 +55,48 @@ function SentimentBar({ sentiment }) {
       <div className="bg-green-500" style={{ width: `${positive}%` }} title={`Pozitif ${positive}%`} />
       <div className="bg-gray-500" style={{ width: `${neutral}%` }} title={`Nötr ${neutral}%`} />
       <div className="bg-red-500" style={{ width: `${negative}%` }} title={`Negatif ${negative}%`} />
+    </div>
+  )
+}
+
+function LeaderCard({ title, icon: Icon, color, items, metric, suffix, onSelect }) {
+  const palette = {
+    amber: { border: 'border-amber-500/30', bg: 'from-amber-500/10', text: 'text-amber-300', dot: 'bg-amber-400', accent: 'text-amber-200' },
+    green: { border: 'border-green-500/30', bg: 'from-green-500/10', text: 'text-green-300', dot: 'bg-green-400', accent: 'text-green-200' },
+    red:   { border: 'border-red-500/30',   bg: 'from-red-500/10',   text: 'text-red-300',   dot: 'bg-red-400',   accent: 'text-red-200'   },
+  }[color] || { border: 'border-dark-700', bg: 'from-dark-800/40', text: 'text-gray-300', dot: 'bg-gray-400', accent: 'text-gray-200' }
+
+  const getValue = (it) => {
+    if (!metric) return 0
+    return metric.split('.').reduce((acc, k) => (acc == null ? acc : acc[k]), it) ?? 0
+  }
+
+  return (
+    <div className={`rounded-xl border ${palette.border} bg-gradient-to-br ${palette.bg} to-transparent p-3`}>
+      <div className={`flex items-center gap-1.5 mb-2 text-[11px] font-bold uppercase tracking-wider ${palette.text}`}>
+        <Icon className="w-3.5 h-3.5" />
+        {title}
+      </div>
+      {items.length === 0 ? (
+        <div className="text-[11px] text-gray-500 py-3 text-center">Veri yok</div>
+      ) : (
+        <div className="space-y-1">
+          {items.map((it, i) => (
+            <button
+              key={it.symbol}
+              onClick={() => onSelect(it.symbol)}
+              className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-white/5 transition-colors text-left"
+            >
+              <span className={`text-[10px] font-mono w-4 text-center ${palette.accent}`}>{i + 1}</span>
+              <span className={`w-1 h-1 rounded-full ${palette.dot}`} />
+              <span className="text-sm font-semibold text-white flex-1 truncate">{it.symbol}</span>
+              <span className={`text-xs font-bold ${palette.accent} tabular-nums`}>
+                {getValue(it)}{suffix}
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
@@ -290,7 +335,7 @@ export default function XGundem() {
   const initialFocus = searchParams.get('focus')
 
   const [assetType, setAssetType] = useState(initialAssetType)
-  const [scope, setScope] = useState(initialAssetType === 'crypto' ? 'crypto' : 'bist100')
+  const [scope, setScope] = useState(DEFAULT_SCOPE[initialAssetType])
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
@@ -315,8 +360,7 @@ export default function XGundem() {
   // Asset type değişince varsayılan scope'a düş ve tarama yap
   const switchAssetType = (type) => {
     setAssetType(type)
-    const defaultScope = type === 'crypto' ? 'crypto' : 'bist100'
-    setScope(defaultScope)
+    setScope(DEFAULT_SCOPE[type])
     setSelectedSymbol(null)
     setActiveTab('top')
   }
@@ -344,6 +388,8 @@ export default function XGundem() {
             <h1 className="text-xl sm:text-2xl font-bold text-white">X Gündemi</h1>
             {data?.dataSource === 'x_scraper' ? (
               <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-green-500/30 text-green-200 border border-green-500/40">CANLI · X.COM</span>
+            ) : data?.dataSource === 'x_scraper_partial' ? (
+              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-500/30 text-amber-200 border border-amber-500/40">KISMİ · {data.totalScanned}/{data.totalItems}</span>
             ) : data?.dataSource === 'x_scraper_warming' ? (
               <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-blue-500/30 text-blue-200 border border-blue-500/40">ISINIYOR</span>
             ) : data?.dataSource === 'x_scraper_unconfigured' ? (
@@ -407,6 +453,20 @@ export default function XGundem() {
           </div>
         </div>
       )}
+      {data?.dataSource === 'x_scraper_partial' && data.pendingCount > 0 && (
+        <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 p-3 flex gap-2 items-start">
+          <RefreshCw className="w-4 h-4 text-amber-400 flex-shrink-0 mt-0.5 animate-spin" />
+          <div className="text-xs text-amber-200/90">
+            <div className="font-semibold mb-0.5">
+              {data.totalScanned}/{data.totalItems} sembolün verisi hazır
+            </div>
+            <div className="text-amber-200/70">
+              Kalan {data.pendingCount} sembol arka planda taranıyor; rate-limit'e takılmamak için yavaş ilerliyor.
+              Birkaç dakika sonra yenileyin — listeye eklenecekler.
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Scope filter */}
       <div className="bg-dark-900/60 border border-dark-700 rounded-xl p-1 flex gap-1 w-fit">
@@ -431,6 +491,7 @@ export default function XGundem() {
       {data && (() => {
         const dsMap = {
           x_scraper:              { label: 'Canlı X.com',  sub: 'Gerçek tweet verisi',         color: 'green' },
+          x_scraper_partial:      { label: 'Kısmi Canlı',  sub: `${data.pendingCount || 0} sembol kuyrukta`, color: 'amber' },
           x_scraper_warming:      { label: 'Isınıyor',     sub: 'İlk tarama sürüyor',          color: 'blue'  },
           x_scraper_unconfigured: { label: 'Bağlı Değil',  sub: 'Cookie\'ler eksik',           color: 'red'   },
         }
@@ -445,29 +506,96 @@ export default function XGundem() {
         )
       })()}
 
-      {/* Top 3 podium */}
+      {/* Top 3 podium — yenilenen tasarım */}
       {top3.length === 3 && (
-        <div className="grid grid-cols-3 gap-2 sm:gap-3">
+        <div className="grid grid-cols-3 gap-2 sm:gap-3 items-end">
           {[1, 0, 2].map((idx, pos) => {
             const stock = top3[idx]
-            const heights = ['h-24', 'h-32', 'h-20']
+            const rank = idx + 1
+            const heights = ['min-h-[150px]', 'min-h-[180px]', 'min-h-[135px]']
             const medals = ['🥈', '🥇', '🥉']
-            const colors = ['from-gray-400/30 to-gray-600/10 border-gray-400/40', 'from-amber-400/30 to-amber-600/10 border-amber-400/50', 'from-orange-700/30 to-orange-900/10 border-orange-700/40']
+            const palettes = [
+              { ring: 'ring-slate-300/40',  glow: 'shadow-slate-300/10', grad: 'from-slate-400/25 via-slate-500/10 to-transparent', border: 'border-slate-300/40', accent: 'text-slate-200' },
+              { ring: 'ring-amber-300/60',  glow: 'shadow-amber-400/20', grad: 'from-amber-400/30 via-amber-500/15 to-transparent', border: 'border-amber-300/60', accent: 'text-amber-200' },
+              { ring: 'ring-orange-500/40', glow: 'shadow-orange-600/10', grad: 'from-orange-600/25 via-orange-700/10 to-transparent', border: 'border-orange-500/40', accent: 'text-orange-200' },
+            ]
+            const p = palettes[pos]
+            const change = stock.change24h
+            const changeColor = change >= 0 ? 'text-green-400' : 'text-red-400'
             return (
-              <div
+              <button
                 key={stock.symbol}
                 onClick={() => setSelectedSymbol(stock.symbol)}
-                className={`${heights[pos]} rounded-xl border bg-gradient-to-b ${colors[pos]} p-3 cursor-pointer hover:scale-105 transition-transform flex flex-col justify-between`}
+                className={`group relative overflow-hidden ${heights[pos]} rounded-2xl border ${p.border} bg-gradient-to-b ${p.grad} p-3 text-left transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg ${p.glow} ring-1 ${p.ring} hover:ring-2`}
               >
-                <div className="text-2xl">{medals[pos]}</div>
-                <div>
-                  <div className="text-base font-bold text-white">{stock.symbol}</div>
-                  <div className="text-[10px] text-gray-400 truncate">{stock.sector}</div>
-                  <div className="text-sm text-amber-300 font-bold mt-1">{stock.mentions24h} mention</div>
+                {/* Glow blob */}
+                <div className={`pointer-events-none absolute -top-10 -right-10 h-24 w-24 rounded-full opacity-30 blur-2xl bg-gradient-to-br ${p.grad}`} />
+
+                {/* Header: rank + medal */}
+                <div className="flex items-center justify-between">
+                  <div className={`text-[10px] uppercase tracking-wider font-bold ${p.accent}`}>#{rank}</div>
+                  <div className="text-3xl drop-shadow-lg">{medals[pos]}</div>
                 </div>
-              </div>
+
+                {/* Body */}
+                <div className="mt-2 space-y-1.5">
+                  <div className="text-lg font-bold text-white truncate">{stock.symbol}</div>
+                  <div className="text-[10px] text-gray-400 truncate -mt-0.5">{stock.sector || stock.name}</div>
+
+                  <div className="flex items-baseline gap-1.5 pt-1">
+                    <span className="text-xl font-extrabold text-white">{stock.mentions24h}</span>
+                    <span className="text-[10px] text-gray-500">mention</span>
+                  </div>
+
+                  <div className="flex items-center justify-between text-[11px]">
+                    <span className={`font-semibold ${changeColor}`}>
+                      {change >= 0 ? '▲' : '▼'} {Math.abs(change)}%
+                    </span>
+                    <span className="px-1.5 py-0.5 rounded-md bg-black/30 border border-white/10 font-bold text-white text-[10px]">
+                      Skor {stock.trendScore}
+                    </span>
+                  </div>
+
+                  <div className="pt-1">
+                    <SentimentBar sentiment={stock.sentiment} />
+                  </div>
+                </div>
+              </button>
             )
           })}
+        </div>
+      )}
+
+      {/* Hızlı liderlik tablosu — 3'lü kompakt özet */}
+      {data?.all?.length > 0 && (
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+          <LeaderCard
+            title="En Çok Konuşulan"
+            icon={Flame}
+            color="amber"
+            items={data.top20.slice(0, 5)}
+            metric="mentions24h"
+            suffix=""
+            onSelect={setSelectedSymbol}
+          />
+          <LeaderCard
+            title="En Pozitif"
+            icon={Smile}
+            color="green"
+            items={data.bullish.slice(0, 5)}
+            metric="sentiment.positive"
+            suffix="%"
+            onSelect={setSelectedSymbol}
+          />
+          <LeaderCard
+            title="En Negatif"
+            icon={Frown}
+            color="red"
+            items={data.bearish.slice(0, 5)}
+            metric="sentiment.negative"
+            suffix="%"
+            onSelect={setSelectedSymbol}
+          />
         </div>
       )}
 
