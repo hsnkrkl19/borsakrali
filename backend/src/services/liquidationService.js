@@ -37,6 +37,7 @@ let stats = {
 let ws = null;
 let reconnectTimer = null;
 let pruneTimer = null;
+let pingHandle = null;
 let backoff = 1000;
 const MAX_BACKOFF = 60 * 1000;
 
@@ -130,11 +131,13 @@ function connect() {
 
   // Sağlık: 3 dk inaktivite varsa ping
   ws.on('pong', () => {/* alive */});
-  const pingHandle = setInterval(() => {
+  // Reconnect sırasında eski ping interval'ı temizle, yoksa her reconnect bir zombie bırakır.
+  if (pingHandle) { clearInterval(pingHandle); pingHandle = null; }
+  pingHandle = setInterval(() => {
     if (ws && ws.readyState === WebSocket.OPEN) {
       try { ws.ping(); } catch (_) {}
     } else {
-      clearInterval(pingHandle);
+      if (pingHandle) { clearInterval(pingHandle); pingHandle = null; }
     }
   }, 60 * 1000);
 }
@@ -155,8 +158,9 @@ function start() {
 }
 
 function stop() {
-  if (reconnectTimer) clearTimeout(reconnectTimer);
-  if (pruneTimer) clearInterval(pruneTimer);
+  if (reconnectTimer) { clearTimeout(reconnectTimer); reconnectTimer = null; }
+  if (pruneTimer)     { clearInterval(pruneTimer);    pruneTimer = null; }
+  if (pingHandle)     { clearInterval(pingHandle);    pingHandle = null; }
   if (ws) {
     try { ws.removeAllListeners(); ws.terminate(); } catch (_) {}
   }

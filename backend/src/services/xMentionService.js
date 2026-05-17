@@ -732,11 +732,25 @@ function needsFetch(symbol, dateStr) {
   return (Date.now() - day.fetchedAt) > HISTORICAL_MAX_AGE_MS;
 }
 
+// Backoff + günlük cap altında kuyruk birikebilir; sınırsız büyümeyi engelle.
+const MAX_QUEUE_SIZE = 2000;
+let queueOverflowLogged = false;
+
 function enqueueIfNeeded(item, isCrypto, dateStr, priority = 0) {
   if (!needsFetch(item.symbol, dateStr)) return false;
   // Aynı job zaten kuyruktaysa skip
   for (const j of jobQueue) {
     if (j.symbol === item.symbol && j.date === dateStr) return false;
+  }
+  if (jobQueue.length >= MAX_QUEUE_SIZE) {
+    if (!queueOverflowLogged) {
+      console.warn(`[XMentions] Kuyruk sınırı doldu (${MAX_QUEUE_SIZE}) — yeni jobları reddet`);
+      queueOverflowLogged = true;
+    }
+    return false;
+  }
+  if (queueOverflowLogged && jobQueue.length < MAX_QUEUE_SIZE * 0.5) {
+    queueOverflowLogged = false; // sınır altına düştü, tekrar log'a izin ver
   }
   jobQueue.push({
     symbol: item.symbol,

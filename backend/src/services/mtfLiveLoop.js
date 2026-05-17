@@ -26,6 +26,8 @@ const BOOT_DELAY_MS = parseInt(process.env.MTF_LOOP_BOOT_DELAY_MS || '30000', 10
 
 let intervalHandle = null;
 let bootTimeout = null;
+let initialCalibTimeout = null;
+let periodicCalibInterval = null;
 let inFlight = false;     // overlap önle (yavaş cycle, sonraki tetiklemeyi atla)
 let cycleCount = 0;
 let lastSuccessAt = null;
@@ -107,7 +109,7 @@ function start() {
   //   Render free tier'da boot sırasındaki ekstra yük build timeout/OOM
   //   riskini artırır. Manuel tetikleme: POST /api/market/crypto/mtf/calibrate.
   if (process.env.MTF_CALIB_ON_BOOT === 'true') {
-    setTimeout(async () => {
+    initialCalibTimeout = setTimeout(async () => {
       try {
         logger.info('[MTFLoop] Initial calibration başlatılıyor (1h × 3 gün)...');
         const mtfBacktestService = require('./mtfBacktestService');
@@ -121,7 +123,7 @@ function start() {
 
   // 12 saatte bir geniş kalibrasyon — sadece env aktifse
   if (process.env.MTF_CALIB_PERIODIC === 'true') {
-    setInterval(async () => {
+    periodicCalibInterval = setInterval(async () => {
       try {
         logger.info('[MTFLoop] Periyodik calibration başlatılıyor (1h/4h/1d × 7 gün)...');
         const mtfBacktestService = require('./mtfBacktestService');
@@ -135,8 +137,10 @@ function start() {
 }
 
 function stop() {
-  if (bootTimeout)    { clearTimeout(bootTimeout);     bootTimeout = null; }
-  if (intervalHandle) { clearInterval(intervalHandle); intervalHandle = null; }
+  if (bootTimeout)            { clearTimeout(bootTimeout);            bootTimeout = null; }
+  if (intervalHandle)         { clearInterval(intervalHandle);        intervalHandle = null; }
+  if (initialCalibTimeout)    { clearTimeout(initialCalibTimeout);    initialCalibTimeout = null; }
+  if (periodicCalibInterval)  { clearInterval(periodicCalibInterval); periodicCalibInterval = null; }
   logger.info('[MTFLoop] Durduruldu');
 }
 
