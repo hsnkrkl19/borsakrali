@@ -50,8 +50,8 @@ const moreNavItems = [
   { path: '/kripto-degerleme', label: 'Kripto Değerleme', icon: Coins,         color: 'from-yellow-500 to-orange-500', badge: 'YENİ' },
   { path: '/gunluk-tespitler', label: 'Sinyaller',        icon: Target,        color: 'from-red-500 to-red-600' },
   { path: '/performans',       label: 'Performans',       icon: TrendingUp,    color: 'from-emerald-500 to-emerald-600' },
-  { path: '/takip-listem',     label: 'Takip Listem',     icon: Briefcase,     color: 'from-purple-500 to-purple-600' },
-  { path: '/notlarim',         label: 'Notlarım',         icon: BookOpen,      color: 'from-indigo-500 to-indigo-600' },
+  { path: '/takip-listem',     label: 'Takip Listem',     icon: Briefcase,     color: 'from-gold-400 to-gold-500' },
+  { path: '/notlarim',         label: 'Notlarım',         icon: BookOpen,      color: 'from-gold-400 to-gold-500' },
   { path: '/ekonomik-takvim',  label: 'Eko. Takvim',      icon: Calendar,      color: 'from-rose-500 to-rose-600' },
   { path: '/abonelik',         label: 'Abonelik',         icon: CreditCard,    color: 'from-amber-500 to-orange-600' },
   { path: '/ayarlar',          label: 'Ayarlar',          icon: Settings,      color: 'from-slate-500 to-slate-600' },
@@ -170,20 +170,20 @@ export default function MobileNav() {
               <div className="mx-4 mt-4 p-4 bg-gradient-to-r from-gold-500/15 to-amber-500/10 border border-gold-500/30 rounded-2xl">
                 <p className="font-semibold text-white text-sm">Borsa Krali Premium</p>
                 <p className="text-xs text-gray-300 mt-1">
-                  Sinyaller, AI skor, takip listesi ve daha fazlasi icin ucretsiz hesap acin.
+                  Sinyaller, AI skor, takip listesi ve daha fazlası için ücretsiz hesap aç.
                 </p>
                 <div className="flex gap-2 mt-3">
                   <button
                     onClick={() => handleNavClick('/register')}
                     className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-gold-500 to-gold-600 text-dark-950 text-sm font-semibold"
                   >
-                    Ucretsiz Kayit
+                    Ücretsiz Kayıt
                   </button>
                   <button
                     onClick={() => handleNavClick('/login')}
                     className="flex-1 py-2.5 rounded-xl border border-white/10 bg-dark-800 text-gray-200 text-sm font-medium"
                   >
-                    Giris Yap
+                    Giriş Yap
                   </button>
                 </div>
               </div>

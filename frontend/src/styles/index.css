@@ -779,9 +779,8 @@
 [data-theme="light"] .text-red-300    { color: #b91c1c !important; }
 [data-theme="light"] .text-red-400    { color: #b91c1c !important; }
 
-[data-theme="light"] .text-purple-200 { color: #6d28d9 !important; }
-[data-theme="light"] .text-purple-300 { color: #6d28d9 !important; }
-
+/* Parça 1: purple/pink Tailwind sınıfları renk paleti sadeleştirmesiyle kaldırıldı.
+   Cyan/emerald light overrides — emerald hâlâ jade tonlarına yakın bazı yerlerde kullanılıyor. */
 [data-theme="light"] .text-cyan-200   { color: #0e7490 !important; }
 [data-theme="light"] .text-cyan-300   { color: #0e7490 !important; }
 [data-theme="light"] .text-cyan-400   { color: #0e7490 !important; }
@@ -789,9 +788,6 @@
 [data-theme="light"] .text-emerald-200 { color: #047857 !important; }
 [data-theme="light"] .text-emerald-300 { color: #047857 !important; }
 [data-theme="light"] .text-emerald-400 { color: #047857 !important; }
-
-[data-theme="light"] .text-pink-300   { color: #be185d !important; }
-[data-theme="light"] .text-pink-400   { color: #be185d !important; }
 
 [data-theme="light"] .text-yellow-200 { color: #a16207 !important; }
 [data-theme="light"] .text-yellow-300 { color: #a16207 !important; }

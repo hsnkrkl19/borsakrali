@@ -1,30 +1,18 @@
 import { NavLink, useNavigate } from 'react-router-dom'
 import {
-  LayoutDashboard,
-  Target,
-  Briefcase,
-  TrendingUp,
-  Building2,
+  Home,
+  Sparkles,
   Activity,
-  Search,
-  Coins,
+  Bot,
   BookOpen,
-  Settings,
+  User,
+  BellRing,
   ChevronLeft,
   ChevronRight,
-  Crosshair, // v5: Heatmap → Sinyaller migration
-  BellRing,
-  Gem,
-  CreditCard,
-  Calendar,
-  Sparkles,
   Crown,
   LogOut,
   KeyRound,
-  Calculator,
-  Map as MapIcon,
-  BarChart3,
-  Bot,
+  Settings,
 } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { useAuthStore } from '../store/authStore'
@@ -64,39 +52,19 @@ export default function Sidebar({ isOpen, onToggle }) {
     navigate(path)
   }
 
-  // === SADELEŞTİRİLMİŞ NAVİGASYON ===
-  // 23 sekme → 11 sekme. Tek işlevli sayfalar tek çatı altında birleşti.
-  // isPublic: true → login olmayan kullanıcılar da görür (AdSense uyumu)
+  // === PARÇA 1: 21 SEKME → 6 SEKME ===
+  // Tek bir liste, grup başlığı yok. Eski sayfalar wrapper'lar altında
+  // toplandı (App.jsx REDIRECT_MAP). Admin için +1 link.
+  // data-tour: Parça 4 OnboardingTour buraya spotlight çakıyor.
   const allNavItems = [
-    // Ana
-    { path: '/',                  label: 'Piyasa Kokpiti',   icon: LayoutDashboard, group: 'core', isPublic: true },
-    { path: '/site-haritasi',     label: 'Site Haritası',    icon: MapIcon,         group: 'core', highlight: true, isPublic: true },
-    { path: '/sinyaller',         label: 'Sinyaller',        icon: Crosshair,       group: 'core', highlight: true, isPublic: true, badge: 'YENİ' },
-    { path: '/egitim',            label: 'Eğitim',           icon: BookOpen,        group: 'core', isPublic: true, badge: 'YENİ' },
-    { path: '/kripto',            label: 'Kripto',           icon: Coins,           group: 'core', highlight: true, badge: 'YENİ' },
-    { path: '/pro-analiz',        label: 'Pro Analiz',       icon: Gem,             group: 'core', highlight: true, badge: 'PRO' },
-
-    // Analiz
-    { path: '/teknik-analiz-ai',  label: 'Teknik Analiz',    icon: Activity,        group: 'analiz' },
-    { path: '/sirket-analizi',    label: 'Şirket Analizi',   icon: Building2,       group: 'analiz' },
-    { path: '/dcf-degerleme',     label: 'DCF Değerleme',    icon: Calculator,      group: 'analiz', highlight: true, badge: 'YENİ' },
-    { path: '/kripto-degerleme',  label: 'Kripto Değerleme', icon: Coins,           group: 'analiz', highlight: true, badge: 'YENİ' },
-    { path: '/tarayicilar',       label: 'Tarayıcılar',      icon: Search,          group: 'analiz' },
-    { path: '/gunluk-tespitler',  label: 'Günlük Sinyaller', icon: Target,          group: 'analiz' },
-    { path: '/trading-bot',       label: 'Trading Bot',      icon: Bot,             group: 'analiz', highlight: true, badge: 'YENİ' },
-    { path: '/gun-sonu-performans', label: 'Gün Sonu Performans', icon: BarChart3,  group: 'analiz', highlight: true, badge: 'YENİ' },
-    { path: '/performans',        label: 'Performans',       icon: TrendingUp,      group: 'analiz' },
-
-    // Kişisel
-    { path: '/takip-listem',      label: 'Takip Listem',     icon: Briefcase,       group: 'kisisel' },
-    { path: '/notlarim',          label: 'Notlarım',         icon: BookOpen,        group: 'kisisel' },
-    { path: '/ekonomik-takvim',   label: 'Ekonomik Takvim',  icon: Calendar,        group: 'kisisel', isPublic: true },
-
-    // Hesap
-    { path: '/abonelik',          label: 'Abonelik',         icon: CreditCard,      group: 'hesap', isPublic: true },
-    { path: '/ayarlar',           label: 'Ayarlar',          icon: Settings,        group: 'hesap' },
+    { path: '/',          label: 'Ana Sayfa',       icon: Home,     isPublic: true                            },
+    { path: '/firsatlar', label: 'Fırsatlar',       icon: Sparkles,                  tour: 'nav-firsatlar' },
+    { path: '/sinyaller', label: 'Canlı Sinyaller', icon: Activity, isPublic: true,  tour: 'nav-sinyaller' },
+    { path: '/botlar',    label: 'Botlar',          icon: Bot,                       tour: 'nav-botlar'    },
+    { path: '/ogren',     label: 'Öğren',           icon: BookOpen, isPublic: true,  tour: 'nav-ogren'     },
+    { path: '/hesabim',   label: 'Hesabım',         icon: User                                              },
     ...(user?.role === 'admin'
-      ? [{ path: '/admin-bildirimler', label: 'Admin Bildirim', icon: BellRing, highlight: true, badge: 'ADMIN', group: 'hesap' }]
+      ? [{ path: '/admin-bildirimler', label: 'Admin Bildirim', icon: BellRing, highlight: true, badge: 'ADMIN' }]
       : []),
   ]
 
@@ -104,20 +72,6 @@ export default function Sidebar({ isOpen, onToggle }) {
   const navItems = isAuthenticated
     ? allNavItems
     : allNavItems.filter((it) => it.isPublic)
-
-  const groupLabels = {
-    core:    'Hızlı Erişim',
-    analiz:  'Analiz Araçları',
-    kisisel: 'Kişisel',
-    hesap:   'Hesap',
-  }
-
-  // Grouped order
-  const groupedItems = ['core', 'analiz', 'kisisel', 'hesap'].map(g => ({
-    group: g,
-    label: groupLabels[g],
-    items: navItems.filter(i => i.group === g),
-  }))
 
   return (
     <aside
@@ -170,88 +124,67 @@ export default function Sidebar({ isOpen, onToggle }) {
         </button>
       </div>
 
-      {/* Nav Items */}
+      {/* Nav Items — düz liste, grup başlığı yok */}
       <nav className="flex-1 py-3 overflow-y-auto custom-scrollbar min-h-0">
-        <ul className="space-y-3 px-2">
-          {groupedItems.map((g, gIdx) => (
-            <li key={g.group} className="space-y-0.5">
-              {isOpen && (
-                <div className="px-3 pt-1 pb-1.5 text-[10px] uppercase tracking-[0.14em] font-semibold"
-                  style={{ color: 'var(--text-faint)' }}
+        <ul className="space-y-0.5 px-2">
+          {navItems.map((item) => {
+            const Icon = item.icon
+            return (
+              <li key={item.path}>
+                <NavLink
+                  to={item.path}
+                  end={item.path === '/'}
+                  data-tour={item.tour}
+                  className={({ isActive }) =>
+                    `sb-link group relative flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200
+                    ${isActive
+                      ? 'sb-link-active font-semibold'
+                      : item.highlight
+                        ? 'sb-link-highlight'
+                        : 'sb-link-default'
+                    }`
+                  }
                 >
-                  {g.label}
-                </div>
-              )}
-              {!isOpen && gIdx > 0 && <div className="mx-3 my-1" style={{ borderTop: '1px solid var(--border-main)' }} />}
-              <ul className="space-y-0.5">
-                {g.items.map((item) => {
-                  const Icon = item.icon
-                  return (
-                    <li key={item.path}>
-                      <NavLink
-                        to={item.path}
-                        end={item.path === '/'}
-                        className={({ isActive }) =>
-                          `sb-link group relative flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200
-                          ${isActive
-                            ? 'sb-link-active font-semibold'
-                            : item.highlight
-                              ? 'sb-link-highlight'
-                              : 'sb-link-default'
-                          }`
-                        }
-                      >
-                        {({ isActive }) => (
-                          <>
-                            {/* Left accent bar when active */}
-                            {isActive && (
-                              <span className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-7 bg-white/60 rounded-r-full" />
-                            )}
+                  {({ isActive }) => (
+                    <>
+                      {isActive && (
+                        <span className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-7 bg-white/60 rounded-r-full" />
+                      )}
 
-                            <Icon className="w-[18px] h-[18px] flex-shrink-0 transition-transform duration-200 group-hover:scale-110" />
+                      <Icon className="w-[18px] h-[18px] flex-shrink-0 transition-transform duration-200 group-hover:scale-110" />
 
-                            {isOpen && (
-                              <span className={`text-[13px] truncate flex-1 ${isActive ? 'font-semibold' : 'font-medium'}`}>
-                                {item.label}
-                              </span>
-                            )}
+                      {isOpen && (
+                        <span className={`text-[13px] truncate flex-1 ${isActive ? 'font-semibold' : 'font-medium'}`}>
+                          {item.label}
+                        </span>
+                      )}
 
-                            {isOpen && item.badge && (
-                              <span
-                                className={`px-1.5 py-0.5 text-[9px] font-bold rounded-md tracking-wider
-                                  ${isActive
-                                    ? 'bg-slate-950/20 text-slate-950'
-                                    : item.badge === 'ADMIN'
-                                      ? 'bg-red-500/20 text-red-400'
-                                      : 'bg-amber-500/20 text-amber-400 badge-new'
-                                  }`}
-                              >
-                                {item.badge}
-                              </span>
-                            )}
+                      {isOpen && item.badge && (
+                        <span
+                          className={`px-1.5 py-0.5 text-[9px] font-bold rounded-md tracking-wider
+                            ${isActive
+                              ? 'bg-slate-950/20 text-slate-950'
+                              : item.badge === 'ADMIN'
+                                ? 'bg-red-500/20 text-red-400'
+                                : 'bg-amber-500/20 text-amber-400 badge-new'
+                            }`}
+                        >
+                          {item.badge}
+                        </span>
+                      )}
 
-                            {isOpen && item.highlight && !item.badge && (
-                              <span className="flex items-center gap-1 px-1.5 py-0.5 text-[9px] font-bold rounded-md tracking-wider bg-emerald-500/20 text-emerald-400">
-                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                                LIVE
-                              </span>
-                            )}
-
-                            {/* Collapsed-mode tooltip on hover */}
-                            {!isOpen && (
-                              <span className="sb-tooltip invisible group-hover:visible absolute left-full ml-3 px-3 py-1.5 text-xs font-medium rounded-lg whitespace-nowrap z-50 pointer-events-none">
-                                {item.label}
-                              </span>
-                            )}
-                          </>
-                        )}
-                      </NavLink>
-                    </li>
-                  )
-                })}
-              </ul>
-            </li>
-          ))}
+                      {/* Collapsed-mode tooltip on hover */}
+                      {!isOpen && (
+                        <span className="sb-tooltip invisible group-hover:visible absolute left-full ml-3 px-3 py-1.5 text-xs font-medium rounded-lg whitespace-nowrap z-50 pointer-events-none">
+                          {item.label}
+                        </span>
+                      )}
+                    </>
+                  )}
+                </NavLink>
+              </li>
+            )
+          })}
         </ul>
       </nav>
 
@@ -267,9 +200,9 @@ export default function Sidebar({ isOpen, onToggle }) {
               type="button"
               onClick={() => navigate('/register')}
               className={`relative overflow-hidden rounded-xl ${isOpen ? 'w-full px-3 py-2.5' : 'w-12 h-12 flex items-center justify-center'} bg-gradient-to-r from-gold-500 to-gold-600 text-dark-950 font-semibold text-[13px] transition hover:from-gold-400 hover:to-gold-500`}
-              title="Ucretsiz Kayit Ol"
+              title="Ücretsiz Kayıt Ol"
             >
-              {isOpen ? 'Ucretsiz Kayit Ol' : <Crown className="w-5 h-5" />}
+              {isOpen ? 'Ücretsiz Kayıt Ol' : <Crown className="w-5 h-5" />}
             </button>
             {isOpen && (
               <button
@@ -278,7 +211,7 @@ export default function Sidebar({ isOpen, onToggle }) {
                 className="w-full px-3 py-2.5 rounded-xl border text-[13px] font-medium transition"
                 style={{ borderColor: 'var(--border-main)', color: 'var(--text-secondary)' }}
               >
-                Giris Yap
+                Giriş Yap
               </button>
             )}
           </div>

@@ -8,77 +8,15 @@ import { useAnnouncementsStore, inferCategory, NOTIF_CATEGORIES } from '../store
 import { formatRelativeTime } from '../lib/strategyMeta'
 import BrandMark from './BrandMark'
 
-const API_BASE = ''
-
-const CRYPTO_LIST = [
-  { symbol: 'BTC', name: 'Bitcoin' }, { symbol: 'ETH', name: 'Ethereum' },
-  { symbol: 'BNB', name: 'BNB' }, { symbol: 'SOL', name: 'Solana' },
-  { symbol: 'XRP', name: 'XRP' }, { symbol: 'ADA', name: 'Cardano' },
-  { symbol: 'AVAX', name: 'Avalanche' }, { symbol: 'DOGE', name: 'Dogecoin' },
-  { symbol: 'DOT', name: 'Polkadot' }, { symbol: 'LTC', name: 'Litecoin' },
-  { symbol: 'LINK', name: 'Chainlink' }, { symbol: 'SHIB', name: 'Shiba Inu' },
-  { symbol: 'BCH', name: 'Bitcoin Cash' }, { symbol: 'NEAR', name: 'NEAR Protocol' },
-  { symbol: 'UNI', name: 'Uniswap' }, { symbol: 'MATIC', name: 'Polygon' },
-  { symbol: 'TRX', name: 'TRON' }, { symbol: 'TON', name: 'Toncoin' },
-  { symbol: 'APT', name: 'Aptos' }, { symbol: 'ICP', name: 'Internet Computer' },
-  { symbol: 'FIL', name: 'Filecoin' }, { symbol: 'ATOM', name: 'Cosmos' },
-  { symbol: 'OP', name: 'Optimism' }, { symbol: 'ARB', name: 'Arbitrum' },
-  { symbol: 'INJ', name: 'Injective' }, { symbol: 'SUI', name: 'Sui' },
-  { symbol: 'SEI', name: 'Sei' }, { symbol: 'TIA', name: 'Celestia' },
-  { symbol: 'PEPE', name: 'Pepe' }, { symbol: 'WLD', name: 'Worldcoin' },
-  { symbol: 'AAVE', name: 'Aave' }, { symbol: 'MKR', name: 'Maker' },
-  { symbol: 'GRT', name: 'The Graph' }, { symbol: 'ALGO', name: 'Algorand' },
-  { symbol: 'XLM', name: 'Stellar' }, { symbol: 'SAND', name: 'The Sandbox' },
-]
-
-/* Compact index cell — Bloomberg-style data band */
-function IndexCell({ label, value, change, status, pulse }) {
-  const up = (change ?? 0) >= 0
-  const fmtVal = value != null
-    ? Number(value).toLocaleString('tr-TR', { maximumFractionDigits: 2 })
-    : '—'
-  return (
-    <div className="flex items-center gap-2 px-3 py-1.5 group">
-      <div className="flex flex-col items-start leading-none">
-        <span className="text-[9px] uppercase tracking-[0.16em] font-bold" style={{ color: 'var(--gold-400)' }}>{label}</span>
-        {status && (
-          <span className="text-[9px] font-bold flex items-center gap-1 mt-0.5"
-            style={{ color: pulse ? 'var(--jade)' : 'var(--text-faint)' }}
-          >
-            <span className={`status-dot ${pulse ? 'status-dot-live' : 'status-dot-off'}`} />
-            {status}
-          </span>
-        )}
-      </div>
-      <div className="flex items-center gap-1.5">
-        <span className="font-bold text-[13px] num-tabular tracking-tight" style={{ color: 'var(--text-primary)' }}>{fmtVal}</span>
-        {change != null && (
-          <span className="text-[10.5px] font-bold num-tabular px-1.5 py-0.5 rounded-md leading-none"
-            style={{
-              background: up ? 'rgba(0, 201, 138, 0.12)' : 'rgba(255, 59, 70, 0.12)',
-              color: up ? 'var(--jade)' : 'var(--ember)',
-            }}
-          >
-            {up ? '▲' : '▼'} {Math.abs(change).toFixed(2)}%
-          </span>
-        )}
-      </div>
-    </div>
-  )
-}
+// Parça 1: Header sadeleştirildi — logo (sidebar'da zaten var) + arama + bildirim + profil.
+// Data band (BIST100, BIST30, USD/TRY, EUR/TRY, GRAM saat) ve ticker kaldırıldı;
+// BIST100 değişimi Dashboard özet satırında zaten var. ThemeToggle Ayarlar'da kalır.
 
 export default function Header() {
   const { user, logout } = useAuthStore()
   const navigate = useNavigate()
   const { getRemaining, isPremium } = useUsageStore()
   const remaining = getRemaining()
-  const [bist100, setBist100] = useState(null)
-  const [bist30, setBist30] = useState(null)
-  const [usdtry, setUsdtry] = useState(null)
-  const [eurtry, setEurtry] = useState(null)
-  const [gram, setGram] = useState(null)
-  const [tickerData, setTickerData] = useState([])
-  const [time, setTime] = useState(new Date())
   const [userMenuOpen, setUserMenuOpen] = useState(false)
   const [notifOpen, setNotifOpen] = useState(false)
   const [notifTab, setNotifTab] = useState('announcements') // 'announcements' | 'signals'
@@ -140,44 +78,6 @@ export default function Header() {
   const openCmdK = () => window.dispatchEvent(new CustomEvent('bk-open-cmdk'))
 
   useEffect(() => {
-    const fetchMarketData = async () => {
-      try {
-        const [resMacro, resTicker] = await Promise.all([
-          apiClient.get(`${API_BASE}/market/macro`),
-          apiClient.get(`${API_BASE}/market/stocks?limit=20&sort=volume`)
-        ])
-        const macro = resMacro.data || {}
-        if (macro.bist100) {
-          setBist100({ value: macro.bist100.price, changePercent: macro.bist100.changePercent })
-        }
-        if (macro.bist30) {
-          setBist30({ value: macro.bist30.price, changePercent: macro.bist30.changePercent })
-        }
-        if (macro.usdtry) {
-          setUsdtry({ value: macro.usdtry.price, changePercent: macro.usdtry.changePercent })
-        }
-        if (macro.eurtry) {
-          setEurtry({ value: macro.eurtry.price, changePercent: macro.eurtry.changePercent })
-        }
-        if (macro.gold) {
-          setGram({ value: macro.gold.price, changePercent: macro.gold.changePercent })
-        }
-        setTickerData(resTicker.data.stocks || [])
-      } catch (error) {
-        console.error('Piyasa veri hatası:', error)
-      }
-    }
-    fetchMarketData()
-    const interval = setInterval(fetchMarketData, 30000)
-    return () => clearInterval(interval)
-  }, [])
-
-  useEffect(() => {
-    const t = setInterval(() => setTime(new Date()), 1000)
-    return () => clearInterval(t)
-  }, [])
-
-  useEffect(() => {
     const onKey = (e) => {
       if (e.key === '/' && document.activeElement?.tagName !== 'INPUT' && document.activeElement?.tagName !== 'TEXTAREA') {
         e.preventDefault()
@@ -211,21 +111,6 @@ export default function Header() {
     else navigate(`/teknik-analiz-ai?symbol=${symbol}`)
   }
 
-  const [isMarketOpen, setIsMarketOpen] = useState(false)
-  useEffect(() => {
-    const check = () => {
-      const now = new Date()
-      const day = now.getDay()
-      const hour = now.getHours()
-      setIsMarketOpen(day >= 1 && day <= 5 && hour >= 9 && hour < 18)
-    }
-    check()
-    const i = setInterval(check, 60000)
-    return () => clearInterval(i)
-  }, [])
-
-  const fmtTime = time.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
-
   return (
     <header
       className="relative z-30 sticky top-0"
@@ -240,72 +125,10 @@ export default function Header() {
         style={{ background: 'linear-gradient(90deg, transparent, rgba(212, 175, 55, 0.35), transparent)' }}
       />
 
-      {/* ─── ROW 1 — DATA BAND (Bloomberg style) ─────────────────────────── */}
-      <div className="data-band hidden lg:flex items-center justify-between px-4 lg:px-6 py-1.5 text-xs">
-        <div className="flex items-center divide-x divide-amber-500/10">
-          {bist100 && (
-            <IndexCell
-              label="BIST 100"
-              value={bist100.value}
-              change={bist100.changePercent}
-              status={isMarketOpen ? 'CANLI' : 'KAPALI'}
-              pulse={isMarketOpen}
-            />
-          )}
-          {bist30 && <IndexCell label="BIST 30" value={bist30.value} change={bist30.changePercent} />}
-          {usdtry && <IndexCell label="USD/TRY" value={usdtry.value} change={usdtry.changePercent} />}
-          {eurtry && <IndexCell label="EUR/TRY" value={eurtry.value} change={eurtry.changePercent} />}
-          {gram && <IndexCell label="GRAM" value={gram.value} change={gram.changePercent} />}
-        </div>
-
-        <div className="flex items-center gap-3 text-[10px]">
-          <span className="flex items-center gap-1.5 text-amber-400/70 font-mono uppercase tracking-wider">
-            <span className="status-dot status-dot-gold" />
-            {fmtTime}
-          </span>
-          <span className="text-slate-500 hidden xl:inline">İstanbul · BIST</span>
-        </div>
-      </div>
-
-      {/* ─── ROW 2 — MAIN HEADER ─────────────────────────────────────────── */}
+      {/* ─── TEK SATIR — MAIN HEADER ───────────────────────────────────── */}
       <div className="flex h-14 lg:h-16 w-full min-w-0 items-center justify-between gap-2 px-4 lg:px-6">
-        {/* Left: Ticker (only on xl+) */}
-        <div className="hidden xl:flex relative min-w-0 flex-1 max-w-2xl items-center h-9 overflow-hidden rounded-xl"
-          style={{
-            background: 'rgba(var(--bg-input-rgb), 0.5)',
-            border: '1px solid var(--border-main)',
-          }}
-        >
-          <div className="absolute left-0 top-0 bottom-0 w-10 z-10 pointer-events-none"
-            style={{ background: 'linear-gradient(90deg, var(--bg-card), transparent)' }}
-          />
-          <div className="absolute right-0 top-0 bottom-0 w-10 z-10 pointer-events-none"
-            style={{ background: 'linear-gradient(-90deg, var(--bg-card), transparent)' }}
-          />
-
-          <div className="flex animate-marquee whitespace-nowrap">
-            {tickerData.length > 0 ? [...tickerData, ...tickerData].map((item, idx) => (
-              <button
-                key={idx}
-                onClick={() => handleStockClick(item.symbol)}
-                className="flex items-center gap-1.5 px-3.5 border-r border-amber-500/8 hover:bg-amber-500/5 transition-colors"
-              >
-                <span className="font-bold text-white text-[11.5px] tracking-tight">{item.symbol}</span>
-                <span className={`font-mono text-[11.5px] num-tabular ${item.changePercent >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                  {item.price ? item.price.toFixed(2) : '-'}
-                </span>
-                <span className={`text-[10px] font-bold num-tabular ${item.changePercent >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                  {item.changePercent != null ? `${item.changePercent >= 0 ? '+' : ''}${item.changePercent.toFixed(2)}%` : ''}
-                </span>
-              </button>
-            )) : (
-              <div className="flex items-center px-4 text-slate-400 text-xs">
-                <Activity className="w-3 h-3 mr-1.5 animate-pulse text-amber-400" />
-                Piyasa verileri yükleniyor…
-              </div>
-            )}
-          </div>
-        </div>
+        {/* Sol boşluk — Sidebar zaten logo'yu taşıyor */}
+        <div className="hidden lg:block flex-1" />
 
         {/* Search trigger — opens command palette */}
         <button

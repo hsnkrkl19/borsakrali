@@ -1,23 +1,20 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef } from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
 import {
-  LayoutDashboard, Crosshair, BookOpen, Coins, Briefcase,
+  Home, Sparkles, Activity, Bot, BookOpen,
 } from 'lucide-react'
 
 /**
  * MobileBottomNav — yalnızca mobile'da görünen alt sticky nav.
- * 5 ana yol: Ana / Sinyaller / Eğitim / Kripto / Takip Listem
- *
- * Aktif tab: gold gradient ikon + alt çubuk.
- * Safe-area aware (iOS notch / Android nav bar).
- * Scroll'da otomatik gizleniyor (aşağı kaydırınca) — yer kaplamasın.
+ * Parça 1: 5 ana yol — Sidebar ile aynı dilde: Ana / Fırsatlar / Sinyaller / Botlar / Öğren.
+ * Hesabım sağ üst profil avatarı (Header) üzerinden açılır.
  */
 const NAV_ITEMS = [
-  { to: '/',              label: 'Ana',       icon: LayoutDashboard },
-  { to: '/sinyaller',     label: 'Sinyaller', icon: Crosshair       },
-  { to: '/egitim',        label: 'Eğitim',    icon: BookOpen        },
-  { to: '/kripto',        label: 'Kripto',    icon: Coins           },
-  { to: '/takip-listem',  label: 'Takip',     icon: Briefcase       },
+  { to: '/',          label: 'Ana',       icon: Home                              },
+  { to: '/firsatlar', label: 'Fırsatlar', icon: Sparkles, tour: 'nav-firsatlar' },
+  { to: '/sinyaller', label: 'Sinyaller', icon: Activity, tour: 'nav-sinyaller' },
+  { to: '/botlar',    label: 'Botlar',    icon: Bot,      tour: 'nav-botlar'    },
+  { to: '/ogren',     label: 'Öğren',     icon: BookOpen, tour: 'nav-ogren'     },
 ]
 
 export default function MobileBottomNav() {
@@ -90,6 +87,7 @@ export default function MobileBottomNav() {
               key={item.to}
               to={item.to}
               end={item.to === '/'}
+              data-tour={item.tour}
               className="group relative flex flex-col items-center justify-center gap-0.5 py-2 rounded-xl transition-all"
               style={{
                 color: active ? 'var(--gold-300)' : '#94a3b8',

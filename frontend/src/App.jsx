@@ -5,8 +5,9 @@ import UpdatePopup from './components/UpdatePopup'
 import PushNotificationManager from './components/PushNotificationManager'
 import ErrorBoundary from './components/ErrorBoundary'
 import BackButtonHandler from './components/BackButtonHandler'
-import ThemeToggle from './components/ThemeToggle'
 import CommandPalette from './components/CommandPalette'
+import OnboardingTour from './components/OnboardingTour'
+import ToastHost from './components/ToastHost'
 import AnnouncementsManager from './components/AnnouncementsManager'
 import AdminBroadcastFAB from './components/AdminBroadcastFAB'
 import CookieConsent from './components/CookieConsent'
@@ -58,6 +59,12 @@ import GunSonuPerformans from './pages/GunSonuPerformans' // YENİ: günün siny
 import TradingBot from './pages/TradingBot' // YENİ v5.1: Freqtrade port + sınama katmanı
 import Yenilikler from './pages/Yenilikler' // YENİ v5.2: Hoşgeldin / yenilikler ekranı (tekrar göster)
 
+// === PARÇA 1 WRAPPER'LARI (21→6 sekme sadeleştirmesi) ===
+import Firsatlar from './pages/Firsatlar' // Tarayıcılar + Günlük Sinyaller
+import Botlar    from './pages/Botlar'    // Trading Bot + Paper Trading
+import Ogren     from './pages/Ogren'     // Eğitim alias
+import Hesabim   from './pages/Hesabim'   // Ayarlar + Takip + Notlar + Abonelik
+
 import { useAuthStore } from './store/authStore'
 import { fetchCurrentUser } from './services/auth'
 import { applyTheme, getStoredTheme } from './utils/theme'
@@ -91,6 +98,21 @@ const REDIRECT_MAP = [
   // Performans grubu
   { from: '/algoritma-performans',     to: '/performans?tab=algoritma' },
   { from: '/inceleme-kutuphanesi',     to: '/performans?tab=kutuphane' },
+
+  // === Parça 1: 21→6 sekme — eski URL'ler yeni wrapper'lara yönlenir ===
+  // Backward compat: AdSense ve eski yer imleri bozulmasın diye eski yollar
+  // hâlâ erişilebilir kalır; sadece kullanıcıyı yeni URL'e ulaştırır.
+  // Not: /teknik-analiz-ai bilerek redirect edilmedi — Sinyaller sayfası
+  // henüz ?tab=ai görünümünü içermiyor (Parça 2 işi). /abonelik public
+  // kalmaya devam ediyor (paywall öncesi fiyat ekranı).
+  { from: '/tarayicilar',              to: '/firsatlar?tab=genel'        },
+  { from: '/gunluk-tespitler',         to: '/firsatlar?tab=gunluk'       },
+  { from: '/trading-bot',              to: '/botlar?tab=trading'         },
+  { from: '/paper-trading',            to: '/botlar?tab=paper'           },
+  { from: '/egitim',                   to: '/ogren'                      },
+  { from: '/ayarlar',                  to: '/hesabim?tab=ayarlar'        },
+  { from: '/takip-listem',             to: '/hesabim?tab=takip'          },
+  { from: '/notlarim',                 to: '/hesabim?tab=notlar'         },
 ]
 
 function App() {
@@ -137,12 +159,13 @@ function App() {
       <BackButtonHandler />
       <PushNotificationManager />
       <ThemeRipple />
-      <ThemeToggle variant="floating" />
       <MobileBottomNav />
       {isAuthenticated && <CommandPalette />}
       {isAuthenticated && <AnnouncementsManager />}
       {isAuthenticated && <AdminBroadcastFAB />}
       {isAuthenticated && <UpdatePopup />}
+      <OnboardingTour />
+      <ToastHost />
       <CookieConsent />
       <Routes>
         <Route path="/login" element={<Login />} />
@@ -170,15 +193,16 @@ function App() {
                 <Route path="/" element={<Dashboard />} />
                 {/* Sinyaller — Komuta merkezi (BIST + Kripto özet) */}
                 <Route path="/sinyaller" element={<Sinyaller />} />
-                {/* Eski heatmap URL → yeni sinyaller sayfasına yönlendir */}
-                <Route path="/canli-heatmap" element={<Navigate to="/sinyaller" replace />} />
+                {/* Eski heatmap URL → yeni sinyaller sayfasına (heatmap alt sekme) */}
+                <Route path="/canli-heatmap" element={<Navigate to="/sinyaller?tab=heatmap" replace />} />
                 <Route path="/ekonomik-takvim" element={<EkonomikTakvim />} />
                 <Route path="/site-haritasi" element={<SiteHaritasi />} />
                 <Route path="/endeks/:symbol" element={<EndeksDetay />} />
                 <Route path="/yenilikler" element={<Yenilikler />} />
 
                 {/* === EGITIM / BLOG (public, AdSense icin kritik icerik) === */}
-                <Route path="/egitim" element={<Egitim />} />
+                {/* Parça 1: /egitim eski URL'i REDIRECT_MAP üzerinden /ogren'e gider; alt sayfalar burada kalır. */}
+                <Route path="/ogren" element={<Ogren />} />
                 <Route path="/egitim/teknik-analiz-giris" element={<TeknikAnalizGiris />} />
                 <Route path="/egitim/bist100-rehberi" element={<Bist100Rehberi />} />
                 <Route path="/egitim/temel-gostergeler" element={<TemelGostergeler />} />
@@ -193,18 +217,17 @@ function App() {
                 <Route path="/sirket-analizi" element={<RequireAuth><SirketAnalizi /></RequireAuth>} />
                 <Route path="/dcf-degerleme" element={<RequireAuth><DCFDegerleme /></RequireAuth>} />
                 <Route path="/kripto-degerleme" element={<RequireAuth><KriptoDegerleme /></RequireAuth>} />
-                <Route path="/tarayicilar" element={<RequireAuth><Tarayicilar /></RequireAuth>} />
-                <Route path="/gunluk-tespitler" element={<RequireAuth><GunlukTespitler /></RequireAuth>} />
                 <Route path="/performans" element={<RequireAuth><Performans /></RequireAuth>} />
                 <Route path="/gun-sonu-performans" element={<RequireAuth><GunSonuPerformans /></RequireAuth>} />
-                <Route path="/takip-listem" element={<RequireAuth><TakipListem /></RequireAuth>} />
-                <Route path="/notlarim" element={<RequireAuth><Notlarim /></RequireAuth>} />
-                <Route path="/trading-bot" element={<RequireAuth><TradingBot /></RequireAuth>} />
+
+                {/* === PARÇA 1 WRAPPER'LARI — sadeleştirilmiş üst sekmeler === */}
+                <Route path="/firsatlar" element={<RequireAuth><Firsatlar /></RequireAuth>} />
+                <Route path="/botlar"    element={<RequireAuth><Botlar    /></RequireAuth>} />
+                <Route path="/hesabim"   element={<RequireAuth><Hesabim   /></RequireAuth>} />
 
                 {/* === HESAP === */}
                 <Route path="/abonelik" element={<Abonelik />} />
                 <Route path="/odeme" element={<RequireAuth><Odeme /></RequireAuth>} />
-                <Route path="/ayarlar" element={<RequireAuth><Ayarlar /></RequireAuth>} />
                 <Route path="/sifre-degistir" element={<RequireAuth><ChangePassword /></RequireAuth>} />
                 <Route path="/istek-paneli" element={<RequireAuth><IstekPaneli /></RequireAuth>} />
                 <Route path="/bildirimler" element={<RequireAuth><Bildirimler /></RequireAuth>} />

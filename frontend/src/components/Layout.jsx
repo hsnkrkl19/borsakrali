@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import Sidebar from './Sidebar'
 import Header from './Header'
-import MobileNav from './MobileNav'
+// Parça 1: MobileNav (eski "Daha" overlay'li alt menü) kaldırıldı — yerine
+// App.jsx içindeki yeni MobileBottomNav 5 sekmesi geçti.
 import BrandMark from './BrandMark'
 import AdSlot from './AdSlot'
 
@@ -185,7 +186,6 @@ export default function Layout({ children }) {
         </div>
       )}
 
-      {isMobile && <MobileNav />}
     </div>
   )
 }
