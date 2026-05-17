@@ -52,12 +52,22 @@ function writeStore(data) {
 function parseServiceAccount() {
   const inlineJson = safeTrim(process.env.FIREBASE_SERVICE_ACCOUNT_JSON, 50000);
   if (inlineJson) {
-    return JSON.parse(inlineJson);
+    try {
+      return JSON.parse(inlineJson);
+    } catch (err) {
+      console.error('[PUSH] FIREBASE_SERVICE_ACCOUNT_JSON parse hatasi:', err.message);
+      return null;
+    }
   }
 
   const base64Value = safeTrim(process.env.FIREBASE_SERVICE_ACCOUNT_BASE64, 50000);
   if (base64Value) {
-    return JSON.parse(Buffer.from(base64Value, 'base64').toString('utf8'));
+    try {
+      return JSON.parse(Buffer.from(base64Value, 'base64').toString('utf8'));
+    } catch (err) {
+      console.error('[PUSH] FIREBASE_SERVICE_ACCOUNT_BASE64 parse hatasi:', err.message);
+      return null;
+    }
   }
 
   return null;

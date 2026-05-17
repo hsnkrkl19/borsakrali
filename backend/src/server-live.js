@@ -85,6 +85,13 @@ app.use(helmet({
   // iletişimi keser → popup açılır ama callback gelmez (boş ekran).
   // 'same-origin-allow-popups' ile parent → popup haberleşmesi serbest.
   crossOriginOpenerPolicy: { policy: 'same-origin-allow-popups' },
+  // HSTS — Cloudflare zaten HTTPS zorluyor ama browser cache'i için
+  // ek katman. 1 yıl + subdomain + preload list uyumlu.
+  hsts: {
+    maxAge: 31536000,
+    includeSubDomains: true,
+    preload: true,
+  },
   contentSecurityPolicy: {
     directives: {
       defaultSrc: ["'self'", '*'],

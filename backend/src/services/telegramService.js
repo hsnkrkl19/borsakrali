@@ -6,9 +6,13 @@
 
 const axios = require('axios');
 
-// Telegram Bot ayarlari
-const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || '8374895928:AAGA830voVcjUoPlwzVUGoW1WRPrdru_Gv4';
-const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID || '2116638354';
+// Telegram Bot ayarlari - prod'da yalnızca env'den okunur, fallback yok.
+// Repo public oldugunda hardcoded token bot ele gecirilmesine yol acar.
+const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || '';
+const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID || '';
+if (!TELEGRAM_BOT_TOKEN) {
+  console.warn('[Telegram] TELEGRAM_BOT_TOKEN tanimli degil — Telegram bildirimleri devre disi.');
+}
 
 // API URL
 const getTelegramUrl = (method) =>
