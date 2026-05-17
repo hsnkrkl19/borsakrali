@@ -89,8 +89,25 @@ export default function GunlukTespitler() {
       setSocketConnected(false)
     })
 
+    // Backend broadcastSignal'ı arka plan tarama tamamlandı duyuruları için de
+    // kullanıyor (MTF cron tick'i, daily signals özet, kalibrasyon progress).
+    // Bunların payload'unda symbol/price/description yok — kullanıcıya alarm
+    // olarak gösterilirse popup boş ve liste çöp görünür. İlgili sayfalar
+    // (MTFSinyalleri vs.) bu event'leri zaten ayrı dinliyor.
+    const INTERNAL_STRATEGIES = new Set([
+      'crypto_mtf',
+      'crypto_mtf_tick',
+      'mtf_calibration_progress',
+      'daily_signals',
+      'crypto_signals',
+    ])
+
     // Yeni sinyal aldiginda
     socketRef.current.on('new_signal', (signal) => {
+      if (signal && INTERNAL_STRATEGIES.has(signal.strategy)) return
+      // Gerçek alarmlar bir sembol taşımalı; aksi halde popup boş kalır.
+      if (!signal?.stockSymbol && !signal?.symbol) return
+
       console.log('[Socket.IO] Yeni sinyal:', signal)
 
       // Listeye ekle
@@ -108,8 +125,11 @@ export default function GunlukTespitler() {
 
     // Son sinyalleri al
     socketRef.current.on('recent_signals', (signals) => {
-      console.log('[Socket.IO] Son sinyaller:', signals.length)
-      setLiveAlerts(prev => [...signals, ...prev].slice(0, 50))
+      const filtered = (signals || []).filter(s =>
+        s && !INTERNAL_STRATEGIES.has(s.strategy) && (s.stockSymbol || s.symbol)
+      )
+      console.log('[Socket.IO] Son sinyaller:', signals?.length, '→ kullanılabilir:', filtered.length)
+      setLiveAlerts(prev => [...filtered, ...prev].slice(0, 50))
     })
 
     // Baglanti bilgisini al
