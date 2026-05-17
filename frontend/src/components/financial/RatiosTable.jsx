@@ -69,7 +69,7 @@ export default function RatiosTable() {
             blue: 'from-blue-500/10 to-blue-600/10 border-blue-500/30 text-blue-400',
             green: 'from-green-500/10 to-green-600/10 border-green-500/30 text-green-400',
             gold: 'from-gold-500/10 to-gold-600/10 border-gold-500/30 text-gold-400',
-            purple: 'from-purple-500/10 to-purple-600/10 border-purple-500/30 text-purple-400',
+            purple: 'from-gold-400/10 to-gold-500/10 border-gold-400/30 text-gold-400',
             red: 'from-red-500/10 to-red-600/10 border-red-500/30 text-red-400'
         };
 

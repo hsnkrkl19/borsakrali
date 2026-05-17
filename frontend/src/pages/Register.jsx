@@ -32,18 +32,18 @@ function formatPhone(digits) {
 const BENEFITS = [
   {
     icon: TrendingUp,
-    title: 'Canli BIST verisi',
-    description: 'BIST hisselerini tek panelde hizli ve temiz sekilde takip edin.',
+    title: 'Canlı BIST verisi',
+    description: 'BIST hisselerini tek panelde hızlı ve temiz şekilde takip edin.',
   },
   {
     icon: Zap,
     title: 'AI destekli analiz',
-    description: 'Tarama ve yorum ekranlarinda yapay zeka destekli karar katmani.',
+    description: 'Tarama ve yorum ekranlarında yapay zeka destekli karar katmanı.',
   },
   {
     icon: Shield,
-    title: 'Guvenli auth altyapisi',
-    description: 'Sifre degisiminde eski oturumlar otomatik olarak gecersiz olur.',
+    title: 'Güvenli auth altyapısı',
+    description: 'Şifre değişiminde eski oturumlar otomatik olarak geçersiz olur.',
   },
 ]
 
@@ -89,11 +89,11 @@ export default function Register() {
   const validate = () => {
     if (!form.firstName.trim()) return 'Ad gerekli'
     if (!form.lastName.trim()) return 'Soyad gerekli'
-    if (phoneDigits.length !== 10) return 'Telefon numarasi 10 haneli olmali'
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) return 'Gecerli bir e-posta adresi girin'
-    if (!isPasswordValid(form.password)) return 'Sifre guvenlik kurallarini karsilamiyor'
-    if (!passwordsMatch) return 'Sifre tekrar alani ayni olmali'
-    if (!form.acceptTerms || !form.acceptPrivacy) return 'Devam etmek icin sozlesmeleri onaylamalisiniz'
+    if (phoneDigits.length !== 10) return 'Telefon numarası 10 haneli olmalı'
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) return 'Geçerli bir e-posta adresi girin'
+    if (!isPasswordValid(form.password)) return 'Şifre güvenlik kurallarını karşılamıyor'
+    if (!passwordsMatch) return 'Şifre tekrar alanı aynı olmalı'
+    if (!form.acceptTerms || !form.acceptPrivacy) return 'Devam etmek için sözleşmeleri onaylamalısınız'
     return null
   }
 
@@ -128,7 +128,7 @@ export default function Register() {
       login(session.user, session.token, session.refreshToken || null)
       navigate('/')
     } catch (err) {
-      setError(err.message || 'Kayit islemi basarisiz')
+      setError(err.message || 'Kayıt işlemi başarısız')
     } finally {
       setLoading(false)
     }
@@ -144,21 +144,21 @@ export default function Register() {
               <div className="bg-gradient-to-r from-gold-300 to-gold-500 bg-clip-text text-3xl font-bold text-transparent">
                 BORSA KRALI
               </div>
-              <p className="text-sm text-gray-500">Canli analiz platformu</p>
+              <p className="text-sm text-gray-500">Canlı analiz platformu</p>
             </div>
           </div>
 
           <div className="max-w-lg space-y-6">
             <div className="space-y-3">
               <div className="inline-flex items-center gap-2 rounded-full border border-gold-500/20 bg-gold-500/10 px-3 py-1 text-xs text-gold-300">
-                Yeni uye kaydi
+                Yeni üye kaydı
               </div>
               <h1 className="text-4xl font-bold leading-tight text-white">
-                Kaydol, analiz ekranlarini ac ve hesabini guvenli sekilde yonet.
+                Kaydol, analiz ekranlarını aç ve hesabını güvenli şekilde yönet.
               </h1>
               <p className="text-base leading-7 text-gray-400">
-                Kayit sonrasi oturumun otomatik acilir. Istersen daha sonra Ayarlar bolumunden
-                sifreni degistirebilir, eski tum oturumlari tek hamlede kapatabilirsin.
+                Kayıt sonrası oturumun otomatik açılır. İstersen daha sonra Ayarlar bölümünden
+                şifreni değiştirebilir, eski tüm oturumları tek hamlede kapatabilirsin.
               </p>
             </div>
 
@@ -179,7 +179,7 @@ export default function Register() {
           </div>
 
           <div className="mt-auto text-xs text-gray-600">
-            Yatirim tavsiyesi degildir. Yalnizca egitim amaclidir.
+            Yatırım tavsiyesi değildir. Yalnızca eğitim amaçlıdır.
           </div>
         </aside>
 
@@ -192,14 +192,14 @@ export default function Register() {
               <h1 className="bg-gradient-to-r from-gold-300 to-gold-500 bg-clip-text text-3xl font-bold text-transparent">
                 BORSA KRALI
               </h1>
-              <p className="mt-2 text-sm text-gray-400">Canli analiz platformu</p>
+              <p className="mt-2 text-sm text-gray-400">Canlı analiz platformu</p>
             </div>
 
             <div className="rounded-3xl border border-gold-500/20 bg-surface-100 p-6 shadow-premium sm:p-8">
               <div className="mb-6">
-                <h2 className="text-2xl font-bold text-white">Hesap olustur</h2>
+                <h2 className="text-2xl font-bold text-white">Hesap oluştur</h2>
                 <p className="mt-2 text-sm text-gray-400">
-                  Bilgilerini eksiksiz gir, guclu bir sifre sec ve hemen kullanmaya basla.
+                  Bilgilerini eksiksiz gir, güçlü bir şifre seç ve hemen kullanmaya başla.
                 </p>
               </div>
 
@@ -225,7 +225,7 @@ export default function Register() {
                     icon={User}
                     value={form.lastName}
                     onChange={(value) => updateField('lastName', value)}
-                    placeholder="Yilmaz"
+                    placeholder="Yılmaz"
                     autoComplete="family-name"
                   />
                 </div>
@@ -237,7 +237,7 @@ export default function Register() {
                   onChange={handlePhoneChange}
                   placeholder="5XX XXX XX XX"
                   autoComplete="tel"
-                  helperText="5 ile baslayan 10 haneli telefon numarasi"
+                  helperText="5 ile başlayan 10 haneli telefon numarası"
                 />
 
                 <InputField
@@ -251,29 +251,29 @@ export default function Register() {
                 />
 
                 <PasswordField
-                  label="Sifre"
+                  label="Şifre"
                   value={form.password}
                   visible={showPassword}
                   onToggle={() => setShowPassword((prev) => !prev)}
                   onChange={(value) => updateField('password', value)}
-                  placeholder="Guclu bir sifre belirleyin"
+                  placeholder="Güçlü bir şifre belirleyin"
                   autoComplete="new-password"
                 />
 
                 <PasswordChecklist password={form.password} />
 
                 <PasswordField
-                  label="Sifre tekrar"
+                  label="Şifre tekrar"
                   value={form.confirmPassword}
                   visible={showConfirmPassword}
                   onToggle={() => setShowConfirmPassword((prev) => !prev)}
                   onChange={(value) => updateField('confirmPassword', value)}
-                  placeholder="Sifrenizi tekrar girin"
+                  placeholder="Şifrenizi tekrar girin"
                   autoComplete="new-password"
                   invalid={Boolean(form.confirmPassword) && !passwordsMatch}
                   helperText={
                     form.confirmPassword && !passwordsMatch
-                      ? 'Sifre tekrar alani ayni olmali'
+                      ? 'Şifre tekrar alanı aynı olmalı'
                       : ''
                   }
                 />
@@ -288,9 +288,9 @@ export default function Register() {
                     />
                     <span>
                       <Link to="/terms-of-use" className="text-gold-400 hover:text-gold-300">
-                        Kullanim Kosullari
+                        Kullanım Koşulları
                       </Link>{' '}
-                      metnini okudum ve onayliyorum.
+                      metnini okudum ve onaylıyorum.
                     </span>
                   </label>
 
@@ -303,9 +303,9 @@ export default function Register() {
                     />
                     <span>
                       <Link to="/privacy-policy" className="text-gold-400 hover:text-gold-300">
-                        Gizlilik Politikasi
+                        Gizlilik Politikası
                       </Link>{' '}
-                      metnini okudum ve verilerimin bu kapsamda islenmesini kabul ediyorum.
+                      metnini okudum ve verilerimin bu kapsamda işlenmesini kabul ediyorum.
                     </span>
                   </label>
                 </div>
@@ -318,11 +318,11 @@ export default function Register() {
                   {loading ? (
                     <>
                       <Loader className="h-4 w-4 animate-spin" />
-                      Hesap olusturuluyor...
+                      Hesap oluşturuluyor...
                     </>
                   ) : (
                     <>
-                      Kayit ol
+                      Kayıt ol
                       <ArrowRight className="h-4 w-4" />
                     </>
                   )}
@@ -351,32 +351,32 @@ export default function Register() {
                 <div className="flex items-start gap-3">
                   <Check className="mt-0.5 h-5 w-5 flex-shrink-0 text-green-400" />
                   <p className="text-sm text-gray-200">
-                    Hesabiniz olustuktan sonra dogrudan giris yapilir. Daha sonra Ayarlar ekranindan
-                    sifrenizi guvenli sekilde degistirebilirsiniz.
+                    Hesabınız oluştuktan sonra doğrudan giriş yapılır. Daha sonra Ayarlar ekranından
+                    şifrenizi güvenli şekilde değiştirebilirsiniz.
                   </p>
                 </div>
               </div>
 
               <p className="mt-6 text-center text-sm text-gray-400">
-                Zaten hesabiniz var mi?{' '}
+                Zaten hesabınız var mı?{' '}
                 <Link to="/login" className="font-medium text-gold-400 hover:text-gold-300">
-                  Giris yap
+                  Giriş yap
                 </Link>
               </p>
             </div>
 
             <p className="mt-6 text-center text-xs text-gray-600">
-              Yatirim tavsiyesi degildir. Egitim amacli platformdur.
+              Yatırım tavsiyesi değildir. Eğitim amaçlı platformdur.
             </p>
 
             <div className="mt-3 flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-[10px] text-gray-600">
-              <Link to="/hakkimizda" className="hover:text-gold-400">Hakkimizda</Link>
+              <Link to="/hakkimizda" className="hover:text-gold-400">Hakkımızda</Link>
               <span>·</span>
-              <Link to="/iletisim" className="hover:text-gold-400">Iletisim</Link>
+              <Link to="/iletisim" className="hover:text-gold-400">İletişim</Link>
               <span>·</span>
               <Link to="/privacy-policy" className="hover:text-gold-400">Gizlilik</Link>
               <span>·</span>
-              <Link to="/terms-of-use" className="hover:text-gold-400">Kullanim Kosullari</Link>
+              <Link to="/terms-of-use" className="hover:text-gold-400">Kullanım Koşulları</Link>
               <span>·</span>
               <Link to="/account-deletion" className="hover:text-gold-400">Hesap Silme</Link>
             </div>

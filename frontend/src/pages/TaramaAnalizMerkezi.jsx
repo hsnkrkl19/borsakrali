@@ -408,13 +408,13 @@ export default function TaramaAnalizMerkezi() {
           <div className="text-xs md:text-sm text-yellow-400">🔥 157 Seri</div>
         </div>
 
-        <div className="bg-surface-100 rounded-xl p-3 md:p-4 border border-purple-500/20 col-span-2 md:col-span-1">
-          <div className="flex items-center gap-1 md:gap-2 text-purple-400 text-[10px] md:text-xs mb-1 md:mb-2">
+        <div className="bg-surface-100 rounded-xl p-3 md:p-4 border border-gold-400/20 col-span-2 md:col-span-1">
+          <div className="flex items-center gap-1 md:gap-2 text-gold-400 text-[10px] md:text-xs mb-1 md:mb-2">
             <Star className="w-3 h-3 md:w-4 md:h-4" />
             YENİ TESPİT
           </div>
           <div className="text-base md:text-xl font-bold text-white">{highlights.yeniTespit?.symbol || '-'}</div>
-          <div className="text-xs md:text-sm text-purple-400">%{highlights.yeniTespit?.change?.toFixed(2) || '0'} 💎</div>
+          <div className="text-xs md:text-sm text-gold-400">%{highlights.yeniTespit?.change?.toFixed(2) || '0'} 💎</div>
         </div>
       </div>
 
@@ -1303,7 +1303,7 @@ function StrategyView({ detail }) {
             <p className="text-[9px] text-gray-500">spot</p>
           </div>
           <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-2.5 text-center">
-            <p className="text-[10px] text-red-300 uppercase">Stop Loss</p>
+            <p className="text-[10px] text-red-300 uppercase">Zarar Durdur</p>
             <p className="text-red-400 font-mono text-sm md:text-base mt-0.5">{stopAdjusted.toFixed(2)} ₺</p>
             <p className="text-[9px] text-red-300/80">{((stopAdjusted/price - 1) * 100).toFixed(2)}%</p>
           </div>
@@ -1324,8 +1324,8 @@ function StrategyView({ detail }) {
           </div>
         </div>
         <p className="text-[10px] text-gray-500 mt-3 leading-relaxed">
-          Stop Loss: 1.5 × ATR aşağı veya EMA21 (hangisi yüksekse) — risk {risk.toFixed(2)} ₺.
-          Hedefler R/R oranına göre. ATR(14): {atr.toFixed(2)} ₺.
+          Zarar Durdur: 1.5 kat oynaklık aşağı veya kısa-vade ortalama (hangisi yüksekse) — risk {risk.toFixed(2)} ₺.
+          Hedefler kazanç-zarar oranına göre. Oynaklık ölçüsü: {atr.toFixed(2)} ₺.
         </p>
       </div>
 

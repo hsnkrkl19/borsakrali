@@ -148,7 +148,7 @@ export default function Ayarlar() {
 
   const saveTheme = (value) => {
     setTheme(applyTheme(value))
-    setSavedMsg('Tema guncellendi')
+    setSavedMsg('Tema güncellendi')
     setTimeout(() => setSavedMsg(''), 2000)
   }
 
@@ -390,14 +390,12 @@ export default function Ayarlar() {
 
       <SectionCard
         icon={<Sparkles className="h-5 w-5 text-gold-400" />}
-        title="Hosgeldin Ekrani"
-        subtitle="Yenilikler ekranini tekrar gor"
+        title="Hoşgeldin Ekranı"
+        subtitle="Yenilikler ekranını ve ilk-giriş turunu tekrar göster"
       >
         <p className="mb-3 text-[12px] text-gray-400 leading-relaxed">
-          Siteye ilk girdiginde gosterilen tanitim ekranlarini (Hero, felsefe,
-          strateji, eski sik sorulan sorular vs.) bir daha gormek istersen
-          asagidaki butona bas. Bir sonraki ziyaretinde Login sayfasinda da
-          tekrar gosterilir.
+          Siteye ilk girdiğinde gösterilen tanıtım ekranlarını veya 5 adımlı turu
+          baştan görmek istersen aşağıdaki butonlardan birine bas.
         </p>
         <button
           onClick={replayWelcome}
@@ -406,9 +404,32 @@ export default function Ayarlar() {
           <div className="flex items-center gap-3 text-left">
             <Sparkles className="h-4 w-4 text-gold-400" />
             <div>
-              <div className="font-medium text-white">Yenilikleri tekrar goster</div>
+              <div className="font-medium text-white">Yenilikleri tekrar göster</div>
               <div className="text-xs text-gray-500">
-                /yenilikler sayfasi acilir, isaret sifirlanir
+                /yenilikler sayfası açılır, işaret sıfırlanır
+              </div>
+            </div>
+          </div>
+          <ArrowRight className="h-4 w-4 text-gold-400 transition-transform group-hover:translate-x-0.5" />
+        </button>
+        <button
+          onClick={() => {
+            try {
+              localStorage.removeItem('bk-onboarding-v1')
+              localStorage.removeItem('bk-onboarding-completed')
+              localStorage.removeItem('bk-onboarding-skipped')
+            } catch { /* ignore */ }
+            navigate('/')
+            setTimeout(() => window.location.reload(), 50)
+          }}
+          className="group mt-2 flex items-center justify-between gap-3 w-full rounded-2xl border border-gold-500/30 bg-dark-800 px-4 py-3 text-sm text-gray-200 transition-all hover:border-gold-500/60 hover:bg-dark-700"
+        >
+          <div className="flex items-center gap-3 text-left">
+            <Sparkles className="h-4 w-4 text-gold-400" />
+            <div>
+              <div className="font-medium text-white">Tanıtım turunu tekrar göster</div>
+              <div className="text-xs text-gray-500">
+                Ana sayfada 5 adımlı tur baştan başlar
               </div>
             </div>
           </div>
@@ -460,7 +481,7 @@ export default function Ayarlar() {
           >
             <div>
               <div className="font-medium text-white">Sifremi degistir</div>
-              <div className="text-xs text-gray-500">Mevcut sifrenizi dogrulayip yeni sifre belirleyin</div>
+              <div className="text-xs text-gray-500">Mevcut şifrenizi doğrulayıp yeni şifre belirleyin</div>
             </div>
             <ArrowRight className="h-4 w-4 text-gold-400" />
           </Link>

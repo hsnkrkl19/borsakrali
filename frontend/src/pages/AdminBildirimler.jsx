@@ -36,7 +36,7 @@ export default function AdminBildirimler() {
         }
       } catch (err) {
         if (active) {
-          setError(err.message || 'Bildirim ozeti alinamadi')
+          setError(err.message || 'Bildirim özeti alınamadı')
         }
       } finally {
         if (active) {

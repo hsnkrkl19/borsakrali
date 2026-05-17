@@ -10,7 +10,7 @@ export const NOTIF_CATEGORIES = {
   market:   { id: 'market',   label: 'Borsa Açılış/Kapanış', icon: '📈', color: '#10b981' },
   calendar: { id: 'calendar', label: 'Ekonomik Takvim',     icon: '⚠️', color: '#f59e0b' },
   signal:   { id: 'signal',   label: 'Hisse Sinyalleri',    icon: '📊', color: '#d4af37' },
-  performance: { id: 'performance', label: 'Performans Raporu', icon: '🏆', color: '#a78bfa' },
+  performance: { id: 'performance', label: 'Performans Raporu', icon: '🏆', color: '#fbbf24' },
   general:  { id: 'general',  label: 'Genel Duyuru',        icon: '📢', color: '#94a3b8' },
 }
 

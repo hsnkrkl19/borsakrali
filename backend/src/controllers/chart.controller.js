@@ -22,13 +22,13 @@ class ChartController {
       // Validate stock exists
       const stock = await Stock.findOne({ where: { symbol, isActive: true } });
       if (!stock) {
-        return res.status(404).json({ error: `Stock ${symbol} not found` });
+        return res.status(404).json({ error: `${symbol} hissesi bulunamadı` });
       }
 
       // Validate interval
       if (!tradingViewService.isValidInterval(interval)) {
         return res.status(400).json({ 
-          error: 'Invalid interval',
+          error: 'Geçersiz zaman aralığı',
           validIntervals: tradingViewService.getTimeIntervals()
         });
       }
@@ -41,7 +41,7 @@ class ChartController {
 
     } catch (error) {
       logger.error('redirectToTradingView error:', error);
-      res.status(500).json({ error: 'Failed to redirect to chart' });
+      res.status(500).json({ error: 'Grafiğe yönlendirilemedi' });
     }
   }
 
@@ -57,7 +57,7 @@ class ChartController {
       // Validate stock
       const stock = await Stock.findOne({ where: { symbol, isActive: true } });
       if (!stock) {
-        return res.status(404).json({ error: `Stock ${symbol} not found` });
+        return res.status(404).json({ error: `${symbol} hissesi bulunamadı` });
       }
 
       const chartUrl = tradingViewService.getChartUrl(symbol, interval);
@@ -82,7 +82,7 @@ class ChartController {
 
     } catch (error) {
       logger.error('getChartInfo error:', error);
-      res.status(500).json({ error: 'Failed to get chart info' });
+      res.status(500).json({ error: 'Grafik bilgisi alınamadı' });
     }
   }
 
@@ -98,14 +98,14 @@ class ChartController {
       // Validate stock
       const stock = await Stock.findOne({ where: { symbol, isActive: true } });
       if (!stock) {
-        return res.status(404).json({ error: `Stock ${symbol} not found` });
+        return res.status(404).json({ error: `${symbol} hissesi bulunamadı` });
       }
 
       // Fetch data from Yahoo Finance
       const data = await yahooFinanceService.getHistoricalData(symbol, range, interval);
 
       if (!data) {
-        return res.status(404).json({ error: 'No chart data available' });
+        return res.status(404).json({ error: 'Grafik verisi yok' });
       }
 
       // Format for chart libraries (Recharts, Chart.js)
@@ -129,7 +129,7 @@ class ChartController {
 
     } catch (error) {
       logger.error(`getChartData error for ${req.params.symbol}:`, error);
-      res.status(500).json({ error: 'Failed to fetch chart data' });
+      res.status(500).json({ error: 'Grafik verisi alınamadı' });
     }
   }
 
@@ -176,7 +176,7 @@ class ChartController {
 
     } catch (error) {
       logger.error('getIntervals error:', error);
-      res.status(500).json({ error: 'Failed to get intervals' });
+      res.status(500).json({ error: 'Zaman aralıkları alınamadı' });
     }
   }
 
@@ -189,13 +189,13 @@ class ChartController {
       const { symbol, interval = 'D', height = 600 } = req.body;
 
       if (!symbol) {
-        return res.status(400).json({ error: 'Symbol required' });
+        return res.status(400).json({ error: 'Sembol gerekli' });
       }
 
       // Validate stock
       const stock = await Stock.findOne({ where: { symbol, isActive: true } });
       if (!stock) {
-        return res.status(404).json({ error: `Stock ${symbol} not found` });
+        return res.status(404).json({ error: `${symbol} hissesi bulunamadı` });
       }
 
       const embedCode = tradingViewService.getWidgetEmbedCode(symbol, interval, height);
@@ -208,7 +208,7 @@ class ChartController {
 
     } catch (error) {
       logger.error('getEmbedCode error:', error);
-      res.status(500).json({ error: 'Failed to generate embed code' });
+      res.status(500).json({ error: 'Gömme kodu oluşturulamadı' });
     }
   }
 
@@ -221,7 +221,7 @@ class ChartController {
       const { symbols, interval = 'D' } = req.body;
 
       if (!Array.isArray(symbols) || symbols.length === 0) {
-        return res.status(400).json({ error: 'Symbols array required' });
+        return res.status(400).json({ error: 'Sembol listesi gerekli' });
       }
 
       const urls = symbols.map(symbol => ({
@@ -234,7 +234,7 @@ class ChartController {
 
     } catch (error) {
       logger.error('getBatchChartUrls error:', error);
-      res.status(500).json({ error: 'Failed to generate batch URLs' });
+      res.status(500).json({ error: 'Toplu adres oluşturulamadı' });
     }
   }
 }

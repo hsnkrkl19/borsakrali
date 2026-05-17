@@ -51,17 +51,17 @@ export default function ChangePassword() {
     event.preventDefault()
 
     if (!passwordsMatch) {
-      setError('Yeni sifre ve tekrar alani ayni olmali')
+      setError('Yeni şifre ve tekrar alanı aynı olmalı')
       return
     }
 
     if (!isPasswordValid(form.newPassword)) {
-      setError('Yeni sifre guvenlik kurallarini karsilamiyor')
+      setError('Yeni şifre güvenlik kurallarını karşılamıyor')
       return
     }
 
     if (form.currentPassword === form.newPassword) {
-      setError('Yeni sifre mevcut sifre ile ayni olamaz')
+      setError('Yeni şifre mevcut şifre ile aynı olamaz')
       return
     }
 
@@ -103,7 +103,7 @@ export default function ChangePassword() {
             </div>
             <h1 className="text-2xl font-bold text-white">Sifre Degistir</h1>
             <p className="max-w-xl text-sm text-gray-400">
-              Hesabinizin guvenligini korumak icin mevcut sifrenizi dogrulayip yeni sifre belirleyin.
+              Hesabınızın güvenliğini korumak için mevcut şifrenizi doğrulayıp yeni şifre belirleyin.
               Sifre degistiginde eski oturumlar otomatik olarak gecersiz olur.
             </p>
           </div>
@@ -120,9 +120,9 @@ export default function ChangePassword() {
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1.1fr)_minmax(280px,0.9fr)]">
         <div className="rounded-3xl border border-gold-500/20 bg-surface-100 p-6 shadow-premium">
-          <h2 className="mb-1 text-xl font-semibold text-white">Yeni sifre belirle</h2>
+          <h2 className="mb-1 text-xl font-semibold text-white">Yeni şifre belirle</h2>
           <p className="mb-6 text-sm text-gray-400">
-            Yeni sifreniz en az 8 karakter olmali ve buyuk harf, kucuk harf, rakam icermeli.
+            Yeni şifreniz en az 8 karakter olmalı ve büyük harf, küçük harf, rakam içermeli.
           </p>
 
           {error && (
@@ -141,8 +141,8 @@ export default function ChangePassword() {
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <PasswordField
-              label="Mevcut sifre"
-              placeholder="Mevcut sifrenizi girin"
+              label="Mevcut şifre"
+              placeholder="Mevcut şifrenizi girin"
               value={form.currentPassword}
               visible={showCurrent}
               onToggle={() => setShowCurrent((prev) => !prev)}
@@ -151,8 +151,8 @@ export default function ChangePassword() {
             />
 
             <PasswordField
-              label="Yeni sifre"
-              placeholder="Yeni sifrenizi girin"
+              label="Yeni şifre"
+              placeholder="Yeni şifrenizi girin"
               value={form.newPassword}
               visible={showNext}
               onToggle={() => setShowNext((prev) => !prev)}
@@ -163,8 +163,8 @@ export default function ChangePassword() {
             <PasswordChecklist password={form.newPassword} />
 
             <PasswordField
-              label="Yeni sifre tekrar"
-              placeholder="Yeni sifrenizi tekrar girin"
+              label="Yeni şifre tekrar"
+              placeholder="Yeni şifrenizi tekrar girin"
               value={form.confirmPassword}
               visible={showConfirm}
               onToggle={() => setShowConfirm((prev) => !prev)}
@@ -173,7 +173,7 @@ export default function ChangePassword() {
               invalid={Boolean(form.confirmPassword) && !passwordsMatch}
               hint={
                 form.confirmPassword && !passwordsMatch
-                  ? 'Tekrar alani yeni sifre ile ayni olmali'
+                  ? 'Tekrar alanı yeni şifre ile aynı olmalı'
                   : ''
               }
             />
@@ -212,7 +212,7 @@ export default function ChangePassword() {
 
             <div className="space-y-3 text-sm text-gray-300">
               <div className="rounded-2xl border border-dark-700 bg-dark-800/80 p-3">
-                Ayni sifreyi farkli platformlarda tekrar kullanmayin.
+                Aynı şifreyi farklı platformlarda tekrar kullanmayın.
               </div>
               <div className="rounded-2xl border border-dark-700 bg-dark-800/80 p-3">
                 Sifre degistiginde diger cihazlardaki onceki oturumlar otomatik olarak kapanir.

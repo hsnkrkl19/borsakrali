@@ -506,10 +506,10 @@ export default function Bildirimler() {
             <>
               <Inbox className="w-9 h-9 mx-auto mb-3 opacity-40" style={{ color: 'var(--text-faint)' }} />
               <div className="text-[14px] font-semibold mb-1" style={{ color: 'var(--text-primary)' }}>
-                Henüz bildirim yok
+                Bildirim yok
               </div>
               <div className="text-[12px]" style={{ color: 'var(--text-faint)' }}>
-                Yeni duyuru veya sinyal uyarısı geldiğinde burada görünecek.
+                Fırsat çıkınca burada görünür.
               </div>
               {Object.values(preferences || {}).some((v) => v === false) && (
                 <div

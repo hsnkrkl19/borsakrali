@@ -1,8 +1,12 @@
 /**
  * X (Twitter) Mention Analyzer — BORSA KRALI
  *
- * GERÇEK X.com scraper entegrasyonu — @the-convocation/twitter-scraper
- * Mock data tamamen kaldırıldı. Credentials yoksa boş cevap döner.
+ * GERÇEK X.com scraper — @the-convocation/twitter-scraper
+ *  - Türkçe odaklı sorgular (lang:tr)
+ *  - Gün-bazlı persistent store (.x-mentions-store.json) — 7 günlük rolling window
+ *  - Zamana yayılmış job kuyruğu (12-22 sn jitter, batch sonrası mola, daily cap)
+ *  - Rate-limit savunması (auto-backoff)
+ *  - Mock data YOK; credentials yoksa boş cevap döner.
  *
  * Kimlik doğrulama (env):
  *   - X_AUTH_TOKEN + X_CT0     → tarayıcı cookie'lerinden alınır (önerilen)
@@ -24,22 +28,33 @@ try {
 }
 
 const COOKIE_FILE = path.join(__dirname, '..', '..', '.x-cookies.json');
+const STORE_FILE  = path.join(__dirname, '..', '..', '.x-mentions-store.json');
 
-// Cache TTL'leri — X rate limit'i agresif olduğu için uzun tutuyoruz
-const SCANNER_CACHE_TTL = 30 * 60 * 1000;   // 30 dk
-const DETAIL_CACHE_TTL  = 15 * 60 * 1000;   // 15 dk
-const PER_SEARCH_TIMEOUT_MS = 25 * 1000;    // her sembol için 25 sn
+// ─────────────────────────────────────────────────────────────────
+// Rate / volume parametreleri — X algoritmasını rahatsız etmeden çalış
+// ─────────────────────────────────────────────────────────────────
+const HISTORY_DAYS              = 7;                    // 7 günlük rolling window
+const MAX_TWEETS_PER_DAY_SEARCH = 100;                  // her sembol+gün sorgusu max 100 tweet
+const PER_SEARCH_TIMEOUT_MS     = 25 * 1000;            // her sorgu max 25 sn
 
-// Warmer ayarları (sadece BIST30 + Top 10 kripto döngüsü)
-const WARMER_DELAY_MS = 9000;               // her sembol arası 9 sn
-const WARMER_CYCLE_MS = 35 * 60 * 1000;     // 35 dk'da bir döngü
-const MAX_TWEETS_PER_SEARCH = 50;           // her aramada max 50 tweet
+const SEARCH_INTERVAL_MIN_MS    = 12 * 1000;            // sorgular arası min 12 sn
+const SEARCH_INTERVAL_MAX_MS    = 22 * 1000;            // max 22 sn (jitter — sabit interval botluk gibi durur)
+const BATCH_REST_AFTER_N        = 20;                   // 20 sorgu sonrası
+const BATCH_REST_MS             = 3 * 60 * 1000;        //   3 dk mola
+const DAILY_SEARCH_CAP          = 500;                  // takvim gününde max sorgu
+const RATE_LIMIT_BACKOFF_MS     = 30 * 60 * 1000;       // rate-limit hatasında 30 dk dur
+const QUEUE_REENQUEUE_MS        = 60 * 60 * 1000;       // 1 saatte bir queue'yu tazele
+const TODAY_REFRESH_MS          = 2 * 60 * 60 * 1000;   // bugünkü günü 2 saatte 1 yenile
+const HISTORICAL_MAX_AGE_MS     = 36 * 60 * 60 * 1000;  // geçmiş gün dosyalanmışsa 36 saat dokunma
+const STORE_SAVE_INTERVAL_MS    = 60 * 1000;            // dirty store her 60 sn diske
 
-const scannerCache = new Map(); // scope -> { result, ts }
-const detailCache  = new Map(); // symbol+type -> { result, ts }
-const itemSummaryCache = new Map(); // symbol -> { summary, ts }  // scanner için per-sembol özet
+// Frontend cache TTL'leri (store hep güncel; bunlar sadece view rebuild)
+const SCANNER_CACHE_TTL = 3 * 60 * 1000;
+const DETAIL_CACHE_TTL  = 5 * 60 * 1000;
 
-// ─── Kripto evreni (eski mock dosyasından korundu — sadece liste, değer yok) ───
+// ─────────────────────────────────────────────────────────────────
+// Universe — kripto + scanner ölçeği
+// ─────────────────────────────────────────────────────────────────
 const CRYPTO_UNIVERSE = [
   { symbol: 'BTC',   name: 'Bitcoin',          category: 'Layer 1',    tier: 'mega' },
   { symbol: 'ETH',   name: 'Ethereum',         category: 'Layer 1',    tier: 'mega' },
@@ -71,7 +86,6 @@ const CRYPTO_UNIVERSE = [
   { symbol: 'AAVE',  name: 'Aave',             category: 'DeFi',       tier: 'mid' },
   { symbol: 'ALGO',  name: 'Algorand',         category: 'Layer 1',    tier: 'mid' },
   { symbol: 'THETA', name: 'Theta Network',    category: 'Media',      tier: 'mid' },
-  // Top 30-75 (warmer kapsamı dışında ama detail için aranabilir)
   { symbol: 'XLM',   name: 'Stellar',          category: 'Payments',   tier: 'small' },
   { symbol: 'PEPE',  name: 'Pepe',             category: 'Meme',       tier: 'mid' },
   { symbol: 'WIF',   name: 'dogwifhat',        category: 'Meme',       tier: 'mid' },
@@ -86,18 +100,25 @@ const CRYPTO_UNIVERSE = [
 const TOP10_CRYPTOS = CRYPTO_UNIVERSE.slice(0, 10);
 const TOP30_CRYPTOS = CRYPTO_UNIVERSE.slice(0, 30);
 
-// ─── Sentiment sözlüğü (TR + EN) ───
+// ─────────────────────────────────────────────────────────────────
+// Sentiment sözlüğü (Türkçe öncelikli — kripto yorumcuları İngilizce kelime
+// de kullanıyor diye birkaç tane EN de var)
+// ─────────────────────────────────────────────────────────────────
 const POSITIVE_WORDS = [
-  'yükseliş','yukarı','alım','güçlü','güzel','iyi','başarı','kar','kâr','rekor','rally','pump','pump\'lan',
-  'breakout','bullish','momentum','olumlu','iyileşme','potansiyel','hedef','dip','fırsat','tutunma','güven',
-  'kazan','toparlanma','sıçrama','patlama','tavan','rally\'e','formasyon','kırıldı','positive','strong','buy',
-  'green','moon','growth','support','destek','accumulation','birikim','long','rocket','🚀','🟢','📈','🔥','✅',
+  'yükseliş','yukarı','alım','güçlü','güzel','başarı','kar','kâr','rekor','rallı','ralli',
+  'breakout','momentum','olumlu','iyileşme','potansiyel','hedef','dip','fırsat','tutunma','güven',
+  'kazanç','kazanır','toparlanma','sıçrama','patlama','tavan','formasyon','kırıldı','kırdı',
+  'destek','birikim','long','alındı','aldım','tuttum','tut','tutucu',
+  'bullish','strong','buy','green','moon','support','accumulation','rocket',
+  '🚀','🟢','📈','🔥','✅','💚',
 ];
 const NEGATIVE_WORDS = [
-  'düşüş','aşağı','satış','sat','zayıf','risk','zarar','kayıp','kötü','breakdown','bearish','panik',
-  'tehlike','olumsuz','kırıldı destek','dökülme','korku','dump','dipleme','crash','reddedildi','reject',
-  'taban','direnç','rejected','negative','sell','weak','bear','rejection','liquidation','liq\'lendi','dipti',
-  'short','tabana','collapse','rug','red','🔴','📉','⚠️','❌','💀',
+  'düşüş','aşağı','satış','sat','zayıf','risk','zarar','kayıp','kötü','breakdown','panik',
+  'tehlike','olumsuz','dökülme','korku','dump','dipleme','crash','reddedildi',
+  'taban','direnç','kırıldı destek','tabana','dipti','dipte',
+  'short','satışta','satıldı','sattım','çık','çıkın','uzak dur','tuzak',
+  'bearish','sell','weak','bear','rejection','liquidation','collapse','rug','red',
+  '🔴','📉','⚠️','❌','💀','💔',
 ];
 
 // ─────────────────────────────────────────────────────────────────
@@ -109,7 +130,6 @@ let scraperInitPromise = null;
 let scraperLastError = null;
 
 function buildCookieStrings({ authToken, ct0, guestId }) {
-  // x.com domain için Cookie header'a uygun string'ler
   const exp = new Date(Date.now() + 30*24*60*60*1000).toUTCString();
   const cookies = [];
   if (authToken) cookies.push(`auth_token=${authToken}; Domain=.x.com; Path=/; Expires=${exp}; Secure; HttpOnly; SameSite=None`);
@@ -147,10 +167,8 @@ async function initScraper() {
       scraperLastError = 'twitter-scraper kütüphanesi yüklü değil';
       throw new Error(scraperLastError);
     }
-
     scraperInstance = new ScraperLib.Scraper();
 
-    // 1) Disk'teki cookie dosyası
     const diskCookies = await loadCookiesFromDisk();
     if (diskCookies) {
       try {
@@ -167,7 +185,6 @@ async function initScraper() {
       }
     }
 
-    // 2) Env'den auth_token + ct0
     const envCookies = buildCookieStrings({
       authToken: process.env.X_AUTH_TOKEN,
       ct0:       process.env.X_CT0,
@@ -179,7 +196,6 @@ async function initScraper() {
         const ok = await scraperInstance.isLoggedIn();
         if (ok) {
           scraperReady = true;
-          // Disk'e de yaz (sonraki restart için)
           const persisted = await scraperInstance.getCookies();
           if (persisted) await saveCookiesToDisk(persisted);
           console.log('[XMentions] ✓ Scraper hazır (env cookies)');
@@ -191,7 +207,6 @@ async function initScraper() {
       }
     }
 
-    // 3) Username/password login
     if (process.env.X_USERNAME && process.env.X_PASSWORD) {
       try {
         await scraperInstance.login(
@@ -217,11 +232,127 @@ async function initScraper() {
     throw new Error(scraperLastError);
   })();
 
+  try { return await scraperInitPromise; }
+  finally { scraperInitPromise = null; }
+}
+
+// ─────────────────────────────────────────────────────────────────
+// Persistent store — gün-bazlı tweet kayıt, restart sonrası ölü değil
+// ─────────────────────────────────────────────────────────────────
+// store yapısı:
+// {
+//   bySymbol: {
+//     'THYAO': {
+//       assetType: 'stock'|'crypto',
+//       byDate: { '2026-05-13': { tweets: [...], fetchedAt: ms, complete: bool } }
+//     }
+//   },
+//   meta: { dailyCount: { 'YYYY-MM-DD': N }, backoffUntil: 0, lastFlushAt: 0 }
+// }
+let store = { bySymbol: {}, meta: { dailyCount: {}, backoffUntil: 0, lastFlushAt: 0 } };
+let storeDirty = false;
+let storeSaveTimer = null;
+
+function loadStoreFromDisk() {
   try {
-    return await scraperInitPromise;
-  } finally {
-    scraperInitPromise = null;
+    if (!fs.existsSync(STORE_FILE)) return;
+    const raw = fs.readFileSync(STORE_FILE, 'utf8');
+    const parsed = JSON.parse(raw);
+    if (parsed && parsed.bySymbol && parsed.meta) {
+      store = parsed;
+      pruneOldDays();
+      const symCount = Object.keys(store.bySymbol).length;
+      console.log(`[XMentions] Store yüklendi: ${symCount} sembol`);
+    }
+  } catch (e) {
+    console.warn('[XMentions] Store yüklenemedi:', e.message);
   }
+}
+
+function saveStoreToDisk() {
+  if (!storeDirty) return;
+  try {
+    store.meta.lastFlushAt = Date.now();
+    fs.writeFileSync(STORE_FILE, JSON.stringify(store), 'utf8');
+    storeDirty = false;
+  } catch (e) {
+    console.warn('[XMentions] Store kaydedilemedi:', e.message);
+  }
+}
+
+function startStoreSaver() {
+  if (storeSaveTimer) return;
+  storeSaveTimer = setInterval(saveStoreToDisk, STORE_SAVE_INTERVAL_MS);
+}
+
+function markStoreDirty() { storeDirty = true; }
+
+function pruneOldDays() {
+  // 7 günden eski günleri sil; daily counter'da 14 günden eskileri sil
+  const today = new Date();
+  const validDates = new Set();
+  for (let d = 0; d < HISTORY_DAYS; d++) {
+    const dt = new Date(today);
+    dt.setUTCDate(dt.getUTCDate() - d);
+    validDates.add(dateKey(dt));
+  }
+  for (const sym of Object.keys(store.bySymbol)) {
+    const rec = store.bySymbol[sym];
+    if (!rec || !rec.byDate) continue;
+    for (const d of Object.keys(rec.byDate)) {
+      if (!validDates.has(d)) delete rec.byDate[d];
+    }
+  }
+  const cutoff = Date.now() - 14 * 24 * 60 * 60 * 1000;
+  for (const d of Object.keys(store.meta.dailyCount || {})) {
+    const ts = Date.parse(d + 'T00:00:00Z');
+    if (Number.isFinite(ts) && ts < cutoff) delete store.meta.dailyCount[d];
+  }
+  markStoreDirty();
+}
+
+function dateKey(d) { return d.toISOString().split('T')[0]; }
+
+function mergeDayTweets(symbol, assetType, dateStr, tweets) {
+  if (!store.bySymbol[symbol]) {
+    store.bySymbol[symbol] = { assetType, byDate: {} };
+  }
+  const rec = store.bySymbol[symbol];
+  rec.assetType = assetType;
+  if (!rec.byDate[dateStr]) rec.byDate[dateStr] = { tweets: [], fetchedAt: 0, complete: false };
+  const day = rec.byDate[dateStr];
+
+  // ID-bazlı dedup. Tweet objesi sade tutuluyor (storage küçük kalsın diye).
+  const seen = new Set(day.tweets.map(t => t.id));
+  for (const tw of tweets) {
+    if (!tw || !tw.id || !tw.text) continue;
+    if (seen.has(tw.id)) continue;
+    seen.add(tw.id);
+    day.tweets.push({
+      id: tw.id,
+      text: tw.text,
+      username: tw.username || '',
+      timestamp: tw.timestamp || Math.floor(Date.now()/1000),
+      likes: tw.likes || 0,
+      retweets: tw.retweets || 0,
+      replies: tw.replies || 0,
+      hashtags: tw.hashtags || [],
+      permanentUrl: tw.permanentUrl || '',
+    });
+  }
+  day.fetchedAt = Date.now();
+  day.complete = true;
+  markStoreDirty();
+}
+
+function getAllTweetsForSymbol(symbol) {
+  const rec = store.bySymbol[symbol];
+  if (!rec || !rec.byDate) return [];
+  const all = [];
+  for (const d of Object.keys(rec.byDate)) {
+    all.push(...(rec.byDate[d].tweets || []));
+  }
+  return all;
 }
 
 // ─────────────────────────────────────────────────────────────────
@@ -248,22 +379,43 @@ function analyzeSentiment(text) {
 
 function minutesSince(timestamp) {
   if (!timestamp) return 0;
-  const ms = (timestamp * 1000); // Twitter timestamp saniye cinsinden
+  const ms = (timestamp * 1000);
   return Math.max(0, Math.floor((Date.now() - ms) / 60000));
 }
 
-// ─────────────────────────────────────────────────────────────────
-// Tek sembol için tweet topla (son 24 saat) — düşük seviye
-// ─────────────────────────────────────────────────────────────────
-async function searchSymbolTweets(symbol, isCrypto, maxTweets = MAX_TWEETS_PER_SEARCH) {
-  const scraper = await initScraper();
-  const sinceDate = new Date(Date.now() - 7*24*60*60*1000).toISOString().split('T')[0];
-  // Hem cashtag ($) hem hashtag (#) — kripto için BTC genel terimi de eklenir
-  // -filter:retweets orijinal mention'ları öne çıkarır
-  const q = `($${symbol} OR #${symbol}) since:${sinceDate} -filter:retweets lang:tr OR lang:en`;
+function randomJitterMs() {
+  return SEARCH_INTERVAL_MIN_MS + Math.floor(Math.random() * (SEARCH_INTERVAL_MAX_MS - SEARCH_INTERVAL_MIN_MS));
+}
 
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+function isRateLimitError(err) {
+  const msg = (err && err.message ? err.message : '').toLowerCase();
+  return msg.includes('rate limit') || msg.includes('429') || msg.includes('too many') ||
+         msg.includes('throttle') || msg.includes('temporarily restricted');
+}
+
+// ─────────────────────────────────────────────────────────────────
+// Düşük seviye: tek sembol+tek gün için dil-aware sorgu
+//   - BIST hisseleri → lang:tr (Türk yatırımcı dili)
+//   - Kripto         → lang:en (global piyasa İngilizce konuşur)
+// ─────────────────────────────────────────────────────────────────
+function buildSearchQuery(symbol, sinceDate, untilDate, isCrypto) {
+  const lang = isCrypto ? 'lang:en' : 'lang:tr';
+  // Cashtag + hashtag birlikte; retweet'leri ele; parantezler X advanced
+  // search'ün operator önceliklerini doğru ayrıştırması için zorunlu.
+  return `($${symbol} OR #${symbol}) ${lang} since:${sinceDate} until:${untilDate} -filter:retweets`;
+}
+
+async function searchSymbolDay(symbol, dateStr, isCrypto) {
+  const scraper = await initScraper();
+  const next = new Date(dateStr + 'T00:00:00Z');
+  next.setUTCDate(next.getUTCDate() + 1);
+  const untilStr = dateKey(next);
+
+  const q = buildSearchQuery(symbol, dateStr, untilStr, isCrypto);
   const tweets = [];
-  const generator = scraper.searchTweets(q, maxTweets, ScraperLib.SearchMode?.Latest);
+  const generator = scraper.searchTweets(q, MAX_TWEETS_PER_DAY_SEARCH, ScraperLib.SearchMode?.Latest);
   const deadline = Date.now() + PER_SEARCH_TIMEOUT_MS;
 
   try {
@@ -271,15 +423,23 @@ async function searchSymbolTweets(symbol, isCrypto, maxTweets = MAX_TWEETS_PER_S
       if (Date.now() > deadline) break;
       if (!tw || !tw.text) continue;
       tweets.push(tw);
-      if (tweets.length >= maxTweets) break;
+      if (tweets.length >= MAX_TWEETS_PER_DAY_SEARCH) break;
     }
   } catch (e) {
-    // Rate limit / network — kısmi sonuçla dön
-    console.warn(`[XMentions] ${symbol} arama hatası: ${e.message?.substring(0, 80)}`);
+    if (isRateLimitError(e)) {
+      store.meta.backoffUntil = Date.now() + RATE_LIMIT_BACKOFF_MS;
+      markStoreDirty();
+      console.warn(`[XMentions] Rate-limit tetiklendi → ${RATE_LIMIT_BACKOFF_MS/60000} dk backoff`);
+      throw e;
+    }
+    console.warn(`[XMentions] ${symbol}@${dateStr} arama hatası: ${e.message?.substring(0, 80)}`);
   }
   return tweets;
 }
 
+// ─────────────────────────────────────────────────────────────────
+// Summary + Detail — store'daki tweet'lerden üret
+// ─────────────────────────────────────────────────────────────────
 function buildSummaryFromTweets(item, tweets, isCrypto) {
   const now = Date.now();
   const day1Ms = 24 * 60 * 60 * 1000;
@@ -288,7 +448,7 @@ function buildSummaryFromTweets(item, tweets, isCrypto) {
     const age = now - t.timestamp*1000;
     return age > day1Ms && age <= 2*day1Ms;
   });
-  const t7d = tweets; // arama zaten 7 günle sınırlandı
+  const t7d = tweets;
 
   const mentions24h        = t24.length;
   const mentionsYesterday  = tYesterday.length;
@@ -297,7 +457,6 @@ function buildSummaryFromTweets(item, tweets, isCrypto) {
     ? +(((mentions24h - mentionsYesterday) / mentionsYesterday) * 100).toFixed(1)
     : (mentions24h > 0 ? 100 : 0);
 
-  // Sentiment (sadece 24 saat)
   let pos = 0, neg = 0, neu = 0;
   for (const t of t24) {
     const s = analyzeSentiment(t.text);
@@ -312,7 +471,6 @@ function buildSummaryFromTweets(item, tweets, isCrypto) {
     neutral:  +((neu / total) * 100).toFixed(1),
   };
 
-  // Hashtag sayımı
   const hashCount = new Map();
   for (const t of t24) {
     for (const h of (t.hashtags || [])) {
@@ -327,7 +485,6 @@ function buildSummaryFromTweets(item, tweets, isCrypto) {
     .map(([h]) => `#${h}`);
   const topHashtags = [`#${item.symbol}`, `$${item.symbol}`, ...extraTags].slice(0, 4);
 
-  // Trend skoru
   const trendScore = Math.min(100, Math.round(
     Math.min(mentions24h, 100) * 0.5 +
     Math.max(0, change24h) * 0.3 +
@@ -351,14 +508,10 @@ function buildSummaryFromTweets(item, tweets, isCrypto) {
   };
 }
 
-// ─────────────────────────────────────────────────────────────────
-// Detail için ek alanlar: 7 günlük seri + saatlik dağılım + son tweetler
-// ─────────────────────────────────────────────────────────────────
 function buildDetailFromTweets(item, tweets, isCrypto, summary) {
   const now = Date.now();
   const dayMs = 24 * 60 * 60 * 1000;
 
-  // 7 günlük seri (en eski → en yeni)
   const series = [];
   for (let d = 6; d >= 0; d--) {
     const start = now - (d + 1) * dayMs;
@@ -374,15 +527,9 @@ function buildDetailFromTweets(item, tweets, isCrypto, summary) {
       else if (s === 'negative') neg++;
     }
     const dateStr = new Date(end - 1).toISOString().split('T')[0];
-    series.push({
-      date: dateStr,
-      mentions: dayTweets.length,
-      positive: pos,
-      negative: neg,
-    });
+    series.push({ date: dateStr, mentions: dayTweets.length, positive: pos, negative: neg });
   }
 
-  // Saatlik dağılım (son 24 saat)
   const hourly = [];
   const t24 = tweets.filter(t => (now - t.timestamp*1000) <= dayMs);
   for (let h = 23; h >= 0; h--) {
@@ -395,7 +542,6 @@ function buildDetailFromTweets(item, tweets, isCrypto, summary) {
     hourly.push({ hour: 23 - h, mentions: hourTweets.length });
   }
 
-  // Son tweetler (en yeni 12)
   const recent = [...t24]
     .sort((a, b) => b.timestamp - a.timestamp)
     .slice(0, 12)
@@ -422,7 +568,7 @@ function buildDetailFromTweets(item, tweets, isCrypto, summary) {
 }
 
 // ─────────────────────────────────────────────────────────────────
-// Public API
+// Public — scanner & detay
 // ─────────────────────────────────────────────────────────────────
 function getStockList(scope) {
   if (scope === 'bist30')        return bist30Stocks;
@@ -434,11 +580,9 @@ function getStockList(scope) {
 }
 
 const CRYPTO_SCOPES = new Set(['crypto', 'crypto_top10', 'crypto_all']);
+const scannerCache = new Map();
+const detailCache  = new Map();
 
-/**
- * Tarayıcı — sadece warmer'ın doldurduğu cache'i okur, on-demand scan YAPMAZ.
- * Boşsa frontend'e "warming up" mesajı dön.
- */
 function scanMentions(scope = 'bist100') {
   const cacheKey = `scan_${scope}`;
   const cached = scannerCache.get(cacheKey);
@@ -447,13 +591,11 @@ function scanMentions(scope = 'bist100') {
   const isCrypto = CRYPTO_SCOPES.has(scope);
   const items = getStockList(scope);
 
-  // itemSummaryCache'ten taze olanları topla
   const enriched = [];
   for (const it of items) {
-    const cs = itemSummaryCache.get(it.symbol);
-    if (cs && Date.now() - cs.ts < SCANNER_CACHE_TTL) {
-      enriched.push(cs.summary);
-    }
+    const tweets = getAllTweetsForSymbol(it.symbol);
+    if (tweets.length === 0) continue;
+    enriched.push(buildSummaryFromTweets(it, tweets, isCrypto));
   }
 
   if (enriched.length === 0) {
@@ -466,9 +608,7 @@ function scanMentions(scope = 'bist100') {
       message: scraperReady
         ? 'Veri ilk taramayı tamamlıyor. Birkaç dakika sonra tekrar yükleyin.'
         : (scraperLastError || 'X credentials yapılandırılmadı.'),
-      totalScanned: 0,
-      totalMentions24h: 0,
-      avgMentionsPerStock: 0,
+      totalScanned: 0, totalMentions24h: 0, avgMentionsPerStock: 0,
       top20: [], trending: [], bullish: [], bearish: [], all: [],
     };
     return result;
@@ -490,20 +630,13 @@ function scanMentions(scope = 'bist100') {
     totalScanned: enriched.length,
     totalMentions24h: totalMentions,
     avgMentionsPerStock: Math.round(totalMentions / Math.max(enriched.length, 1)),
-    top20,
-    trending,
-    bullish,
-    bearish,
-    all: enriched,
+    top20, trending, bullish, bearish, all: enriched,
   };
 
   scannerCache.set(cacheKey, { result, ts: Date.now() });
   return result;
 }
 
-/**
- * Detay — istenirse on-demand canlı arama (cache'lenir).
- */
 async function getMentionDetail(symbol, opts = {}) {
   const upper = symbol.toUpperCase().replace('.IS', '').replace('-USD', '');
   const forceType = opts.assetType;
@@ -511,7 +644,6 @@ async function getMentionDetail(symbol, opts = {}) {
   const cached = detailCache.get(cacheKey);
   if (cached && Date.now() - cached.ts < DETAIL_CACHE_TTL) return cached.result;
 
-  // Sembol tipi belirle
   let item = null;
   let isCrypto = false;
   if (forceType === 'crypto') {
@@ -529,10 +661,9 @@ async function getMentionDetail(symbol, opts = {}) {
     return { success: false, error: 'Sembol bulunamadı', symbol: upper };
   }
 
-  // Scraper hazır değilse açıkça hata dön
-  try {
-    await initScraper();
-  } catch (e) {
+  // Scraper hazır mı?
+  try { await initScraper(); }
+  catch (e) {
     return {
       success: false,
       error: scraperLastError || e.message,
@@ -541,23 +672,12 @@ async function getMentionDetail(symbol, opts = {}) {
     };
   }
 
-  let tweets = [];
-  try {
-    tweets = await withTimeout(
-      searchSymbolTweets(item.symbol, isCrypto, MAX_TWEETS_PER_SEARCH),
-      PER_SEARCH_TIMEOUT_MS + 5000,
-      `search ${item.symbol}`
-    );
-  } catch (e) {
-    return {
-      success: false,
-      error: `X araması başarısız: ${e.message}`,
-      symbol: upper,
-      dataSource: 'x_scraper_error',
-    };
-  }
+  // Store'da varsa: oradan dön. Yoksa: bu sembolün 7 gününü yüksek-öncelikli olarak kuyruğa al.
+  let tweets = getAllTweetsForSymbol(item.symbol);
 
+  // Eğer hiç veri yoksa, "warming" cevabı dönüp arka planda doldurmaya başla.
   if (tweets.length === 0) {
+    enqueueSymbolBackfill(item, isCrypto, /*highPriority*/ true);
     const result = {
       success: true,
       symbol: item.symbol,
@@ -571,10 +691,10 @@ async function getMentionDetail(symbol, opts = {}) {
       topHashtags: [`#${item.symbol}`, `$${item.symbol}`],
       trendScore: 0,
       series7d: [], hourly24h: [], recentTweets: [],
-      dataSource: 'x_scraper_empty',
+      dataSource: 'x_scraper_warming',
       fetchedAt: new Date().toISOString(),
       xSearchUrl: `https://x.com/search?q=%23${item.symbol}+OR+%24${item.symbol}&src=typed_query&f=live`,
-      message: 'Son 7 günde bu sembol için tweet bulunamadı.',
+      message: 'Sembol kuyruğa alındı; veri toplanıyor. Birkaç dakika sonra tekrar yükleyin.',
     };
     detailCache.set(cacheKey, { result, ts: Date.now() });
     return result;
@@ -583,97 +703,213 @@ async function getMentionDetail(symbol, opts = {}) {
   const summary = buildSummaryFromTweets(item, tweets, isCrypto);
   const detail = buildDetailFromTweets(item, tweets, isCrypto, summary);
 
-  // Scanner cache'ine de yaz (warmer'ı tamamlar)
-  itemSummaryCache.set(item.symbol, { summary, ts: Date.now() });
-
   const result = {
     success: true,
     dataSource: 'x_scraper',
     fetchedAt: new Date().toISOString(),
     ...detail,
   };
-
   detailCache.set(cacheKey, { result, ts: Date.now() });
   return result;
 }
 
 // ─────────────────────────────────────────────────────────────────
-// Background warmer — yavaş yavaş BIST30 + Top10 kripto cache'ler
+// Job queue + drainer — zamana yayılmış arka plan tarayıcı
 // ─────────────────────────────────────────────────────────────────
-let warmerTimer = null;
-let warmerRunning = false;
+let jobQueue = []; // {symbol, isCrypto, item, date, priority, addedAt}
+let drainerRunning = false;
+let drainerSinceRest = 0;
 
-async function runWarmerCycle() {
-  if (warmerRunning) return;
-  warmerRunning = true;
-  const startedAt = Date.now();
-  try {
-    await initScraper(); // hazır değilse zaten exception atar
-  } catch (e) {
-    warmerRunning = false;
-    console.log(`[XMentions] Warmer skip: ${e.message}`);
-    return;
+function needsFetch(symbol, dateStr) {
+  const rec = store.bySymbol[symbol];
+  if (!rec || !rec.byDate || !rec.byDate[dateStr]) return true;
+  const day = rec.byDate[dateStr];
+  const todayKey = dateKey(new Date());
+  if (dateStr === todayKey) {
+    return (Date.now() - day.fetchedAt) > TODAY_REFRESH_MS;
   }
+  if (!day.complete) return true;
+  return (Date.now() - day.fetchedAt) > HISTORICAL_MAX_AGE_MS;
+}
 
-  const queue = [
+function enqueueIfNeeded(item, isCrypto, dateStr, priority = 0) {
+  if (!needsFetch(item.symbol, dateStr)) return false;
+  // Aynı job zaten kuyruktaysa skip
+  for (const j of jobQueue) {
+    if (j.symbol === item.symbol && j.date === dateStr) return false;
+  }
+  jobQueue.push({
+    symbol: item.symbol,
+    isCrypto,
+    item,
+    date: dateStr,
+    priority,
+    addedAt: Date.now(),
+  });
+  return true;
+}
+
+function enqueueSymbolBackfill(item, isCrypto, highPriority = false) {
+  const today = new Date();
+  let added = 0;
+  for (let d = 0; d < HISTORY_DAYS; d++) {
+    const dt = new Date(today);
+    dt.setUTCDate(dt.getUTCDate() - d);
+    const dateStr = dateKey(dt);
+    // Bugünkü gün ve dün yüksek öncelikli — kullanıcı en çok onları görür.
+    const prio = (d === 0 ? 3 : d === 1 ? 2 : 1) + (highPriority ? 5 : 0);
+    if (enqueueIfNeeded(item, isCrypto, dateStr, prio)) added++;
+  }
+  jobQueue.sort((a, b) => b.priority - a.priority);
+  return added;
+}
+
+function enqueueWarmerCycle() {
+  const universe = [
     ...bist30Stocks.map(s => ({ item: s, isCrypto: false })),
     ...TOP10_CRYPTOS.map(c => ({ item: c, isCrypto: true })),
   ];
-
-  console.log(`[XMentions] Warmer döngüsü başlıyor (${queue.length} sembol)...`);
-  let okCount = 0;
-  for (const entry of queue) {
-    const { item, isCrypto } = entry;
-    try {
-      const tweets = await withTimeout(
-        searchSymbolTweets(item.symbol, isCrypto, MAX_TWEETS_PER_SEARCH),
-        PER_SEARCH_TIMEOUT_MS + 5000,
-        `warmer ${item.symbol}`
-      );
-      if (tweets.length > 0) {
-        const summary = buildSummaryFromTweets(item, tweets, isCrypto);
-        itemSummaryCache.set(item.symbol, { summary, ts: Date.now() });
-        okCount++;
-      }
-    } catch (e) {
-      console.warn(`[XMentions] Warmer ${item.symbol}: ${e.message?.substring(0, 60)}`);
-    }
-    // Scanner cache'lerini de invalidate et
-    scannerCache.clear();
-    await new Promise(r => setTimeout(r, WARMER_DELAY_MS));
+  let added = 0;
+  for (const u of universe) {
+    added += enqueueSymbolBackfill(u.item, u.isCrypto, false);
   }
-
-  const dur = ((Date.now() - startedAt) / 1000).toFixed(1);
-  console.log(`[XMentions] ✓ Warmer döngüsü bitti: ${okCount}/${queue.length} sembol (${dur}sn)`);
-  warmerRunning = false;
+  if (added > 0) {
+    console.log(`[XMentions] Kuyruğa ${added} yeni gün-job eklendi (toplam: ${jobQueue.length})`);
+  }
 }
 
+function todayDailyCount() {
+  const k = dateKey(new Date());
+  return store.meta.dailyCount[k] || 0;
+}
+function bumpDailyCount() {
+  const k = dateKey(new Date());
+  store.meta.dailyCount[k] = (store.meta.dailyCount[k] || 0) + 1;
+  markStoreDirty();
+}
+
+async function runDrainer() {
+  if (drainerRunning) return;
+  drainerRunning = true;
+  try {
+    await initScraper();
+  } catch (e) {
+    drainerRunning = false;
+    console.log(`[XMentions] Drainer skip: ${e.message}`);
+    return;
+  }
+
+  while (jobQueue.length > 0) {
+    // Backoff aktif mi?
+    if (Date.now() < store.meta.backoffUntil) {
+      const wait = Math.min(60_000, store.meta.backoffUntil - Date.now());
+      await sleep(wait);
+      continue;
+    }
+    // Günlük cap?
+    if (todayDailyCount() >= DAILY_SEARCH_CAP) {
+      console.log(`[XMentions] Günlük cap (${DAILY_SEARCH_CAP}) doldu — 30 dk dur`);
+      await sleep(30 * 60 * 1000);
+      continue;
+    }
+
+    const job = jobQueue.shift();
+    // Job stale mi? — Bir saatten fazla kuyrukta bekleyip durumu değişmiş olabilir.
+    if (!needsFetch(job.symbol, job.date)) continue;
+
+    try {
+      const tweets = await withTimeout(
+        searchSymbolDay(job.symbol, job.date, job.isCrypto),
+        PER_SEARCH_TIMEOUT_MS + 5000,
+        `drain ${job.symbol}@${job.date}`
+      );
+      mergeDayTweets(job.symbol, job.isCrypto ? 'crypto' : 'stock', job.date, tweets);
+      bumpDailyCount();
+      drainerSinceRest++;
+      console.log(`[XMentions] ${job.symbol} ${job.date}: ${tweets.length} tweet (gün-job kalan: ${jobQueue.length})`);
+      // Scanner cache'i bayatlat — yeni veri geldi.
+      scannerCache.clear();
+    } catch (e) {
+      // Rate-limit ise backoff zaten searchSymbolDay içinde set edildi; yumuşak hatalarda devam.
+      if (isRateLimitError(e)) {
+        // Job'u geri at — backoff sonrası tekrar denenir
+        jobQueue.unshift(job);
+      } else {
+        // Geri konmazsa ölü bir günü sürekli denemeyiz; gelecek cycle yeniden enqueue eder
+      }
+    }
+
+    // Jitter + periyodik mola
+    if (drainerSinceRest >= BATCH_REST_AFTER_N) {
+      console.log(`[XMentions] ${BATCH_REST_AFTER_N} sorgu sonrası ${BATCH_REST_MS/60000} dk mola`);
+      await sleep(BATCH_REST_MS);
+      drainerSinceRest = 0;
+    } else {
+      await sleep(randomJitterMs());
+    }
+  }
+  drainerRunning = false;
+}
+
+// Public alias — eski API "startWarmer" ile uyumlu kal
+let scheduleTimer = null;
+let initialKickTimer = null;
+
 function startWarmer() {
-  if (warmerTimer) return;
-  // Server boot'tan 20 sn sonra ilk döngü, sonra periyodik
-  setTimeout(() => { runWarmerCycle().catch(() => {}); }, 20 * 1000);
-  warmerTimer = setInterval(() => { runWarmerCycle().catch(() => {}); }, WARMER_CYCLE_MS);
-  console.log('[XMentions] Warmer schedule edildi (35dk döngü)');
+  if (scheduleTimer) return;
+  loadStoreFromDisk();
+  startStoreSaver();
+
+  // İlk kick — 25 sn sonra (scraper init için zaman tanı)
+  initialKickTimer = setTimeout(() => {
+    enqueueWarmerCycle();
+    runDrainer().catch(err => console.warn('[XMentions] Drainer error:', err.message));
+  }, 25 * 1000);
+
+  // Periyodik re-enqueue — bugünki günü taze tut, dropped job'ları geri ekle
+  scheduleTimer = setInterval(() => {
+    enqueueWarmerCycle();
+    if (!drainerRunning) runDrainer().catch(err => console.warn('[XMentions] Drainer error:', err.message));
+  }, QUEUE_REENQUEUE_MS);
+
+  console.log(`[XMentions] Scheduler aktif (re-enqueue: ${QUEUE_REENQUEUE_MS/60000}dk, jitter: ${SEARCH_INTERVAL_MIN_MS/1000}-${SEARCH_INTERVAL_MAX_MS/1000}sn, daily cap: ${DAILY_SEARCH_CAP})`);
 }
 
 function stopWarmer() {
-  if (warmerTimer) { clearInterval(warmerTimer); warmerTimer = null; }
+  if (scheduleTimer) { clearInterval(scheduleTimer); scheduleTimer = null; }
+  if (initialKickTimer) { clearTimeout(initialKickTimer); initialKickTimer = null; }
+  if (storeSaveTimer) { clearInterval(storeSaveTimer); storeSaveTimer = null; }
+  saveStoreToDisk();
 }
 
 function clearCache() {
   scannerCache.clear();
   detailCache.clear();
-  itemSummaryCache.clear();
 }
 
 function getStatus() {
+  const todayKey = dateKey(new Date());
+  const symbols = Object.keys(store.bySymbol);
+  let totalTweets = 0;
+  for (const s of symbols) {
+    totalTweets += getAllTweetsForSymbol(s).length;
+  }
   return {
     scraperReady,
     scraperLastError,
-    warmerRunning,
-    cachedSymbols: itemSummaryCache.size,
+    storeSymbols: symbols.length,
+    storeTotalTweets: totalTweets,
+    queueDepth: jobQueue.length,
+    drainerRunning,
+    backoffActive: Date.now() < store.meta.backoffUntil,
+    backoffUntil: store.meta.backoffUntil
+      ? new Date(store.meta.backoffUntil).toISOString() : null,
+    dailySearchCount: store.meta.dailyCount[todayKey] || 0,
+    dailySearchCap: DAILY_SEARCH_CAP,
     scannerCacheKeys: scannerCache.size,
     detailCacheKeys: detailCache.size,
+    lastFlushAt: store.meta.lastFlushAt
+      ? new Date(store.meta.lastFlushAt).toISOString() : null,
   };
 }
 

@@ -30,7 +30,7 @@ export default function AccountDeletion() {
         throw new Error(data.error || 'Talep gonderilemedi')
       }
 
-      setMessage(data.message || 'Talebiniz alindi')
+      setMessage(data.message || 'Talebiniz alındı')
       setEmail('')
       setNote('')
     } catch (err) {
@@ -60,7 +60,7 @@ export default function AccountDeletion() {
           <p className="text-sm font-medium text-gold-400">Hesap Silme</p>
           <h1 className="mt-3 text-3xl font-bold text-white">Veri silme talebi olustur</h1>
           <p className="mt-3 text-sm leading-6 text-gray-400">
-            Uygulama icinde giris yapabilen kullanicilar, Ayarlar ekranindan hesaplarini dogrudan silebilir.
+            Uygulama içinde giriş yapabilen kullanıcılar, Ayarlar ekranından hesaplarını doğrudan silebilir.
             Uygulamaya erisemiyorsaniz asagidaki form ile hesap silme talebi iletebilirsiniz.
           </p>
 
@@ -112,8 +112,8 @@ export default function AccountDeletion() {
           <div className="mt-8 rounded-2xl border border-white/5 bg-dark-900/40 p-5">
             <h2 className="text-lg font-semibold text-white">Ne silinir?</h2>
             <p className="mt-2 text-sm leading-6 text-gray-300">
-              Hesap silme islemi tamamlandiginda kimlik dogrulama ve hesap kayitlari sistemden kaldirilir.
-              Guvenlik, dolandiricilik onleme veya hukuki yukumluluk sebebiyle tutulmasi gereken sinirli kayitlar
+              Hesap silme işlemi tamamlandığında kimlik doğrulama ve hesap kayıtları sistemden kaldırılır.
+              Güvenlik, dolandırıcılık önleme veya hukuki yükümlülük sebebiyle tutulması gereken sınırlı kayıtlar
               gerekli sure boyunca saklanabilir.
             </p>
           </div>

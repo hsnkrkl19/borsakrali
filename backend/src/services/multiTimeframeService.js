@@ -289,7 +289,7 @@ async function scanUniverseForTF(tf) {
   const universe = await cryptoSignalsService.getTop100Coins();
   if (!universe.length) return { signals: [], allSignals: [], analyzedCount: 0 };
 
-  const { tradable: tradableSet } = await cryptoSignalsService.getBinanceUsdtSymbols();
+  const { spot: tradableSet } = await cryptoSignalsService.getBinanceUsdtSymbols();
   const tradable = universe.filter(c => tradableSet.has(c.symbol)).slice(0, tierLimit);
 
   const longList = [], shortList = [];

@@ -18,8 +18,8 @@ const PLAN_COLORS = {
   free: 'border-gray-600 bg-dark-800',
   starter_monthly: 'border-blue-500/50 bg-blue-500/5',
   pro_monthly: 'border-gold-500/60 bg-gold-500/5',
-  elite_once: 'border-purple-500/50 bg-purple-500/5',
-  premium_once: 'border-purple-500/50 bg-purple-500/5',
+  elite_once: 'border-gold-400/50 bg-gold-400/5',
+  premium_once: 'border-gold-400/50 bg-gold-400/5',
   lifetime: 'border-gold-400/80 bg-gradient-to-br from-gold-500/10 to-yellow-500/5',
 }
 
@@ -211,15 +211,15 @@ export default function Abonelik() {
               <div key={plan.id} className={`relative rounded-2xl border-2 p-5 transition-all ${PLAN_COLORS[plan.id]} ${isActive ? 'ring-2 ring-gold-400' : ''}`}>
                 {plan.badge && (
                   <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                    <span className={`px-3 py-1 text-xs font-bold rounded-full whitespace-nowrap ${isLifetime ? 'bg-gradient-to-r from-gold-500 to-yellow-400 text-dark-950' : 'bg-purple-500 text-white'}`}>
+                    <span className={`px-3 py-1 text-xs font-bold rounded-full whitespace-nowrap ${isLifetime ? 'bg-gradient-to-r from-gold-500 to-yellow-400 text-dark-950' : 'bg-gold-400 text-white'}`}>
                       {plan.badge}
                     </span>
                   </div>
                 )}
 
                 <div className="text-center mb-4 pt-2">
-                  <div className={`w-12 h-12 rounded-2xl flex items-center justify-center mx-auto mb-3 ${isLifetime ? 'bg-gold-500/20' : 'bg-purple-500/20'}`}>
-                    <Icon className={`w-6 h-6 ${isLifetime ? 'text-gold-400' : 'text-purple-400'}`} />
+                  <div className={`w-12 h-12 rounded-2xl flex items-center justify-center mx-auto mb-3 ${isLifetime ? 'bg-gold-500/20' : 'bg-gold-400/20'}`}>
+                    <Icon className={`w-6 h-6 ${isLifetime ? 'text-gold-400' : 'text-gold-400'}`} />
                   </div>
                   <p className="font-bold text-white">{plan.name}</p>
                   <div className="mt-1">
@@ -231,7 +231,7 @@ export default function Abonelik() {
                 <ul className="space-y-1.5 mb-4">
                   {plan.features.map((f, i) => (
                     <li key={i} className="flex items-center gap-2 text-xs text-gray-300">
-                      <Check className={`w-3.5 h-3.5 flex-shrink-0 ${isLifetime ? 'text-gold-400' : 'text-purple-400'}`} />
+                      <Check className={`w-3.5 h-3.5 flex-shrink-0 ${isLifetime ? 'text-gold-400' : 'text-gold-400'}`} />
                       {f}
                     </li>
                   ))}
@@ -245,7 +245,7 @@ export default function Abonelik() {
                       ? 'bg-gold-500/20 text-gold-400 cursor-default border border-gold-500/40'
                       : isLifetime
                       ? 'bg-gradient-to-r from-gold-500 to-yellow-400 text-dark-950 font-bold hover:opacity-90 active:scale-95'
-                      : 'bg-purple-600 text-white hover:bg-purple-500 active:scale-95'
+                      : 'bg-gold-400 text-white hover:bg-gold-400 active:scale-95'
                   }`}
                 >
                   {upgrading === plan.id ? (

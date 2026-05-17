@@ -95,11 +95,11 @@ function phaseBadge(phase) {
   const cls = {
     premarket: 'bg-amber-500/15 text-amber-300 border-amber-500/30',
     revision:  'bg-blue-500/15 text-blue-300 border-blue-500/30',
-    intraday:  'bg-purple-500/15 text-purple-300 border-purple-500/30',
+    intraday:  'bg-gold-400/15 text-gold-400 border-gold-400/30',
     morning:   'bg-amber-500/15 text-amber-300 border-amber-500/30',
     midday:    'bg-orange-500/15 text-orange-300 border-orange-500/30',
-    evening:   'bg-violet-500/15 text-violet-300 border-violet-500/30',
-    night:     'bg-indigo-500/15 text-indigo-300 border-indigo-500/30',
+    evening:   'bg-amber-500/15 text-amber-400 border-amber-500/30',
+    night:     'bg-gold-400/15 text-gold-400 border-gold-400/30',
   }[phase] || 'bg-gray-500/15 text-gray-300 border-gray-500/30'
   return <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold border uppercase tracking-wider ${cls}`}>{phase}</span>
 }

@@ -122,8 +122,8 @@ export default function TeknikNotlar() {
       ) : filteredNotes.length === 0 ? (
         <div className="card text-center py-16">
           <FileText className="w-16 h-16 text-gray-600 mx-auto mb-4" />
-          <h3 className="text-xl font-semibold text-white mb-2">Not Bulunamadı</h3>
-          <p className="text-gray-400">Filtreleri değiştirerek tekrar deneyin</p>
+          <h3 className="text-xl font-semibold text-white mb-2">Henüz not eklemedin</h3>
+          <p className="text-gray-400">İstediğin hissede teknik not tutabilirsin.</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">

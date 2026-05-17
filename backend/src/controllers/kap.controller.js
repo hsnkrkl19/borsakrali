@@ -25,7 +25,7 @@ class KAPController {
       res.json({ news });
     } catch (error) {
       logger.error('Get news error:', error);
-      res.status(500).json({ error: 'Failed to fetch news' });
+      res.status(500).json({ error: 'Haberler alınamadı' });
     }
   }
 
@@ -37,13 +37,13 @@ class KAPController {
       });
       
       if (!newsItem) {
-        return res.status(404).json({ error: 'News not found' });
+        return res.status(404).json({ error: 'Haber bulunamadı' });
       }
 
       res.json({ news: newsItem });
     } catch (error) {
       logger.error('Get news analysis error:', error);
-      res.status(500).json({ error: 'Failed to fetch news analysis' });
+      res.status(500).json({ error: 'Haber analizi alınamadı' });
     }
   }
 
@@ -53,7 +53,7 @@ class KAPController {
       res.json({ anomalies });
     } catch (error) {
       logger.error('Get anomalies error:', error);
-      res.status(500).json({ error: 'Failed to detect anomalies' });
+      res.status(500).json({ error: 'Anomaliler tespit edilemedi' });
     }
   }
 
@@ -67,7 +67,7 @@ class KAPController {
       });
     } catch (error) {
       logger.error('Update news error:', error);
-      res.status(500).json({ error: 'Failed to update news' });
+      res.status(500).json({ error: 'Haberler güncellenemedi' });
     }
   }
 }

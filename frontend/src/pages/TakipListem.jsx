@@ -5,6 +5,7 @@ import {
   ChevronDown, ChevronRight, ShoppingCart, Receipt, Search, Check,
 } from 'lucide-react'
 import api from '../services/api'
+import { showError, showSuccess } from '../utils/toast'
 
 const fmt    = (n, d = 2) => n == null || isNaN(n) ? '—' : n.toLocaleString('tr-TR', { minimumFractionDigits: d, maximumFractionDigits: d })
 const fmtTL  = (n) => n == null ? '—' : `${fmt(n)} ₺`
@@ -99,7 +100,7 @@ export default function TakipListem() {
     if (!formSymbol || !formQty || !formPrice) return
     // Yeni eklemede sembol mutlaka listeden seçilmiş olmalı.
     if (!editingLot && !symbolValid) {
-      alert('Lütfen listeden geçerli bir hisse seçin.')
+      showError('Lütfen listeden geçerli bir hisse seç.')
       return
     }
     setSubmitting(true)
@@ -112,6 +113,7 @@ export default function TakipListem() {
           type: formType,
           note: formNote,
         })
+        showSuccess('✓ İşlem güncellendi.')
       } else {
         await api.post('/portfolio', {
           symbol: formSymbol.toUpperCase().trim(),
@@ -121,12 +123,13 @@ export default function TakipListem() {
           type: formType,
           note: formNote,
         })
+        showSuccess(`✓ ${formSymbol.toUpperCase().trim()} takip listene eklendi.`)
       }
       resetForm()
       setShowAdd(false)
       setRefreshTick(t => t + 1)
     } catch (e) {
-      alert(e.response?.data?.error || e.message)
+      showError(e)
     } finally {
       setSubmitting(false)
     }
@@ -136,9 +139,10 @@ export default function TakipListem() {
     if (!confirm('Bu işlemi silmek istediğinize emin misiniz?')) return
     try {
       await api.delete(`/portfolio/${lotId}`)
+      showSuccess('✓ İşlem silindi.')
       setRefreshTick(t => t + 1)
     } catch (e) {
-      alert(e.response?.data?.error || e.message)
+      showError(e)
     }
   }
 
@@ -270,9 +274,9 @@ export default function TakipListem() {
         {!loading && positions.length === 0 && !error && (
           <div className="bg-dark-900/60 border border-dashed border-dark-700 rounded-2xl p-8 text-center">
             <Briefcase className="w-10 h-10 text-gray-600 mx-auto mb-3" />
-            <h3 className="text-base font-semibold text-white mb-1">Henüz işlem eklemediniz</h3>
+            <h3 className="text-base font-semibold text-white mb-1">Henüz takip ettiğin hisse yok</h3>
             <p className="text-xs text-gray-500 mb-4">
-              "İşlem Ekle" butonu ile alım/satım kaydedip otomatik kar/zarar takibi yapabilirsiniz.
+              Fırsatlar'dan bir hisseye gir, kalp ikonuna bas. Buradan kâr/zararını canlı takip edersin.
             </p>
             <button
               onClick={() => { resetForm(); setShowAdd(true) }}

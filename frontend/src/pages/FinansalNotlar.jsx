@@ -5,7 +5,7 @@ const STORAGE_KEY = 'bk-notes'
 const CATEGORIES = ['Analiz', 'Fikir', 'Hatırlatıcı', 'Haber', 'Diğer']
 const CAT_COLORS = {
   'Analiz':       'bg-blue-500/20 text-blue-400',
-  'Fikir':        'bg-purple-500/20 text-purple-400',
+  'Fikir':        'bg-gold-400/20 text-gold-400',
   'Hatırlatıcı':  'bg-yellow-500/20 text-yellow-400',
   'Haber':        'bg-green-500/20 text-green-400',
   'Diğer':        'bg-gray-500/20 text-gray-400',
@@ -192,7 +192,7 @@ export default function FinansalNotlar() {
         <div className="card text-center py-12">
           <FileText className="w-12 h-12 text-gray-600 mx-auto mb-3" />
           <p className="text-gray-400 text-sm">
-            {notes.length === 0 ? 'Henüz not yok. İlk notunuzu ekleyin!' : 'Arama sonucu yok.'}
+            {notes.length === 0 ? 'Henüz not eklemedin. İstediğin hissede not tutabilirsin.' : 'Arama sonucu yok.'}
           </p>
         </div>
       ) : (

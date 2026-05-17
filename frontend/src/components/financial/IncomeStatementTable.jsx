@@ -390,12 +390,12 @@ export default function IncomeStatementTable() {
                         </p>
                     </div>
 
-                    <div className="bg-gradient-to-br from-purple-500/10 to-purple-600/10 border border-purple-500/30 rounded-xl p-4">
+                    <div className="bg-gradient-to-br from-gold-400/10 to-gold-500/10 border border-gold-400/30 rounded-xl p-4">
                         <div className="flex items-center justify-between mb-2">
                             <span className="text-gray-400 text-sm">FAVÖK Marjı</span>
-                            <TrendingUp className="w-4 h-4 text-purple-400" />
+                            <TrendingUp className="w-4 h-4 text-gold-400" />
                         </div>
-                        <p className="text-2xl font-bold text-purple-400">
+                        <p className="text-2xl font-bold text-gold-400">
                             {formatPercent(displayData[0].ebitdaMargin)}
                         </p>
                     </div>

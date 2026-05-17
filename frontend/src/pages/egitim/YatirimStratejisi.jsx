@@ -32,7 +32,7 @@ export default function YatirimStratejisi() {
               <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gold-500/15 text-gold-400">
                 <Zap className="h-5 w-5" />
               </div>
-              <span className="rounded-full border border-purple-500/20 bg-purple-500/10 px-2.5 py-0.5 text-xs font-medium text-purple-300">
+              <span className="rounded-full border border-gold-400/20 bg-gold-400/10 px-2.5 py-0.5 text-xs font-medium text-gold-400">
                 Strateji
               </span>
             </div>

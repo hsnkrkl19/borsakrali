@@ -4,31 +4,31 @@ import BrandMark from '../components/BrandMark'
 const sections = [
   {
     title: 'Toplanan Veriler',
-    body: 'Borsa Krali, hesap olusturma ve giris islemleri icin ad, soyad, e-posta adresi, telefon numarasi ve sifre bilgilerini toplar. Uygulama icindeki notlar, yorumlar, istekler ve kullanicinin gonderdigi diger metinler de ilgili ozelligi calistirmak icin islenebilir.'
+    body: 'Borsa Krali, hesap oluşturma ve giriş işlemleri için ad, soyad, e-posta adresi, telefon numarası ve şifre bilgilerini toplar. Uygulama içindeki notlar, yorumlar, istekler ve kullanıcının gönderdiği diğer metinler de ilgili özelliği çalıştırmak için işlenebilir.'
   },
   {
-    title: 'Kullanim Amaclari',
-    body: 'Toplanan veriler hesap yonetimi, kimlik dogrulama, destek surecleri, uygulama ici finansal analiz ozellikleri, yorum ve istek panelleri ile guvenlik kayitlari icin kullanilir. Uygulama yatirim tavsiyesi vermez; veriler egitim ve analiz deneyimini sunmak amaciyla islenir.'
+    title: 'Kullanım Amaçları',
+    body: 'Toplanan veriler hesap yönetimi, kimlik doğrulama, destek süreçleri, uygulama içi finansal analiz özellikleri, yorum ve istek panelleri ile güvenlik kayıtları için kullanılır. Uygulama yatırım tavsiyesi vermez; veriler eğitim ve analiz deneyimini sunmak amacıyla işlenir.'
   },
   {
-    title: 'Reklam ve Ucuncu Taraf Hizmetler',
-    body: 'Uygulamada reklam gosterimi aktif oldugunda Google AdMob gibi reklam servisleri cihaz kimlikleri ve reklam performansina iliskin teknik verileri isleyebilir. Ayrica piyasa verileri uygulama icindeki finansal ekranlari sunmak icin ucuncu taraf veri kaynaklarindan alinabilir.'
+    title: 'Reklam ve Üçüncü Taraf Hizmetler',
+    body: 'Uygulamada reklam gösterimi aktif olduğunda Google AdMob gibi reklam servisleri cihaz kimlikleri ve reklam performansına ilişkin teknik verileri işleyebilir. Ayrıca piyasa verileri uygulama içindeki finansal ekranları sunmak için üçüncü taraf veri kaynaklarından alınabilir.'
   },
   {
-    title: 'Veri Guvenligi',
-    body: 'Veri iletimi HTTPS uzerinden yapilir. Kullanici kayitlari sunucu tarafinda sifreli sekilde saklanir. Yalnizca hizmeti sunmak icin gerekli olan personel ve servisler veriye erisebilir.'
+    title: 'Veri Güvenliği',
+    body: 'Veri iletimi HTTPS üzerinden yapılır. Kullanıcı kayıtları sunucu tarafında şifreli şekilde saklanır. Yalnızca hizmeti sunmak için gerekli olan personel ve servisler veriye erişebilir.'
   },
   {
-    title: 'Veri Paylasimi',
-    body: 'Kisisel veriler, uygulama islevini yerine getirmek icin kullanilan servis saglayicilar disinda satis veya pazarlama amaciyla paylasilmaz. Yasal zorunluluk, dolandiricilik onleme veya guvenlik gerekleri dogdugunda ilgili kurumlarla paylasim yapilabilir.'
+    title: 'Veri Paylaşımı',
+    body: 'Kişisel veriler, uygulama işlevini yerine getirmek için kullanılan servis sağlayıcılar dışında satış veya pazarlama amacıyla paylaşılmaz. Yasal zorunluluk, dolandırıcılık önleme veya güvenlik gerekleri doğduğunda ilgili kurumlarla paylaşım yapılabilir.'
   },
   {
     title: 'Hesap ve Veri Silme',
-    body: 'Kullanici, uygulama icindeki Ayarlar bolumunden hesabini silebilir veya web uzerinden hesap silme talebi iletebilir. Guvenlik, dolandiricilik onleme ya da hukuki yukumluluk sebebiyle tutulmasi gereken belirli kayitlar sinirli sureyle saklanabilir.'
+    body: 'Kullanıcı, uygulama içindeki Ayarlar bölümünden hesabını silebilir veya web üzerinden hesap silme talebi iletebilir. Güvenlik, dolandırıcılık önleme ya da hukuki yükümlülük sebebiyle tutulması gereken belirli kayıtlar sınırlı süreyle saklanabilir.'
   },
   {
-    title: 'Iletisim',
-    body: 'Gizlilikle ilgili talepleriniz icin destek@borsakrali.com adresine ulasabilirsiniz.'
+    title: 'İletişim',
+    body: 'Gizlilikle ilgili talepleriniz için destek@borsakrali.com adresine ulaşabilirsiniz.'
   }
 ]
 
@@ -42,20 +42,20 @@ export default function PrivacyPolicy() {
             Borsa Krali
           </Link>
           <div className="flex flex-wrap gap-4 text-sm">
-            <Link to="/hakkimizda" className="text-gray-400 hover:text-white">Hakkimizda</Link>
-            <Link to="/iletisim" className="text-gray-400 hover:text-white">Iletisim</Link>
-            <Link to="/terms-of-use" className="text-gray-400 hover:text-white">Kullanim Kosullari</Link>
+            <Link to="/hakkimizda" className="text-gray-400 hover:text-white">Hakkımızda</Link>
+            <Link to="/iletisim" className="text-gray-400 hover:text-white">İletişim</Link>
+            <Link to="/terms-of-use" className="text-gray-400 hover:text-white">Kullanım Koşulları</Link>
             <Link to="/account-deletion" className="text-gray-400 hover:text-white">Hesap Silme</Link>
           </div>
         </div>
 
         <div className="rounded-3xl border border-gold-500/20 bg-surface-100 p-6 md:p-8 shadow-premium">
           <div className="mb-8 space-y-3">
-            <p className="text-sm font-medium text-gold-400">Gizlilik Politikasi</p>
-            <h1 className="text-3xl font-bold text-white">Borsa Krali Kullanici Verileri</h1>
+            <p className="text-sm font-medium text-gold-400">Gizlilik Politikası</p>
+            <h1 className="text-3xl font-bold text-white">Borsa Krali Kullanıcı Verileri</h1>
             <p className="max-w-3xl text-sm leading-6 text-gray-400">
-              Bu metin, Google Play store listelemesi ve uygulama ici bilgilendirme icin hazirlanmistir.
-              Hukuki gereklilikleriniz icin bir hukuk danismaniyla son kontrol yapmaniz onerilir.
+              Bu metin, Google Play store listelemesi ve uygulama içi bilgilendirme için hazırlanmıştır.
+              Hukuki gereklilikleriniz için bir hukuk danışmanıyla son kontrol yapmanız önerilir.
             </p>
           </div>
 
@@ -68,7 +68,7 @@ export default function PrivacyPolicy() {
             ))}
           </div>
 
-          <p className="mt-8 text-xs text-gray-500">Son guncelleme: 31 Mart 2026</p>
+          <p className="mt-8 text-xs text-gray-500">Son güncelleme: 31 Mart 2026</p>
         </div>
       </div>
     </div>

@@ -45,7 +45,7 @@ class MarketController {
       res.json(bist100);
     } catch (error) {
       logger.error('getBist100 error:', error);
-      res.status(500).json({ error: 'Failed to fetch BIST 100 data' });
+      res.status(500).json({ error: 'BIST 100 verisi alınamadı' });
     }
   }
 
@@ -63,12 +63,12 @@ class MarketController {
         return res.json(MarketController._macroCache.data);
       }
       const data = await yahooFinanceService.getMacroSnapshot();
-      if (!data) return res.status(503).json({ error: 'Macro snapshot unavailable' });
+      if (!data) return res.status(503).json({ error: 'Piyasa verisi şu an mevcut değil' });
       MarketController._macroCache = { t: now, data };
       res.json(data);
     } catch (error) {
       logger.error('getMacroSnapshot error:', error);
-      res.status(500).json({ error: 'Failed to fetch macro snapshot' });
+      res.status(500).json({ error: 'Piyasa verisi alınamadı' });
     }
   }
 
@@ -96,7 +96,7 @@ class MarketController {
       });
     } catch (error) {
       logger.error('getAllStocks error:', error);
-      res.status(500).json({ error: 'Failed to fetch stocks' });
+      res.status(500).json({ error: 'Hisseler alınamadı' });
     }
   }
 
@@ -106,13 +106,13 @@ class MarketController {
   async searchStocks(req, res) {
     try {
       const { q } = req.query;
-      if (!q || q.length < 2) return res.status(400).json({ error: 'Query must be at least 2 characters' });
+      if (!q || q.length < 2) return res.status(400).json({ error: 'Arama en az 2 karakter olmalı' });
 
       const stocks = await bulkDataUpdater.searchStocks(q);
       res.json({ stocks });
     } catch (error) {
       logger.error('searchStocks error:', error);
-      res.status(500).json({ error: 'Search failed' });
+      res.status(500).json({ error: 'Arama başarısız' });
     }
   }
 
@@ -123,7 +123,7 @@ class MarketController {
     try {
       const { symbol } = req.params;
       const stock = await Stock.findOne({ where: { symbol, isActive: true } });
-      if (!stock) return res.status(404).json({ error: `Stock ${symbol} not found` });
+      if (!stock) return res.status(404).json({ error: `${symbol} hissesi bulunamadı` });
 
       const latestData = await MarketData.findOne({
         where: { stockId: stock.id },
@@ -147,7 +147,7 @@ class MarketController {
       });
     } catch (error) {
       logger.error(`getStockDetail error for ${req.params.symbol}:`, error);
-      res.status(500).json({ error: 'Failed to fetch stock detail' });
+      res.status(500).json({ error: 'Hisse detayı alınamadı' });
     }
   }
 
@@ -160,15 +160,15 @@ class MarketController {
       const { period = '3mo', interval = '1d' } = req.query;
 
       const isValid = await bulkDataUpdater.isValidBistStock(symbol);
-      if (!isValid) return res.status(404).json({ error: `Stock ${symbol} not found` });
+      if (!isValid) return res.status(404).json({ error: `${symbol} hissesi bulunamadı` });
 
       const data = await yahooFinanceService.getHistoricalData(symbol, period, interval);
-      if (!data) return res.status(404).json({ error: 'No historical data available' });
+      if (!data) return res.status(404).json({ error: 'Geçmiş veri yok' });
 
       res.json(data);
     } catch (error) {
       logger.error(`getHistoricalData error for ${req.params.symbol}:`, error);
-      res.status(500).json({ error: 'Failed to fetch historical data' });
+      res.status(500).json({ error: 'Geçmiş veri alınamadı' });
     }
   }
 
@@ -179,7 +179,7 @@ class MarketController {
     try {
       const { symbol } = req.params;
       const stock = await Stock.findOne({ where: { symbol, isActive: true } });
-      if (!stock) return res.status(404).json({ error: `Stock ${symbol} not found` });
+      if (!stock) return res.status(404).json({ error: `${symbol} hissesi bulunamadı` });
 
       let marketData = await MarketData.findAll({
         where: { stockId: stock.id },
@@ -193,7 +193,7 @@ class MarketController {
         if (historical && historical.length > 50) {
           closePrices = historical.map(d => parseFloat(d.close));
         } else {
-          return res.status(400).json({ error: 'Insufficient data for calculations' });
+          return res.status(400).json({ error: 'Hesaplama için yeterli veri yok' });
         }
       } else {
         closePrices = marketData.map(d => parseFloat(d.close)).reverse();
@@ -210,7 +210,7 @@ class MarketController {
       res.json({ symbol, currentPrice: latestPrice, emas, rsi, macd, bollinger, saturation, supportResistance });
     } catch (error) {
       logger.error(`getIndicators error for ${req.params.symbol}:`, error);
-      res.status(500).json({ error: 'Failed to calculate indicators' });
+      res.status(500).json({ error: 'Göstergeler hesaplanamadı' });
     }
   }
 
@@ -232,7 +232,7 @@ class MarketController {
       res.json({ symbol, signals, analysisDate: new Date() });
     } catch (error) {
       logger.error(`getStockAnalysis error for ${req.params.symbol}:`, error);
-      res.status(500).json({ error: 'Failed to perform analysis' });
+      res.status(500).json({ error: 'Analiz yapılamadı' });
     }
   }
 
@@ -258,7 +258,7 @@ class MarketController {
       res.json({ sectors: sectorPerf });
     } catch (error) {
       logger.error('getSectorPerformance error:', error);
-      res.status(500).json({ error: 'Failed to fetch sector performance' });
+      res.status(500).json({ error: 'Sektör performansı alınamadı' });
     }
   }
 
@@ -282,7 +282,7 @@ class MarketController {
       res.json({ signals });
     } catch (error) {
       logger.error('getDailySignals error:', error);
-      res.status(500).json({ error: 'Failed to fetch signals' });
+      res.status(500).json({ error: 'Sinyaller alınamadı' });
     }
   }
 
@@ -293,15 +293,15 @@ class MarketController {
     try {
       const { symbols } = req.body;
       if (!Array.isArray(symbols) || symbols.length === 0) {
-        return res.status(400).json({ error: 'Symbols array required' });
+        return res.status(400).json({ error: 'Sembol listesi gerekli' });
       }
-      if (symbols.length > 100) return res.status(400).json({ error: 'Maximum 100 symbols per request' });
+      if (symbols.length > 100) return res.status(400).json({ error: 'En fazla 100 sembol gönderebilirsin' });
 
       const quotes = await yahooFinanceService.getBatchQuotes(symbols);
       res.json({ quotes });
     } catch (error) {
       logger.error('getBatchQuotes error:', error);
-      res.status(500).json({ error: 'Failed to fetch batch quotes' });
+      res.status(500).json({ error: 'Toplu fiyat alınamadı' });
     }
   }
 
@@ -549,7 +549,7 @@ class MarketController {
       });
     } catch (error) {
       logger.error('getScans error:', error);
-      res.status(500).json({ error: 'Tarama yapilamadi', details: error.message });
+      res.status(500).json({ error: 'Tarama yapılamadı', details: error.message });
     }
   }
 
@@ -657,7 +657,7 @@ class MarketController {
       res.json({ patterns });
     } catch (error) {
       logger.error('getHarmonicPatterns error:', error);
-      res.status(500).json({ error: 'Harmonik pattern verisi alinamadi' });
+      res.status(500).json({ error: 'Harmonik desen verisi alınamadı' });
     }
   }
 
@@ -723,7 +723,7 @@ class MarketController {
       res.json({ stocks });
     } catch (error) {
       logger.error('getFibonacciReversals error:', error);
-      res.status(500).json({ error: 'Fibonacci verileri alinamadi' });
+      res.status(500).json({ error: 'Fibonacci verileri alınamadı' });
     }
   }
 
@@ -747,7 +747,7 @@ class MarketController {
       });
     } catch (error) {
       logger.error('getAlgorithmPerformance error:', error);
-      res.status(500).json({ error: 'Performans verileri alinamadi' });
+      res.status(500).json({ error: 'Performans verileri alınamadı' });
     }
   }
 
@@ -761,7 +761,7 @@ class MarketController {
       res.json({ dates });
     } catch (error) {
       logger.error('getDailyPerformanceDates error:', error);
-      res.status(500).json({ error: 'Tarih listesi alinamadi' });
+      res.status(500).json({ error: 'Tarih listesi alınamadı' });
     }
   }
 
@@ -785,13 +785,13 @@ class MarketController {
       }
 
       return res.status(404).json({
-        error: 'Bu tarih icin performans hesaplanmadi',
+        error: 'Bu tarih için performans hesaplanmadı',
         date,
         hint: 'POST /api/admin/compute-performance?date=YYYY-MM-DD veya ?compute=1 ekleyin',
       });
     } catch (error) {
       logger.error('getDailyPerformance error:', error);
-      res.status(500).json({ error: 'Performans verisi alinamadi' });
+      res.status(500).json({ error: 'Performans verisi alınamadı' });
     }
   }
 

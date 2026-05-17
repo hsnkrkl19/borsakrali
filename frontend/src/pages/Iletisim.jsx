@@ -16,74 +16,74 @@ const SECONDARY_EMAIL = 'hsnkrkl19@gmail.com'
 const PRECONTACT_TIPS = [
   {
     icon: Info,
-    title: "SSS'lerimize Bakin",
-    text: "Sorunuzun cevabi muhtemelen asagidaki Sikca Sorulan Sorular bolumundedir. Hesap, abonelik, veri ve sinyaller, teknik sorunlar ile KVKK basliklari altinda 20'den fazla soruyu detayli sekilde cevapladik. Once orada arama yapmaniz hem zaman kazandirir hem de cogu durumda anlik cozum sunar."
+    title: "SSS'lerimize Bakın",
+    text: "Sorunuzun cevabı muhtemelen aşağıdaki Sıkça Sorulan Sorular bölümündedir. Hesap, abonelik, veri ve sinyaller, teknik sorunlar ile KVKK başlıkları altında 20'den fazla soruyu detaylı şekilde cevapladık. Önce orada arama yapmanız hem zaman kazandırır hem de çoğu durumda anlık çözüm sunar."
   },
   {
     icon: Bug,
     title: "Hata Bildiriminde Detay Verin",
-    text: "Bir hata bildiriyorsaniz lutfen tarayici turu ve surumunu, isletim sistemini, cihaz modelini ve hatanin alindigi sayfanin tam adresini ekleyin. Mumkunse ekran goruntusu veya kisa bir ekran kaydi paylasin. Bu detaylar sorunu yeniden uretip cozmemizi cok hizlandirir; aksi halde gereksiz mesajlasma kaybi yasariz."
+    text: "Bir hata bildiriyorsanız lütfen tarayıcı türü ve sürümünü, işletim sistemini, cihaz modelini ve hatanın alındığı sayfanın tam adresini ekleyin. Mümkünse ekran görüntüsü veya kısa bir ekran kaydı paylaşın. Bu detaylar sorunu yeniden üretip çözmemizi çok hızlandırır; aksi halde gereksiz mesajlaşma kaybı yaşarız."
   },
   {
     icon: FileText,
-    title: "Konu Basligini Net Yazin",
-    text: "Mesajinizin konu basligi gondermek istediginiz icerigi acikca ozetlemelidir; ornegin 'Yardim' yerine 'Premium abonelikten Lifetime plana gecis fiyati' gibi yazmak daha hizli yonlendirme saglar. Boylece talep dogru ekibe (teknik, abonelik veya KVKK) iletilir ve cevap suresi onemli olcude kisalir."
+    title: "Konu Başlığını Net Yazın",
+    text: "Mesajınızın konu başlığı göndermek istediğiniz içeriği açıkça özetlemelidir; örneğin 'Yardım' yerine 'Premium abonelikten Lifetime plana geçiş fiyatı' gibi yazmak daha hızlı yönlendirme sağlar. Böylece talep doğru ekibe (teknik, abonelik veya KVKK) iletilir ve cevap süresi önemli ölçüde kısalır."
   },
   {
     icon: ShieldAlert,
-    title: "Spam ve Otomatik Mesaj Gondermeyin",
-    text: "Toplu, otomatik veya yapay zeka ile uretilmis, gercek bir destek talebi icermeyen mesajlar incelenmeden reddedilir. Ayni mesaji birden fazla kanaldan ayni anda gondermek talebinizi yavaslatir. Tek bir kanaldan acik ve net mesajla yazmaniz hem size hem de bize zaman kazandirir."
+    title: "Spam ve Otomatik Mesaj Göndermeyin",
+    text: "Toplu, otomatik veya yapay zeka ile üretilmiş, gerçek bir destek talebi içermeyen mesajlar incelenmeden reddedilir. Aynı mesajı birden fazla kanaldan aynı anda göndermek talebinizi yavaşlatır. Tek bir kanaldan açık ve net mesajla yazmanız hem size hem de bize zaman kazandırır."
   }
 ]
 
 const FAQ_CATEGORIES = [
   {
-    title: 'Hesap ve Uyelik',
+    title: 'Hesap ve Üyelik',
     items: [
       {
-        q: 'Hesap acmak ucretsiz mi?',
-        a: "Evet, Borsa Krali'nda temel hesap acmak tamamen ucretsizdir. Ucretsiz uyelik ile gunluk sinirli sayida tarama yapabilir, dashboard ozetini gorebilir ve temel piyasa verilerine erisebilirsiniz. Ileri seviye sinyaller, sinirsiz tarama ve premium modulleri kullanmak isterseniz abonelik planlarimizi inceleyebilirsiniz. Kayit icin sadece gecerli bir e-posta adresi yeterlidir; kredi karti istemiyoruz."
+        q: 'Hesap açmak ücretsiz mi?',
+        a: "Evet, Borsa Krali'nda temel hesap açmak tamamen ücretsizdir. Ücretsiz üyelik ile günlük sınırlı sayıda tarama yapabilir, dashboard özetini görebilir ve temel piyasa verilerine erişebilirsiniz. İleri seviye sinyaller, sınırsız tarama ve premium modülleri kullanmak isterseniz abonelik planlarımızı inceleyebilirsiniz. Kayıt için sadece geçerli bir e-posta adresi yeterlidir; kredi kartı istemiyoruz."
       },
       {
-        q: 'Sifremi unuttum, ne yapmaliyim?',
-        a: "Giris ekranindaki 'Sifremi Unuttum' baglantisina tikladiginizda kayitli e-posta adresinize sifre sifirlama linki gonderilir. Bu link 60 dakika gecerlidir. E-postayi alamadiysaniz spam veya promosyonlar klasorunu kontrol edip birkac dakika bekleyerek tekrar deneyin. Sorun devam ederse info@borsakrali.com adresinden bizimle iletisime gecip kayitli e-postanizi belirtin; manuel sifirlama yapariz."
+        q: 'Şifremi unuttum, ne yapmalıyım?',
+        a: "Giriş ekranındaki 'Şifremi Unuttum' bağlantısına tıkladığınızda kayıtlı e-posta adresinize şifre sıfırlama linki gönderilir. Bu link 60 dakika geçerlidir. E-postayı alamadıysanız spam veya promosyonlar klasörünü kontrol edip birkaç dakika bekleyerek tekrar deneyin. Sorun devam ederse info@borsakrali.com adresinden bizimle iletişime geçip kayıtlı e-postanızı belirtin; manuel sıfırlama yaparız."
       },
       {
-        q: 'E-posta dogrulama mesaji gelmedi?',
-        a: "E-posta dogrulama mesaji genellikle birkac saniye icinde inbox'a duser. Gelmediyse oncelikle spam, gereksiz veya promosyonlar klasorunu inceleyin. Yine yoksa profil sayfanizdaki 'Tekrar Gonder' butonu ile yeni bir dogrulama mesaji isteyebilirsiniz. Bazi e-posta saglayicilari geciktirme uygular; 10 dakika icinde gelmemesi durumunda destek ekibimize yazip kontrol talep edebilirsiniz."
+        q: 'E-posta doğrulama mesajı gelmedi?',
+        a: "E-posta doğrulama mesajı genellikle birkaç saniye içinde inbox'a düşer. Gelmediyse öncelikle spam, gereksiz veya promosyonlar klasörünü inceleyin. Yine yoksa profil sayfanızdaki 'Tekrar Gönder' butonu ile yeni bir doğrulama mesajı isteyebilirsiniz. Bazı e-posta sağlayıcıları geciktirme uygular; 10 dakika içinde gelmemesi durumunda destek ekibimize yazıp kontrol talep edebilirsiniz."
       },
       {
-        q: 'Hesabimi nasil silerim?',
-        a: "Hesabinizi tamamen kapatmak icin profil sayfasinda 'Hesabi Sil' bolumunu kullanabilirsiniz. KVKK kapsaminda silme talebiniz en gec 30 gun icinde islenir; tum kullanici verileriniz, abonelik kayitlari ve gecmis sinyal bildirimleri silinir. Aktif aboneliginiz varsa once iptal etmeniz onerilir. Silme talebinizi info@borsakrali.com adresine de yazabilirsiniz; her durumda kimlik dogrulamasi yaparak sureci yurutuyoruz."
+        q: 'Hesabımı nasıl silerim?',
+        a: "Hesabınızı tamamen kapatmak için profil sayfasında 'Hesabı Sil' bölümünü kullanabilirsiniz. KVKK kapsamında silme talebiniz en geç 30 gün içinde işlenir; tüm kullanıcı verileriniz, abonelik kayıtları ve geçmiş sinyal bildirimleri silinir. Aktif aboneliğiniz varsa önce iptal etmeniz önerilir. Silme talebinizi info@borsakrali.com adresine de yazabilirsiniz; her durumda kimlik doğrulaması yaparak süreci yürütüyoruz."
       },
       {
-        q: 'Profil bilgilerimi nasil degistiririm?',
-        a: "Profil sayfasindan ad, soyad, e-posta adresi, sifre ve bildirim tercihlerini guncelleyebilirsiniz. E-posta degisikligi yeni adrese gonderilen dogrulama linki ile tamamlanir. Sifre degisikligi icin mevcut sifrenizi girmeniz gerekir. Profil resmi su an icin desteklenmemekte olup roadmap'imizdedir. Hizmet sartlari geregi takma ad yerine gercek isim kullanmanizi tavsiye ederiz; bu hem fatura hem yasal yazismalar icin gereklidir."
+        q: 'Profil bilgilerimi nasıl değiştiririm?',
+        a: "Profil sayfasından ad, soyad, e-posta adresi, şifre ve bildirim tercihlerini güncelleyebilirsiniz. E-posta değişikliği yeni adrese gönderilen doğrulama linki ile tamamlanır. Şifre değişikliği için mevcut şifrenizi girmeniz gerekir. Profil resmi şu an için desteklenmemekte olup roadmap'imizdedir. Hizmet şartları gereği takma ad yerine gerçek isim kullanmanızı tavsiye ederiz; bu hem fatura hem yasal yazışmalar için gereklidir."
       }
     ]
   },
   {
-    title: 'Abonelik ve Odeme',
+    title: 'Abonelik ve Ödeme',
     items: [
       {
-        q: 'Hangi abonelik planlari sunuluyor?',
-        a: "Su anda 6 farkli plan sunuyoruz: Free (ucretsiz), Starter Aylik (50 TL/ay), Pro Aylik (300 TL/ay), Elite Tek Seferlik (50 TL), Premium Tek Seferlik (150 TL) ve Lifetime (1500 TL bir defaya mahsus). Her plan farkli kota ve ozellik kombinasyonu sunar. Detayli karsilastirma icin /abonelik sayfamizi ziyaret edebilirsiniz. Lifetime plan sahipleri ileride eklenecek tum yeni ozelliklere otomatik dahil olur."
+        q: 'Hangi abonelik planları sunuluyor?',
+        a: "Şu anda 6 farklı plan sunuyoruz: Free (ücretsiz), Starter Aylık (50 TL/ay), Pro Aylık (300 TL/ay), Elite Tek Seferlik (50 TL), Premium Tek Seferlik (150 TL) ve Lifetime (1500 TL bir defaya mahsus). Her plan farklı kota ve özellik kombinasyonu sunar. Detaylı karşılaştırma için /abonelik sayfamızı ziyaret edebilirsiniz. Lifetime plan sahipleri ileride eklenecek tüm yeni özelliklere otomatik dahil olur."
       },
       {
-        q: 'Iade ve cayma hakki var mi?',
-        a: "Aylik abonelikler ilk 7 gun icinde, aktif kullanim olmamasi sartiyla iade edilebilir. Tek seferlik ve Lifetime planlar icin iade hakki, 6502 sayili Tuketicinin Korunmasi Hakkinda Kanun kapsaminda dijital hizmet alimi geregi 14 gun cayma hakkiyla sinirlidir; kullanim baslamissa iade kabul edilmez. Iade talepleriniz icin info@borsakrali.com adresinden basvurabilirsiniz; talebiniz 7 is gunu icinde cevaplanir."
+        q: 'İade ve cayma hakkı var mı?',
+        a: "Aylık abonelikler ilk 7 gün içinde, aktif kullanım olmaması şartıyla iade edilebilir. Tek seferlik ve Lifetime planlar için iade hakkı, 6502 sayılı Tüketicinin Korunması Hakkında Kanun kapsamında dijital hizmet alımı gereği 14 gün cayma hakkıyla sınırlıdır; kullanım başlamışsa iade kabul edilmez. İade talepleriniz için info@borsakrali.com adresinden başvurabilirsiniz; talebiniz 7 iş günü içinde cevaplanır."
       },
       {
-        q: 'Fatura nasil aliyorum?',
-        a: "Tum odemeleriniz icin elektronik fatura kayitli e-posta adresinize otomatik gonderilir. Sirket adina fatura kesilmesini istiyorsaniz odeme oncesinde profil sayfanizda vergi bilgilerinizi (sirket unvani, vergi dairesi, vergi numarasi, adres) doldurmaniz yeterlidir. Gecmis faturalar profil > Faturalarim sekmesinden istediginiz zaman PDF olarak indirilebilir. Fatura ile ilgili sorunlariniz icin destek ekibimize yazip duzeltme talep edebilirsiniz."
+        q: 'Fatura nasıl alıyorum?',
+        a: "Tüm ödemeleriniz için elektronik fatura kayıtlı e-posta adresinize otomatik gönderilir. Şirket adına fatura kesilmesini istiyorsanız ödeme öncesinde profil sayfanızda vergi bilgilerinizi (şirket unvanı, vergi dairesi, vergi numarası, adres) doldurmanız yeterlidir. Geçmiş faturalar profil > Faturalarım sekmesinden istediğiniz zaman PDF olarak indirilebilir. Fatura ile ilgili sorunlarınız için destek ekibimize yazıp düzeltme talep edebilirsiniz."
       },
       {
-        q: 'Aboneligimi nasil iptal ederim?',
-        a: "Aylik aboneliginizi profil > Abonelik sekmesinden tek tikla iptal edebilirsiniz. Iptal sonrasi mevcut donemin sonuna kadar premium ozellikleri kullanmaya devam edersiniz; otomatik yenileme durdurulur. Tek seferlik ve Lifetime planlar dogalari geregi iptal edilemez ancak hesap silme talep ederek tum kayitlarinizi kaldirabilirsiniz. Iptal sonrasi geri donus istediginizde ayni planla tekrar abone olabilirsiniz."
+        q: 'Aboneliğimi nasıl iptal ederim?',
+        a: "Aylık aboneliğinizi profil > Abonelik sekmesinden tek tıkla iptal edebilirsiniz. İptal sonrası mevcut dönemin sonuna kadar premium özellikleri kullanmaya devam edersiniz; otomatik yenileme durdurulur. Tek seferlik ve Lifetime planlar doğaları gereği iptal edilemez ancak hesap silme talep ederek tüm kayıtlarınızı kaldırabilirsiniz. İptal sonrası geri dönüş istediğinizde aynı planla tekrar abone olabilirsiniz."
       },
       {
-        q: 'Hangi odeme yontemleri kabul ediliyor?',
-        a: "Kredi karti, banka karti ve havale/EFT ile odeme alabiliyoruz. Tum kart islemleri 3D Secure altyapisiyla yapilir ve kart bilgileriniz tarafimizda saklanmaz; PCI-DSS uyumlu odeme saglayicimiza dogrudan iletilir. Havale/EFT secen kullanicilarimiz icin abonelik aktivasyonu odeme bildirimi sonrasi 1 is gunu icinde gerceklesir. Apple Pay ve Google Pay entegrasyonu yakinda devreye girecek; gelistirme roadmap'imizdedir."
+        q: 'Hangi ödeme yöntemleri kabul ediliyor?',
+        a: "Kredi kartı, banka kartı ve havale/EFT ile ödeme alabiliyoruz. Tüm kart işlemleri 3D Secure altyapısıyla yapılır ve kart bilgileriniz tarafımızda saklanmaz; PCI-DSS uyumlu ödeme sağlayıcımıza doğrudan iletilir. Havale/EFT seçen kullanıcılarımız için abonelik aktivasyonu ödeme bildirimi sonrası 1 iş günü içinde gerçekleşir. Apple Pay ve Google Pay entegrasyonu yakında devreye girecek; geliştirme roadmap'imizdedir."
       }
     ]
   },
@@ -92,19 +92,19 @@ const FAQ_CATEGORIES = [
     items: [
       {
         q: 'Veriler ne kadar gecikmeli geliyor?',
-        a: "Hisse senedi fiyat verileri yaklasik 15 dakika gecikmelidir; bu sure Borsa Istanbul'un veri lisansi politikasi geregidir. Endeks verileri (BIST100, BIST30) genellikle 1-2 dakika icinde guncellenir. Bilanco, finansal tablolar ve oran verileri kuponlu sirketler icin yayim sonrasi 24 saat icinde sisteme islenir. Anlik veriye ihtiyaciniz varsa lutfen aracikuruluk platformunuzu kullanin; bizim hizmetimiz analiz odaklidir."
+        a: "Hisse senedi fiyat verileri yaklaşık 15 dakika gecikmelidir; bu süre Borsa İstanbul'un veri lisansı politikası gereğidir. Endeks verileri (BIST100, BIST30) genellikle 1-2 dakika içinde güncellenir. Bilanço, finansal tablolar ve oran verileri kuponlu şirketler için yayım sonrası 24 saat içinde sisteme işlenir. Anlık veriye ihtiyacınız varsa lütfen aracıkuruluk platformunuzu kullanın; bizim hizmetimiz analiz odaklıdır."
       },
       {
-        q: 'Sinyaller hangi mantikla uretiliyor?',
-        a: "Sinyallerimiz 16 farkli teknik ve temel kosulu degerlendirip puanlandiran cok faktorlu bir algoritma ile uretilir. Hareketli ortalamalar, momentum gostergeleri (RSI, MACD), hacim teyidi, destek-direnc kirilimlari, formasyonlar ve Malezya SNR olcumleri katki saglar. Her hisse 0-16 araliginda puanlanir; gunluk taramada en yuksek puanli ilk 10 sinyal yayinlanir. Detayli aciklama /gunluk-tespitler sayfasinda mevcuttur."
+        q: 'Sinyaller hangi mantıkla üretiliyor?',
+        a: "Sinyallerimiz 16 farklı teknik ve temel koşulu değerlendirip puanlandıran çok faktörlü bir algoritma ile üretilir. Hareketli ortalamalar, momentum göstergeleri (RSI, MACD), hacim teyidi, destek-direnç kırılımları, formasyonlar ve Malezya SNR ölçümleri katkı sağlar. Her hisse 0-16 aralığında puanlanır; günlük taramada en yüksek puanlı ilk 10 sinyal yayınlanır. Detaylı açıklama /gunluk-tespitler sayfasında mevcuttur."
       },
       {
-        q: 'Neden bir hisse tarananlar arasinda yok?',
-        a: "Tarama BIST100 ve secili BIST30 evreniyle sinirlidir. Eger ilgi duydugunuz hisse bu evrenlerden birinde degilse otomatik taramaya dahil olmaz. Ayrica likit olmayan, ozsermayesi yetersiz veya BIST tarafindan SPK yaptirimi uygulanmis hisseler veri kalitesi acisindan filtrelenir. Hisseyi manuel olarak Teknik Analiz AI sayfasindan arayarak detayli analiz alabilirsiniz; orada kapsam sinirlamasi yoktur."
+        q: 'Neden bir hisse tarananlar arasında yok?',
+        a: "Tarama BIST100 ve seçili BIST30 evreniyle sınırlıdır. Eğer ilgi duyduğunuz hisse bu evrenlerden birinde değilse otomatik taramaya dahil olmaz. Ayrıca likit olmayan, özsermayesi yetersiz veya BIST tarafından SPK yaptırımı uygulanmış hisseler veri kalitesi açısından filtrelenir. Hisseyi manuel olarak Teknik Analiz AI sayfasından arayarak detaylı analiz alabilirsiniz; orada kapsam sınırlaması yoktur."
       },
       {
-        q: 'Gecmis sinyalleri nereden gorebilirim?',
-        a: "Gunluk Tespitler sayfasinin 'Gecmis' sekmesinde son 30 gunluk taramalarin tumunu, sinyal puanlari ve sonraki 5 gunluk fiyat performansiyla birlikte gorebilirsiniz. Algoritma Performans sayfasinda ise haftalik ve aylik bazda sinyal isabet oranlari, ortalama getiri ve risk-getiri metrikleri yer alir. Sinyal gecmisi serbest planda son 7 gunle, ucretli planlarda 90 gune kadar geriye uzanir."
+        q: 'Geçmiş sinyalleri nereden görebilirim?',
+        a: "Günlük Tespitler sayfasının 'Geçmiş' sekmesinde son 30 günlük taramaların tümünü, sinyal puanları ve sonraki 5 günlük fiyat performansıyla birlikte görebilirsiniz. Algoritma Performans sayfasında ise haftalık ve aylık bazda sinyal isabet oranları, ortalama getiri ve risk-getiri metrikleri yer alır. Sinyal geçmişi serbest planda son 7 günle, ücretli planlarda 90 güne kadar geriye uzanır."
       }
     ]
   },
@@ -112,20 +112,20 @@ const FAQ_CATEGORIES = [
     title: 'Teknik Sorunlar',
     items: [
       {
-        q: 'Sayfa acilmiyor, ne yapmaliyim?',
-        a: "Once tarayici cache'inizi temizleyin (Ctrl+F5 ile sert yenileme) ve farkli bir tarayici deneyin (Chrome, Firefox veya Edge'in guncel surumu). VPN, ad-blocker veya tarayici eklentilerini gecici olarak kapatip tekrar deneyin. Sorun devam ediyorsa hata mesajinin ekran goruntusunu, tarayici turunu/surumunu ve isletim sisteminizi belirterek info@borsakrali.com adresine yazin. Cogu sayfa sorunu cache veya eklenti kaynaklidir."
+        q: 'Sayfa açılmıyor, ne yapmalıyım?',
+        a: "Önce tarayıcı cache'inizi temizleyin (Ctrl+F5 ile sert yenileme) ve farklı bir tarayıcı deneyin (Chrome, Firefox veya Edge'in güncel sürümü). VPN, ad-blocker veya tarayıcı eklentilerini geçici olarak kapatıp tekrar deneyin. Sorun devam ediyorsa hata mesajının ekran görüntüsünü, tarayıcı türünü/sürümünü ve işletim sisteminizi belirterek info@borsakrali.com adresine yazın. Çoğu sayfa sorunu cache veya eklenti kaynaklıdır."
       },
       {
-        q: 'Mobilde sorun var, ne onerirsiniz?',
-        a: "Web uygulamamiz mobil tarayicilarda calisir; en iyi deneyim icin Chrome veya Safari'nin guncel surumunu kullanin. Resmi Android uygulamamiz Google Play uzerinden indirilebilir; iOS surumu hazirlik asamasindadir. Mobilde grafik gecikmesi, dokunma gecikmesi veya layout sorunu yasiyorsaniz cihaz modeli, isletim sistemi surumu ve tarayici/uygulama surumunu belirterek bize bildirin. Boylece sorunu hizla yeniden uretebiliriz."
+        q: 'Mobilde sorun var, ne önerirsiniz?',
+        a: "Web uygulamamız mobil tarayıcılarda çalışır; en iyi deneyim için Chrome veya Safari'nin güncel sürümünü kullanın. Resmi Android uygulamamız Google Play üzerinden indirilebilir; iOS sürümü hazırlık aşamasındadır. Mobilde grafik gecikmesi, dokunma gecikmesi veya layout sorunu yaşıyorsanız cihaz modeli, işletim sistemi sürümü ve tarayıcı/uygulama sürümünü belirterek bize bildirin. Böylece sorunu hızla yeniden üretebiliriz."
       },
       {
-        q: 'Bildirim gelmiyor, nasil cozerim?',
-        a: "Mobilde bildirim almak icin once cihaz ayarlarindan Borsa Krali uygulamasina bildirim izni verildiginden emin olun. Web tarayicisinda ise adres cubugu solundaki kilit ikonundan bildirim iznini 'Izin Ver' yapin. Hesap ayarlarinizdan bildirim tercihlerinizi (gunluk sinyal, fiyat alarmi, haber) ayri ayri acabilirsiniz. iOS Safari su an web push'u tam desteklemediginden uygulamayi indirmenizi oneririz."
+        q: 'Bildirim gelmiyor, nasıl çözerim?',
+        a: "Mobilde bildirim almak için önce cihaz ayarlarından Borsa Krali uygulamasına bildirim izni verildiğinden emin olun. Web tarayıcısında ise adres çubuğu solundaki kilit ikonundan bildirim iznini 'İzin Ver' yapın. Hesap ayarlarınızdan bildirim tercihlerinizi (günlük sinyal, fiyat alarmı, haber) ayrı ayrı açabilirsiniz. iOS Safari şu an web push'u tam desteklemediğinden uygulamayı indirmenizi öneririz."
       },
       {
-        q: 'Push bildirimi nasil aktif edilir?',
-        a: "Sayfanin sag alt kosesindeki istemci uzerinden bildirim iznini onaylayin. Ardindan hesap ayarlarinizdan hangi tur bildirimleri almak istediginizi (gunluk taramalar 09:55 ve 11:00, fiyat seviyesi alarmlari, ekonomik takvim hatirlatmalari) secin. Tarayici izni daha once reddettiyseniz adres cubugu sol tarafindaki kilit ikonuna tiklayip izni 'Izin Ver' olarak guncelleyebilirsiniz. Test bildirimi ile dogrulama yapabilirsiniz."
+        q: 'Push bildirimi nasıl aktif edilir?',
+        a: "Sayfanın sağ alt köşesindeki istemci üzerinden bildirim iznini onaylayın. Ardından hesap ayarlarınızdan hangi tür bildirimleri almak istediğinizi (günlük taramalar 09:55 ve 11:00, fiyat seviyesi alarmları, ekonomik takvim hatırlatmaları) seçin. Tarayıcı izni daha önce reddettiyseniz adres çubuğu sol tarafındaki kilit ikonuna tıklayıp izni 'İzin Ver' olarak güncelleyebilirsiniz. Test bildirimi ile doğrulama yapabilirsiniz."
       }
     ]
   },
@@ -133,16 +133,16 @@ const FAQ_CATEGORIES = [
     title: 'KVKK ve Gizlilik',
     items: [
       {
-        q: 'Verilerim nasil korunuyor?',
-        a: "Tum kullanici verileri (e-posta, sifre hash, abonelik bilgileri) sifrelenmis sekilde saklanir; sifreler bcrypt algoritmasi ile geri alinamaz bicimde hash'lenir. Sunucularimiz Avrupa lokasyonunda barindirilir, TLS 1.3 ile sifreli iletisim zorunludur. Yedekleme, denetim ve erisim kayitlari KVKK ve GDPR uyumludur. Detayli bilgi icin Gizlilik Politikamizi inceleyebilir veya bize dogrudan yazabilirsiniz."
+        q: 'Verilerim nasıl korunuyor?',
+        a: "Tüm kullanıcı verileri (e-posta, şifre hash, abonelik bilgileri) şifrelenmiş şekilde saklanır; şifreler bcrypt algoritması ile geri alınamaz biçimde hash'lenir. Sunucularımız Avrupa lokasyonunda barındırılır, TLS 1.3 ile şifreli iletişim zorunludur. Yedekleme, denetim ve erişim kayıtları KVKK ve GDPR uyumludur. Detaylı bilgi için Gizlilik Politikamızı inceleyebilir veya bize doğrudan yazabilirsiniz."
       },
       {
-        q: 'Hangi cerezler kullaniliyor?',
-        a: "Sitemizde uc tur cerez bulunur: zorunlu cerezler (oturum yonetimi, guvenlik), analitik cerezler (anonim sayfa ziyaret istatistikleri, tercih edilen tema) ve reklam cerezleri (Google AdSense - onay sonrasi). Zorunlu cerezler kullanim icin gereklidir, digerlerini ilk girisinizdeki cerez tercihi pop-up'i uzerinden secebilir veya istediginiz zaman degistirebilirsiniz. Detayli liste Cerez Politikamizda mevcuttur."
+        q: 'Hangi çerezler kullanılıyor?',
+        a: "Sitemizde üç tür çerez bulunur: zorunlu çerezler (oturum yönetimi, güvenlik), analitik çerezler (anonim sayfa ziyaret istatistikleri, tercih edilen tema) ve reklam çerezleri (Google AdSense - onay sonrası). Zorunlu çerezler kullanım için gereklidir, diğerlerini ilk girişinizdeki çerez tercihi pop-up'ı üzerinden seçebilir veya istediğiniz zaman değiştirebilirsiniz. Detaylı liste Çerez Politikamızda mevcuttur."
       },
       {
-        q: 'Reklam tercihlerimi nasil degistiririm?',
-        a: "Reklam tercihlerinizi profil > Gizlilik bolumunden yonetebilirsiniz. Kisisellestirilmis reklamlari kapatabilir, ucuncu taraf izleme cerezlerini reddedebilir veya tum reklamlari premium aboneliginizle tamamen kaldirabilirsiniz. Google AdSense reklamlari icin tercihlerinizi adssettings.google.com adresinden de duzenleyebilirsiniz. Tarayicinizdan 'Do Not Track' sinyali gonderirseniz tarafimizca da saygi gosterilir."
+        q: 'Reklam tercihlerimi nasıl değiştiririm?',
+        a: "Reklam tercihlerinizi profil > Gizlilik bölümünden yönetebilirsiniz. Kişiselleştirilmiş reklamları kapatabilir, üçüncü taraf izleme çerezlerini reddedebilir veya tüm reklamları premium aboneliğinizle tamamen kaldırabilirsiniz. Google AdSense reklamları için tercihlerinizi adssettings.google.com adresinden de düzenleyebilirsiniz. Tarayıcınızdan 'Do Not Track' sinyali gönderirseniz tarafımızca da saygı gösterilir."
       }
     ]
   }
@@ -153,25 +153,25 @@ const SOCIAL_LINKS = [
     name: 'Twitter / X',
     icon: Twitter,
     url: '#',
-    description: 'Gunluk piyasa yorumlari, hizli sinyal duyurulari ve seans icinde canli yorumlar.'
+    description: 'Günlük piyasa yorumları, hızlı sinyal duyuruları ve seans içinde canlı yorumlar.'
   },
   {
     name: 'Instagram',
     icon: Instagram,
     url: '#',
-    description: 'Gorsel piyasa ozetleri, infografikler, story formatinda kisa egitim icerikleri.'
+    description: 'Görsel piyasa özetleri, infografikler, story formatında kısa eğitim içerikleri.'
   },
   {
     name: 'YouTube',
     icon: Youtube,
     url: '#',
-    description: 'Detayli teknik analiz videolari, sinyal degerlendirmeleri ve baslangic seviyesi egitim serisi.'
+    description: 'Detaylı teknik analiz videoları, sinyal değerlendirmeleri ve başlangıç seviyesi eğitim serisi.'
   },
   {
     name: 'LinkedIn',
     icon: Linkedin,
     url: '#',
-    description: 'Kurumsal duyurular, yatirim sektoru makaleleri ve is birligi firsatlari.'
+    description: 'Kurumsal duyurular, yatırım sektörü makaleleri ve iş birliği fırsatları.'
   }
 ]
 
@@ -193,19 +193,19 @@ export default function Iletisim() {
 
     if (!name.trim() || !email.trim() || !message.trim()) {
       setStatus('error')
-      setErrorMsg('Lutfen ad, e-posta ve mesaj alanlarini doldurun.')
+      setErrorMsg('Lütfen ad, e-posta ve mesaj alanlarını doldurun.')
       return
     }
 
     try {
       const body = `Ad Soyad: ${name}\nE-posta: ${email}\nKonu: ${subject}\n\n${message}`
-      const mailto = `mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent('[Iletisim] ' + subject)}&body=${encodeURIComponent(body)}`
+      const mailto = `mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent('[İletişim] ' + subject)}&body=${encodeURIComponent(body)}`
       window.location.href = mailto
       setStatus('sent')
       setMessage('')
     } catch (err) {
       setStatus('error')
-      setErrorMsg('Mesaj gonderilemedi. Lutfen dogrudan ' + SUPPORT_EMAIL + ' veya ' + SECONDARY_EMAIL + ' adresine yazin.')
+      setErrorMsg('Mesaj gönderilemedi. Lütfen doğrudan ' + SUPPORT_EMAIL + ' veya ' + SECONDARY_EMAIL + ' adresine yazın.')
     }
   }
 
@@ -218,19 +218,19 @@ export default function Iletisim() {
             Borsa Krali
           </Link>
           <div className="flex flex-wrap gap-4 text-sm">
-            <Link to="/hakkimizda" className="text-gray-400 hover:text-white">Hakkimizda</Link>
+            <Link to="/hakkimizda" className="text-gray-400 hover:text-white">Hakkımızda</Link>
             <Link to="/privacy-policy" className="text-gray-400 hover:text-white">Gizlilik</Link>
-            <Link to="/terms-of-use" className="text-gray-400 hover:text-white">Kullanim Kosullari</Link>
+            <Link to="/terms-of-use" className="text-gray-400 hover:text-white">Kullanım Koşulları</Link>
           </div>
         </div>
 
         <div className="rounded-3xl border border-gold-500/20 bg-surface-100 p-6 md:p-8 shadow-premium">
           <div className="mb-8 space-y-3">
-            <p className="text-sm font-medium text-gold-400">Iletisim</p>
-            <h1 className="text-3xl font-bold text-white">Bize Ulasin</h1>
+            <p className="text-sm font-medium text-gold-400">İletişim</p>
+            <h1 className="text-3xl font-bold text-white">Bize Ulaşın</h1>
             <p className="max-w-3xl text-sm leading-7 text-gray-300">
-              Sorulariniz, oneriler, hata bildirimleri ve is birligi talepleri icin bize asagidaki formdan
-              veya dogrudan e-posta yoluyla ulasabilirsiniz. Tum mesajlar 1-2 is gunu icinde yanitlanir.
+              Sorularınız, öneriler, hata bildirimleri ve iş birliği talepleri için bize aşağıdaki formdan
+              veya doğrudan e-posta yoluyla ulaşabilirsiniz. Tüm mesajlar 1-2 iş günü içinde yanıtlanır.
             </p>
           </div>
 
@@ -262,8 +262,8 @@ export default function Iletisim() {
               <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-gold-500/15 text-gold-400">
                 <Clock className="h-5 w-5" />
               </div>
-              <h2 className="mb-1 text-sm font-semibold text-white">Cevap Suresi</h2>
-              <p className="text-sm text-gray-300">1-2 is gunu</p>
+              <h2 className="mb-1 text-sm font-semibold text-white">Cevap Süresi</h2>
+              <p className="text-sm text-gray-300">1-2 iş günü</p>
             </div>
           </div>
 
@@ -276,7 +276,7 @@ export default function Iletisim() {
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   className="w-full rounded-2xl border border-gold-500/20 bg-dark-900/40 px-4 py-3 text-white outline-none transition focus:border-gold-500"
-                  placeholder="Adiniz Soyadiniz"
+                  placeholder="Adınız Soyadınız"
                   required
                 />
               </div>
@@ -302,21 +302,21 @@ export default function Iletisim() {
               >
                 <option>Genel</option>
                 <option>Hata Bildirimi</option>
-                <option>Ozellik Onerisi</option>
-                <option>Abonelik / Odeme</option>
-                <option>Reklam / Is Birligi</option>
+                <option>Özellik Önerisi</option>
+                <option>Abonelik / Ödeme</option>
+                <option>Reklam / İş Birliği</option>
                 <option>KVKK / Gizlilik</option>
               </select>
             </div>
 
             <div>
-              <label className="mb-2 block text-sm text-gray-300">Mesajiniz</label>
+              <label className="mb-2 block text-sm text-gray-300">Mesajınız</label>
               <textarea
                 rows={6}
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
                 className="w-full rounded-2xl border border-gold-500/20 bg-dark-900/40 px-4 py-3 text-white outline-none transition focus:border-gold-500"
-                placeholder="Bize iletmek istediginiz konuyu kisa ve acik sekilde yazin..."
+                placeholder="Bize iletmek istediğiniz konuyu kısa ve açık şekilde yazın..."
                 required
               />
             </div>
@@ -331,7 +331,7 @@ export default function Iletisim() {
             {status === 'sent' && (
               <div className="flex items-start gap-2 rounded-2xl border border-green-500/30 bg-green-500/10 px-4 py-3 text-sm text-green-300">
                 <CheckCircle2 className="mt-0.5 h-4 w-4 flex-shrink-0" />
-                <span>E-posta uygulamaniz acildi. Mesaji gondermeyi unutmayin.</span>
+                <span>E-posta uygulamanız açıldı. Mesajı göndermeyi unutmayın.</span>
               </div>
             )}
 
@@ -342,17 +342,17 @@ export default function Iletisim() {
             >
               {status === 'sending' ? (
                 <>
-                  <Send className="h-4 w-4 animate-pulse" /> Gonderiliyor...
+                  <Send className="h-4 w-4 animate-pulse" /> Gönderiliyor...
                 </>
               ) : (
                 <>
-                  <MessageSquare className="h-4 w-4" /> Mesaj Gonder
+                  <MessageSquare className="h-4 w-4" /> Mesaj Gönder
                 </>
               )}
             </button>
 
             <p className="text-center text-xs text-gray-500">
-              Form gonderildiginde varsayilan e-posta uygulamaniz acilir. Sorun yasarsaniz dogrudan{' '}
+              Form gönderildiğinde varsayılan e-posta uygulamanız açılır. Sorun yaşarsanız doğrudan{' '}
               <a href={`mailto:${SUPPORT_EMAIL}`} className="text-gold-400 hover:underline">
                 {SUPPORT_EMAIL}
               </a>{' '}
@@ -367,10 +367,10 @@ export default function Iletisim() {
         </div>
 
         <section className="mt-8 rounded-3xl border border-gold-500/20 bg-surface-100 p-6 md:p-8 shadow-premium">
-          <h2 className="mb-2 text-2xl font-bold text-white">Bize Ulasmadan Once</h2>
+          <h2 className="mb-2 text-2xl font-bold text-white">Bize Ulaşmadan Önce</h2>
           <p className="mb-6 text-sm leading-6 text-gray-400">
-            Talebinizi hizla cozmemiz icin once asagidaki noktalara dikkat etmenizi rica ediyoruz.
-            Bu basit adimlar destek sureleri kisaltir ve dogrudan ihtiyac duydugunuz sonuca ulasmanizi saglar.
+            Talebinizi hızla çözmemiz için önce aşağıdaki noktalara dikkat etmenizi rica ediyoruz.
+            Bu basit adımlar destek süreleri kısaltır ve doğrudan ihtiyaç duyduğunuz sonuca ulaşmanızı sağlar.
           </p>
           <div className="grid gap-4 md:grid-cols-2">
             {PRECONTACT_TIPS.map((tip, idx) => {
@@ -389,21 +389,21 @@ export default function Iletisim() {
         </section>
 
         <section className="mt-8 rounded-3xl border border-gold-500/20 bg-surface-100 p-6 md:p-8 shadow-premium">
-          <h2 className="mb-2 text-2xl font-bold text-white">Calisma Saatleri ve Yanit Suresi</h2>
+          <h2 className="mb-2 text-2xl font-bold text-white">Çalışma Saatleri ve Yanıt Süresi</h2>
           <p className="mb-6 text-sm leading-6 text-gray-400">
-            Destek ekibimiz asagidaki saatler arasinda aktif olarak mesajlari yanitlar.
-            Ortalama yanit sureleri tahminidir ve gunluk talep yoguluguna gore kisa sapmalar gosterebilir.
-            Acil teknik konularda hafta sonu da sinirli bir kadromuz dahili kontroller yapar.
+            Destek ekibimiz aşağıdaki saatler arasında aktif olarak mesajları yanıtlar.
+            Ortalama yanıt süreleri tahminidir ve günlük talep yoğunluğuna göre kısa sapmalar gösterebilir.
+            Acil teknik konularda hafta sonu da sınırlı bir kadromuz dahili kontroller yapar.
           </p>
           <div className="grid gap-4 md:grid-cols-3">
             <div className="rounded-2xl border border-gold-500/20 bg-dark-900/40 p-5">
               <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-gold-500/15 text-gold-400">
                 <Calendar className="h-5 w-5" />
               </div>
-              <h3 className="mb-1 text-sm font-semibold text-white">Hafta Ici</h3>
+              <h3 className="mb-1 text-sm font-semibold text-white">Hafta İçi</h3>
               <p className="mb-1 text-2xl font-bold text-gold-400">09:00 - 18:00</p>
               <p className="text-xs leading-5 text-gray-400">
-                TSI (Turkiye Saati). Pazartesi - Cuma. Resmi tatiller ve dini bayramlarda mesai yapilmaz; mesajlar ertesi is gunu sirayla yanitlanir.
+                TSI (Türkiye Saati). Pazartesi - Cuma. Resmi tatiller ve dini bayramlarda mesai yapılmaz; mesajlar ertesi iş günü sırayla yanıtlanır.
               </p>
             </div>
             <div className="rounded-2xl border border-gold-500/20 bg-dark-900/40 p-5">
@@ -413,27 +413,27 @@ export default function Iletisim() {
               <h3 className="mb-1 text-sm font-semibold text-white">Hafta Sonu</h3>
               <p className="mb-1 text-2xl font-bold text-gold-400">10:00 - 16:00</p>
               <p className="text-xs leading-5 text-gray-400">
-                Cumartesi ve Pazar gunleri. Sinirli bir kadroyla yalnizca acil teknik konular ve sistemsel kesintiler oncelikli olarak degerlendirilir.
+                Cumartesi ve Pazar günleri. Sınırlı bir kadroyla yalnızca acil teknik konular ve sistemsel kesintiler öncelikli olarak değerlendirilir.
               </p>
             </div>
             <div className="rounded-2xl border border-gold-500/20 bg-dark-900/40 p-5">
               <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-gold-500/15 text-gold-400">
                 <Hourglass className="h-5 w-5" />
               </div>
-              <h3 className="mb-1 text-sm font-semibold text-white">Ortalama Yanit</h3>
-              <p className="mb-1 text-base font-semibold text-gold-400">Hafta ici 4-8 saat</p>
+              <h3 className="mb-1 text-sm font-semibold text-white">Ortalama Yanıt</h3>
+              <p className="mb-1 text-base font-semibold text-gold-400">Hafta içi 4-8 saat</p>
               <p className="text-xs leading-5 text-gray-400">
-                Hafta sonu gelen mesajlar 24 saat icinde yanitlanir. Konu basligi netse ve gerekli detaylar eklenmisse cevap suresi belirgin sekilde kisalir.
+                Hafta sonu gelen mesajlar 24 saat içinde yanıtlanır. Konu başlığı netse ve gerekli detaylar eklenmişse cevap süresi belirgin şekilde kısalır.
               </p>
             </div>
           </div>
         </section>
 
         <section className="mt-8 rounded-3xl border border-gold-500/20 bg-surface-100 p-6 md:p-8 shadow-premium">
-          <h2 className="mb-2 text-2xl font-bold text-white">Sikca Sorulan Sorular</h2>
+          <h2 className="mb-2 text-2xl font-bold text-white">Sıkça Sorulan Sorular</h2>
           <p className="mb-6 text-sm leading-6 text-gray-400">
-            En cok aldigimiz sorulari kategori bazinda topladik. Aradiginizi bulamadiysaniz yukaridaki formdan veya
-            <a href={`mailto:${SUPPORT_EMAIL}`} className="text-gold-400 hover:underline"> {SUPPORT_EMAIL}</a> adresinden bize ulasabilirsiniz.
+            En çok aldığımız soruları kategori bazında topladık. Aradığınızı bulamadıysanız yukarıdaki formdan veya
+            <a href={`mailto:${SUPPORT_EMAIL}`} className="text-gold-400 hover:underline"> {SUPPORT_EMAIL}</a> adresinden bize ulaşabilirsiniz.
           </p>
           <div className="space-y-8">
             {FAQ_CATEGORIES.map((cat, catIdx) => (
@@ -475,8 +475,8 @@ export default function Iletisim() {
         <section className="mt-8 rounded-3xl border border-gold-500/20 bg-surface-100 p-6 md:p-8 shadow-premium">
           <h2 className="mb-2 text-2xl font-bold text-white">Sosyal Medya</h2>
           <p className="mb-6 text-sm leading-6 text-gray-400">
-            Bizi sosyal medyada takip ederek gunluk piyasa yorumlarini, hizli duyurulari ve egitim icerigini
-            kacirmadan takip edebilirsiniz. Asagidaki kanallar onumuzdeki haftalarda aktif edilecektir.
+            Bizi sosyal medyada takip ederek günlük piyasa yorumlarını, hızlı duyuruları ve eğitim içeriğini
+            kaçırmadan takip edebilirsiniz. Aşağıdaki kanallar önümüzdeki haftalarda aktif edilecektir.
           </p>
           <div className="grid gap-4 sm:grid-cols-2">
             {SOCIAL_LINKS.map((social) => {
@@ -505,7 +505,7 @@ export default function Iletisim() {
         <section className="mt-8 rounded-3xl border border-gold-500/20 bg-surface-100 p-6 md:p-8 shadow-premium">
           <h2 className="mb-2 text-2xl font-bold text-white">Kurumsal Bilgi</h2>
           <p className="mb-6 text-sm leading-6 text-gray-400">
-            Yasal ve kurumsal bilgiler asagida ozetlenmistir. Ek dokumantasyon icin Gizlilik Politikasi ve Kullanim Kosullari sayfalarini inceleyebilirsiniz.
+            Yasal ve kurumsal bilgiler aşağıda özetlenmiştir. Ek dokümantasyon için Gizlilik Politikası ve Kullanım Koşulları sayfalarını inceleyebilirsiniz.
           </p>
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="flex items-start gap-3 rounded-2xl border border-gold-500/20 bg-dark-900/40 p-5">
@@ -519,29 +519,29 @@ export default function Iletisim() {
               <MapPin className="mt-0.5 h-5 w-5 flex-shrink-0 text-gold-400" />
               <div>
                 <h3 className="mb-1 text-sm font-semibold text-white">Hizmet Adresi</h3>
-                <p className="text-sm leading-6 text-gray-300">Turkiye - Online hizmet</p>
+                <p className="text-sm leading-6 text-gray-300">Türkiye - Online hizmet</p>
               </div>
             </div>
             <div className="flex items-start gap-3 rounded-2xl border border-gold-500/20 bg-dark-900/40 p-5">
               <Briefcase className="mt-0.5 h-5 w-5 flex-shrink-0 text-gold-400" />
               <div>
                 <h3 className="mb-1 text-sm font-semibold text-white">Faaliyet Konusu</h3>
-                <p className="text-sm leading-6 text-gray-300">Borsa analiz ve egitim platformu (web ve mobil)</p>
+                <p className="text-sm leading-6 text-gray-300">Borsa analiz ve eğitim platformu (web ve mobil)</p>
               </div>
             </div>
             <div className="flex items-start gap-3 rounded-2xl border border-gold-500/20 bg-dark-900/40 p-5">
               <ScrollText className="mt-0.5 h-5 w-5 flex-shrink-0 text-gold-400" />
               <div>
-                <h3 className="mb-1 text-sm font-semibold text-white">Yasal Statu</h3>
+                <h3 className="mb-1 text-sm font-semibold text-white">Yasal Statü</h3>
                 <p className="text-sm leading-6 text-gray-300">
-                  Yatirim danismanlik kurulusu DEGILDIR. SPK lisansli aracilik veya portfoy yonetimi hizmeti sunmaz; sundugumuz tum analizler bilgilendirme amaclidir.
+                  Yatırım danışmanlık kuruluşu DEĞİLDİR. SPK lisanslı aracılık veya portföy yönetimi hizmeti sunmaz; sunduğumuz tüm analizler bilgilendirme amaçlıdır.
                 </p>
               </div>
             </div>
           </div>
         </section>
 
-        <p className="mt-8 text-center text-xs text-gray-500">Son guncelleme: 10 Mayis 2026</p>
+        <p className="mt-8 text-center text-xs text-gray-500">Son güncelleme: 10 Mayıs 2026</p>
       </div>
     </div>
   )
