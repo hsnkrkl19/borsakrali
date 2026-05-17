@@ -5,14 +5,14 @@ import InfoTooltip from './InfoTooltip'
 
 const LIQUIDATION_TIP = {
   title: 'Likidasyon Haritası — Kurumsal Pozisyon Akışı',
-  description: 'Binance Futures `forceOrder` canlı akışından üretilen Coinglass-tarzı ısı haritası. Her likidasyon, fiyatın o seviyeyi geçtiğinde zincirleme likidasyona yol açabilecek "para magneti"dir. Yoğunluk arttıkça fiyatın o bölgeye çekilme olasılığı yükselir. Long likidasyonları (kırmızı) destek bölgelerinde, short likidasyonları (yeşil) direnç bölgelerinde küme yapar.',
-  formula: '══ Veri Kaynağı ══\n  wss://fstream.binance.com/ws/!forceOrder@arr\n  SELL force order → bir LONG pozisyonu likide edildi (kırmızı)\n  BUY  force order → bir SHORT pozisyonu likide edildi (yeşil)\n\n══ Filtre ══\n  Notional < $1000 likidasyonlar süzülür (gürültü)\n  Son 24 saatlik veri RAM\'de tutulur (process restart\'ta sıfırlanır)\n\n══ Bant Agregasyonu ══\n  Min/max fiyat aralığı 40 bant\'a bölünür\n  Her bant: longUsd + shortUsd + count\n  Renk yoğunluğu = bantUsd / maxBantUsd\n\n══ Yorumlama ══\n  Fiyatın altındaki yoğun long küme → magneti aşağı çeker (short fırsatı)\n  Fiyatın üstündeki yoğun short küme → magneti yukarı çeker (long fırsatı)\n  Sweep sonrası dönüş = klasik likidite avı pattern\'i',
-  source: 'Binance Futures USDS-M API — public forceOrder stream',
+  description: 'Bybit Futures `allLiquidation` canlı akışından üretilen Coinglass-tarzı ısı haritası. Her likidasyon, fiyatın o seviyeyi geçtiğinde zincirleme likidasyona yol açabilecek "para magneti"dir. Yoğunluk arttıkça fiyatın o bölgeye çekilme olasılığı yükselir. Long likidasyonları (kırmızı) destek bölgelerinde, short likidasyonları (yeşil) direnç bölgelerinde küme yapar.',
+  formula: '══ Veri Kaynağı ══\n  wss://stream.bybit.com/v5/public/linear\n  allLiquidation.{SYMBOL} (USDT-perp, top 30+ coin)\n  taker=Sell → bir LONG pozisyonu likide edildi (kırmızı)\n  taker=Buy  → bir SHORT pozisyonu likide edildi (yeşil)\n\n══ Filtre ══\n  Notional < $1000 likidasyonlar süzülür (gürültü)\n  Son 24 saatlik veri RAM\'de tutulur (process restart\'ta sıfırlanır)\n\n══ Bant Agregasyonu ══\n  Min/max fiyat aralığı 40 bant\'a bölünür\n  Her bant: longUsd + shortUsd + count\n  Renk yoğunluğu = bantUsd / maxBantUsd\n\n══ Yorumlama ══\n  Fiyatın altındaki yoğun long küme → magneti aşağı çeker (short fırsatı)\n  Fiyatın üstündeki yoğun short küme → magneti yukarı çeker (long fırsatı)\n  Sweep sonrası dönüş = klasik likidite avı pattern\'i',
+  source: 'Bybit V5 USDT-perp — public allLiquidation stream',
 }
 
 const COINS = [
   'BTC', 'ETH', 'SOL', 'BNB', 'XRP', 'DOGE', 'ADA',
-  'AVAX', 'LINK', 'MATIC', 'DOT', 'TON', 'NEAR', 'OP', 'ARB',
+  'AVAX', 'LINK', 'POL', 'DOT', 'TON', 'NEAR', 'OP', 'ARB',
 ]
 
 function fmtUsd(n) {
@@ -99,7 +99,7 @@ export default function LikidasyonHaritasi() {
               <InfoTooltip size="lg" {...LIQUIDATION_TIP} />
             </h1>
             <p className="text-xs sm:text-sm text-gray-400">
-              Binance Futures canlı forceOrder akışı — Coinglass-tarzı para magneti
+              Bybit USDT-perp canlı allLiquidation akışı — Coinglass-tarzı para magneti
             </p>
           </div>
           {stats && (

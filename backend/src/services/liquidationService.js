@@ -1,25 +1,46 @@
 /**
  * Liquidation Service — BORSA KRALI
  *
- * Binance Futures `!forceOrder@arr` WebSocket'i ile tüm sembolleri canlı dinler.
+ * Bybit Futures (USDT-perp) `allLiquidation.{symbol}` WS akışı ile canlı dinler.
  * Son 24 saatlik likidasyonları RAM'de tutar, fiyat bantlarına grupla ısı haritası üretir.
  *
- * Coinglass-tarzı heatmap için kaynak data:
+ * NOT: Önceden Binance `!forceOrder@arr` kullanılıyordu, ancak Binance Futures
+ * stream'i hem Türkiye hem Render IP'lerinde sessizce 0 olay teslim ediyordu
+ * (bağlantı OPEN ama hiç mesaj gelmiyor — coğrafi kısıt). Bybit aynı veriyi
+ * herkese açık olarak veriyor.
+ *
+ * Coinglass-tarzı heatmap için kaynak data formatı (internal):
  *   { symbol, side: 'long' | 'short', price, quantity, notional($), time }
  *
  * Bağlantı kopunca exponential backoff ile reconnect.
  * Process restart'ta buffer sıfırlanır — bu kabul edilebilir (canlı veri ürünü).
  *
  * Public docs:
- *   https://developers.binance.com/docs/derivatives/usds-margined-futures/websocket-market-streams/Liquidation-Order-Streams
+ *   https://bybit-exchange.github.io/docs/v5/websocket/public/all-liquidation
  */
 
 const WebSocket = require('ws');
 
-const BINANCE_WS_URL = 'wss://fstream.binance.com/ws/!forceOrder@arr';
+const BYBIT_WS_URL = 'wss://stream.bybit.com/v5/public/linear';
+
+// Bybit USDT-perp sembolleri — heatmap için coverage. Frontend COINS listesinden geniş.
+// NOT: Çok ucuz coinler 1000x kontratlarla işlem görür (1000SHIBUSDT, 1000PEPEUSDT).
+// MATICUSDT → POLUSDT, FTMUSDT delist edildi.
+// Bybit subscribe BATCH'i atomik: tek geçersiz sembol tüm batch'i reddeder, bu yüzden
+// her sembol için ayrı `subscribe` op'u gönderiyoruz (subscribe-per-symbol).
+const SUBSCRIBE_SYMBOLS = [
+  'BTCUSDT', 'ETHUSDT', 'SOLUSDT', 'XRPUSDT', 'DOGEUSDT', 'BNBUSDT', 'ADAUSDT',
+  'TRXUSDT', 'LINKUSDT', 'AVAXUSDT', 'SUIUSDT', 'DOTUSDT', 'TONUSDT', 'NEARUSDT',
+  'OPUSDT', 'ARBUSDT', 'APTUSDT', 'ATOMUSDT', 'LTCUSDT', 'BCHUSDT', 'INJUSDT',
+  'SEIUSDT', 'AAVEUSDT', 'WIFUSDT', 'JUPUSDT', 'ORDIUSDT', 'TIAUSDT', 'ENAUSDT',
+  'HBARUSDT', 'POLUSDT', 'SHIB1000USDT', '1000PEPEUSDT', 'FILUSDT', 'LDOUSDT',
+  'RENDERUSDT', 'ICPUSDT', 'CRVUSDT', 'RUNEUSDT',
+];
+
 const BUFFER_TTL_MS = 24 * 60 * 60 * 1000; // 24 saat
 const PRUNE_INTERVAL_MS = 5 * 60 * 1000;    // 5 dk
 const MIN_NOTIONAL_USD = 1000;               // gürültü filtresi
+const PING_INTERVAL_MS = 15 * 1000;          // Bybit 20sn timeout — 15sn'de bir app-level ping
 
 // Per-symbol ringbuffer: symbol -> [{ side, price, qty, notional, time }, ...]
 const buffer = new Map();
@@ -41,24 +62,25 @@ let pingHandle = null;
 let backoff = 1000;
 const MAX_BACKOFF = 60 * 1000;
 
-function ingest(payload) {
+// Bybit `allLiquidation.{symbol}` veri formatı:
+//   { topic: "allLiquidation.BTCUSDT", type: "snapshot", ts, data: [{ T, s, S, v, p }] }
+// S = taker'ın yönü:
+//   "Sell" → taker sattı → bir LONG pozisyon zorla kapatıldı (long liquidated)
+//   "Buy"  → taker aldı  → bir SHORT pozisyon zorla kapatıldı (short liquidated)
+function ingestOne(ev) {
   try {
-    const ev = payload.o;
-    if (!ev) return;
     const symbol = String(ev.s || '').toUpperCase();
-    if (!symbol.endsWith('USDT')) return; // Sadece USDT-margined
+    if (!symbol.endsWith('USDT')) return;
 
-    const price = parseFloat(ev.ap || ev.p);   // avg price > order price
-    const qty = parseFloat(ev.z || ev.q);      // accumulated filled qty
-    if (!isFinite(price) || !isFinite(qty)) return;
+    const price = parseFloat(ev.p);
+    const qty = parseFloat(ev.v);
+    if (!isFinite(price) || !isFinite(qty) || price <= 0 || qty <= 0) return;
     const notional = price * qty;
     if (notional < MIN_NOTIONAL_USD) return;
 
-    // Binance forceOrder side semantiği:
-    //   SELL force order = bir LONG pozisyon likide edildi (long liquidated)
-    //   BUY  force order = bir SHORT pozisyon likide edildi (short liquidated)
-    const side = ev.S === 'SELL' ? 'long' : 'short';
-    const time = ev.T || Date.now();
+    const sideRaw = String(ev.S || '').toLowerCase();
+    const side = sideRaw === 'sell' ? 'long' : 'short';
+    const time = +ev.T || Date.now();
 
     const entry = { symbol, side, price, qty, notional, time };
     if (!buffer.has(symbol)) buffer.set(symbol, []);
@@ -67,8 +89,24 @@ function ingest(payload) {
     stats.totalEvents += 1;
     stats.lastEventTime = time;
   } catch (e) {
-    // Tek bir mesaj hatası reconnect'i tetiklemesin
     console.warn('[Liquidation] ingest hata:', e.message);
+  }
+}
+
+function handleMessage(raw) {
+  let msg;
+  try { msg = JSON.parse(raw); } catch (_) { return; }
+  // Subscribe/ping/pong cevapları (kontrol mesajları)
+  if (msg.op || msg.success !== undefined || msg.ret_msg !== undefined) {
+    if (msg.success === false) {
+      stats.lastError = `subscribe-fail: ${msg.ret_msg || 'unknown'}`;
+      console.warn('[Liquidation] Bybit subscribe red:', msg.ret_msg);
+    }
+    return;
+  }
+  // Veri mesajları: topic + data array
+  if (typeof msg.topic === 'string' && msg.topic.startsWith('allLiquidation.') && Array.isArray(msg.data)) {
+    msg.data.forEach(ingestOne);
   }
 }
 
@@ -81,13 +119,24 @@ function pruneOld() {
   }
 }
 
+function subscribeAll() {
+  if (!ws || ws.readyState !== WebSocket.OPEN) return;
+  // Tek sembol per op — geçersiz bir sembol diğerlerini etkilemesin
+  for (const sym of SUBSCRIBE_SYMBOLS) {
+    try {
+      ws.send(JSON.stringify({ op: 'subscribe', args: [`allLiquidation.${sym}`] }));
+    } catch (e) {
+      stats.lastError = `subscribe send: ${e.message}`;
+    }
+  }
+}
+
 function connect() {
   if (ws) {
     try { ws.terminate(); } catch (_) { /* ignore */ }
   }
   try {
-    ws = new WebSocket(BINANCE_WS_URL, {
-      // 30 sn ping — Binance 3 dk inaktivitede atar
+    ws = new WebSocket(BYBIT_WS_URL, {
       handshakeTimeout: 10000,
     });
   } catch (err) {
@@ -99,28 +148,17 @@ function connect() {
     stats.connected = true;
     stats.connectedSince = Date.now();
     backoff = 1000;
-    console.log('[Liquidation] Binance forceOrder WS bağlandı');
+    console.log(`[Liquidation] Bybit allLiquidation WS bağlandı (${SUBSCRIBE_SYMBOLS.length} sembol)`);
+    subscribeAll();
   });
 
   ws.on('message', (data) => {
-    try {
-      const msg = JSON.parse(data.toString());
-      // !forceOrder@arr formatı: tek tek event veya combined
-      if (Array.isArray(msg)) {
-        msg.forEach(ingest);
-      } else if (msg.e === 'forceOrder') {
-        ingest(msg);
-      } else if (msg.data && msg.data.e === 'forceOrder') {
-        ingest(msg.data);
-      }
-    } catch (e) {
-      // sessizce yut — bozuk frame
-    }
+    handleMessage(data.toString());
   });
 
   ws.on('error', (err) => {
     stats.lastError = err.message;
-    // 'error' genelde 'close'la birlikte geliyor — reconnect close'da
+    // 'error' genelde 'close'la birlikte gelir — reconnect close'da
   });
 
   ws.on('close', (code, reason) => {
@@ -129,17 +167,15 @@ function connect() {
     scheduleReconnect();
   });
 
-  // Sağlık: 3 dk inaktivite varsa ping
-  ws.on('pong', () => {/* alive */});
-  // Reconnect sırasında eski ping interval'ı temizle, yoksa her reconnect bir zombie bırakır.
+  // Bybit 20sn aktivite şartı — app-level ping (WS pong yetmez, op:'ping' lazım)
   if (pingHandle) { clearInterval(pingHandle); pingHandle = null; }
   pingHandle = setInterval(() => {
     if (ws && ws.readyState === WebSocket.OPEN) {
-      try { ws.ping(); } catch (_) {}
+      try { ws.send(JSON.stringify({ op: 'ping' })); } catch (_) {}
     } else {
       if (pingHandle) { clearInterval(pingHandle); pingHandle = null; }
     }
-  }, 60 * 1000);
+  }, PING_INTERVAL_MS);
 }
 
 function scheduleReconnect() {

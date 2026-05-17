@@ -2835,7 +2835,7 @@ app.get('/api/smc/scanner/:scope', async (req, res) => {
   }
 });
 
-// ============ LIQUIDATION HEATMAP (Binance Futures forceOrder WS) =========
+// ============ LIQUIDATION HEATMAP (Bybit USDT-perp allLiquidation WS) =====
 // Canlı Coinglass-tarzı likidasyon haritası — son 24 saat tek bir sembol için
 // fiyat bantlarına grupla; long/short ayrı renkli istatistik.
 const liquidationService = require('./services/liquidationService');
@@ -8079,13 +8079,13 @@ server.listen(PORT, () => {
     console.log('[MTFLoop] ENV MTF_LOOP_DISABLED=true — live loop atlandı');
   }
 
-  // Liquidation WebSocket — Binance Futures forceOrder@arr canlı dinleyici.
+  // Liquidation WebSocket — Bybit USDT-perp allLiquidation canlı dinleyici.
   //   ENV GATE (LIQUIDATION_DISABLED=true): Render plan'da egress sıkıntısı
   //   olursa kapatılabilir; endpoint'ler boş data döner.
   if (process.env.LIQUIDATION_DISABLED !== 'true') {
     try {
       liquidationService.start();
-      console.log('[Liquidation] WS dinleyici başlatıldı (Binance Futures forceOrder)');
+      console.log('[Liquidation] WS dinleyici başlatıldı (Bybit allLiquidation)');
     } catch (e) {
       console.error('[Liquidation] Başlatma hata:', e.message);
     }
