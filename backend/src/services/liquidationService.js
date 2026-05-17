@@ -20,8 +20,7 @@
  */
 
 const WebSocket = require('ws');
-const https = require('https');
-const zlib = require('zlib');
+const axios = require('axios');
 
 const BYBIT_WS_URL = 'wss://stream.bybit.com/v5/public/linear';
 const BYBIT_TICKERS_URL = 'https://api.bybit.com/v5/market/tickers?category=linear';
@@ -71,60 +70,50 @@ let symbolRefreshTimer = null;
 let backoff = 1000;
 const MAX_BACKOFF = 60 * 1000;
 
-// Bybit REST'den top N USDT-perp coin'i hacki sırasına göre çek.
+// Bybit REST'den top N USDT-perp coin'i hacim sırasına göre çek.
 // API ulaşılmazsa mevcut activeSymbols'u (fallback ya da önceki başarılı çek) koru.
-// NOT: Bybit edge bazı IP'lerde (Render dahil) varsayılan olarak gzip dönüyor;
-// Node `https.get` otomatik decompress etmez. Explicit `Accept-Encoding: identity`
-// ile düz JSON istiyoruz, defensive olarak Content-Encoding'i de zlib ile açıyoruz.
-function fetchTopSymbols() {
-  return new Promise((resolve) => {
-    const req = https.get(BYBIT_TICKERS_URL, {
+// NOT: Bybit edge bazı IP'lerde (Render dahil) varsayılan olarak gzip/brotli dönüyor.
+// axios kullanıyoruz — Node 18+ undici altyapısı tüm sıkıştırmaları otomatik açar.
+async function fetchTopSymbols() {
+  try {
+    const res = await axios.get(BYBIT_TICKERS_URL, {
       timeout: 10000,
+      responseType: 'json',
       headers: {
-        'Accept-Encoding': 'identity',
-        'Accept': 'application/json',
+        Accept: 'application/json',
         'User-Agent': 'borsa-krali-liquidation/1.0',
       },
-    }, (res) => {
-      const chunks = [];
-      res.on('data', (c) => { chunks.push(c); });
-      res.on('end', () => {
-        try {
-          let buf = Buffer.concat(chunks);
-          const enc = String(res.headers['content-encoding'] || '').toLowerCase();
-          if (enc === 'gzip') buf = zlib.gunzipSync(buf);
-          else if (enc === 'deflate') buf = zlib.inflateSync(buf);
-          else if (enc === 'br') buf = zlib.brotliDecompressSync(buf);
-          const body = buf.toString('utf8');
-          const j = JSON.parse(body);
-          if (!j.result || !Array.isArray(j.result.list)) {
-            stats.lastError = 'Bybit tickers: malformed response';
-            return resolve(false);
-          }
-          const top = j.result.list
-            .filter((t) => typeof t.symbol === 'string' && t.symbol.endsWith('USDT'))
-            .filter((t) => isFinite(parseFloat(t.turnover24h)))
-            .sort((a, b) => parseFloat(b.turnover24h) - parseFloat(a.turnover24h))
-            .slice(0, TOP_SYMBOL_COUNT)
-            .map((t) => t.symbol);
-          if (top.length >= 10) {
-            activeSymbols = top;
-            activeSymbolSet = new Set(top);
-            stats.lastError = null;
-            console.log(`[Liquidation] Top ${top.length} sembol hacim sırasına göre güncellendi`);
-            return resolve(true);
-          }
-          stats.lastError = `Bybit tickers: only ${top.length} valid symbols`;
-          resolve(false);
-        } catch (e) {
-          stats.lastError = `Bybit tickers parse: ${e.message}`;
-          resolve(false);
-        }
-      });
+      // axios auto-decompresses gzip/deflate/br via the underlying http(s) agent
+      decompress: true,
     });
-    req.on('error', (e) => { stats.lastError = `Bybit tickers: ${e.message}`; resolve(false); });
-    req.on('timeout', () => { req.destroy(); stats.lastError = 'Bybit tickers: timeout'; resolve(false); });
-  });
+    const j = res.data;
+    if (!j || !j.result || !Array.isArray(j.result.list)) {
+      stats.lastError = 'Bybit tickers: malformed response';
+      return false;
+    }
+    const top = j.result.list
+      .filter((t) => typeof t.symbol === 'string' && t.symbol.endsWith('USDT'))
+      .filter((t) => isFinite(parseFloat(t.turnover24h)))
+      .sort((a, b) => parseFloat(b.turnover24h) - parseFloat(a.turnover24h))
+      .slice(0, TOP_SYMBOL_COUNT)
+      .map((t) => t.symbol);
+    if (top.length >= 10) {
+      activeSymbols = top;
+      activeSymbolSet = new Set(top);
+      stats.lastError = null;
+      console.log(`[Liquidation] Top ${top.length} sembol hacim sırasına göre güncellendi`);
+      return true;
+    }
+    stats.lastError = `Bybit tickers: only ${top.length} valid symbols`;
+    return false;
+  } catch (e) {
+    // axios hata mesajı response gövdesini de içerebilir — kısalt
+    const msg = e.response
+      ? `HTTP ${e.response.status} ${String(e.response.data || '').slice(0, 80)}`
+      : (e.message || 'unknown');
+    stats.lastError = `Bybit tickers: ${msg}`;
+    return false;
+  }
 }
 
 // Bybit `allLiquidation.{symbol}` veri formatı:
