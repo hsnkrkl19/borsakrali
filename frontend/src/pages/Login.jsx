@@ -9,13 +9,8 @@ import {
 import { loginWithPassword } from '../services/auth'
 import BrandMark from '../components/BrandMark'
 import GoogleSignInButton from '../components/GoogleSignInButton'
-import WelcomeIntro from '../components/home/WelcomeIntro'
 import { getApiBase } from '../config'
 import { getStoredTheme } from '../utils/theme'
-
-/** Tarayıcı başına bir kerelik welcome ekranı flag'i. Ayarlar > Hoşgeldin
- *  Ekranı bölümündeki "Yenilikleri tekrar göster" butonu bunu temizler. */
-const WELCOME_SEEN_KEY = 'bk-welcome-seen-v1'
 
 /**
  * Subscribe the component to the global theme so colors update when the
@@ -265,25 +260,12 @@ export default function Login() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [waking, setWaking] = useState(false)
-  // Welcome paneli: tarayıcı başına bir kerelik. localStorage flag yoksa göster.
-  const [showWelcome, setShowWelcome] = useState(() => {
-    try { return localStorage.getItem(WELCOME_SEEN_KEY) !== '1' } catch { return false }
-  })
   const macro = useMacroSnapshot()
   const theme = useTheme()
   const isLight = theme === 'light'
 
   if (isAuthenticated) {
     return <Navigate to="/" replace />
-  }
-
-  const handleContinueToLogin = () => {
-    try { localStorage.setItem(WELCOME_SEEN_KEY, '1') } catch {}
-    setShowWelcome(false)
-    // Mobilde welcome scroll'undan login formuna geçişi rahatlatmak için yukarı al
-    if (typeof window !== 'undefined') {
-      window.scrollTo({ top: 0, behavior: 'smooth' })
-    }
   }
 
   const handleLogin = async (e) => {
@@ -351,6 +333,19 @@ export default function Login() {
         </div>
         <h1 className="text-2xl font-bold text-gold-shimmer tracking-wider">BORSA KRALI</h1>
         <p className="text-amber-400/80 text-[10px] uppercase tracking-[0.22em] font-bold mt-1">Obsidian Edition</p>
+        <Link
+          to="/yenilikler"
+          className="inline-flex items-center gap-1.5 mt-4 px-3.5 py-1.5 rounded-full text-[11px] font-semibold transition-colors"
+          style={{
+            background: 'rgba(212, 175, 55, 0.10)',
+            border: '1px solid rgba(212, 175, 55, 0.35)',
+            color: isLight ? '#92400e' : '#fcd34d',
+          }}
+        >
+          <Sparkles className="w-3 h-3" />
+          Platformu Tanı · Yenilikler
+          <ArrowRight className="w-3 h-3" />
+        </Link>
       </div>
 
       {/* Form card */}
@@ -545,115 +540,8 @@ export default function Login() {
   )
 
   // ═══════════════════════════════════════════════════════════════════════
-  // WELCOME LAYOUT — sol kolon scroll'lanan yenilikler, sağ kolon sticky login.
-  // localStorage flag set olduğunda devre dışı kalır, normal cinematic layout
-  // gösterilir.
-  // ═══════════════════════════════════════════════════════════════════════
-  if (showWelcome) {
-    // NOT: global `html { overflow-x: hidden }` ve `auth-backdrop` overflow
-    // ayarları `position: sticky`'yi kırıyor. Bu yüzden welcome layout'unda
-    // window scroll yerine sol kolonun KENDİ İÇİNDE scroll'lanması yaklaşımını
-    // tercih ediyoruz: dış konteyner h-screen + overflow-hidden, sol kolon
-    // overflow-y: auto, sağ kolon statik (ama görüntüsel olarak sabit).
-    // Mobile'da ise lg breakpoint'in altında flex-col + normal window scroll.
-    return (
-      <div className="min-h-screen relative" style={{ backgroundColor: 'var(--bg-base)' }}>
-        {/* Backdrop ışıltıları — fixed, layout dışında */}
-        <div aria-hidden="true" className="fixed inset-0 pointer-events-none overflow-hidden z-0">
-          <div
-            className="absolute rounded-full float-slow"
-            style={{
-              top: '-25%', left: '-10%', width: '720px', height: '720px',
-              background: isLight
-                ? 'radial-gradient(circle, rgba(212, 175, 55, 0.18) 0%, transparent 70%)'
-                : 'radial-gradient(circle, rgba(212, 175, 55, 0.35) 0%, transparent 70%)',
-              filter: 'blur(120px)',
-            }}
-          />
-          <div
-            className="absolute rounded-full float-slow"
-            style={{
-              bottom: '-25%', right: '-10%', width: '720px', height: '720px',
-              background: isLight
-                ? 'radial-gradient(circle, rgba(184, 144, 30, 0.12) 0%, transparent 70%)'
-                : 'radial-gradient(circle, rgba(184, 144, 30, 0.25) 0%, transparent 70%)',
-              filter: 'blur(120px)',
-              animationDirection: 'reverse',
-            }}
-          />
-        </div>
-
-        <div className="lg:h-screen flex flex-col lg:flex-row lg:overflow-hidden relative z-10">
-          {/* SOL: yenilikler — desktop'ta internal scroll, mobile'da window scroll */}
-          <div className="w-full lg:w-[58%] lg:overflow-y-auto px-4 sm:px-6 lg:px-10 pt-6 pb-10 lg:pt-10 lg:pb-16">
-            {/* Brand bar + ticker chips */}
-            <div className="flex items-center justify-between gap-3 mb-8 lg:mb-10 flex-wrap">
-              <div className="flex items-center gap-3">
-                <BrandMark size="lg" />
-                <div>
-                  <h1 className="text-xl font-bold text-gold-shimmer tracking-wider leading-none">BORSA KRALI</h1>
-                  <p
-                    className="text-[10px] uppercase tracking-[0.22em] font-bold mt-1"
-                    style={{ color: isLight ? '#92400e' : 'rgba(252, 211, 77, 0.70)' }}
-                  >
-                    Obsidian Edition · Yenilikler
-                  </p>
-                </div>
-              </div>
-              <div className="hidden xl:flex items-center gap-2">
-                {macro.bist100 && (
-                  <HeroTickerChip
-                    label="BIST 100"
-                    value={formatTr(macro.bist100.value, { frac: 2 })}
-                    change={macro.bist100.change ?? 0}
-                    theme={theme}
-                  />
-                )}
-                {macro.usdtry && (
-                  <HeroTickerChip
-                    label="USD/TRY"
-                    value={formatTr(macro.usdtry.value, { frac: 2 })}
-                    change={macro.usdtry.change ?? 0}
-                    theme={theme}
-                  />
-                )}
-              </div>
-            </div>
-
-            <WelcomeIntro onContinue={handleContinueToLogin} />
-          </div>
-
-          {/* SAĞ: login formu — desktop'ta h-screen statik (görsel olarak sabit) */}
-          <div
-            className="w-full lg:w-[42%] lg:h-screen lg:overflow-y-auto flex items-center justify-center p-6 sm:p-10 relative"
-            style={{
-              background: isLight
-                ? 'linear-gradient(180deg, rgba(255,255,255,0.92) 0%, rgba(254,243,199,0.78) 100%)'
-                : 'linear-gradient(180deg, rgba(6,10,20,0.92) 0%, rgba(10,16,32,0.88) 100%)',
-              backdropFilter: 'blur(10px)',
-              WebkitBackdropFilter: 'blur(10px)',
-              borderLeft: '1px solid var(--border-gold)',
-            }}
-          >
-            {/* Sol panelden taşan altın huzme */}
-            <div
-              aria-hidden="true"
-              className="hidden lg:block absolute inset-y-0 left-0 w-[55%] pointer-events-none"
-              style={{
-                background: isLight
-                  ? 'radial-gradient(ellipse 80% 60% at 0% 50%, rgba(254, 243, 199, 0.55) 0%, rgba(254, 243, 199, 0.18) 35%, transparent 70%)'
-                  : 'radial-gradient(ellipse 80% 60% at 0% 50%, rgba(212, 175, 55, 0.10) 0%, rgba(212, 175, 55, 0.04) 35%, transparent 70%)',
-              }}
-            />
-            {loginPanel}
-          </div>
-        </div>
-      </div>
-    )
-  }
-
-  // ═══════════════════════════════════════════════════════════════════════
-  // CINEMATIC LAYOUT — varsayılan, welcome görüldükten sonra.
+  // CINEMATIC LAYOUT — tek sayfa: sol kolon hero, sağ kolon login.
+  // Tanıtım / yenilikler /yenilikler route'unda standalone duruyor.
   // ═══════════════════════════════════════════════════════════════════════
   return (
     <div className="min-h-screen flex auth-backdrop" style={{ backgroundColor: 'var(--bg-base)' }}>
@@ -695,7 +583,7 @@ export default function Login() {
         )}
 
         {/* Top bar — brand + ticker chips */}
-        <div className="relative z-10 flex items-center justify-between p-8">
+        <div className="relative z-10 flex items-center justify-between p-8 gap-4 flex-wrap">
           <div className="flex items-center gap-3">
             <BrandMark size="lg" />
             <div>
@@ -709,31 +597,47 @@ export default function Login() {
             </div>
           </div>
 
-          <div className="hidden xl:flex items-center gap-2">
-            {macro.bist100 && (
-              <HeroTickerChip
-                label="BIST 100"
-                value={formatTr(macro.bist100.value, { frac: 2 })}
-                change={macro.bist100.change ?? 0}
-                theme={theme}
-              />
-            )}
-            {macro.usdtry && (
-              <HeroTickerChip
-                label="USD/TRY"
-                value={formatTr(macro.usdtry.value, { frac: 2 })}
-                change={macro.usdtry.change ?? 0}
-                theme={theme}
-              />
-            )}
-            {macro.gold && (
-              <HeroTickerChip
-                label="GRAM"
-                value={formatTr(macro.gold.value, { frac: 0 })}
-                change={macro.gold.change ?? 0}
-                theme={theme}
-              />
-            )}
+          <div className="flex items-center gap-2 flex-wrap">
+            <Link
+              to="/yenilikler"
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-[11px] font-semibold transition-colors hover:scale-[1.02]"
+              style={{
+                background: 'rgba(212, 175, 55, 0.10)',
+                border: '1px solid rgba(212, 175, 55, 0.35)',
+                color: isLight ? '#92400e' : '#fcd34d',
+                backdropFilter: 'blur(6px)',
+              }}
+            >
+              <Sparkles className="w-3.5 h-3.5" />
+              Platformu Tanı
+              <ArrowRight className="w-3 h-3" />
+            </Link>
+            <div className="hidden xl:flex items-center gap-2">
+              {macro.bist100 && (
+                <HeroTickerChip
+                  label="BIST 100"
+                  value={formatTr(macro.bist100.value, { frac: 2 })}
+                  change={macro.bist100.change ?? 0}
+                  theme={theme}
+                />
+              )}
+              {macro.usdtry && (
+                <HeroTickerChip
+                  label="USD/TRY"
+                  value={formatTr(macro.usdtry.value, { frac: 2 })}
+                  change={macro.usdtry.change ?? 0}
+                  theme={theme}
+                />
+              )}
+              {macro.gold && (
+                <HeroTickerChip
+                  label="GRAM"
+                  value={formatTr(macro.gold.value, { frac: 0 })}
+                  change={macro.gold.change ?? 0}
+                  theme={theme}
+                />
+              )}
+            </div>
           </div>
         </div>
 

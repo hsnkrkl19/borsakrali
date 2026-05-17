@@ -23,8 +23,20 @@ export default function GunlukTespitler() {
     ? (searchParams.get('tab') === 'today' ? 'bugun' : searchParams.get('tab'))
     : 'bugun'  // varsayılan: Bugünün Sinyalleri (yeni özellik)
   const [activeTab, setActiveTab] = useState(initialTab)
+  const tabsScrollRef = useRef(null)
   // Tab değiştikçe URL'i güncelle ki kullanıcı yer imi yapabilsin
   useEffect(() => { setSearchParams({ tab: activeTab }, { replace: true }) }, [activeTab])  // eslint-disable-line react-hooks/exhaustive-deps
+  // Aktif tab değiştiğinde mobilde yatay scrollu otomatik o tab'a getir
+  useEffect(() => {
+    const id = requestAnimationFrame(() => {
+      if (!tabsScrollRef.current) return
+      const btn = tabsScrollRef.current.querySelector(`[data-tab-id="${activeTab}"]`)
+      if (btn && typeof btn.scrollIntoView === 'function') {
+        btn.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' })
+      }
+    })
+    return () => cancelAnimationFrame(id)
+  }, [activeTab])
   const [showInfo, setShowInfo] = useState(false)
   const [showGuide, setShowGuide] = useState(false)
   const [expandedSignal, setExpandedSignal] = useState(null)
@@ -234,15 +246,15 @@ export default function GunlukTespitler() {
   }, [loadData, loadWatchlist])
 
   const tabs = [
-    { id: 'bugun',         label: 'Bugünün Sinyalleri', icon: Sparkles },
-    { id: 'kripto',        label: 'Kripto',             icon: Coins },
-    { id: 'emtia',         label: 'Altın & Gümüş',      icon: Coins, isNew: true },
-    { id: 'mtf',           label: 'Çoklu Zaman',        icon: Layers },
-    { id: 'likidasyon',    label: 'Likidasyon Haritası', icon: Flame, isNew: true },
-    { id: 'backtest',      label: 'Backtest',           icon: Activity },
-    { id: 'akilli-suzgec', label: 'Akıllı Süzgeç',      icon: Filter },
-    { id: 'canli-takip',   label: 'Canlı Alarmlar',     icon: BellRing, badge: unreadCount },
-    { id: 'detayli-analiz', label: 'Detaylı Analiz',    icon: Target }
+    { id: 'bugun',         label: 'Bugünün Sinyalleri',  shortLabel: 'Bugün',      icon: Sparkles },
+    { id: 'kripto',        label: 'Kripto',              shortLabel: 'Kripto',     icon: Coins },
+    { id: 'emtia',         label: 'Altın & Gümüş',       shortLabel: 'Altın',      icon: Coins, isNew: true },
+    { id: 'mtf',           label: 'Çoklu Zaman',         shortLabel: 'Çoklu TF',   icon: Layers },
+    { id: 'likidasyon',    label: 'Likidasyon Haritası', shortLabel: 'Likidasyon', icon: Flame, isNew: true },
+    { id: 'backtest',      label: 'Backtest',            shortLabel: 'Backtest',   icon: Activity },
+    { id: 'akilli-suzgec', label: 'Akıllı Süzgeç',       shortLabel: 'Süzgeç',     icon: Filter },
+    { id: 'canli-takip',   label: 'Canlı Alarmlar',      shortLabel: 'Alarmlar',   icon: BellRing, badge: unreadCount },
+    { id: 'detayli-analiz', label: 'Detaylı Analiz',     shortLabel: 'Detay',      icon: Target }
   ]
 
   // Filtrelenmis sinyaller
@@ -432,26 +444,33 @@ export default function GunlukTespitler() {
         </div>
       )}
 
-      {/* Tabs */}
-      <div className="flex overflow-x-auto pb-1 border-b border-dark-700 -mx-1 px-1 scrollbar-thin">
+      {/* Tabs — yatay scroll, mobilde kompakt, aktifken otomatik görünüre kayar */}
+      <div
+        ref={tabsScrollRef}
+        className="flex overflow-x-auto pb-1 border-b border-dark-700 -mx-1 px-1 scrollbar-thin snap-x snap-mandatory scroll-smooth"
+      >
         {tabs.map((tab) => (
           <button
             key={tab.id}
+            data-tab-id={tab.id}
             onClick={() => setActiveTab(tab.id)}
-            className={`flex-shrink-0 flex items-center space-x-1 md:space-x-2 px-3 md:px-4 py-2 md:py-3 border-b-2 transition-colors relative whitespace-nowrap ${activeTab === tab.id
+            className={`flex-shrink-0 snap-start flex items-center gap-1.5 md:gap-2 px-2.5 md:px-4 py-2 md:py-3 border-b-2 transition-colors whitespace-nowrap ${activeTab === tab.id
               ? 'border-primary-600 text-white'
               : 'border-transparent text-gray-400 hover:text-white'
               }`}
           >
-            <tab.icon className="w-3 h-3 md:w-4 md:h-4" />
-            <span className="font-medium text-sm md:text-base">{tab.label}</span>
+            <tab.icon className="w-3.5 h-3.5 md:w-4 md:h-4 flex-shrink-0" />
+            <span className="font-medium text-[12px] md:text-base">
+              <span className="md:hidden">{tab.shortLabel || tab.label}</span>
+              <span className="hidden md:inline">{tab.label}</span>
+            </span>
             {tab.isNew && activeTab !== tab.id && (
-              <span className="text-[9px] font-bold px-1 py-0.5 rounded bg-amber-500/30 text-amber-200 border border-amber-500/40">
+              <span className="text-[8px] md:text-[9px] font-bold px-1 py-0.5 rounded bg-amber-500/30 text-amber-200 border border-amber-500/40 leading-none">
                 YENİ
               </span>
             )}
             {tab.badge > 0 && (
-              <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] md:text-xs w-4 h-4 md:w-5 md:h-5 rounded-full flex items-center justify-center">
+              <span className="bg-red-500 text-white text-[10px] md:text-xs min-w-[16px] md:min-w-[18px] h-4 md:h-[18px] px-1 rounded-full flex items-center justify-center leading-none">
                 {tab.badge}
               </span>
             )}

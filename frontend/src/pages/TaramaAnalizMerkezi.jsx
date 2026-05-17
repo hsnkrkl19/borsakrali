@@ -418,40 +418,45 @@ export default function TaramaAnalizMerkezi() {
         </div>
       </div>
 
-      {/* Tab Seçimi */}
-      <div className="flex gap-2 overflow-x-auto pb-1">
+      {/* Tab Seçimi — mobilde kompakt, yatay scroll snap */}
+      <div className="flex gap-1.5 md:gap-2 overflow-x-auto pb-1 -mx-1 px-1 snap-x snap-mandatory scroll-smooth">
         <button
           onClick={() => setActiveTab('strateji')}
-          className={`flex items-center gap-2 px-3 md:px-4 py-2 rounded-xl font-medium text-sm transition-all whitespace-nowrap ${activeTab === 'strateji' ? 'bg-primary-500 text-white' : 'bg-dark-800 text-gray-400 hover:text-white'
+          className={`flex-shrink-0 snap-start flex items-center gap-1.5 md:gap-2 px-2.5 md:px-4 py-1.5 md:py-2 rounded-xl font-medium text-[12px] md:text-sm transition-all whitespace-nowrap ${activeTab === 'strateji' ? 'bg-primary-500 text-white' : 'bg-dark-800 text-gray-400 hover:text-white'
             }`}
         >
-          <Zap className="w-4 h-4" />
-          Strateji Lig Tablosu
-          <span className="bg-dark-700 px-1.5 md:px-2 py-0.5 rounded-full text-xs">{bogaStrategies.length + ayiStrategies.length}</span>
+          <Zap className="w-3.5 h-3.5 md:w-4 md:h-4 flex-shrink-0" />
+          <span className="md:hidden">Strateji</span>
+          <span className="hidden md:inline">Strateji Lig Tablosu</span>
+          <span className="bg-dark-700 px-1.5 md:px-2 py-0.5 rounded-full text-[10px] md:text-xs leading-none">{bogaStrategies.length + ayiStrategies.length}</span>
         </button>
         <button
           onClick={() => setActiveTab('one_cikan')}
-          className={`flex items-center gap-2 px-3 md:px-4 py-2 rounded-xl font-medium text-sm transition-all whitespace-nowrap ${activeTab === 'one_cikan' ? 'bg-primary-500 text-white' : 'bg-dark-800 text-gray-400 hover:text-white'
+          className={`flex-shrink-0 snap-start flex items-center gap-1.5 md:gap-2 px-2.5 md:px-4 py-1.5 md:py-2 rounded-xl font-medium text-[12px] md:text-sm transition-all whitespace-nowrap ${activeTab === 'one_cikan' ? 'bg-primary-500 text-white' : 'bg-dark-800 text-gray-400 hover:text-white'
             }`}
         >
-          <Star className="w-4 h-4" />
-          Öne Çıkan Semboller
+          <Star className="w-3.5 h-3.5 md:w-4 md:h-4 flex-shrink-0" />
+          <span className="md:hidden">Öne Çıkan</span>
+          <span className="hidden md:inline">Öne Çıkan Semboller</span>
         </button>
         <button
           onClick={() => setActiveTab('haftalik')}
-          className={`flex items-center gap-2 px-3 md:px-4 py-2 rounded-xl font-medium text-sm transition-all whitespace-nowrap ${activeTab === 'haftalik' ? 'bg-primary-500 text-white' : 'bg-dark-800 text-gray-400 hover:text-white'
+          className={`flex-shrink-0 snap-start flex items-center gap-1.5 md:gap-2 px-2.5 md:px-4 py-1.5 md:py-2 rounded-xl font-medium text-[12px] md:text-sm transition-all whitespace-nowrap ${activeTab === 'haftalik' ? 'bg-primary-500 text-white' : 'bg-dark-800 text-gray-400 hover:text-white'
             }`}
         >
-          <BarChart3 className="w-4 h-4" />
-          Haftalık En İyiler
+          <BarChart3 className="w-3.5 h-3.5 md:w-4 md:h-4 flex-shrink-0" />
+          <span className="md:hidden">Haftalık</span>
+          <span className="hidden md:inline">Haftalık En İyiler</span>
         </button>
         <button
           onClick={() => { setActiveTab('kripto'); if (cryptoBogaStrategies.length === 0) loadCryptoScan() }}
-          className={`flex items-center gap-2 px-3 md:px-4 py-2 rounded-xl font-medium text-sm transition-all whitespace-nowrap ${activeTab === 'kripto' ? 'bg-orange-500 text-white' : 'bg-dark-800 text-gray-400 hover:text-white'
+          className={`flex-shrink-0 snap-start flex items-center gap-1.5 md:gap-2 px-2.5 md:px-4 py-1.5 md:py-2 rounded-xl font-medium text-[12px] md:text-sm transition-all whitespace-nowrap ${activeTab === 'kripto' ? 'bg-orange-500 text-white' : 'bg-dark-800 text-gray-400 hover:text-white'
             }`}
         >
-          🪙 Kripto Tarama
-          {cryptoTotal > 0 && <span className="bg-dark-700 px-1.5 py-0.5 rounded-full text-xs">{cryptoTotal}</span>}
+          <span className="text-sm md:text-base leading-none">🪙</span>
+          <span className="md:hidden">Kripto</span>
+          <span className="hidden md:inline">Kripto Tarama</span>
+          {cryptoTotal > 0 && <span className="bg-dark-700 px-1.5 py-0.5 rounded-full text-[10px] md:text-xs leading-none">{cryptoTotal}</span>}
         </button>
       </div>
 
