@@ -190,9 +190,13 @@ export default function HomeFooter() {
           <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-[11px]"
             style={{ color: 'var(--text-muted)' }}
           >
-            <a href="mailto:iletisim@borsakrali.com" className="inline-flex items-center gap-1.5 hover:text-gold-400 transition-colors">
+            <a href="mailto:info@borsakrali.com" className="inline-flex items-center gap-1.5 hover:text-gold-400 transition-colors">
               <Mail className="w-3 h-3" />
-              iletisim@borsakrali.com
+              info@borsakrali.com
+            </a>
+            <a href="mailto:hsnkrkl19@gmail.com" className="inline-flex items-center gap-1.5 hover:text-gold-400 transition-colors">
+              <Mail className="w-3 h-3" />
+              hsnkrkl19@gmail.com
             </a>
             <span className="inline-flex items-center gap-1.5">
               <MapPin className="w-3 h-3" />
