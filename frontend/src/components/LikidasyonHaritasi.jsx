@@ -55,7 +55,8 @@ export default function LikidasyonHaritasi() {
       const [h, s, r, st] = await Promise.all([
         api.get(`/liquidation/heatmap/${sym}?hours=${hr}&buckets=40`),
         api.get(`/liquidation/summary?hours=${hr}&limit=20`),
-        api.get(`/liquidation/recent?hours=1&limit=20&minUsd=25000`),
+        // Tüm yakın likidasyonları al — küçük olanlar dahil tek tek görelim
+        api.get(`/liquidation/recent?hours=${hr}&limit=80&minUsd=100`),
         api.get('/liquidation/stats'),
       ])
       setHeatmap(h.data)
@@ -80,8 +81,11 @@ export default function LikidasyonHaritasi() {
   const maxBin = heatmap?.summary?.maxBinUsd || 0
   const orderedBins = useMemo(() => {
     if (!heatmap?.bins) return []
-    // Üstte yüksek fiyat — alta sırala (sell-side üstte, buy-side altta)
-    return [...heatmap.bins].reverse()
+    // Sadece olay olan bantları göster — boş satırlar mock data izlenimi verir.
+    // Üstte yüksek fiyat — alta sırala (sell-side üstte, buy-side altta).
+    return [...heatmap.bins]
+      .filter((b) => (b.longUsd + b.shortUsd) > 0)
+      .reverse()
   }, [heatmap])
 
   return (
@@ -112,7 +116,7 @@ export default function LikidasyonHaritasi() {
                 {stats.connected ? '● CANLI' : '○ Bağlanıyor'}
               </span>
               <span className="px-2 py-1 rounded-md bg-dark-800 border border-dark-700 text-gray-400">
-                {stats.bufferedSymbols} sembol · {stats.bufferedEvents?.toLocaleString()} olay
+                {stats.subscribedSymbols || 0} izleniyor · {stats.bufferedEvents?.toLocaleString() || 0} olay
               </span>
             </div>
           )}
@@ -281,19 +285,19 @@ export default function LikidasyonHaritasi() {
             <div className="px-4 py-3 border-b border-dark-700">
               <h3 className="font-semibold text-white flex items-center gap-2">
                 <Clock className="w-4 h-4 text-orange-400" />
-                Son Büyük Likidasyonlar
+                Likidasyon Akışı · Tek Tek
               </h3>
-              <p className="text-[11px] text-gray-500">Min $25K, son 1 saat</p>
+              <p className="text-[11px] text-gray-500">Son {hours}sa, $100+ — hangi fiyatta hangi likidasyon</p>
             </div>
-            <div className="divide-y divide-dark-700/50 max-h-72 overflow-y-auto custom-scrollbar">
-              {recent.slice(0, 15).map((e, idx) => (
+            <div className="divide-y divide-dark-700/50 max-h-[28rem] overflow-y-auto custom-scrollbar">
+              {recent.map((e, idx) => (
                 <div key={idx} className="px-4 py-1.5 flex items-center gap-2 text-[11px]">
                   <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${
                     e.side === 'long' ? 'bg-red-500/20 text-red-300' : 'bg-emerald-500/20 text-emerald-300'
                   }`}>
                     {e.side === 'long' ? 'LONG ↓' : 'SHRT ↑'}
                   </span>
-                  <span className="font-bold text-white w-14">{e.symbol.replace('USDT', '')}</span>
+                  <span className="font-bold text-white w-14 truncate">{e.symbol.replace('USDT', '')}</span>
                   <span className="font-mono text-gray-400">{fmtPrice(e.price)}</span>
                   <span className="font-mono text-amber-300 ml-auto">{fmtUsd(e.notional)}</span>
                   <span className="text-gray-500 text-[10px] w-8 text-right">{fmtAgo(e.time)}</span>
@@ -301,7 +305,7 @@ export default function LikidasyonHaritasi() {
               ))}
               {recent.length === 0 && (
                 <div className="px-4 py-6 text-center text-gray-500 text-xs">
-                  Son 1 saatte $25K+ likidasyon yok
+                  Son {hours} saatte $100+ likidasyon yok — buffer doluyor
                 </div>
               )}
             </div>

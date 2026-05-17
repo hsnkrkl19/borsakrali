@@ -20,26 +20,33 @@
  */
 
 const WebSocket = require('ws');
+const https = require('https');
 
 const BYBIT_WS_URL = 'wss://stream.bybit.com/v5/public/linear';
+const BYBIT_TICKERS_URL = 'https://api.bybit.com/v5/market/tickers?category=linear';
 
-// Bybit USDT-perp sembolleri — heatmap için coverage. Frontend COINS listesinden geniş.
-// NOT: Çok ucuz coinler 1000x kontratlarla işlem görür (1000SHIBUSDT, 1000PEPEUSDT).
+// Bybit USDT-perp evreni boot'ta REST API'den dinamik çekilir — 24sa hacim sırasına
+// göre top N coin. Hardcoded fallback liste de var (API ulaşılamazsa).
+// NOT: Çok ucuz coinler 1000x kontratlarla işlem görür (SHIB1000USDT, 1000PEPEUSDT).
 // MATICUSDT → POLUSDT, FTMUSDT delist edildi.
 // Bybit subscribe BATCH'i atomik: tek geçersiz sembol tüm batch'i reddeder, bu yüzden
 // her sembol için ayrı `subscribe` op'u gönderiyoruz (subscribe-per-symbol).
-const SUBSCRIBE_SYMBOLS = [
+const TOP_SYMBOL_COUNT = 100;
+const SYMBOL_REFRESH_INTERVAL_MS = 6 * 60 * 60 * 1000; // 6 saatte bir top liste yenile
+const FALLBACK_SYMBOLS = [
   'BTCUSDT', 'ETHUSDT', 'SOLUSDT', 'XRPUSDT', 'DOGEUSDT', 'BNBUSDT', 'ADAUSDT',
   'TRXUSDT', 'LINKUSDT', 'AVAXUSDT', 'SUIUSDT', 'DOTUSDT', 'TONUSDT', 'NEARUSDT',
   'OPUSDT', 'ARBUSDT', 'APTUSDT', 'ATOMUSDT', 'LTCUSDT', 'BCHUSDT', 'INJUSDT',
-  'SEIUSDT', 'AAVEUSDT', 'WIFUSDT', 'JUPUSDT', 'ORDIUSDT', 'TIAUSDT', 'ENAUSDT',
+  'AAVEUSDT', 'WIFUSDT', 'JUPUSDT', 'ORDIUSDT', 'TIAUSDT', 'ENAUSDT',
   'HBARUSDT', 'POLUSDT', 'SHIB1000USDT', '1000PEPEUSDT', 'FILUSDT', 'LDOUSDT',
-  'RENDERUSDT', 'ICPUSDT', 'CRVUSDT', 'RUNEUSDT',
+  'RENDERUSDT', 'ICPUSDT', 'CRVUSDT', 'RUNEUSDT', 'XLMUSDT', 'ETCUSDT', 'UNIUSDT',
 ];
+let activeSymbols = FALLBACK_SYMBOLS.slice();
+let activeSymbolSet = new Set(activeSymbols);
 
 const BUFFER_TTL_MS = 24 * 60 * 60 * 1000; // 24 saat
 const PRUNE_INTERVAL_MS = 5 * 60 * 1000;    // 5 dk
-const MIN_NOTIONAL_USD = 1000;               // gürültü filtresi
+const MIN_NOTIONAL_USD = 100;                // gürültü filtresi — küçük likidasyonları da yakala
 const PING_INTERVAL_MS = 15 * 1000;          // Bybit 20sn timeout — 15sn'de bir app-level ping
 
 // Per-symbol ringbuffer: symbol -> [{ side, price, qty, notional, time }, ...]
@@ -59,8 +66,48 @@ let ws = null;
 let reconnectTimer = null;
 let pruneTimer = null;
 let pingHandle = null;
+let symbolRefreshTimer = null;
 let backoff = 1000;
 const MAX_BACKOFF = 60 * 1000;
+
+// Bybit REST'den top N USDT-perp coin'i hacim sırasına göre çek.
+// API ulaşılmazsa mevcut activeSymbols'u (fallback ya da önceki başarılı çek) koru.
+function fetchTopSymbols() {
+  return new Promise((resolve) => {
+    const req = https.get(BYBIT_TICKERS_URL, { timeout: 10000 }, (res) => {
+      let body = '';
+      res.on('data', (c) => { body += c; });
+      res.on('end', () => {
+        try {
+          const j = JSON.parse(body);
+          if (!j.result || !Array.isArray(j.result.list)) {
+            stats.lastError = 'Bybit tickers: malformed response';
+            return resolve(false);
+          }
+          const top = j.result.list
+            .filter((t) => typeof t.symbol === 'string' && t.symbol.endsWith('USDT'))
+            .filter((t) => isFinite(parseFloat(t.turnover24h)))
+            .sort((a, b) => parseFloat(b.turnover24h) - parseFloat(a.turnover24h))
+            .slice(0, TOP_SYMBOL_COUNT)
+            .map((t) => t.symbol);
+          if (top.length >= 10) {
+            activeSymbols = top;
+            activeSymbolSet = new Set(top);
+            console.log(`[Liquidation] Top ${top.length} sembol hacim sırasına göre güncellendi`);
+            return resolve(true);
+          }
+          stats.lastError = `Bybit tickers: only ${top.length} valid symbols`;
+          resolve(false);
+        } catch (e) {
+          stats.lastError = `Bybit tickers parse: ${e.message}`;
+          resolve(false);
+        }
+      });
+    });
+    req.on('error', (e) => { stats.lastError = `Bybit tickers: ${e.message}`; resolve(false); });
+    req.on('timeout', () => { req.destroy(); stats.lastError = 'Bybit tickers: timeout'; resolve(false); });
+  });
+}
 
 // Bybit `allLiquidation.{symbol}` veri formatı:
 //   { topic: "allLiquidation.BTCUSDT", type: "snapshot", ts, data: [{ T, s, S, v, p }] }
@@ -71,6 +118,8 @@ function ingestOne(ev) {
   try {
     const symbol = String(ev.s || '').toUpperCase();
     if (!symbol.endsWith('USDT')) return;
+    // Subscribe ettiğimiz sembollerin dışı (re-sub esnasında bir-iki orphan event olabilir)
+    if (activeSymbolSet.size > 0 && !activeSymbolSet.has(symbol)) return;
 
     const price = parseFloat(ev.p);
     const qty = parseFloat(ev.v);
@@ -122,7 +171,7 @@ function pruneOld() {
 function subscribeAll() {
   if (!ws || ws.readyState !== WebSocket.OPEN) return;
   // Tek sembol per op — geçersiz bir sembol diğerlerini etkilemesin
-  for (const sym of SUBSCRIBE_SYMBOLS) {
+  for (const sym of activeSymbols) {
     try {
       ws.send(JSON.stringify({ op: 'subscribe', args: [`allLiquidation.${sym}`] }));
     } catch (e) {
@@ -148,7 +197,7 @@ function connect() {
     stats.connected = true;
     stats.connectedSince = Date.now();
     backoff = 1000;
-    console.log(`[Liquidation] Bybit allLiquidation WS bağlandı (${SUBSCRIBE_SYMBOLS.length} sembol)`);
+    console.log(`[Liquidation] Bybit allLiquidation WS bağlandı (${activeSymbols.length} sembol)`);
     subscribeAll();
   });
 
@@ -187,16 +236,34 @@ function scheduleReconnect() {
   reconnectTimer = setTimeout(connect, delay);
 }
 
-function start() {
+async function refreshSymbolsAndResubscribe() {
+  const prev = new Set(activeSymbols);
+  const ok = await fetchTopSymbols();
+  if (!ok) return;
+  // Sembol kümesi değiştiyse WS'yi yeniden kur (subscribe diff'i için reconnect en kolay yol)
+  const changed = activeSymbols.length !== prev.size || activeSymbols.some((s) => !prev.has(s));
+  if (changed && ws && ws.readyState === WebSocket.OPEN) {
+    console.log('[Liquidation] Sembol seti değişti → WS yeniden kuruluyor');
+    try { ws.terminate(); } catch (_) {} // close handler reconnect tetikler
+  }
+}
+
+async function start() {
   if (pruneTimer) clearInterval(pruneTimer);
   pruneTimer = setInterval(pruneOld, PRUNE_INTERVAL_MS);
+  // Boot'ta top sembolleri çek (başarısız olursa fallback liste devrede)
+  await fetchTopSymbols();
   connect();
+  // Periyodik top sembol yenile (yeni listing'leri yakalamak için)
+  if (symbolRefreshTimer) clearInterval(symbolRefreshTimer);
+  symbolRefreshTimer = setInterval(refreshSymbolsAndResubscribe, SYMBOL_REFRESH_INTERVAL_MS);
 }
 
 function stop() {
-  if (reconnectTimer) { clearTimeout(reconnectTimer); reconnectTimer = null; }
-  if (pruneTimer)     { clearInterval(pruneTimer);    pruneTimer = null; }
-  if (pingHandle)     { clearInterval(pingHandle);    pingHandle = null; }
+  if (reconnectTimer)      { clearTimeout(reconnectTimer);      reconnectTimer = null; }
+  if (pruneTimer)          { clearInterval(pruneTimer);         pruneTimer = null; }
+  if (pingHandle)          { clearInterval(pingHandle);         pingHandle = null; }
+  if (symbolRefreshTimer)  { clearInterval(symbolRefreshTimer); symbolRefreshTimer = null; }
   if (ws) {
     try { ws.removeAllListeners(); ws.terminate(); } catch (_) {}
   }
@@ -344,6 +411,7 @@ function getStats() {
     ...stats,
     bufferedSymbols: buffer.size,
     bufferedEvents: Array.from(buffer.values()).reduce((a, arr) => a + arr.length, 0),
+    subscribedSymbols: activeSymbols.length,
   };
 }
 
