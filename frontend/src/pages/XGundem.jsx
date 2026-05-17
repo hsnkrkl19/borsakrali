@@ -342,7 +342,13 @@ export default function XGundem() {
         <div>
           <div className="flex items-center gap-2">
             <h1 className="text-xl sm:text-2xl font-bold text-white">X Gündemi</h1>
-            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-500/30 text-amber-200 border border-amber-500/40">DEMO</span>
+            {data?.dataSource === 'x_scraper' ? (
+              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-green-500/30 text-green-200 border border-green-500/40">CANLI · X.COM</span>
+            ) : data?.dataSource === 'x_scraper_warming' ? (
+              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-blue-500/30 text-blue-200 border border-blue-500/40">ISINIYOR</span>
+            ) : data?.dataSource === 'x_scraper_unconfigured' ? (
+              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-red-500/30 text-red-200 border border-red-500/40">BAĞLI DEĞİL</span>
+            ) : null}
           </div>
           <p className="text-xs text-gray-500 mt-0.5">
             {assetType === 'crypto'
@@ -378,17 +384,29 @@ export default function XGundem() {
         })}
       </div>
 
-      {/* Demo veri uyarısı */}
-      <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 p-3 flex gap-2 items-start">
-        <AlertCircle className="w-4 h-4 text-amber-400 flex-shrink-0 mt-0.5" />
-        <div className="text-xs text-amber-200/90">
-          <div className="font-semibold mb-0.5">Veriler şu an demo (mock).</div>
-          <div className="text-amber-200/70">
-            Yol haritası: (1) twscrape ile cookie tabanlı çekim → (2) RapidAPI Twitter endpoint → (3) resmi X API v2.
-            Mimari hazır — sadece veri kaynağı değişecek, görünüm aynı kalacak.
+      {/* Veri kaynağı uyarısı — sadece sorun varsa göster */}
+      {data?.dataSource === 'x_scraper_unconfigured' && (
+        <div className="rounded-xl border border-red-500/30 bg-red-500/5 p-3 flex gap-2 items-start">
+          <AlertCircle className="w-4 h-4 text-red-400 flex-shrink-0 mt-0.5" />
+          <div className="text-xs text-red-200/90">
+            <div className="font-semibold mb-0.5">X scraper bağlı değil.</div>
+            <div className="text-red-200/70">
+              {data.message || 'X_AUTH_TOKEN ve X_CT0 cookie\'leri yapılandırılmamış. Sunucu .env dosyasına ekleyip yeniden başlatın.'}
+            </div>
           </div>
         </div>
-      </div>
+      )}
+      {data?.dataSource === 'x_scraper_warming' && (
+        <div className="rounded-xl border border-blue-500/30 bg-blue-500/5 p-3 flex gap-2 items-start">
+          <RefreshCw className="w-4 h-4 text-blue-400 flex-shrink-0 mt-0.5 animate-spin" />
+          <div className="text-xs text-blue-200/90">
+            <div className="font-semibold mb-0.5">İlk tarama yapılıyor…</div>
+            <div className="text-blue-200/70">
+              {data.message || 'Scraper X.com\'a bağlandı, hisseleri ilk kez tarıyor. Birkaç dakika sonra yenileyin.'}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Scope filter */}
       <div className="bg-dark-900/60 border border-dark-700 rounded-xl p-1 flex gap-1 w-fit">
@@ -410,14 +428,22 @@ export default function XGundem() {
       </div>
 
       {/* Stats */}
-      {data && (
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-          <StatCard title="Taranan Hisse" value={data.totalScanned} color="blue" />
-          <StatCard title="24sa Toplam Mention" value={data.totalMentions24h.toLocaleString('tr-TR')} color="amber" />
-          <StatCard title="Hisse Başına Ort." value={data.avgMentionsPerStock} color="amber" />
-          <StatCard title="Veri Kaynağı" value={data.dataSource.toUpperCase()} sub="Yenilenmeye hazır" color="green" />
-        </div>
-      )}
+      {data && (() => {
+        const dsMap = {
+          x_scraper:              { label: 'Canlı X.com',  sub: 'Gerçek tweet verisi',         color: 'green' },
+          x_scraper_warming:      { label: 'Isınıyor',     sub: 'İlk tarama sürüyor',          color: 'blue'  },
+          x_scraper_unconfigured: { label: 'Bağlı Değil',  sub: 'Cookie\'ler eksik',           color: 'red'   },
+        }
+        const ds = dsMap[data.dataSource] || { label: data.dataSource || '—', sub: '', color: 'amber' }
+        return (
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            <StatCard title="Taranan Hisse" value={data.totalScanned} color="blue" />
+            <StatCard title="24sa Toplam Mention" value={data.totalMentions24h.toLocaleString('tr-TR')} color="amber" />
+            <StatCard title="Hisse Başına Ort." value={data.avgMentionsPerStock} color="amber" />
+            <StatCard title="Veri Kaynağı" value={ds.label} sub={ds.sub} color={ds.color} />
+          </div>
+        )
+      })()}
 
       {/* Top 3 podium */}
       {top3.length === 3 && (
