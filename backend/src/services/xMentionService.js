@@ -41,7 +41,7 @@ const SEARCH_INTERVAL_MIN_MS    = 12 * 1000;            // sorgular arası min 1
 const SEARCH_INTERVAL_MAX_MS    = 22 * 1000;            // max 22 sn (jitter — sabit interval botluk gibi durur)
 const BATCH_REST_AFTER_N        = 20;                   // 20 sorgu sonrası
 const BATCH_REST_MS             = 3 * 60 * 1000;        //   3 dk mola
-const DAILY_SEARCH_CAP          = 500;                  // takvim gününde max sorgu
+const DAILY_SEARCH_CAP          = 1000;                 // takvim gününde max sorgu
 const RATE_LIMIT_BACKOFF_MS     = 30 * 60 * 1000;       // rate-limit hatasında 30 dk dur
 const QUEUE_REENQUEUE_MS        = 60 * 60 * 1000;       // 1 saatte bir queue'yu tazele
 const TODAY_REFRESH_MS          = 2 * 60 * 60 * 1000;   // bugünkü günü 2 saatte 1 yenile
@@ -592,11 +592,24 @@ function scanMentions(scope = 'bist100') {
   const items = getStockList(scope);
 
   const enriched = [];
+  const pending = [];
   for (const it of items) {
     const tweets = getAllTweetsForSymbol(it.symbol);
-    if (tweets.length === 0) continue;
+    if (tweets.length === 0) {
+      pending.push(it.symbol);
+      enqueueSymbolBackfill(it, isCrypto, /*highPriority*/ false);
+      continue;
+    }
     enriched.push(buildSummaryFromTweets(it, tweets, isCrypto));
   }
+
+  // Auto-enqueue yapıldıysa drainer'ı tetikle (ilk kez bu scope istendi)
+  if (pending.length > 0 && !drainerRunning && Date.now() >= store.meta.backoffUntil) {
+    runDrainer().catch(err => console.warn('[XMentions] Drainer trigger error:', err.message));
+  }
+
+  const totalItems = items.length;
+  const pendingCount = pending.length;
 
   if (enriched.length === 0) {
     const result = {
@@ -606,9 +619,12 @@ function scanMentions(scope = 'bist100') {
       scannedAt: new Date().toISOString(),
       dataSource: scraperReady ? 'x_scraper_warming' : 'x_scraper_unconfigured',
       message: scraperReady
-        ? 'Veri ilk taramayı tamamlıyor. Birkaç dakika sonra tekrar yükleyin.'
+        ? `Veri toplanıyor (${pendingCount}/${totalItems} sembol kuyrukta). Birkaç dakika sonra tekrar yükleyin.`
         : (scraperLastError || 'X credentials yapılandırılmadı.'),
-      totalScanned: 0, totalMentions24h: 0, avgMentionsPerStock: 0,
+      totalScanned: 0,
+      totalItems,
+      pendingCount,
+      totalMentions24h: 0, avgMentionsPerStock: 0,
       top20: [], trending: [], bullish: [], bearish: [], all: [],
     };
     return result;
@@ -626,8 +642,10 @@ function scanMentions(scope = 'bist100') {
     scope,
     assetType: isCrypto ? 'crypto' : 'stock',
     scannedAt: new Date().toISOString(),
-    dataSource: 'x_scraper',
+    dataSource: pendingCount > 0 ? 'x_scraper_partial' : 'x_scraper',
     totalScanned: enriched.length,
+    totalItems,
+    pendingCount,
     totalMentions24h: totalMentions,
     avgMentionsPerStock: Math.round(totalMentions / Math.max(enriched.length, 1)),
     top20, trending, bullish, bearish, all: enriched,
@@ -781,7 +799,7 @@ function enqueueSymbolBackfill(item, isCrypto, highPriority = false) {
 function enqueueWarmerCycle() {
   const universe = [
     ...bist30Stocks.map(s => ({ item: s, isCrypto: false })),
-    ...TOP10_CRYPTOS.map(c => ({ item: c, isCrypto: true })),
+    ...TOP30_CRYPTOS.map(c => ({ item: c, isCrypto: true })),
   ];
   let added = 0;
   for (const u of universe) {
@@ -841,8 +859,12 @@ async function runDrainer() {
       bumpDailyCount();
       drainerSinceRest++;
       console.log(`[XMentions] ${job.symbol} ${job.date}: ${tweets.length} tweet (gün-job kalan: ${jobQueue.length})`);
-      // Scanner cache'i bayatlat — yeni veri geldi.
-      scannerCache.clear();
+      // Scanner cache'i her job'da temizlemiyoruz — TTL ile yenilensin. Aksi halde
+      // 24h rolling window her API çağrısında yeniden hesaplanır ve sıralama
+      // sürekli oynar. Detay cache'i ise lokal bir sembolün taze gelmiş tweetleri
+      // dönsün diye temizliyoruz.
+      detailCache.delete(`detail_${job.symbol}_auto`);
+      detailCache.delete(`detail_${job.symbol}_${job.isCrypto ? 'crypto' : 'stock'}`);
     } catch (e) {
       // Rate-limit ise backoff zaten searchSymbolDay içinde set edildi; yumuşak hatalarda devam.
       if (isRateLimitError(e)) {
