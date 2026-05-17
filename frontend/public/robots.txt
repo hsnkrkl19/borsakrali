@@ -1,0 +1,17 @@
+User-agent: *
+Allow: /
+
+# Private/auth-only paths should not be indexed
+Disallow: /login
+Disallow: /register
+Disallow: /sifre-degistir
+Disallow: /admin-bildirimler
+Disallow: /odeme
+Disallow: /api/
+Disallow: /playstore-auth
+
+# AdSense crawler
+User-agent: Mediapartners-Google
+Allow: /
+
+Sitemap: https://www.borsakrali.com/sitemap.xml
