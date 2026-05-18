@@ -90,6 +90,8 @@ export default function GunlukTespitler() {
     strategy: 'all',
     status: 'all'
   })
+  const [showSuzgecFilters, setShowSuzgecFilters] = useState(false)
+  const activeFilterCount = (filters.strategy !== 'all' ? 1 : 0) + (filters.status !== 'all' ? 1 : 0)
 
   // audioEnabled degistiginde ref'i guncelle (socket yeniden olusturulmadan)
   useEffect(() => {
@@ -593,54 +595,79 @@ export default function GunlukTespitler() {
       {/* Araçlar → Akıllı Süzgeç */}
       {activeTab === 'araclar' && activeSubTab === 'suzgec' && (
         <>
-          {/* Filters */}
+          {/* Üst kontrol şeridi: Arama (her zaman) + Filtreler butonu (gelişmiş seçenekleri açar) */}
           <div className="card">
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
-              {/* Search */}
-              <div className="col-span-2">
-                <label className="block text-[10px] md:text-xs text-gray-400 mb-1.5 md:mb-2">SEMBOL ARA</label>
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
-                  <input
-                    type="text"
-                    placeholder="THYAO, GARAN..."
-                    value={filters.search}
-                    onChange={(e) => setFilters({ ...filters, search: e.target.value })}
-                    className="input pl-10 w-full text-sm"
-                  />
+            <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 items-stretch sm:items-center">
+              <div className="relative flex-1 min-w-0">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+                <input
+                  type="text"
+                  placeholder="Sembol ara (THYAO, GARAN...)"
+                  value={filters.search}
+                  onChange={(e) => setFilters({ ...filters, search: e.target.value })}
+                  className="input pl-10 w-full text-sm"
+                />
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowSuzgecFilters(v => !v)}
+                className={`flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-sm font-semibold transition-colors whitespace-nowrap ${
+                  showSuzgecFilters || activeFilterCount > 0
+                    ? 'bg-amber-500/15 text-amber-200 border border-amber-500/40'
+                    : 'bg-dark-800 text-gray-300 border border-dark-700 hover:bg-dark-700'
+                }`}
+              >
+                <Filter className="w-4 h-4" />
+                Filtreler
+                {activeFilterCount > 0 && (
+                  <span className="bg-amber-500 text-dark-950 text-[10px] font-bold min-w-[18px] h-[18px] px-1 rounded-full flex items-center justify-center leading-none">
+                    {activeFilterCount}
+                  </span>
+                )}
+                {showSuzgecFilters ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+              </button>
+              {activeFilterCount > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setFilters({ ...filters, strategy: 'all', status: 'all' })}
+                  className="text-[11px] text-gray-400 hover:text-white whitespace-nowrap"
+                >
+                  Filtreleri temizle
+                </button>
+              )}
+            </div>
+
+            {/* Gelişmiş filtreler — sadece toggle açıldığında */}
+            {showSuzgecFilters && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 md:gap-4 mt-3 pt-3 border-t border-dark-700">
+                <div>
+                  <label className="block text-[10px] md:text-xs text-gray-400 mb-1.5 md:mb-2">STRATEJI</label>
+                  <select
+                    value={filters.strategy}
+                    onChange={(e) => setFilters({ ...filters, strategy: e.target.value })}
+                    className="input w-full text-sm"
+                  >
+                    <option value="all">Tümü</option>
+                    <option value="RSI Signal">RSI</option>
+                    <option value="MACD Crossover">MACD</option>
+                    <option value="EMA Crossover">EMA</option>
+                    <option value="Bollinger Oversold">Bollinger</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[10px] md:text-xs text-gray-400 mb-1.5 md:mb-2">DURUM</label>
+                  <select
+                    value={filters.status}
+                    onChange={(e) => setFilters({ ...filters, status: e.target.value })}
+                    className="input w-full text-sm"
+                  >
+                    <option value="all">Tümü</option>
+                    <option value="active">Aktif</option>
+                    <option value="closed">Kapandı</option>
+                  </select>
                 </div>
               </div>
-
-              {/* Strategy Filter */}
-              <div>
-                <label className="block text-[10px] md:text-xs text-gray-400 mb-1.5 md:mb-2">STRATEJI</label>
-                <select
-                  value={filters.strategy}
-                  onChange={(e) => setFilters({ ...filters, strategy: e.target.value })}
-                  className="input w-full text-sm"
-                >
-                  <option value="all">Tümü</option>
-                  <option value="RSI Signal">RSI</option>
-                  <option value="MACD Crossover">MACD</option>
-                  <option value="EMA Crossover">EMA</option>
-                  <option value="Bollinger Oversold">Bollinger</option>
-                </select>
-              </div>
-
-              {/* Status Filter */}
-              <div>
-                <label className="block text-[10px] md:text-xs text-gray-400 mb-1.5 md:mb-2">DURUM</label>
-                <select
-                  value={filters.status}
-                  onChange={(e) => setFilters({ ...filters, status: e.target.value })}
-                  className="input w-full text-sm"
-                >
-                  <option value="all">Tümü</option>
-                  <option value="active">Aktif</option>
-                  <option value="closed">Kapandı</option>
-                </select>
-              </div>
-            </div>
+            )}
           </div>
 
           {/* Signals Table */}
