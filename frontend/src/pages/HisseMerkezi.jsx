@@ -139,6 +139,36 @@ function SectionCard({ icon: Icon, title, accent = 'var(--gold-400)', isNew, chi
   )
 }
 
+// ─── Kategori başlık çubuğu ──────────────────────────────────────────────
+// Hisse Merkezi'ndeki 10 kart 3 mantıksal gruba bölündü; her grubun başına
+// bu çubuk konuyor — sayfada nerede ne olduğu net anlaşılsın diye.
+function CategoryHeader({ icon: Icon, title, sub }) {
+  return (
+    <div className="flex items-center gap-2.5 pt-1">
+      <div
+        className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0"
+        style={{
+          background: 'rgba(212, 175, 55, 0.12)',
+          border: '1px solid var(--border-gold)',
+          color: 'var(--gold-400)',
+        }}
+      >
+        <Icon className="w-3.5 h-3.5" />
+      </div>
+      <div className="min-w-0">
+        <h2 className="text-[14px] font-bold uppercase tracking-[0.12em]" style={{ color: 'var(--text-primary)' }}>
+          {title}
+        </h2>
+        {sub && (
+          <p className="text-[11px] mt-0.5 leading-snug" style={{ color: 'var(--text-muted)' }}>
+            {sub}
+          </p>
+        )}
+      </div>
+    </div>
+  )
+}
+
 // ─── Mini KPI ────────────────────────────────────────────────────────────
 function KPI({ label, value, sub, valueColor }) {
   return (
@@ -324,7 +354,12 @@ export default function HisseMerkezi() {
         <EmbeddedTVChart symbol={symbol} isCrypto={isCrypto} height={460} />
       </div>
 
-      {/* ─── Kart Izgara ────────────────────────────────────────── */}
+      {/* ─── Kategori 1: Sinyaller & Modeller ──────────────────── */}
+      <CategoryHeader
+        icon={Sparkles}
+        title="Sinyaller & Modeller"
+        sub="Sistem önerileri: AI puanı, indikatörler, EMA/TEMA, SNR, SMC ve combo stratejiler."
+      />
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4">
 
         {/* 1) AI Skor / Tavsiye */}
@@ -621,6 +656,16 @@ export default function HisseMerkezi() {
           )}
         </SectionCard>
 
+      </div>
+
+      {/* ─── Kategori 2: Şirket Değerleme ─────────────────────── */}
+      <CategoryHeader
+        icon={Building2}
+        title="Şirket Değerleme"
+        sub="Mali tablolar, oranlar ve indirgenmiş nakit akışı (DCF) değerlemesi."
+      />
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4">
+
         {/* 8) Temel Analiz */}
         <SectionCard
           icon={Building2}
@@ -681,6 +726,16 @@ export default function HisseMerkezi() {
           })()}
         </SectionCard>
 
+      </div>
+
+      {/* ─── Kategori 3: Topluluk & Haber Akışı ───────────────── */}
+      <CategoryHeader
+        icon={Hash}
+        title="Topluluk & Haber"
+        sub="X (Twitter) gündemi: sembolle ilgili son mention'lar ve sentiment dağılımı."
+      />
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4">
+
         {/* 10) X Yorumları */}
         <SectionCard
           icon={Hash}
@@ -720,34 +775,6 @@ export default function HisseMerkezi() {
           )}
         </SectionCard>
 
-        {/* 11) Hızlı Linkler */}
-        <SectionCard
-          icon={FileText}
-          title="Detay Sayfaları"
-          accent="var(--gold-400)"
-        >
-          <div className="grid grid-cols-1 gap-1.5 text-[12px]">
-            {[
-              { label: 'Teknik Analiz AI', path: `/teknik-analiz-ai?symbol=${symbol}${isCrypto ? '&type=crypto' : ''}` },
-              { label: 'Pro Analiz', path: `/pro-analiz?symbol=${symbol}${isCrypto ? '&type=crypto' : ''}` },
-              { label: 'Şirket Analizi', path: `/sirket-analizi?symbol=${symbol}` },
-              { label: 'DCF Değerleme', path: `/dcf-degerleme?symbol=${symbol}` },
-              { label: 'Tüm Tarayıcılar', path: `/tarayicilar?symbol=${symbol}` },
-            ].map((it) => (
-              <button
-                key={it.path}
-                onClick={() => navigate(it.path)}
-                className="text-left flex items-center justify-between rounded-lg px-2 py-1.5 transition-colors"
-                style={{ color: 'var(--text-secondary)' }}
-                onMouseEnter={(e) => e.currentTarget.style.background = 'var(--bg-hover)'}
-                onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
-              >
-                <span>{it.label}</span>
-                <ArrowRight className="w-3.5 h-3.5" style={{ color: 'var(--gold-400)' }} />
-              </button>
-            ))}
-          </div>
-        </SectionCard>
       </div>
 
       <p className="text-[11px] text-center" style={{ color: 'var(--text-faint)' }}>
