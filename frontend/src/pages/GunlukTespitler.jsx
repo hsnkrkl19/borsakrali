@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef, Fragment } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { Search, Filter, TrendingUp, TrendingDown, Target, Activity, Bell, BellRing, RefreshCw, X, Volume2, Star, Clock, Zap, Wifi, WifiOff, Info, CheckCircle, BookOpen, ChevronDown, ChevronUp, HelpCircle, Sparkles, Coins, Layers, Flame } from 'lucide-react'
+import { Search, Filter, TrendingUp, TrendingDown, Target, Activity, Bell, BellRing, RefreshCw, X, Volume2, VolumeX, Star, Clock, Zap, Wifi, WifiOff, Info, CheckCircle, BookOpen, ChevronDown, ChevronUp, HelpCircle, Sparkles, Coins, Layers, Flame, MoreVertical } from 'lucide-react'
 import { io } from 'socket.io-client'
 
 import { getApiBase, getSocketBase } from '../config'
@@ -92,6 +92,19 @@ export default function GunlukTespitler() {
   })
   const [showSuzgecFilters, setShowSuzgecFilters] = useState(false)
   const activeFilterCount = (filters.strategy !== 'all' ? 1 : 0) + (filters.status !== 'all' ? 1 : 0)
+  const [showHeaderMenu, setShowHeaderMenu] = useState(false)
+  const headerMenuRef = useRef(null)
+  // Header kebab menüsü dış tıklamayla kapansın
+  useEffect(() => {
+    if (!showHeaderMenu) return
+    const handler = (e) => {
+      if (headerMenuRef.current && !headerMenuRef.current.contains(e.target)) {
+        setShowHeaderMenu(false)
+      }
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [showHeaderMenu])
 
   // audioEnabled degistiginde ref'i guncelle (socket yeniden olusturulmadan)
   useEffect(() => {
@@ -392,60 +405,68 @@ export default function GunlukTespitler() {
           <p className="text-gray-400 text-xs md:text-sm mt-1">Yapay zeka destekli teknik analiz tarama sistemi</p>
         </div>
 
-        <div className="flex items-center gap-2 md:gap-3 flex-wrap">
-          {/* Sinyal Rehberi Butonu */}
-          <button
-            onClick={() => setShowGuide(true)}
-            title="Sinyal Rehberi — Sinyaller nasıl okunur?"
-            className="flex items-center gap-2 px-3 py-2 rounded-lg transition-colors"
-            style={{
-              background: 'rgba(212, 175, 55, 0.10)',
-              border: '1px solid var(--border-gold)',
-              color: 'var(--gold-400)',
-            }}
-            onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(212, 175, 55, 0.18)' }}
-            onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(212, 175, 55, 0.10)' }}
+        <div className="flex items-center gap-2">
+          {/* Canlı durum noktası — kompakt visual indicator (hep görünür) */}
+          <span
+            className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-lg text-[11px] font-medium ${socketConnected ? 'bg-green-500/15 text-green-400' : 'bg-red-500/15 text-red-400'}`}
+            title={socketConnected ? 'Canlı bağlantı aktif' : 'Bağlantı yok'}
           >
-            <BookOpen className="w-4 h-4" />
-            <span className="text-xs font-semibold hidden md:inline">Sinyal Rehberi</span>
-          </button>
+            <span className={`w-1.5 h-1.5 rounded-full ${socketConnected ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`} />
+            <span className="hidden sm:inline">{socketConnected ? 'Canlı' : 'Yok'}</span>
+          </span>
 
-          {/* WebSocket Durumu */}
-          <div className={`flex items-center gap-1 md:gap-2 px-2 md:px-3 py-1.5 md:py-2 rounded-lg ${socketConnected ? 'bg-green-500/20 text-green-500' : 'bg-red-500/20 text-red-500'
-            }`}>
-            {socketConnected ? <Wifi className="w-3 h-3 md:w-4 md:h-4" /> : <WifiOff className="w-3 h-3 md:w-4 md:h-4" />}
-            <span className="text-[10px] md:text-xs font-medium">
-              {socketConnected ? 'Canlı' : 'Yok'}
-            </span>
-          </div>
-
-          {/* Telegram Durumu */}
-          <div className={`hidden sm:flex items-center gap-2 px-3 py-2 rounded-lg ${telegramStatus.active ? 'bg-green-500/20 text-green-500' : 'bg-gray-500/20 text-gray-400'
-            }`}>
-            <Bell className="w-4 h-4" />
-            <span className="text-xs font-medium">
-              Telegram {telegramStatus.active ? 'Aktif' : 'Pasif'}
-            </span>
-          </div>
-
-          {/* Ses Ayari */}
-          <button
-            onClick={() => setAudioEnabled(!audioEnabled)}
-            className={`p-1.5 md:p-2 rounded-lg ${audioEnabled ? 'bg-primary-500/20 text-primary-500' : 'bg-dark-700 text-gray-400'}`}
-            title={audioEnabled ? 'Ses Acik' : 'Ses Kapali'}
-          >
-            <Volume2 className="w-4 h-4 md:w-5 md:h-5" />
-          </button>
-
-          {/* Sinyal Kontrolu */}
+          {/* Tara butonu — primary action */}
           <button
             onClick={checkSignals}
             disabled={checking}
-            className="flex items-center gap-1 md:gap-2 px-3 md:px-4 py-1.5 md:py-2 bg-primary-600 hover:bg-primary-700 disabled:bg-dark-700 text-white rounded-lg transition-colors"
+            className="flex items-center gap-1.5 px-3 md:px-4 py-2 bg-primary-600 hover:bg-primary-700 disabled:bg-dark-700 text-white rounded-lg transition-colors"
           >
-            <RefreshCw className={`w-3 h-3 md:w-4 md:h-4 ${checking ? 'animate-spin' : ''}`} />
+            <RefreshCw className={`w-4 h-4 ${checking ? 'animate-spin' : ''}`} />
             <span className="text-xs md:text-sm font-medium">Tara</span>
           </button>
+
+          {/* Kebab menüsü — Telegram durumu, Ses, Sinyal Rehberi */}
+          <div ref={headerMenuRef} className="relative">
+            <button
+              type="button"
+              onClick={() => setShowHeaderMenu(v => !v)}
+              aria-label="Diğer ayarlar"
+              aria-expanded={showHeaderMenu}
+              className="p-2 rounded-lg bg-dark-800 hover:bg-dark-700 text-gray-300 transition-colors"
+            >
+              <MoreVertical className="w-4 h-4" />
+            </button>
+            {showHeaderMenu && (
+              <div className="absolute right-0 top-full mt-2 w-60 bg-dark-900 border border-dark-700 rounded-xl shadow-2xl overflow-hidden z-30">
+                <button
+                  type="button"
+                  onClick={() => { setShowGuide(true); setShowHeaderMenu(false) }}
+                  className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm text-gray-200 hover:bg-dark-800 transition-colors text-left"
+                >
+                  <BookOpen className="w-4 h-4 text-gold-400 flex-shrink-0" />
+                  <span>Sinyal Rehberi</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setAudioEnabled(v => !v)}
+                  className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm text-gray-200 hover:bg-dark-800 transition-colors text-left border-t border-dark-800"
+                >
+                  {audioEnabled ? <Volume2 className="w-4 h-4 text-primary-400 flex-shrink-0" /> : <VolumeX className="w-4 h-4 text-gray-500 flex-shrink-0" />}
+                  <span className="flex-1">Sinyal Sesi</span>
+                  <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${audioEnabled ? 'bg-emerald-500/20 text-emerald-300' : 'bg-gray-500/20 text-gray-400'}`}>
+                    {audioEnabled ? 'AÇIK' : 'KAPALI'}
+                  </span>
+                </button>
+                <div className="flex items-center gap-2.5 px-3 py-2.5 text-sm text-gray-200 border-t border-dark-800">
+                  <Bell className={`w-4 h-4 flex-shrink-0 ${telegramStatus.active ? 'text-green-400' : 'text-gray-500'}`} />
+                  <span className="flex-1">Telegram</span>
+                  <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${telegramStatus.active ? 'bg-emerald-500/20 text-emerald-300' : 'bg-gray-500/20 text-gray-400'}`}>
+                    {telegramStatus.active ? 'AKTİF' : 'PASİF'}
+                  </span>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
