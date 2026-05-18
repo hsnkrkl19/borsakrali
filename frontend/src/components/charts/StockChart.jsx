@@ -52,7 +52,7 @@ function formatAssetPrice(value, assetType) {
   return assetType === 'crypto' ? `$${formatted}` : `${formatted} TL`
 }
 
-export default function StockChart({ symbol, assetType = 'stock' }) {
+export default function StockChart({ symbol, assetType = 'stock', height = 520 }) {
   const chartContainerRef = useRef(null)
   const chartRef = useRef(null)
   const stockRequestIdRef = useRef(0)
@@ -164,7 +164,7 @@ export default function StockChart({ symbol, assetType = 'stock' }) {
 
     const chart = createChart(chartContainerRef.current, {
       width: Math.max(chartContainerRef.current.clientWidth || 0, 280),
-      height: 520,
+      height,
       layout: { background: { type: 'solid', color: palette.background }, textColor: palette.textColor },
       grid: { vertLines: { color: palette.gridColor }, horzLines: { color: palette.gridColor } },
       crosshair: { mode: 1 },
@@ -256,10 +256,16 @@ export default function StockChart({ symbol, assetType = 'stock' }) {
     }
 
     window.addEventListener('resize', handleResize)
+
+    // Container'ın kendi genişlik değişimlerini de izle (sidebar açılır/kapanır, parent flex reflow vs.)
+    const ro = new ResizeObserver(handleResize)
+    ro.observe(chartContainerRef.current)
+
     chartRef.current = chart
 
     return () => {
       window.removeEventListener('resize', handleResize)
+      ro.disconnect()
       if (chartRef.current) {
         chartRef.current.remove()
         chartRef.current = null
@@ -275,6 +281,7 @@ export default function StockChart({ symbol, assetType = 'stock' }) {
     palette.volumeUp,
     tf.interval,
     volumeData,
+    height,
   ])
 
   useEffect(() => {
@@ -361,7 +368,7 @@ export default function StockChart({ symbol, assetType = 'stock' }) {
         </span>
       </div>
 
-      <div ref={chartContainerRef} className="w-full h-[520px]" />
+      <div ref={chartContainerRef} className="w-full" style={{ height: `${height}px` }} />
 
       {stockData && (
         <div className={`${palette.footerClass} px-3 py-2 border-t grid grid-cols-2 sm:grid-cols-5 gap-2 text-xs`}>

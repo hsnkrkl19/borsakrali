@@ -7,57 +7,15 @@ import {
   Sparkles, Crown, MessageCircle, FileText,
 } from 'lucide-react'
 import api from '../services/api'
-import { getStoredTheme, getTradingViewTheme } from '../utils/theme'
+import StockChart from '../components/charts/StockChart'
 
-// ─── TradingView linkleri ─────────────────────────────────────────────────
+// ─── TradingView dış link (sadece "Aç" butonu için) ───────────────────────
 function tvSymbolFor(symbol, isCrypto) {
   if (isCrypto) return `BINANCE:${symbol}USDT`
   return `BIST:${symbol}`
 }
 function tvExternalLink(symbol, isCrypto) {
   return `https://tr.tradingview.com/chart/?symbol=${tvSymbolFor(symbol, isCrypto)}&interval=D`
-}
-
-// ─── Gömülü TradingView grafiği ───────────────────────────────────────────
-function EmbeddedTVChart({ symbol, isCrypto, height = 460 }) {
-  const ref = useRef(null)
-  useEffect(() => {
-    const el = ref.current
-    if (!el || !symbol) return
-    el.innerHTML = '<div class="tradingview-widget-container__widget" style="height:100%;width:100%"></div>'
-    const sc = document.createElement('script')
-    sc.src = 'https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js'
-    sc.async = true
-    sc.textContent = JSON.stringify({
-      autosize: true,
-      symbol: tvSymbolFor(symbol, isCrypto),
-      interval: 'D',
-      timezone: 'Europe/Istanbul',
-      theme: getTradingViewTheme(),
-      style: '1',
-      locale: 'tr',
-      toolbar_bg: getStoredTheme() === 'dark' ? '#0a0e27' : '#f8fafc',
-      enable_publishing: false,
-      allow_symbol_change: true,
-      hide_top_toolbar: false,
-      hide_legend: false,
-      save_image: true,
-      studies: ['MASimple@tv-basicstudies', 'RSI@tv-basicstudies', 'MACD@tv-basicstudies'],
-      show_popup_button: true,
-      popup_width: '1000',
-      popup_height: '650',
-    })
-    el.appendChild(sc)
-    return () => { try { el.innerHTML = '' } catch {} }
-  }, [symbol, isCrypto])
-
-  return (
-    <div
-      ref={ref}
-      className="tradingview-widget-container rounded-xl overflow-hidden"
-      style={{ height: `${height}px`, width: '100%', background: getStoredTheme() === 'dark' ? '#0a0e27' : '#f8fafc' }}
-    />
-  )
 }
 
 // ─── Yardımcı: Sayı formatla ──────────────────────────────────────────────
@@ -349,10 +307,8 @@ export default function HisseMerkezi() {
         onPick={(s, t) => navigate(`/hisse/${s}${t === 'crypto' ? '?type=crypto' : ''}`)}
       />
 
-      {/* ─── TradingView gömülü grafik ─────────────────────────── */}
-      <div className="rounded-2xl overflow-hidden border" style={{ borderColor: 'var(--border-main)' }}>
-        <EmbeddedTVChart symbol={symbol} isCrypto={isCrypto} height={460} />
-      </div>
+      {/* ─── Grafik (kendi lightweight-charts implementasyonumuz) ───────── */}
+      <StockChart symbol={symbol} assetType={isCrypto ? 'crypto' : 'stock'} height={620} />
 
       {/* ─── Kategori 1: Sinyaller & Modeller ──────────────────── */}
       <CategoryHeader
