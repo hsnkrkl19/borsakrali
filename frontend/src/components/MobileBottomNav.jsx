@@ -1,20 +1,21 @@
 import { useEffect, useRef } from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
 import {
-  Home, Sparkles, Activity, Bot, BookOpen,
+  Home, Search, Activity, Bot, BookOpen,
 } from 'lucide-react'
 
 /**
  * MobileBottomNav — yalnızca mobile'da görünen alt sticky nav.
- * Parça 1: 5 ana yol — Sidebar ile aynı dilde: Ana / Fırsatlar / Sinyaller / Botlar / Öğren.
+ * 5 ana yol: Ana / Sinyaller / Tarayıcılar / Botlar / Öğren.
+ * Sinyaller = sistem önerileri (otomatik); Tarayıcılar = elle filtre uygulama.
  * Hesabım sağ üst profil avatarı (Header) üzerinden açılır.
  */
 const NAV_ITEMS = [
-  { to: '/',          label: 'Ana',       icon: Home                              },
-  { to: '/firsatlar', label: 'Fırsatlar', icon: Sparkles, tour: 'nav-firsatlar' },
-  { to: '/sinyaller', label: 'Sinyaller', icon: Activity, tour: 'nav-sinyaller' },
-  { to: '/botlar',    label: 'Botlar',    icon: Bot,      tour: 'nav-botlar'    },
-  { to: '/ogren',     label: 'Öğren',     icon: BookOpen, tour: 'nav-ogren'     },
+  { to: '/',          label: 'Ana',         icon: Home                              },
+  { to: '/sinyaller', label: 'Sinyaller',   icon: Activity, tour: 'nav-sinyaller' },
+  { to: '/firsatlar', label: 'Tarayıcılar', icon: Search,   tour: 'nav-firsatlar' },
+  { to: '/botlar',    label: 'Botlar',      icon: Bot,      tour: 'nav-botlar'    },
+  { to: '/ogren',     label: 'Öğren',       icon: BookOpen, tour: 'nav-ogren'     },
 ]
 
 export default function MobileBottomNav() {

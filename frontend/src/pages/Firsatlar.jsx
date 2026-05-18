@@ -4,24 +4,27 @@ import Tarayicilar from './Tarayicilar'
 import GunlukTespitler from './GunlukTespitler'
 import HelpBubble from '../components/HelpBubble'
 
-// Parça 1 wrapper: /firsatlar yeni route, eski /tarayicilar ve /gunluk-tespitler
-// URL'lerini App.jsx REDIRECT_MAP üzerinden buraya yönlendirir. Child sayfalar
-// ?tab parametresini kendileri okuduğu için wrapper sadece doğru child'a
-// yönlendirir; tab değeri child'ın iç sekmesine eşleşir.
+// /firsatlar yeni route; eski /tarayicilar ve /gunluk-tespitler URL'leri
+// App.jsx REDIRECT_MAP üzerinden buraya yönlenir. Sayfa iki üst sekme barındırır:
+//   • Tarayıcılar (elle filtre — EMA34/TEMA/SNR/X-gündem/News)
+//   • Günlük Tespitler (otomatik tarama listesi — BIST/Kripto/MTF/Emtia)
+// Başlık aktif sekmeye göre değişir, navbar'dan "Tarayıcılar" diye girmiş
+// kullanıcı tutarlı bir başlık görür.
 const GUNLUK_TABS = new Set([
   'gunluk', 'bugun', 'today', 'kripto', 'emtia', 'mtf',
   'likidasyon', 'backtest', 'akilli-suzgec', 'canli-takip', 'detayli-analiz',
 ])
 
 const SECTIONS = [
-  { id: 'tarama', label: 'Tarayıcılar',    icon: Search,    defaultTab: 'genel'  },
-  { id: 'gunluk', label: 'Günlük Sinyaller', icon: Sparkles, defaultTab: 'bugun' },
+  { id: 'tarama', label: 'Tarayıcılar',       icon: Search,    defaultTab: 'genel', help: 'EMA34 · TEMA34 · SNR · X-gündem — sen filtreyi seçiyorsun.' },
+  { id: 'gunluk', label: 'Günlük Tespitler',  icon: Sparkles,  defaultTab: 'bugun', help: 'Sistem her gün BIST/Kripto/MTF tarayıp top sinyalleri listeler.' },
 ]
 
 export default function Firsatlar() {
   const [searchParams, setSearchParams] = useSearchParams()
   const tab = searchParams.get('tab') || 'genel'
   const activeSection = GUNLUK_TABS.has(tab) ? 'gunluk' : 'tarama'
+  const activeMeta = SECTIONS.find(s => s.id === activeSection) || SECTIONS[0]
 
   const switchSection = (id) => {
     const next = SECTIONS.find((s) => s.id === id)
@@ -32,8 +35,8 @@ export default function Firsatlar() {
   return (
     <div className="space-y-3">
       <h1 className="text-xl sm:text-2xl font-bold tracking-tight flex items-center" style={{ color: 'var(--text-primary)' }}>
-        Fırsatlar
-        <HelpBubble text="Sistem güçlü hisseleri burada listeler." />
+        {activeMeta.label}
+        <HelpBubble text={activeMeta.help} />
       </h1>
       <div className="flex flex-wrap gap-1.5">
         {SECTIONS.map((s) => {

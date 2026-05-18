@@ -12,6 +12,7 @@ import {
   Crown,
   LogOut,
   KeyRound,
+  Search,
   Settings,
 } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
@@ -58,8 +59,8 @@ export default function Sidebar({ isOpen, onToggle }) {
   // data-tour: Parça 4 OnboardingTour buraya spotlight çakıyor.
   const allNavItems = [
     { path: '/',          label: 'Ana Sayfa',       icon: Home,     isPublic: true                            },
-    { path: '/firsatlar', label: 'Fırsatlar',       icon: Sparkles,                  tour: 'nav-firsatlar' },
-    { path: '/sinyaller', label: 'Canlı Sinyaller', icon: Activity, isPublic: true,  tour: 'nav-sinyaller' },
+    { path: '/sinyaller', label: 'Sinyaller',       icon: Activity, isPublic: true,  tour: 'nav-sinyaller' },
+    { path: '/firsatlar', label: 'Tarayıcılar',     icon: Search,                    tour: 'nav-firsatlar' },
     { path: '/botlar',    label: 'Botlar',          icon: Bot,                       tour: 'nav-botlar'    },
     { path: '/ogren',     label: 'Öğren',           icon: BookOpen, isPublic: true,  tour: 'nav-ogren'     },
     { path: '/hesabim',   label: 'Hesabım',         icon: User                                              },
