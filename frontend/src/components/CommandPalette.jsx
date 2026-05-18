@@ -4,33 +4,47 @@ import {
   Search, LayoutDashboard, Crosshair, Coins, Gem, Activity, Building2,
   Calculator, Target, TrendingUp, Briefcase, BookOpen, Calendar,
   CreditCard, Settings, Sparkles, KeyRound, LogOut, ArrowRight,
-  Bell, MessageCircle, Sun, Moon, Bookmark, Bot,
+  Bell, MessageCircle, Sun, Moon, Bookmark, Bot, Crown,
 } from 'lucide-react'
 import apiClient from '../services/api'
 import { useAuthStore } from '../store/authStore'
 import { applyTheme, getStoredTheme } from '../utils/theme'
 
+// Liste güncel wrapper URL'lerini kullanır (eski /trading-bot, /takip-listem, /notlarim,
+// /ayarlar gibi yollar redirect map'tedir ama palette'ta görünür URL'ler de yeni olsun).
+// "Hisse Merkezi" ana giriş noktası olarak Sinyaller'in hemen altında.
 const PAGE_ITEMS = [
-  { kind: 'page', label: 'Piyasa Kokpiti',     to: '/',                  icon: LayoutDashboard, hint: 'Ana sayfa' },
-  { kind: 'page', label: 'Sinyaller',          to: '/sinyaller',         icon: Crosshair, hint: 'BIST + Kripto komuta merkezi' },
-  { kind: 'page', label: 'Kripto Piyasa',      to: '/kripto',            icon: Coins, hint: 'Top 100 + alarm' },
-  { kind: 'page', label: 'Pro Analiz',         to: '/pro-analiz',        icon: Gem },
-  { kind: 'page', label: 'Teknik Analiz AI',   to: '/teknik-analiz-ai',  icon: Activity, hint: 'RSI · MACD · EMA' },
-  { kind: 'page', label: 'Şirket Analizi',     to: '/sirket-analizi',    icon: Building2, hint: 'Mali tablolar · KAP' },
-  { kind: 'page', label: 'DCF Değerleme',      to: '/dcf-degerleme',     icon: Calculator },
-  { kind: 'page', label: 'Kripto Değerleme',   to: '/kripto-degerleme',  icon: Coins },
-  { kind: 'page', label: 'Tarayıcılar',        to: '/tarayicilar',       icon: Search, hint: 'EMA34 Wave · TEMA34 · SNR' },
-  { kind: 'page', label: 'Günlük Sinyaller',   to: '/gunluk-tespitler',  icon: Target },
-  { kind: 'page', label: 'Trading Bot',        to: '/trading-bot',       icon: Bot, hint: 'Freqtrade port + sınama' },
-  { kind: 'page', label: 'Performans',         to: '/performans',        icon: TrendingUp },
-  { kind: 'page', label: 'Takip Listem',       to: '/takip-listem',      icon: Briefcase },
-  { kind: 'page', label: 'Notlarım',           to: '/notlarim',          icon: BookOpen },
-  { kind: 'page', label: 'Ekonomik Takvim',    to: '/ekonomik-takvim',   icon: Calendar },
-  { kind: 'page', label: 'Abonelik',           to: '/abonelik',          icon: CreditCard },
-  { kind: 'page', label: 'Ayarlar',            to: '/ayarlar',           icon: Settings },
-  { kind: 'page', label: 'Şifre Değiştir',     to: '/sifre-degistir',    icon: KeyRound },
-  { kind: 'page', label: 'İstek Paneli',       to: '/istek-paneli',      icon: MessageCircle },
-  { kind: 'page', label: 'Site Haritası',      to: '/site-haritasi',     icon: Sparkles, hint: 'Tüm sayfalar' },
+  // — Ana akış —
+  { kind: 'page', label: 'Piyasa Kokpiti',     to: '/',                       icon: LayoutDashboard, hint: 'Ana sayfa' },
+  { kind: 'page', label: 'Sinyaller',          to: '/sinyaller',              icon: Crosshair,       hint: 'Sistem önerileri: BIST + Kripto komuta merkezi' },
+  { kind: 'page', label: 'Hisse Merkezi',      to: '/hisse',                  icon: Crown,           hint: 'Tek hissenin tüm analizleri tek çatı altında' },
+  { kind: 'page', label: 'Tarayıcılar',        to: '/firsatlar?tab=genel',    icon: Search,          hint: 'Elle filtre: EMA34 · TEMA34 · SNR · X-gündem' },
+  { kind: 'page', label: 'Günlük Tespitler',   to: '/firsatlar?tab=bugun',    icon: Target,          hint: 'Otomatik top sinyaller — detaylı liste' },
+
+  // — Kripto —
+  { kind: 'page', label: 'Kripto Piyasa',      to: '/kripto',                 icon: Coins,           hint: 'Top 100 + alarm' },
+  { kind: 'page', label: 'Kripto Değerleme',   to: '/kripto-degerleme',       icon: Calculator },
+
+  // — Premium analiz (tek hisse derin inceleme) —
+  { kind: 'page', label: 'Pro Analiz',         to: '/pro-analiz',             icon: Gem,             hint: 'Premium analiz — sembol gerektirir' },
+  { kind: 'page', label: 'Teknik Analiz AI',   to: '/teknik-analiz-ai',       icon: Activity,        hint: 'RSI · MACD · EMA' },
+  { kind: 'page', label: 'Şirket Analizi',     to: '/sirket-analizi',         icon: Building2,       hint: 'Mali tablolar · KAP' },
+  { kind: 'page', label: 'DCF Değerleme',      to: '/dcf-degerleme',          icon: Calculator },
+
+  // — Bot & Performans —
+  { kind: 'page', label: 'Trading Bot',        to: '/botlar?tab=trading',     icon: Bot,             hint: 'Freqtrade port + sınama' },
+  { kind: 'page', label: 'Performans',         to: '/performans',             icon: TrendingUp },
+
+  // — Hesap & Kişisel —
+  { kind: 'page', label: 'Takip Listem',       to: '/hesabim?tab=takip',      icon: Briefcase },
+  { kind: 'page', label: 'Notlarım',           to: '/hesabim?tab=notlar',     icon: BookOpen },
+  { kind: 'page', label: 'Ayarlar',            to: '/hesabim?tab=ayarlar',    icon: Settings },
+  { kind: 'page', label: 'Abonelik',           to: '/abonelik',               icon: CreditCard },
+
+  // — Bilgi —
+  { kind: 'page', label: 'Ekonomik Takvim',    to: '/ekonomik-takvim',        icon: Calendar },
+  { kind: 'page', label: 'İstek Paneli',       to: '/istek-paneli',           icon: MessageCircle },
+  { kind: 'page', label: 'Site Haritası',      to: '/site-haritasi',          icon: Sparkles,        hint: 'Tüm sayfalar' },
 ]
 
 const POPULAR_STOCKS = [
@@ -130,16 +144,19 @@ export default function CommandPalette() {
           apiClient.get(`/market/stocks/search?q=${encodeURIComponent(query)}`, { signal: controller.signal }),
           apiClient.get(`/crypto/search?q=${encodeURIComponent(query)}`, { signal: controller.signal }),
         ])
+        // Hisse araması Hisse Merkezi'ne yönlendirir — orada teknik/temel/SNR/X
+        // gibi tüm taramalar tek sayfada görülür. Eskiden /teknik-analiz-ai'ya
+        // gidiyordu, kullanıcı yalnızca indikatörleri görüyordu.
         const stocks = stockRes.status === 'fulfilled'
           ? (stockRes.value.data.stocks || []).slice(0, 5).map(s => ({
               kind: 'stock', symbol: s.symbol, name: s.name, price: s.price, changePercent: s.changePercent,
-              to: `/teknik-analiz-ai?symbol=${s.symbol}`, isCrypto: false,
+              to: `/hisse/${s.symbol}`, isCrypto: false,
             }))
           : []
         const crypto = cryptoRes.status === 'fulfilled'
           ? (cryptoRes.value.data.coins || []).slice(0, 4).map(c => ({
               kind: 'crypto', symbol: (c.symbol || '').toUpperCase(), name: c.name,
-              to: `/kripto?symbol=${(c.symbol || '').toUpperCase()}`, isCrypto: true,
+              to: `/hisse/${(c.symbol || '').toUpperCase()}?type=crypto`, isCrypto: true,
             }))
           : []
         setStockResults([...stocks, ...crypto])
@@ -160,7 +177,7 @@ export default function CommandPalette() {
     if (q.length < 1) return []
     if (stockResults.length > 0) return []
     return POPULAR_STOCKS.filter(s => s.startsWith(q)).slice(0, 5).map(s => ({
-      kind: 'stock', symbol: s, name: s, to: `/teknik-analiz-ai?symbol=${s}`, isCrypto: false,
+      kind: 'stock', symbol: s, name: s, to: `/hisse/${s}`, isCrypto: false,
     }))
   }, [query, stockResults.length])
 
@@ -169,7 +186,7 @@ export default function CommandPalette() {
     if (!q) return []
     if (stockResults.length > 0) return []
     return POPULAR_CRYPTO.filter(c => c.symbol.startsWith(q) || c.name.toUpperCase().includes(q)).slice(0, 4).map(c => ({
-      kind: 'crypto', symbol: c.symbol, name: c.name, to: `/kripto?symbol=${c.symbol}`, isCrypto: true,
+      kind: 'crypto', symbol: c.symbol, name: c.name, to: `/hisse/${c.symbol}?type=crypto`, isCrypto: true,
     }))
   }, [query, stockResults.length])
 
