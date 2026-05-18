@@ -1,0 +1,103 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none" aria-label="Borsa Krali — Taçlı Boğa v2">
+  <defs>
+    <!-- Ana kafa gradyenı: ışık tepeden koyu altına -->
+    <linearGradient id="bullBody" x1="32" y1="22" x2="32" y2="60" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#fde68a"/>
+      <stop offset="0.35" stop-color="#e6c45e"/>
+      <stop offset="0.7" stop-color="#b8860b"/>
+      <stop offset="1" stop-color="#6a4d0a"/>
+    </linearGradient>
+    <!-- Boynuzlar — metalik altın -->
+    <linearGradient id="horn" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#fef3c7"/>
+      <stop offset="0.5" stop-color="#d4af37"/>
+      <stop offset="1" stop-color="#8a6a16"/>
+    </linearGradient>
+    <!-- Taç — soft altın -->
+    <linearGradient id="crown" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#fef3c7"/>
+      <stop offset="1" stop-color="#c69a2a"/>
+    </linearGradient>
+  </defs>
+
+  <!-- ── TAÇ (üstte ortalı, 5-uçlu) ─────────────────────────────── -->
+  <!-- Taçın gövdesi -->
+  <path d="M 22 12
+           L 25 7
+           L 29 11
+           L 32 5
+           L 35 11
+           L 39 7
+           L 42 12
+           L 41 16
+           L 23 16 Z"
+        fill="url(#crown)"
+        stroke="#3b2607"
+        stroke-width="0.7"
+        stroke-linejoin="round"/>
+  <!-- Tacın orta mücevheri (kraliyet kırmızısı) -->
+  <circle cx="32" cy="11.5" r="1.4" fill="#9b2226" stroke="#3b2607" stroke-width="0.35"/>
+  <!-- Yan mücevherler -->
+  <circle cx="27" cy="13" r="0.9" fill="#005f73" stroke="#3b2607" stroke-width="0.25"/>
+  <circle cx="37" cy="13" r="0.9" fill="#005f73" stroke="#3b2607" stroke-width="0.25"/>
+  <!-- Taç tabanı parlak şerit -->
+  <rect x="22.5" y="15" width="19" height="1.2" fill="#fef3c7" opacity="0.55"/>
+
+  <!-- ── BOYNUZLAR (yana açık, uçları yukarı kıvrık) ────────────── -->
+  <!-- Sol boynuz -->
+  <path d="M 18 28
+           C 12 25, 5 26, 4 33
+           C 7 29, 12 30, 16 32
+           Q 17 31, 18 30 Z"
+        fill="url(#horn)"
+        stroke="#3b2607"
+        stroke-width="0.7"
+        stroke-linejoin="round"/>
+  <!-- Sağ boynuz -->
+  <path d="M 46 28
+           C 52 25, 59 26, 60 33
+           C 57 29, 52 30, 48 32
+           Q 47 31, 46 30 Z"
+        fill="url(#horn)"
+        stroke="#3b2607"
+        stroke-width="0.7"
+        stroke-linejoin="round"/>
+
+  <!-- ── BAŞ (klasik boğa silüeti, hafif trapez) ────────────────── -->
+  <path d="M 18 28
+           Q 16 35, 18 42
+           Q 20 52, 32 57
+           Q 44 52, 46 42
+           Q 48 35, 46 28
+           Q 39 25, 32 25
+           Q 25 25, 18 28 Z"
+        fill="url(#bullBody)"
+        stroke="#3b2607"
+        stroke-width="0.9"
+        stroke-linejoin="round"/>
+
+  <!-- ── ALIN (hafif kıvrım — depth ipucu) ──────────────────────── -->
+  <path d="M 25 30 Q 32 28, 39 30"
+        fill="none"
+        stroke="#3b2607"
+        stroke-width="0.55"
+        stroke-linecap="round"
+        opacity="0.5"/>
+
+  <!-- ── GÖZLER (badem, karakterli) ─────────────────────────────── -->
+  <path d="M 23 36 Q 25 34.5, 27 36 Q 25 37.5, 23 36 Z"
+        fill="#1a1208"/>
+  <path d="M 37 36 Q 39 34.5, 41 36 Q 39 37.5, 37 36 Z"
+        fill="#1a1208"/>
+  <!-- Göz parlaklığı -->
+  <circle cx="24.4" cy="35.6" r="0.32" fill="#fef3c7"/>
+  <circle cx="38.4" cy="35.6" r="0.32" fill="#fef3c7"/>
+
+  <!-- ── BURUN + HALKA (klasik boğa simgesi) ────────────────────── -->
+  <!-- Burun gövdesi -->
+  <ellipse cx="32" cy="46" rx="4" ry="2.4" fill="#3b2607" opacity="0.85"/>
+  <!-- Burun halkası -->
+  <ellipse cx="32" cy="49.5" rx="3.2" ry="1.8" fill="none" stroke="#3b2607" stroke-width="1.1"/>
+  <!-- Halka takılı yer (üst) -->
+  <line x1="32" y1="47.7" x2="32" y2="48.2" stroke="#3b2607" stroke-width="0.9" stroke-linecap="round"/>
+</svg>

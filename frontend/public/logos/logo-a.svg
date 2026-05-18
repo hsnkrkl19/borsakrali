@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none" aria-label="Borsa Krali — Taçlı Boğa">
+  <defs>
+    <linearGradient id="goldA" x1="0" y1="0" x2="64" y2="64" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#fde68a"/>
+      <stop offset="0.5" stop-color="#d4af37"/>
+      <stop offset="1" stop-color="#8a6a16"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Taç (boynuzlar arasında ortalı, üstte) -->
+  <path d="M 24 12 L 27 18 L 32 13 L 37 18 L 40 12 L 40 22 L 24 22 Z"
+        fill="url(#goldA)" stroke="#5a3a06" stroke-width="0.8" stroke-linejoin="round"/>
+  <!-- Taç üzerindeki 3 küçük takı -->
+  <circle cx="27" cy="18" r="1.2" fill="#5a3a06"/>
+  <circle cx="32" cy="13" r="1.4" fill="#5a3a06"/>
+  <circle cx="37" cy="18" r="1.2" fill="#5a3a06"/>
+
+  <!-- Boğa boynuzları + yüzü, stilize geometrik -->
+  <!-- Sol boynuz -->
+  <path d="M 16 28 Q 8 24 10 38 Q 13 34 18 32" fill="url(#goldA)" stroke="#5a3a06" stroke-width="1" stroke-linejoin="round"/>
+  <!-- Sağ boynuz -->
+  <path d="M 48 28 Q 56 24 54 38 Q 51 34 46 32" fill="url(#goldA)" stroke="#5a3a06" stroke-width="1" stroke-linejoin="round"/>
+
+  <!-- Yüz (üçgen-yuvarlak boğa yüzü) -->
+  <path d="M 18 30 Q 18 50 32 54 Q 46 50 46 30 Q 38 26 32 26 Q 26 26 18 30 Z"
+        fill="url(#goldA)" stroke="#5a3a06" stroke-width="1" stroke-linejoin="round"/>
+
+  <!-- Gözler -->
+  <circle cx="26" cy="38" r="1.6" fill="#1a1208"/>
+  <circle cx="38" cy="38" r="1.6" fill="#1a1208"/>
+
+  <!-- Burun -->
+  <ellipse cx="32" cy="46" rx="3" ry="2" fill="#1a1208"/>
+</svg>

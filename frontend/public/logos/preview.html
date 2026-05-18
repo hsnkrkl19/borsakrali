@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Borsa Krali — Taçlı Boğa A v2</title>
+<style>
+  :root {
+    --bg: #03060d;
+    --card: #0a1020;
+    --border: rgba(212, 175, 55, 0.22);
+    --text: #f1f5f9;
+    --muted: #94a3b8;
+    --gold: #d4af37;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif; min-height: 100vh; }
+  body { padding: 32px 16px 80px; }
+  h1 { font-size: 22px; font-weight: 700; text-align: center; margin-bottom: 4px; }
+  .subtitle { color: var(--muted); font-size: 13px; text-align: center; margin-bottom: 28px; }
+  .compare { display: grid; grid-template-columns: 1fr; gap: 18px; max-width: 880px; margin: 0 auto; }
+  @media (min-width: 760px) { .compare { grid-template-columns: 1fr 1fr; } }
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 22px; display: flex; flex-direction: column; align-items: center; gap: 14px; }
+  .card.v2 { border-color: rgba(0, 201, 138, 0.45); box-shadow: 0 0 0 1px rgba(0, 201, 138, 0.10) inset; }
+  .label { font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--gold); font-weight: 700; }
+  .card.v2 .label { color: #34d399; }
+  .desc { font-size: 12px; color: var(--muted); text-align: center; line-height: 1.4; min-height: 28px; }
+  .hero { padding: 20px; background: #050810; border-radius: 12px; }
+  .hero img { width: 140px; height: 140px; display: block; }
+  .sizes { display: flex; align-items: end; justify-content: center; gap: 16px; padding: 14px; background: #050810; border-radius: 10px; width: 100%; }
+  .size-block { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+  .size-block img { display: block; background: transparent; }
+  .size-tag { font-size: 9px; color: var(--muted); }
+  .mock-row { display: flex; align-items: center; gap: 10px; padding: 10px 14px; background: linear-gradient(180deg, var(--card) 0%, var(--bg) 100%); border-radius: 10px; border: 1px solid rgba(148, 163, 184, 0.10); width: 100%; }
+  .mock-row img { width: 32px; height: 32px; }
+  .mock-text { display: flex; flex-direction: column; }
+  .mock-brand { font-size: 13px; font-weight: 800; letter-spacing: 0.04em; background: linear-gradient(90deg, #fde68a, #d4af37); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .mock-sub { font-size: 9px; color: var(--gold); letter-spacing: 0.10em; text-transform: uppercase; margin-top: -2px; }
+  .light-test { background: #f4efe4; border-radius: 10px; padding: 18px; display: flex; justify-content: center; width: 100%; }
+  .light-test img { width: 56px; height: 56px; }
+  .changes { background: rgba(0, 201, 138, 0.05); border: 1px solid rgba(0, 201, 138, 0.18); border-radius: 10px; padding: 12px 14px; width: 100%; }
+  .changes h4 { font-size: 10px; letter-spacing: 0.16em; text-transform: uppercase; color: #34d399; margin-bottom: 6px; }
+  .changes ul { list-style: none; font-size: 11.5px; color: var(--muted); line-height: 1.6; }
+  .changes li::before { content: "✓ "; color: #34d399; font-weight: bold; }
+  .pick { display: block; text-align: center; margin-top: 36px; color: var(--muted); font-size: 13px; line-height: 1.6; }
+  .pick strong { color: var(--gold); }
+  .pick .alt { color: #34d399; }
+</style>
+</head>
+<body>
+  <h1>Taçlı Boğa — v1 ↔ v2</h1>
+  <p class="subtitle">Eski sürümün yanına geliştirilmiş v2 konuldu. Her ikisinin küçük boyut / mockup / aydınlık tema davranışını karşılaştırabilirsin.</p>
+
+  <div class="compare">
+
+    <div class="card">
+      <span class="label">A v1 — Önceki</span>
+      <p class="desc">İlk tasarım: tek tonlu altın, taç mücevhersiz, burun halkası yok.</p>
+      <div class="hero"><img src="/logos/logo-a.svg" alt="A v1"></div>
+      <div class="sizes">
+        <div class="size-block"><img src="/logos/logo-a.svg" width="16" height="16"><span class="size-tag">16</span></div>
+        <div class="size-block"><img src="/logos/logo-a.svg" width="24" height="24"><span class="size-tag">24</span></div>
+        <div class="size-block"><img src="/logos/logo-a.svg" width="32" height="32"><span class="size-tag">32</span></div>
+        <div class="size-block"><img src="/logos/logo-a.svg" width="64" height="64"><span class="size-tag">64</span></div>
+      </div>
+      <div class="mock-row">
+        <img src="/logos/logo-a.svg" alt="">
+        <div class="mock-text">
+          <span class="mock-brand">BORSA KRALI</span>
+          <span class="mock-sub">Premium Edition</span>
+        </div>
+      </div>
+      <div class="light-test"><img src="/logos/logo-a.svg" alt=""></div>
+    </div>
+
+    <div class="card v2">
+      <span class="label">A v2 — Geliştirilmiş</span>
+      <p class="desc">Çoklu-stop altın gradient, 5-uçlu mücevherli taç, klasik burun halkası, badem gözler.</p>
+      <div class="hero"><img src="/logos/logo-a-v2.svg" alt="A v2"></div>
+      <div class="sizes">
+        <div class="size-block"><img src="/logos/logo-a-v2.svg" width="16" height="16"><span class="size-tag">16</span></div>
+        <div class="size-block"><img src="/logos/logo-a-v2.svg" width="24" height="24"><span class="size-tag">24</span></div>
+        <div class="size-block"><img src="/logos/logo-a-v2.svg" width="32" height="32"><span class="size-tag">32</span></div>
+        <div class="size-block"><img src="/logos/logo-a-v2.svg" width="64" height="64"><span class="size-tag">64</span></div>
+      </div>
+      <div class="mock-row">
+        <img src="/logos/logo-a-v2.svg" alt="">
+        <div class="mock-text">
+          <span class="mock-brand">BORSA KRALI</span>
+          <span class="mock-sub">Premium Edition</span>
+        </div>
+      </div>
+      <div class="light-test"><img src="/logos/logo-a-v2.svg" alt=""></div>
+      <div class="changes">
+        <h4>Neler değişti</h4>
+        <ul>
+          <li>Taçta kırmızı + mavi mücevherler (kraliyet vurgusu)</li>
+          <li>Boynuzlar daha kavisli, klasik Wall Street bull formu</li>
+          <li>Burun halkası eklendi — "borsanın boğası" simgesi</li>
+          <li>Çoklu-stop altın gradient (ışıklı tepe → koyu altın)</li>
+          <li>Gözler badem şekli + ışık parlaması (cansız değil)</li>
+          <li>Alın kıvrımı eklendi — depth/3D hissi</li>
+        </ul>
+      </div>
+    </div>
+
+  </div>
+
+  <p class="pick">
+    <strong>v2</strong> beğendiysen <span class="alt">"tamam bu olsun"</span> de — BrandMark + icon-512.png hepsini bununla değiştireyim.<br>
+    Beğenmediysen detay ver: <em>"taç daha küçük olsun"</em>, <em>"boynuzlar daha agresif"</em>, <em>"halka çıksın"</em> gibi — yeniden çiziyorum.
+  </p>
+</body>
+</html>
