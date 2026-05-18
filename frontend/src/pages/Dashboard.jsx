@@ -488,9 +488,11 @@ export default function Dashboard() {
           />
         </div>
 
-        {/* TEK SATIR ÖZET */}
+        {/* ÖZET ŞERİDİ — mobilde dikey stack, sm+ tek satır.
+            Eski flex-wrap + ml-auto buton'un tek başına sağa kayarak kırılmasına
+            neden oluyordu. flex-col → flex-row geçişi deterministik. */}
         <div
-          className="rounded-xl px-4 py-3 flex flex-wrap items-center gap-x-5 gap-y-2 text-[13px]"
+          className="rounded-xl px-4 py-3 flex flex-col sm:flex-row sm:items-center sm:flex-wrap gap-y-2 gap-x-5 text-[13px]"
           style={{
             background: 'var(--bg-card)',
             border: '1px solid var(--border-main)',
@@ -512,7 +514,7 @@ export default function Dashboard() {
             <span style={{ color: 'var(--text-faint)' }}>BIST100 verisi bekleniyor…</span>
           )}
 
-          <span className="flex items-center gap-2" style={{ color: 'var(--text-secondary)' }}>
+          <span className="flex items-center gap-2 flex-wrap" style={{ color: 'var(--text-secondary)' }}>
             <span><strong style={{ color: 'var(--jade)' }}>{topLong ? 1 : 0}</strong> güçlü</span>
             <span aria-hidden="true" style={{ color: 'var(--text-faint)' }}>·</span>
             <span><strong style={{ color: 'var(--ember)' }}>{topShort ? 1 : 0}</strong> riskli</span>
@@ -520,18 +522,21 @@ export default function Dashboard() {
             <span><strong style={{ color: 'var(--gold-400)' }}>{watch ? 1 : 0}</strong> takipte</span>
           </span>
 
-          <button
-            onClick={() => navigate('/firsatlar')}
-            className="ml-auto inline-flex items-center gap-1 text-[12.5px] font-semibold transition-opacity hover:opacity-80"
-            style={{ color: 'var(--gold-400)' }}
-          >
-            Tam listeyi gör <ArrowRight className="w-3.5 h-3.5" />
-          </button>
-
-          <span className="hidden sm:flex items-center gap-1.5 text-[11px]" style={{ color: 'var(--text-faint)' }}>
-            <Clock className="w-3 h-3" />
-            {now.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })}
-          </span>
+          {/* Eylem + saat — mobilde alt satırda solda, sm+ sağda */}
+          <div className="flex items-center gap-3 sm:ml-auto">
+            <button
+              onClick={() => setListOpen(true)}
+              className="inline-flex items-center gap-1 text-[12.5px] font-semibold transition-opacity hover:opacity-80"
+              style={{ color: 'var(--gold-400)' }}
+              title="BIST + Kripto tüm sinyalleri listele"
+            >
+              Tam listeyi gör <ArrowRight className="w-3.5 h-3.5" />
+            </button>
+            <span className="hidden sm:flex items-center gap-1.5 text-[11px]" style={{ color: 'var(--text-faint)' }}>
+              <Clock className="w-3 h-3" />
+              {now.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })}
+            </span>
+          </div>
         </div>
       </div>
 
