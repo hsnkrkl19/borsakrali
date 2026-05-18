@@ -8,6 +8,7 @@ import axios from 'axios'
 import {
   calculateEMA, calculateRSI, calculateMACD, calculateADX,
 } from '../services/technicalIndicators'
+import ScrollableTabBar from '../components/ScrollableTabBar'
 
 import { getApiBase } from '../config'
 const API_BASE = getApiBase() + '/api'
@@ -320,12 +321,16 @@ export default function TaramaAnalizMerkezi() {
             <span className="text-white font-medium text-sm">Seçili: <span className="text-primary-400">Günlük</span></span>
           </div>
 
-          <div className="flex items-center gap-1 md:gap-2 overflow-x-auto pb-1">
+          <ScrollableTabBar
+            activeKey={selectedTimeframe}
+            className="items-center gap-1 md:gap-2 pb-1"
+          >
             {timeframes.map((tf) => (
               <button
                 key={tf.id}
+                data-tab-key={tf.id}
                 onClick={() => setSelectedTimeframe(tf.id)}
-                className={`relative px-2 md:px-3 py-1 md:py-1.5 rounded-lg text-xs md:text-sm font-medium transition-all whitespace-nowrap ${selectedTimeframe === tf.id
+                className={`relative flex-shrink-0 px-2 md:px-3 py-1 md:py-1.5 rounded-lg text-xs md:text-sm font-medium transition-all whitespace-nowrap ${selectedTimeframe === tf.id
                     ? 'bg-primary-500 text-white'
                     : 'bg-dark-700 text-gray-400 hover:text-white'
                   }`}
@@ -337,7 +342,7 @@ export default function TaramaAnalizMerkezi() {
                 </span>
               </button>
             ))}
-          </div>
+          </ScrollableTabBar>
 
           <div className="text-xs md:text-sm text-gray-400">
             Toplam: <span className="text-white font-medium">{totalScans} tarama</span>
@@ -418,11 +423,15 @@ export default function TaramaAnalizMerkezi() {
         </div>
       </div>
 
-      {/* Tab Seçimi — mobilde kompakt, yatay scroll snap */}
-      <div className="flex gap-1.5 md:gap-2 overflow-x-auto pb-1 -mx-1 px-1 snap-x snap-mandatory scroll-smooth">
+      {/* Tab Seçimi — sağ/sol ok butonu */}
+      <ScrollableTabBar
+        activeKey={activeTab}
+        className="gap-1.5 md:gap-2 pb-1 -mx-1 px-1"
+      >
         <button
+          data-tab-key="strateji"
           onClick={() => setActiveTab('strateji')}
-          className={`flex-shrink-0 snap-start flex items-center gap-1.5 md:gap-2 px-2.5 md:px-4 py-1.5 md:py-2 rounded-xl font-medium text-[12px] md:text-sm transition-all whitespace-nowrap ${activeTab === 'strateji' ? 'bg-primary-500 text-white' : 'bg-dark-800 text-gray-400 hover:text-white'
+          className={`flex-shrink-0 flex items-center gap-1.5 md:gap-2 px-2.5 md:px-4 py-1.5 md:py-2 rounded-xl font-medium text-[12px] md:text-sm transition-all whitespace-nowrap ${activeTab === 'strateji' ? 'bg-primary-500 text-white' : 'bg-dark-800 text-gray-400 hover:text-white'
             }`}
         >
           <Zap className="w-3.5 h-3.5 md:w-4 md:h-4 flex-shrink-0" />
@@ -431,8 +440,9 @@ export default function TaramaAnalizMerkezi() {
           <span className="bg-dark-700 px-1.5 md:px-2 py-0.5 rounded-full text-[10px] md:text-xs leading-none">{bogaStrategies.length + ayiStrategies.length}</span>
         </button>
         <button
+          data-tab-key="one_cikan"
           onClick={() => setActiveTab('one_cikan')}
-          className={`flex-shrink-0 snap-start flex items-center gap-1.5 md:gap-2 px-2.5 md:px-4 py-1.5 md:py-2 rounded-xl font-medium text-[12px] md:text-sm transition-all whitespace-nowrap ${activeTab === 'one_cikan' ? 'bg-primary-500 text-white' : 'bg-dark-800 text-gray-400 hover:text-white'
+          className={`flex-shrink-0 flex items-center gap-1.5 md:gap-2 px-2.5 md:px-4 py-1.5 md:py-2 rounded-xl font-medium text-[12px] md:text-sm transition-all whitespace-nowrap ${activeTab === 'one_cikan' ? 'bg-primary-500 text-white' : 'bg-dark-800 text-gray-400 hover:text-white'
             }`}
         >
           <Star className="w-3.5 h-3.5 md:w-4 md:h-4 flex-shrink-0" />
@@ -440,8 +450,9 @@ export default function TaramaAnalizMerkezi() {
           <span className="hidden md:inline">Öne Çıkan Semboller</span>
         </button>
         <button
+          data-tab-key="haftalik"
           onClick={() => setActiveTab('haftalik')}
-          className={`flex-shrink-0 snap-start flex items-center gap-1.5 md:gap-2 px-2.5 md:px-4 py-1.5 md:py-2 rounded-xl font-medium text-[12px] md:text-sm transition-all whitespace-nowrap ${activeTab === 'haftalik' ? 'bg-primary-500 text-white' : 'bg-dark-800 text-gray-400 hover:text-white'
+          className={`flex-shrink-0 flex items-center gap-1.5 md:gap-2 px-2.5 md:px-4 py-1.5 md:py-2 rounded-xl font-medium text-[12px] md:text-sm transition-all whitespace-nowrap ${activeTab === 'haftalik' ? 'bg-primary-500 text-white' : 'bg-dark-800 text-gray-400 hover:text-white'
             }`}
         >
           <BarChart3 className="w-3.5 h-3.5 md:w-4 md:h-4 flex-shrink-0" />
@@ -449,8 +460,9 @@ export default function TaramaAnalizMerkezi() {
           <span className="hidden md:inline">Haftalık En İyiler</span>
         </button>
         <button
+          data-tab-key="kripto"
           onClick={() => { setActiveTab('kripto'); if (cryptoBogaStrategies.length === 0) loadCryptoScan() }}
-          className={`flex-shrink-0 snap-start flex items-center gap-1.5 md:gap-2 px-2.5 md:px-4 py-1.5 md:py-2 rounded-xl font-medium text-[12px] md:text-sm transition-all whitespace-nowrap ${activeTab === 'kripto' ? 'bg-orange-500 text-white' : 'bg-dark-800 text-gray-400 hover:text-white'
+          className={`flex-shrink-0 flex items-center gap-1.5 md:gap-2 px-2.5 md:px-4 py-1.5 md:py-2 rounded-xl font-medium text-[12px] md:text-sm transition-all whitespace-nowrap ${activeTab === 'kripto' ? 'bg-orange-500 text-white' : 'bg-dark-800 text-gray-400 hover:text-white'
             }`}
         >
           <span className="text-sm md:text-base leading-none">🪙</span>
@@ -458,7 +470,7 @@ export default function TaramaAnalizMerkezi() {
           <span className="hidden md:inline">Kripto Tarama</span>
           {cryptoTotal > 0 && <span className="bg-dark-700 px-1.5 py-0.5 rounded-full text-[10px] md:text-xs leading-none">{cryptoTotal}</span>}
         </button>
-      </div>
+      </ScrollableTabBar>
 
       {/* Strateji Lig Tablosu */}
       {activeTab === 'strateji' && (<div className="bg-surface-100 rounded-2xl border border-dark-700 overflow-hidden">

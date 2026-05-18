@@ -20,6 +20,7 @@ import {
 } from 'lucide-react'
 import api from '../services/api'
 import MTFCoinChart from './MTFCoinChart'
+import ScrollableTabBar from './ScrollableTabBar'
 
 const TF_LIST = [
   { key: '1m',  label: '1 dk' },
@@ -144,13 +145,17 @@ export default function MTFCoinDetailModal({ symbol, onClose }) {
                 {/* Confluence top panel */}
                 <ConfluencePanel confluence={data.confluence} />
 
-                {/* Tab selector */}
-                <div className="flex gap-1 px-3 pt-3 border-b border-dark-700 overflow-x-auto scrollbar-thin">
-                  <TabBtn active={activeTab === 'chart'} onClick={() => setActiveTab('chart')} icon={LineChart}>Grafik</TabBtn>
-                  <TabBtn active={activeTab === 'signals'} onClick={() => setActiveTab('signals')} icon={Layers}>Sinyaller</TabBtn>
-                  <TabBtn active={activeTab === 'indicators'} onClick={() => setActiveTab('indicators')} icon={BarChart3}>İndikatörler</TabBtn>
-                  <TabBtn active={activeTab === 'ai'} onClick={() => setActiveTab('ai')} icon={Activity}>AI / Math</TabBtn>
-                </div>
+                {/* Tab selector — sağ/sol ok butonu */}
+                <ScrollableTabBar
+                  activeKey={activeTab}
+                  className="gap-1 px-3 pt-3 border-b border-dark-700"
+                  scrollAmount={150}
+                >
+                  <TabBtn tabKey="chart" active={activeTab === 'chart'} onClick={() => setActiveTab('chart')} icon={LineChart}>Grafik</TabBtn>
+                  <TabBtn tabKey="signals" active={activeTab === 'signals'} onClick={() => setActiveTab('signals')} icon={Layers}>Sinyaller</TabBtn>
+                  <TabBtn tabKey="indicators" active={activeTab === 'indicators'} onClick={() => setActiveTab('indicators')} icon={BarChart3}>İndikatörler</TabBtn>
+                  <TabBtn tabKey="ai" active={activeTab === 'ai'} onClick={() => setActiveTab('ai')} icon={Activity}>AI / Math</TabBtn>
+                </ScrollableTabBar>
 
                 {/* Tab content */}
                 <div className="p-3">
@@ -399,11 +404,12 @@ function SimpleView({ confluence, symbol, onClose }) {
   )
 }
 
-function TabBtn({ active, onClick, icon: Icon, children }) {
+function TabBtn({ active, onClick, icon: Icon, children, tabKey }) {
   return (
     <button
       onClick={onClick}
-      className={`text-[11px] px-3 py-1.5 rounded-t-lg flex items-center gap-1.5 transition-colors ${
+      data-tab-key={tabKey}
+      className={`flex-shrink-0 text-[11px] px-3 py-1.5 rounded-t-lg flex items-center gap-1.5 transition-colors ${
         active ? 'bg-dark-700 text-white border-x border-t border-dark-600' : 'text-gray-400 hover:text-white'
       }`}
     >

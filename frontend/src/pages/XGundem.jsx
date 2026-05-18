@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { Hash, TrendingUp, TrendingDown, MessageCircle, RefreshCw, AlertCircle, ExternalLink, X as XIcon, Smile, Frown, Meh, Flame, Bitcoin, BarChart3 } from 'lucide-react'
 import api from '../services/api'
+import ScrollableTabBar from '../components/ScrollableTabBar'
 
 const ASSET_TYPES = [
   { id: 'stock',  label: 'BIST Hisseleri', icon: BarChart3, color: 'amber' },
@@ -599,27 +600,29 @@ export default function XGundem() {
         </div>
       )}
 
-      {/* Tabs */}
-      <div className="bg-dark-900/60 border border-dark-700 rounded-xl p-1 overflow-x-auto custom-scrollbar">
-        <div className="flex gap-1 min-w-max">
-          {TABS.map(t => {
-            const Icon = t.icon
-            const isActive = activeTab === t.id
-            return (
-              <button
-                key={t.id}
-                onClick={() => setActiveTab(t.id)}
-                className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold whitespace-nowrap transition-all ${
-                  isActive ? 'bg-amber-500 text-dark-950' : 'text-gray-400 hover:text-white hover:bg-dark-800'
-                }`}
-              >
-                <Icon className="w-3.5 h-3.5" />
-                {t.label}
-              </button>
-            )
-          })}
-        </div>
-      </div>
+      {/* Tabs — sağ/sol ok butonu */}
+      <ScrollableTabBar
+        activeKey={activeTab}
+        className="bg-dark-900/60 border border-dark-700 rounded-xl p-1 gap-1"
+      >
+        {TABS.map(t => {
+          const Icon = t.icon
+          const isActive = activeTab === t.id
+          return (
+            <button
+              key={t.id}
+              data-tab-key={t.id}
+              onClick={() => setActiveTab(t.id)}
+              className={`flex-shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold whitespace-nowrap transition-all ${
+                isActive ? 'bg-amber-500 text-dark-950' : 'text-gray-400 hover:text-white hover:bg-dark-800'
+              }`}
+            >
+              <Icon className="w-3.5 h-3.5" />
+              {t.label}
+            </button>
+          )
+        })}
+      </ScrollableTabBar>
 
       {/* Error */}
       {error && (

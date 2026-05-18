@@ -14,6 +14,7 @@ import EmtiaSinyalleri from '../components/EmtiaSinyalleri'
 import MTFSinyalleri from '../components/MTFSinyalleri'
 import BacktestPanel from '../components/BacktestPanel'
 import LikidasyonHaritasi from '../components/LikidasyonHaritasi'
+import ScrollableTabBar from '../components/ScrollableTabBar'
 const API_BASE = getApiBase() + '/api'
 const SOCKET_URL = getSocketBase()
 
@@ -23,20 +24,8 @@ export default function GunlukTespitler() {
     ? (searchParams.get('tab') === 'today' ? 'bugun' : searchParams.get('tab'))
     : 'bugun'  // varsayılan: Bugünün Sinyalleri (yeni özellik)
   const [activeTab, setActiveTab] = useState(initialTab)
-  const tabsScrollRef = useRef(null)
   // Tab değiştikçe URL'i güncelle ki kullanıcı yer imi yapabilsin
   useEffect(() => { setSearchParams({ tab: activeTab }, { replace: true }) }, [activeTab])  // eslint-disable-line react-hooks/exhaustive-deps
-  // Aktif tab değiştiğinde mobilde yatay scrollu otomatik o tab'a getir
-  useEffect(() => {
-    const id = requestAnimationFrame(() => {
-      if (!tabsScrollRef.current) return
-      const btn = tabsScrollRef.current.querySelector(`[data-tab-id="${activeTab}"]`)
-      if (btn && typeof btn.scrollIntoView === 'function') {
-        btn.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' })
-      }
-    })
-    return () => cancelAnimationFrame(id)
-  }, [activeTab])
   const [showInfo, setShowInfo] = useState(false)
   const [showGuide, setShowGuide] = useState(false)
   const [expandedSignal, setExpandedSignal] = useState(null)
@@ -464,17 +453,17 @@ export default function GunlukTespitler() {
         </div>
       )}
 
-      {/* Tabs — yatay scroll, mobilde kompakt, aktifken otomatik görünüre kayar */}
-      <div
-        ref={tabsScrollRef}
-        className="flex overflow-x-auto pb-1 border-b border-dark-700 -mx-1 px-1 scrollbar-thin snap-x snap-mandatory scroll-smooth"
+      {/* Tabs — sağ/sol ok butonları ile gezinir, aktif tab otomatik görünüre kayar */}
+      <ScrollableTabBar
+        activeKey={activeTab}
+        className="pb-1 border-b border-dark-700 -mx-1 px-1"
       >
         {tabs.map((tab) => (
           <button
             key={tab.id}
-            data-tab-id={tab.id}
+            data-tab-key={tab.id}
             onClick={() => setActiveTab(tab.id)}
-            className={`flex-shrink-0 snap-start flex items-center gap-1.5 md:gap-2 px-2.5 md:px-4 py-2 md:py-3 border-b-2 transition-colors whitespace-nowrap ${activeTab === tab.id
+            className={`flex-shrink-0 flex items-center gap-1.5 md:gap-2 px-2.5 md:px-4 py-2 md:py-3 border-b-2 transition-colors whitespace-nowrap ${activeTab === tab.id
               ? 'border-primary-600 text-white'
               : 'border-transparent text-gray-400 hover:text-white'
               }`}
@@ -496,7 +485,7 @@ export default function GunlukTespitler() {
             )}
           </button>
         ))}
-      </div>
+      </ScrollableTabBar>
 
       {/* Bugünün Sinyalleri Tab — pre-market 09:55 + revize 11:00 */}
       {activeTab === 'bugun' && <BugununSinyalleri />}

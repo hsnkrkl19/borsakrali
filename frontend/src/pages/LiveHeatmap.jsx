@@ -138,9 +138,9 @@ export default function LiveHeatmap() {
         </div>
       </div>
 
-      {/* Renk Aciklamasi - yatay scroll mobilde */}
-      <div className="flex items-center gap-2 sm:gap-4 mb-3 sm:mb-6 text-xs overflow-x-auto pb-1 scrollbar-hide">
-        <span className="text-gray-500 shrink-0">Değişim:</span>
+      {/* Renk Aciklamasi - flex-wrap ile alt satıra geçer */}
+      <div className="flex flex-wrap items-center gap-2 sm:gap-4 mb-3 sm:mb-6 text-xs">
+        <span className="text-gray-500">Değişim:</span>
         {[
           { color: 'bg-red-500', label: '<-3%' },
           { color: 'bg-red-700', label: '-3~0%' },
@@ -148,7 +148,7 @@ export default function LiveHeatmap() {
           { color: 'bg-green-700', label: '0~3%' },
           { color: 'bg-green-500', label: '>3%' },
         ].map(({ color, label }) => (
-          <div key={label} className="flex items-center gap-1 shrink-0">
+          <div key={label} className="flex items-center gap-1">
             <div className={`w-3 h-3 ${color} rounded`}></div>
             <span className="text-gray-400">{label}</span>
           </div>

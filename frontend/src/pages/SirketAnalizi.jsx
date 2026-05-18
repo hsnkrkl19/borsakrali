@@ -6,6 +6,7 @@ import FinancialAnalysis from './FinancialAnalysis'
 import KAPAnalitik from './KAPAnalitik'
 import HisseAISkor from './HisseAISkor'
 import DCFDegerleme from './DCFDegerleme'
+import ScrollableTabBar from '../components/ScrollableTabBar'
 
 const TABS = [
   { id: 'temel-ai',  label: 'Temel Analiz AI', icon: Brain,      component: TemelAnalizAI,     desc: 'Yapay zekâ destekli temel analiz' },
@@ -51,31 +52,33 @@ export default function SirketAnalizi() {
         </div>
       </div>
 
-      <div className="bg-dark-900/60 border border-dark-700 rounded-2xl p-1.5 overflow-x-auto custom-scrollbar">
-        <div className="flex gap-1 min-w-max">
-          {TABS.map(t => {
-            const Icon = t.icon
-            const isActive = active === t.id
-            return (
-              <button
-                key={t.id}
-                onClick={() => setTab(t.id)}
-                className={`relative flex items-center gap-2 px-3 sm:px-4 py-2.5 rounded-xl text-xs sm:text-sm font-semibold whitespace-nowrap transition-all
-                  ${isActive
-                    ? 'bg-gradient-to-r from-amber-500 to-amber-600 text-dark-950 shadow-lg shadow-amber-500/25'
-                    : 'text-gray-400 hover:text-white hover:bg-dark-800'
-                  }`}
-              >
-                <Icon className="w-4 h-4" />
-                {t.label}
-                {t.isNew && !isActive && (
-                  <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-amber-500/30 text-amber-200 border border-amber-500/40">YENİ</span>
-                )}
-              </button>
-            )
-          })}
-        </div>
-      </div>
+      <ScrollableTabBar
+        activeKey={active}
+        className="bg-dark-900/60 border border-dark-700 rounded-2xl p-1.5 gap-1"
+      >
+        {TABS.map(t => {
+          const Icon = t.icon
+          const isActive = active === t.id
+          return (
+            <button
+              key={t.id}
+              data-tab-key={t.id}
+              onClick={() => setTab(t.id)}
+              className={`relative flex-shrink-0 flex items-center gap-2 px-3 sm:px-4 py-2.5 rounded-xl text-xs sm:text-sm font-semibold whitespace-nowrap transition-all
+                ${isActive
+                  ? 'bg-gradient-to-r from-amber-500 to-amber-600 text-dark-950 shadow-lg shadow-amber-500/25'
+                  : 'text-gray-400 hover:text-white hover:bg-dark-800'
+                }`}
+            >
+              <Icon className="w-4 h-4" />
+              {t.label}
+              {t.isNew && !isActive && (
+                <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-amber-500/30 text-amber-200 border border-amber-500/40">YENİ</span>
+              )}
+            </button>
+          )
+        })}
+      </ScrollableTabBar>
 
       <div className="text-xs text-gray-500 px-1">
         {TABS.find(t => t.id === active)?.desc}

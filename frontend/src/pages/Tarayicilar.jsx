@@ -4,6 +4,7 @@ import {
   Search, TrendingUp, Waves, CandlestickChart, BarChart3, Sparkles, Brain, Hash, Newspaper,
   Coins, Bitcoin, Briefcase, Layers,
 } from 'lucide-react'
+import ScrollableTabBar from '../components/ScrollableTabBar'
 import Taramalar from './Taramalar'
 import EMA34Tarayici from './EMA34Tarayici'
 import TEMA34Tarayici from './TEMA34Tarayici'
@@ -275,35 +276,37 @@ export default function Tarayicilar() {
         })}
       </div>
 
-      {/* Tab pills — mobilde kompakt, aktif sekme görünüre kayar */}
-      <div className="bg-dark-900/60 border border-dark-700 rounded-2xl p-1 md:p-1.5 overflow-x-auto custom-scrollbar snap-x snap-mandatory scroll-smooth">
-        <div className="flex gap-1 min-w-max">
-          {visibleTabs.map(t => {
-            const Icon = t.icon
-            const isActive = active === t.id
-            return (
-              <button
-                key={t.id}
-                onClick={() => setTab(t.id)}
-                className={`snap-start flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-4 py-2 sm:py-2.5 rounded-xl text-[12px] sm:text-sm font-semibold whitespace-nowrap transition-all
-                  ${isActive
-                    ? 'bg-gradient-to-r from-amber-500 to-amber-600 text-dark-950 shadow-lg shadow-amber-500/25'
-                    : 'text-gray-400 hover:text-white hover:bg-dark-800'
-                  }`}
-              >
-                <Icon className="w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0" />
-                {t.label}
-                {t.isNew && !isActive && (
-                  <span className="text-[8px] sm:text-[9px] font-bold px-1 sm:px-1.5 py-0.5 rounded bg-amber-500/30 text-amber-200 border border-amber-500/40 leading-none">YENİ</span>
-                )}
-                {t.isUpdated && !isActive && (
-                  <span className="text-[8px] sm:text-[9px] font-bold px-1 sm:px-1.5 py-0.5 rounded bg-emerald-500/30 text-emerald-200 border border-emerald-500/40 leading-none">+</span>
-                )}
-              </button>
-            )
-          })}
-        </div>
-      </div>
+      {/* Tab pills — sağ/sol ok butonu, aktif sekme görünüre kayar */}
+      <ScrollableTabBar
+        activeKey={active}
+        className="bg-dark-900/60 border border-dark-700 rounded-2xl p-1 md:p-1.5 gap-1"
+      >
+        {visibleTabs.map(t => {
+          const Icon = t.icon
+          const isActive = active === t.id
+          return (
+            <button
+              key={t.id}
+              data-tab-key={t.id}
+              onClick={() => setTab(t.id)}
+              className={`flex-shrink-0 flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-4 py-2 sm:py-2.5 rounded-xl text-[12px] sm:text-sm font-semibold whitespace-nowrap transition-all
+                ${isActive
+                  ? 'bg-gradient-to-r from-amber-500 to-amber-600 text-dark-950 shadow-lg shadow-amber-500/25'
+                  : 'text-gray-400 hover:text-white hover:bg-dark-800'
+                }`}
+            >
+              <Icon className="w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0" />
+              {t.label}
+              {t.isNew && !isActive && (
+                <span className="text-[8px] sm:text-[9px] font-bold px-1 sm:px-1.5 py-0.5 rounded bg-amber-500/30 text-amber-200 border border-amber-500/40 leading-none">YENİ</span>
+              )}
+              {t.isUpdated && !isActive && (
+                <span className="text-[8px] sm:text-[9px] font-bold px-1 sm:px-1.5 py-0.5 rounded bg-emerald-500/30 text-emerald-200 border border-emerald-500/40 leading-none">+</span>
+              )}
+            </button>
+          )
+        })}
+      </ScrollableTabBar>
 
       {/* Active tab description + sembol etiketleri */}
       <div className="flex items-center gap-2 flex-wrap text-xs">

@@ -5,6 +5,7 @@ import IncomeStatementTable from './IncomeStatementTable';
 import CashFlowTable from './CashFlowTable';
 import RatiosTable from './RatiosTable';
 import TradingViewFinancials from './TradingViewFinancials';
+import ScrollableTabBar from '../ScrollableTabBar';
 
 export default function FinancialTabs({ selectedSymbol }) {
     const [activeTab, setActiveTab] = useState('detailed'); // Varsayılan: TradingView
@@ -42,29 +43,31 @@ export default function FinancialTabs({ selectedSymbol }) {
 
     return (
         <div className="space-y-6">
-            {/* Tabs Header */}
-            <div className="bg-surface-100 rounded-xl p-2 border border-gold-500/20 overflow-x-auto">
-                <div className="flex flex-nowrap md:flex-wrap gap-2 min-w-max md:min-w-0">
-                    {tabs.map((tab) => {
-                        const Icon = tab.icon;
-                        const isActive = activeTab === tab.id;
+            {/* Tabs Header — sağ/sol ok butonu */}
+            <ScrollableTabBar
+                activeKey={activeTab}
+                className="bg-surface-100 rounded-xl p-2 border border-gold-500/20 gap-2"
+            >
+                {tabs.map((tab) => {
+                    const Icon = tab.icon;
+                    const isActive = activeTab === tab.id;
 
-                        return (
-                            <button
-                                key={tab.id}
-                                onClick={() => setActiveTab(tab.id)}
-                                className={`flex items-center gap-2 px-6 py-3 rounded-lg font-semibold transition-all whitespace-nowrap ${isActive
-                                    ? 'bg-gradient-to-r from-gold-500 to-gold-600 text-dark-950 shadow-lg shadow-gold-500/20'
-                                    : 'bg-surface-200 text-gray-400 hover:bg-surface-300 hover:text-white'
-                                    }`}
-                            >
-                                <Icon className="w-5 h-5" />
-                                <span>{tab.label}</span>
-                            </button>
-                        );
-                    })}
-                </div>
-            </div>
+                    return (
+                        <button
+                            key={tab.id}
+                            data-tab-key={tab.id}
+                            onClick={() => setActiveTab(tab.id)}
+                            className={`flex-shrink-0 flex items-center gap-2 px-6 py-3 rounded-lg font-semibold transition-all whitespace-nowrap ${isActive
+                                ? 'bg-gradient-to-r from-gold-500 to-gold-600 text-dark-950 shadow-lg shadow-gold-500/20'
+                                : 'bg-surface-200 text-gray-400 hover:bg-surface-300 hover:text-white'
+                                }`}
+                        >
+                            <Icon className="w-5 h-5" />
+                            <span>{tab.label}</span>
+                        </button>
+                    );
+                })}
+            </ScrollableTabBar>
 
             {/* Tab Content */}
             <div className="animate-fadeIn">

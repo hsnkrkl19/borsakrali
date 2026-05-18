@@ -11,6 +11,7 @@ import {
   NOTIF_CATEGORIES,
 } from '../store/announcementsStore'
 import { formatRelativeTime } from '../lib/strategyMeta'
+import ScrollableTabBar from '../components/ScrollableTabBar'
 
 const CATEGORY_LIST = Object.values(NOTIF_CATEGORIES)
 
@@ -428,12 +429,17 @@ export default function Bildirimler() {
         )}
       </div>
 
-      {/* ─── Kategori chip'leri ─── */}
-      <div className="flex items-center gap-2 mb-5 overflow-x-auto pb-1 -mx-1 px-1">
+      {/* ─── Kategori chip'leri — sağ/sol ok butonu ─── */}
+      <ScrollableTabBar
+        activeKey={activeCategory}
+        wrapperClassName="mb-5"
+        className="items-center gap-2 pb-1 -mx-1 px-1"
+      >
         <button
           type="button"
+          data-tab-key="all"
           onClick={() => setActiveCategory('all')}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11.5px] font-bold whitespace-nowrap transition-all"
+          className="flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11.5px] font-bold whitespace-nowrap transition-all"
           style={{
             background: activeCategory === 'all' ? 'rgba(212, 175, 55, 0.18)' : 'var(--bg-card)',
             color: activeCategory === 'all' ? 'var(--gold-400)' : 'var(--text-muted)',
@@ -452,8 +458,9 @@ export default function Bildirimler() {
             <button
               key={cat.id}
               type="button"
+              data-tab-key={cat.id}
               onClick={() => setActiveCategory(cat.id)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11.5px] font-bold whitespace-nowrap transition-all"
+              className="flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11.5px] font-bold whitespace-nowrap transition-all"
               style={{
                 background: isActive ? `${cat.color}20` : 'var(--bg-card)',
                 color: isActive ? cat.color : 'var(--text-muted)',
@@ -466,7 +473,7 @@ export default function Bildirimler() {
             </button>
           )
         })}
-      </div>
+      </ScrollableTabBar>
 
       {/* ─── Liste ─── */}
       {loading ? (

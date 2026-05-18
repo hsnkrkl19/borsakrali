@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { Flame, RefreshCw, TrendingUp, TrendingDown, Activity, AlertTriangle } from 'lucide-react'
 import api from '../services/api'
 import InfoTooltip from './InfoTooltip'
+import ScrollableTabBar from './ScrollableTabBar'
 
 const LIQUIDATION_TIP = {
   title: 'Likidasyon Haritası — Kurumsal Pozisyon Akışı',
@@ -300,12 +301,17 @@ export default function LikidasyonHaritasi() {
       {/* Üst kontroller: coin seçici + saat aralığı */}
       <div className="flex flex-wrap items-center gap-2">
         <span className="text-xs text-gray-500 mr-1">Coin:</span>
-        <div className="flex gap-1 overflow-x-auto custom-scrollbar pb-1">
+        <ScrollableTabBar
+          activeKey={symbol}
+          wrapperClassName="flex-1 min-w-0"
+          className="gap-1 pb-1"
+        >
           {COINS.map(c => (
             <button
               key={c}
+              data-tab-key={c}
               onClick={() => setSymbol(c)}
-              className={`px-2.5 py-1 rounded text-xs font-bold whitespace-nowrap transition-colors ${
+              className={`flex-shrink-0 px-2.5 py-1 rounded text-xs font-bold whitespace-nowrap transition-colors ${
                 symbol === c
                   ? 'bg-orange-500 text-slate-950'
                   : 'bg-dark-800 text-gray-400 hover:text-white'
@@ -314,7 +320,7 @@ export default function LikidasyonHaritasi() {
               {c}
             </button>
           ))}
-        </div>
+        </ScrollableTabBar>
         <div className="ml-auto flex items-center gap-2">
           <span className="text-xs text-gray-500">Süre:</span>
           {[1, 4, 12, 24].map(h => (

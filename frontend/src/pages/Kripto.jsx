@@ -306,9 +306,9 @@ export default function Kripto() {
             <Flame className="w-4 h-4 text-orange-400" />
             <span className="text-xs uppercase tracking-wider font-semibold text-orange-400">Trend Olanlar</span>
           </div>
-          <div className="flex gap-2 overflow-x-auto custom-scrollbar pb-1">
+          <div className="flex flex-wrap gap-2">
             {trending.slice(0, 8).map(t => (
-              <div key={t.id} className="flex-shrink-0 flex items-center gap-2 bg-dark-800 px-2.5 py-1.5 rounded-lg">
+              <div key={t.id} className="flex items-center gap-2 bg-dark-800 px-2.5 py-1.5 rounded-lg">
                 {t.image && <img src={t.image} alt="" className="w-5 h-5 rounded-full" />}
                 <span className="text-xs font-semibold text-white">{t.symbol?.toUpperCase()}</span>
                 {t.marketCapRank && <span className="text-[10px] text-gray-500">#{t.marketCapRank}</span>}

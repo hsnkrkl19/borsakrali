@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { ArrowLeft, TrendingUp, TrendingDown, RefreshCw, BarChart3 } from 'lucide-react'
 import api from '../services/api'
 import StockChart from '../components/charts/StockChart'
+import ScrollableTabBar from '../components/ScrollableTabBar'
 
 const INDEX_INFO = {
   'XU100':   { label: 'BIST 100',   desc: 'Borsa İstanbul\'un en büyük 100 hissesinden oluşan ana endeks' },
@@ -108,8 +109,12 @@ export default function EndeksDetay() {
         )}
       </div>
 
-      {/* Periyot seçici */}
-      <div className="bg-dark-900 border border-dark-700 rounded-2xl p-1.5 inline-flex gap-1 overflow-x-auto custom-scrollbar w-full sm:w-auto">
+      {/* Periyot seçici — sağ/sol ok butonu (5 buton, çoğunda sığar) */}
+      <ScrollableTabBar
+        activeKey={period}
+        wrapperClassName="w-full sm:w-auto"
+        className="bg-dark-900 border border-dark-700 rounded-2xl p-1.5 gap-1"
+      >
         {[
           { id: '5d',  label: '5G' },
           { id: '1mo', label: '1A' },
@@ -119,15 +124,16 @@ export default function EndeksDetay() {
         ].map(p => (
           <button
             key={p.id}
+            data-tab-key={p.id}
             onClick={() => setPeriod(p.id)}
-            className={`px-3 sm:px-4 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all ${
+            className={`flex-shrink-0 px-3 sm:px-4 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all ${
               period === p.id ? 'bg-amber-500 text-dark-950' : 'text-gray-400 hover:text-white'
             }`}
           >
             {p.label}
           </button>
         ))}
-      </div>
+      </ScrollableTabBar>
 
       {/* Grafik */}
       <div className="bg-dark-900/60 border border-dark-700 rounded-2xl p-3 sm:p-4">
