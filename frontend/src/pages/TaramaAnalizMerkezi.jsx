@@ -10,6 +10,7 @@ import {
 } from '../services/technicalIndicators'
 import ScrollableTabBar from '../components/ScrollableTabBar'
 import LazyOnScroll from '../components/LazyOnScroll'
+import useMediaQuery from '../hooks/useMediaQuery'
 
 import { getApiBase } from '../config'
 const API_BASE = getApiBase() + '/api'
@@ -26,8 +27,14 @@ const timeframes = [
 
 export default function TaramaAnalizMerkezi() {
   const navigate = useNavigate()
+  const isDesktop = useMediaQuery('(min-width: 768px)')
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
+  const [showInfoCard, setShowInfoCard] = useState(() => localStorage.getItem('bk-tarama-info-dismissed') !== '1')
+  const dismissInfoCard = () => {
+    setShowInfoCard(false)
+    try { localStorage.setItem('bk-tarama-info-dismissed', '1') } catch {}
+  }
   const [lastUpdate, setLastUpdate] = useState(null)
   const [selectedTimeframe, setSelectedTimeframe] = useState('1D')
   const [activeTab, setActiveTab] = useState('strateji')
@@ -294,24 +301,34 @@ export default function TaramaAnalizMerkezi() {
         </button>
       </div>
 
-      {/* Ne Yapar? Açıklama */}
-      <div className="bg-blue-500/5 border border-blue-500/20 rounded-2xl p-4">
-        <div className="flex items-start gap-3">
-          <Activity className="w-5 h-5 text-blue-400 flex-shrink-0 mt-0.5" />
-          <div>
-            <p className="text-blue-300 font-medium text-sm mb-1">Bu sayfa ne yapar?</p>
-            <p className="text-gray-400 text-xs leading-relaxed">
-              <strong className="text-white">BIST 30 hisseleri</strong> her gün otomatik olarak 13 farklı teknik analiz stratejisiyle taranır.
-              Her strateji için; kaç hissede sinyal tespit edildiği (<strong className="text-white">Tespit</strong>),
-              geçmiş veriye göre başarı yüzdesi (<strong className="text-white">Başarı</strong>),
-              sinyal sonrası en yüksek ulaşılan kazanç (<strong className="text-white">Zirve</strong>),
-              hedefe ulaşma süresi (<strong className="text-white">Hız</strong>) ve
-              ortalama kazanç/risk oranı (<strong className="text-white">R/K</strong>) gösterilir.
-              Bir satıra tıklayarak o stratejiyi tetikleyen hissenin detaylarını görebilirsiniz.
-            </p>
+      {/* Ne Yapar? Açıklama — kapatılabilir, localStorage ile hatırlanır */}
+      {showInfoCard && (
+        <div className="bg-blue-500/5 border border-blue-500/20 rounded-2xl p-4 relative">
+          <button
+            type="button"
+            onClick={dismissInfoCard}
+            aria-label="Bilgi kartını kapat"
+            className="absolute top-2 right-2 p-1 rounded-lg text-blue-300/60 hover:text-blue-200 hover:bg-blue-500/10 transition-colors"
+          >
+            <X className="w-3.5 h-3.5" />
+          </button>
+          <div className="flex items-start gap-3 pr-6">
+            <Activity className="w-5 h-5 text-blue-400 flex-shrink-0 mt-0.5" />
+            <div>
+              <p className="text-blue-300 font-medium text-sm mb-1">Bu sayfa ne yapar?</p>
+              <p className="text-gray-400 text-xs leading-relaxed">
+                <strong className="text-white">BIST 30 hisseleri</strong> her gün otomatik olarak 13 farklı teknik analiz stratejisiyle taranır.
+                Her strateji için; kaç hissede sinyal tespit edildiği (<strong className="text-white">Tespit</strong>),
+                geçmiş veriye göre başarı yüzdesi (<strong className="text-white">Başarı</strong>),
+                sinyal sonrası en yüksek ulaşılan kazanç (<strong className="text-white">Zirve</strong>),
+                hedefe ulaşma süresi (<strong className="text-white">Hız</strong>) ve
+                ortalama kazanç/risk oranı (<strong className="text-white">R/K</strong>) gösterilir.
+                Bir satıra tıklayarak o stratejiyi tetikleyen hissenin detaylarını görebilirsiniz.
+              </p>
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       {/* Zaman Dilimi */}
       <div className="bg-surface-100 rounded-2xl p-3 md:p-4 border border-dark-700">
@@ -491,95 +508,95 @@ export default function TaramaAnalizMerkezi() {
           </div>
         </div>
 
-        {/* Mobile: Card View, Desktop: Table View */}
-        <div className="hidden md:block">
-          <div className="grid grid-cols-7 gap-4 px-4 py-3 bg-dark-800/50 text-xs text-gray-400 uppercase">
-            <div>Sıra / Strateji</div>
-            <div className="text-center">Tespit</div>
-            <div className="text-center">Başarı</div>
-            <div className="text-center">Zirve</div>
-            <div className="text-center">Hız</div>
-            <div className="text-center">R/K</div>
-            <div className="text-right">Ort. Değişim</div>
-          </div>
-
-          {sortStrategies(bogaStrategies).map((strategy, idx) => (
-            <div
-              key={strategy.name}
-              className="grid grid-cols-7 gap-4 px-4 py-4 border-b border-dark-700/50 hover:bg-dark-800/30 transition-colors cursor-pointer"
-              onClick={() => openStrategyStocks(strategy)}
-            >
-              <div className="flex items-center gap-3">
-                <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-white font-bold ${idx === 0 ? 'bg-gold-500' : idx === 1 ? 'bg-gray-400' : idx === 2 ? 'bg-orange-600' : 'bg-dark-600'
-                  }`}>
-                  {idx + 1}
-                </div>
-                <div>
-                  <div className="text-white font-medium">{strategy.name}</div>
-                  <div className="text-xs text-primary-400">{strategy.type}</div>
-                </div>
-              </div>
-              <div className="text-center text-white font-semibold self-center">{strategy.count}</div>
-              <div className="self-center">
-                <div className="flex items-center gap-2">
-                  <div className="flex-1 h-2 bg-dark-700 rounded-full overflow-hidden">
-                    <div className="h-full bg-green-500 rounded-full" style={{ width: `${strategy.success}%` }}></div>
-                  </div>
-                  <span className="text-white text-sm">%{strategy.success}</span>
-                </div>
-              </div>
-              <div className="text-center self-center"><span className="text-red-400">↗ %{strategy.peak}</span></div>
-              <div className="text-center self-center">
-                <span className="bg-green-500/20 text-green-400 px-2 py-1 rounded text-sm">↓ {strategy.speed} gün</span>
-              </div>
-              <div className="text-center self-center"><span className="text-gray-300">⊙ {strategy.riskReward}</span></div>
-              <div className="text-right self-center"><span className="text-green-400 font-semibold">+{strategy.avgChange}%</span></div>
+        {/* Tek versiyon JS-detected render — DOM yükü %50 azalır */}
+        {isDesktop ? (
+          <div>
+            <div className="grid grid-cols-7 gap-4 px-4 py-3 bg-dark-800/50 text-xs text-gray-400 uppercase">
+              <div>Sıra / Strateji</div>
+              <div className="text-center">Tespit</div>
+              <div className="text-center">Başarı</div>
+              <div className="text-center">Zirve</div>
+              <div className="text-center">Hız</div>
+              <div className="text-center">R/K</div>
+              <div className="text-right">Ort. Değişim</div>
             </div>
-          ))}
-        </div>
-
-        {/* Mobile View */}
-        <div className="md:hidden divide-y divide-dark-700">
-          {sortStrategies(bogaStrategies).map((strategy, idx) => (
-            <div
-              key={strategy.name}
-              className="p-4 hover:bg-dark-800/30 transition-colors cursor-pointer"
-              onClick={() => openStrategyStocks(strategy)}
-            >
-              <div className="flex items-center justify-between mb-3">
+            {sortStrategies(bogaStrategies).map((strategy, idx) => (
+              <div
+                key={strategy.name}
+                className="grid grid-cols-7 gap-4 px-4 py-4 border-b border-dark-700/50 hover:bg-dark-800/30 transition-colors cursor-pointer"
+                onClick={() => openStrategyStocks(strategy)}
+              >
                 <div className="flex items-center gap-3">
-                  <div className={`w-7 h-7 rounded-lg flex items-center justify-center text-white font-bold text-sm ${idx === 0 ? 'bg-gold-500' : idx === 1 ? 'bg-gray-400' : idx === 2 ? 'bg-orange-600' : 'bg-dark-600'
+                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-white font-bold ${idx === 0 ? 'bg-gold-500' : idx === 1 ? 'bg-gray-400' : idx === 2 ? 'bg-orange-600' : 'bg-dark-600'
                     }`}>
                     {idx + 1}
                   </div>
                   <div>
-                    <div className="text-white font-medium text-sm">{strategy.name}</div>
+                    <div className="text-white font-medium">{strategy.name}</div>
                     <div className="text-xs text-primary-400">{strategy.type}</div>
                   </div>
                 </div>
-                <span className="text-green-400 font-semibold">+{strategy.avgChange}%</span>
+                <div className="text-center text-white font-semibold self-center">{strategy.count}</div>
+                <div className="self-center">
+                  <div className="flex items-center gap-2">
+                    <div className="flex-1 h-2 bg-dark-700 rounded-full overflow-hidden">
+                      <div className="h-full bg-green-500 rounded-full" style={{ width: `${strategy.success}%` }}></div>
+                    </div>
+                    <span className="text-white text-sm">%{strategy.success}</span>
+                  </div>
+                </div>
+                <div className="text-center self-center"><span className="text-red-400">↗ %{strategy.peak}</span></div>
+                <div className="text-center self-center">
+                  <span className="bg-green-500/20 text-green-400 px-2 py-1 rounded text-sm">↓ {strategy.speed} gün</span>
+                </div>
+                <div className="text-center self-center"><span className="text-gray-300">⊙ {strategy.riskReward}</span></div>
+                <div className="text-right self-center"><span className="text-green-400 font-semibold">+{strategy.avgChange}%</span></div>
               </div>
-              <div className="grid grid-cols-4 gap-2 text-center text-xs">
-                <div>
-                  <div className="text-gray-500">Tespit</div>
-                  <div className="text-white font-semibold">{strategy.count}</div>
+            ))}
+          </div>
+        ) : (
+          <div className="divide-y divide-dark-700">
+            {sortStrategies(bogaStrategies).map((strategy, idx) => (
+              <div
+                key={strategy.name}
+                className="p-4 hover:bg-dark-800/30 transition-colors cursor-pointer"
+                onClick={() => openStrategyStocks(strategy)}
+              >
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-3">
+                    <div className={`w-7 h-7 rounded-lg flex items-center justify-center text-white font-bold text-sm ${idx === 0 ? 'bg-gold-500' : idx === 1 ? 'bg-gray-400' : idx === 2 ? 'bg-orange-600' : 'bg-dark-600'
+                      }`}>
+                      {idx + 1}
+                    </div>
+                    <div>
+                      <div className="text-white font-medium text-sm">{strategy.name}</div>
+                      <div className="text-xs text-primary-400">{strategy.type}</div>
+                    </div>
+                  </div>
+                  <span className="text-green-400 font-semibold">+{strategy.avgChange}%</span>
                 </div>
-                <div>
-                  <div className="text-gray-500">Başarı</div>
-                  <div className="text-white font-semibold">%{strategy.success}</div>
-                </div>
-                <div>
-                  <div className="text-gray-500">Zirve</div>
-                  <div className="text-red-400">%{strategy.peak}</div>
-                </div>
-                <div>
-                  <div className="text-gray-500">R/K</div>
-                  <div className="text-gray-300">{strategy.riskReward}</div>
+                <div className="grid grid-cols-4 gap-2 text-center text-xs">
+                  <div>
+                    <div className="text-gray-500">Tespit</div>
+                    <div className="text-white font-semibold">{strategy.count}</div>
+                  </div>
+                  <div>
+                    <div className="text-gray-500">Başarı</div>
+                    <div className="text-white font-semibold">%{strategy.success}</div>
+                  </div>
+                  <div>
+                    <div className="text-gray-500">Zirve</div>
+                    <div className="text-red-400">%{strategy.peak}</div>
+                  </div>
+                  <div>
+                    <div className="text-gray-500">R/K</div>
+                    <div className="text-gray-300">{strategy.riskReward}</div>
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
 
         <div className="px-4 py-2 text-[10px] md:text-xs text-gray-500">
           ↗ Zirve: Sinyal sonrası en yüksek · ↓ Hız: %3'e ulaşma süresi · ⊙ R/K: Kazanç/Risk oranı
