@@ -297,12 +297,16 @@ function DecisionCard({ tone, emoji, title, symbol, label, sentence, onDetail, l
 // Backend daily-signals/today şu yapıyı döndürür:
 //   { revision|premarket: { trend: { signals: [...] }, reversion: { signals: [...] } } }
 // Her sinyalin direction: 'long'|'short', totalScore, applicableMax alanları var.
+//
+// Sayaç tanımları (mutually exclusive — toplamı = total):
+//   • strong   = trend long sinyalleri (anlık AL)
+//   • risky    = trend short sinyalleri (anlık SAT)
+//   • watching = reversion sinyalleri (zone'a değmesini bekleyen — yön farketmez)
 function pickDecisionCards(snapshot) {
   const phase = snapshot?.revision || snapshot?.premarket
-  const all = [
-    ...(phase?.trend?.signals || []),
-    ...(phase?.reversion?.signals || []),
-  ]
+  const trendSignals = phase?.trend?.signals || []
+  const reversionSignals = phase?.reversion?.signals || []
+  const all = [...trendSignals, ...reversionSignals]
 
   const longs  = all.filter((s) => s.direction === 'long').sort((a, b) => (b.totalScore || 0) - (a.totalScore || 0))
   const shorts = all.filter((s) => s.direction === 'short').sort((a, b) => (b.totalScore || 0) - (a.totalScore || 0))
@@ -311,7 +315,15 @@ function pickDecisionCards(snapshot) {
   const topShort = shorts[0]
   const watch    = longs[1] || longs[2] || null  // ikinci en güçlü long → "takip" adayı
 
-  return { topLong, topShort, watch, total: all.length }
+  return {
+    topLong, topShort, watch,
+    total: all.length,
+    counts: {
+      strong:   trendSignals.filter(s => s.direction === 'long').length,
+      risky:    trendSignals.filter(s => s.direction === 'short').length,
+      watching: reversionSignals.length,
+    },
+  }
 }
 
 export default function Dashboard() {
@@ -358,7 +370,7 @@ export default function Dashboard() {
   }, [])
 
   const market = useMemo(() => getMarketStatus(now), [now])
-  const { topLong, topShort, watch, total } = useMemo(() => pickDecisionCards(dailySnapshot), [dailySnapshot])
+  const { topLong, topShort, watch, total, counts } = useMemo(() => pickDecisionCards(dailySnapshot), [dailySnapshot])
   const greeting = useMemo(() => getGreeting(now.getHours()), [now])
   const firstName = user?.firstName || 'Borsa Kralı'
 
@@ -515,11 +527,17 @@ export default function Dashboard() {
           )}
 
           <span className="flex items-center gap-2 flex-wrap" style={{ color: 'var(--text-secondary)' }}>
-            <span><strong style={{ color: 'var(--jade)' }}>{topLong ? 1 : 0}</strong> güçlü</span>
+            <span title="Anlık AL fırsatları (trend takibi)">
+              <strong style={{ color: 'var(--jade)' }}>{counts.strong}</strong> güçlü
+            </span>
             <span aria-hidden="true" style={{ color: 'var(--text-faint)' }}>·</span>
-            <span><strong style={{ color: 'var(--ember)' }}>{topShort ? 1 : 0}</strong> riskli</span>
+            <span title="Anlık SAT uyarıları (kaçınılması önerilen)">
+              <strong style={{ color: 'var(--ember)' }}>{counts.risky}</strong> riskli
+            </span>
             <span aria-hidden="true" style={{ color: 'var(--text-faint)' }}>·</span>
-            <span><strong style={{ color: 'var(--gold-400)' }}>{watch ? 1 : 0}</strong> takipte</span>
+            <span title="Zone'a gelmesini bekleyen reversion fırsatları">
+              <strong style={{ color: 'var(--gold-400)' }}>{counts.watching}</strong> takipte
+            </span>
           </span>
 
           {/* Eylem + saat — mobilde alt satırda solda, sm+ sağda */}
