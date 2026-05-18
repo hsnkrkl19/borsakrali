@@ -1,12 +1,14 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
-  Clock, ArrowRight, ChevronRight, RefreshCw, TrendingUp, TrendingDown,
+  Clock, ArrowRight, ChevronRight, RefreshCw, TrendingUp, TrendingDown, Search, Crown,
 } from 'lucide-react'
 import apiClient from '../services/api'
 import GuestCTA from '../components/GuestCTA'
 import HelpBubble from '../components/HelpBubble'
 import HomeFooter from '../components/home/HomeFooter'
+import DecisionDetailModal from '../components/DecisionDetailModal'
+import OpportunityListModal from '../components/OpportunityListModal'
 import { useAuthStore } from '../store/authStore'
 import { useScrollReveal } from '../hooks/useAnime'
 
@@ -34,6 +36,185 @@ function getGreeting(hour) {
   if (hour < 12) return 'Günaydın'
   if (hour < 18) return 'İyi günler'
   return 'İyi akşamlar'
+}
+
+/* ─── Hisse Merkezi araması — anasayfa hero arama kutusu ─────────────── */
+function DashboardStockSearch() {
+  const navigate = useNavigate()
+  const [q, setQ] = useState('')
+  const [results, setResults] = useState({ stocks: [], coins: [] })
+  const [loading, setLoading] = useState(false)
+  const [focused, setFocused] = useState(false)
+
+  useEffect(() => {
+    if (!q || q.length < 1) { setResults({ stocks: [], coins: [] }); return }
+    const ctrl = new AbortController()
+    setLoading(true)
+    const t = setTimeout(async () => {
+      try {
+        const [stockRes, cryptoRes] = await Promise.allSettled([
+          apiClient.get(`/market/stocks/search?q=${encodeURIComponent(q)}`, { signal: ctrl.signal }),
+          apiClient.get(`/crypto/search?q=${encodeURIComponent(q)}`, { signal: ctrl.signal }),
+        ])
+        const stocks = stockRes.status === 'fulfilled'
+          ? (stockRes.value.data?.stocks || []).slice(0, 6) : []
+        const coins = cryptoRes.status === 'fulfilled'
+          ? (cryptoRes.value.data?.coins || []).slice(0, 4) : []
+        setResults({ stocks, coins })
+      } catch { /* yok say */ }
+      finally { setLoading(false) }
+    }, 150)
+    return () => { clearTimeout(t); ctrl.abort?.() }
+  }, [q])
+
+  const go = (sym, type = 'stock') => {
+    const path = type === 'crypto'
+      ? `/hisse/${sym.toUpperCase()}?type=crypto`
+      : `/hisse/${sym.toUpperCase()}`
+    navigate(path)
+  }
+
+  const onEnter = (e) => {
+    if (e.key !== 'Enter') return
+    e.preventDefault()
+    const trim = q.trim()
+    if (!trim) return
+    const first = results.stocks[0] || results.coins[0]
+    if (first) go(first.symbol || first.id, results.stocks[0] ? 'stock' : 'crypto')
+    else go(trim, 'stock')
+  }
+
+  const showResults = focused && (results.stocks.length > 0 || results.coins.length > 0 || loading)
+
+  return (
+    <div
+      className="rounded-2xl border p-4 sm:p-5 relative"
+      style={{
+        background: 'linear-gradient(135deg, rgba(212, 175, 55, 0.06) 0%, var(--bg-card) 70%)',
+        borderColor: 'var(--border-gold)',
+        boxShadow: '0 0 0 1px rgba(212, 175, 55, 0.15) inset, 0 8px 28px rgba(0, 0, 0, 0.18)',
+      }}
+    >
+      <div className="flex items-center gap-2 mb-3">
+        <Crown className="w-4 h-4" style={{ color: 'var(--gold-400)' }} />
+        <h2 className="text-[14px] font-bold uppercase tracking-wider" style={{ color: 'var(--gold-400)' }}>
+          Hisse Merkezi
+        </h2>
+        <span className="text-[10.5px] hidden sm:inline" style={{ color: 'var(--text-faint)' }}>
+          tek arama, tüm analizler
+        </span>
+      </div>
+      <p className="text-[13px] mb-3" style={{ color: 'var(--text-secondary)' }}>
+        Hisse adını yaz — teknik, temel, EMA34, TEMA34, SNR, SMC, AI skor ve X yorumları tek sayfada.
+      </p>
+
+      <div className="relative">
+        <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4.5 h-4.5" style={{ color: 'var(--gold-400)' }} />
+        <input
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          onFocus={() => setFocused(true)}
+          onBlur={() => setTimeout(() => setFocused(false), 180)}
+          onKeyDown={onEnter}
+          placeholder="THYAO, GARAN, ASELS, BTC… (Enter ile aç)"
+          className="w-full h-12 pl-10 pr-4 rounded-xl text-[14px] focus:outline-none"
+          style={{
+            background: 'rgba(var(--bg-input-rgb), 0.85)',
+            border: '1px solid var(--border-main)',
+            color: 'var(--text-primary)',
+          }}
+        />
+
+        {showResults && (
+          <div className="absolute left-0 right-0 top-full mt-2 rounded-xl overflow-hidden z-30 max-h-[24rem] overflow-y-auto custom-scrollbar"
+            style={{ background: 'var(--bg-card)', border: '1px solid var(--border-main)', boxShadow: '0 12px 28px rgba(0, 0, 0, 0.35)' }}
+          >
+            {loading && (
+              <div className="px-3 py-2 text-[11.5px]" style={{ color: 'var(--text-faint)' }}>Aranıyor…</div>
+            )}
+            {results.stocks.length > 0 && (
+              <div>
+                <div className="px-3 py-1.5 text-[10px] uppercase tracking-wider font-bold"
+                  style={{ color: 'var(--text-faint)', background: 'var(--bg-elevated)' }}>
+                  BIST Hisseleri
+                </div>
+                {results.stocks.map((s) => (
+                  <button
+                    key={s.symbol}
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => go(s.symbol, 'stock')}
+                    className="w-full text-left flex items-center justify-between px-3 py-2 transition-colors"
+                    style={{ color: 'var(--text-secondary)' }}
+                    onMouseEnter={(e) => e.currentTarget.style.background = 'var(--bg-hover)'}
+                    onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                  >
+                    <span className="flex flex-col min-w-0 flex-1">
+                      <span className="font-bold text-[13px] truncate" style={{ color: 'var(--text-primary)' }}>{s.symbol}</span>
+                      <span className="text-[10.5px] truncate" style={{ color: 'var(--text-faint)' }}>{s.name}</span>
+                    </span>
+                    {s.price != null && (
+                      <span className="text-[11.5px] num-tabular flex items-center gap-1.5 flex-shrink-0">
+                        <span style={{ color: 'var(--text-muted)' }}>{Number(s.price).toFixed(2)} ₺</span>
+                        {s.changePercent != null && (
+                          <span style={{ color: s.changePercent >= 0 ? 'var(--jade)' : 'var(--ember)' }}>
+                            {s.changePercent >= 0 ? '+' : ''}{Number(s.changePercent).toFixed(2)}%
+                          </span>
+                        )}
+                      </span>
+                    )}
+                  </button>
+                ))}
+              </div>
+            )}
+            {results.coins.length > 0 && (
+              <div>
+                <div className="px-3 py-1.5 text-[10px] uppercase tracking-wider font-bold"
+                  style={{ color: 'var(--text-faint)', background: 'var(--bg-elevated)' }}>
+                  Kripto
+                </div>
+                {results.coins.map((c) => (
+                  <button
+                    key={c.symbol || c.id}
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => go((c.symbol || c.id), 'crypto')}
+                    className="w-full text-left flex items-center justify-between px-3 py-2 transition-colors"
+                    style={{ color: 'var(--text-secondary)' }}
+                    onMouseEnter={(e) => e.currentTarget.style.background = 'var(--bg-hover)'}
+                    onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                  >
+                    <span className="flex flex-col">
+                      <span className="font-bold text-[13px]" style={{ color: 'var(--text-primary)' }}>
+                        {(c.symbol || c.id).toUpperCase()}
+                      </span>
+                      <span className="text-[10.5px]" style={{ color: 'var(--text-faint)' }}>{c.name}</span>
+                    </span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      <div className="flex flex-wrap gap-1.5 mt-3 items-center">
+        <span className="text-[11px] mr-1" style={{ color: 'var(--text-faint)' }}>Popüler:</span>
+        {['THYAO', 'GARAN', 'ASELS', 'KCHOL', 'EREGL', 'BIMAS', 'TUPRS', 'AKBNK'].map(s => (
+          <button
+            key={s}
+            onClick={() => go(s, 'stock')}
+            className="text-[11px] font-semibold px-2 py-1 rounded-lg transition-all hover:scale-105"
+            style={{
+              background: 'rgba(212, 175, 55, 0.10)',
+              border: '1px solid rgba(212, 175, 55, 0.25)',
+              color: 'var(--gold-400)',
+            }}
+          >
+            {s}
+          </button>
+        ))}
+      </div>
+    </div>
+  )
 }
 
 /* ─── Karar Kartı — 3 büyük slot ──────────────────────────────────────── */
@@ -142,6 +323,8 @@ export default function Dashboard() {
   const [error, setError] = useState(null)
   const [refreshTick, setRefreshTick] = useState(0)
   const [now, setNow] = useState(new Date())
+  const [detail, setDetail] = useState(null) // { signal, tone, title } — Detay modal'ı için
+  const [listOpen, setListOpen] = useState(false) // "X fırsat" tıklanınca liste modal'ı
 
   useEffect(() => {
     let active = true
@@ -191,6 +374,9 @@ export default function Dashboard() {
       <div ref={cockpitRef} className="space-y-6 scroll-mt-20">
         <GuestCTA />
 
+        {/* Hisse Merkezi araması — herhangi bir hisseyi yaz, tek çatı altında detaya git */}
+        <DashboardStockSearch />
+
         {/* Üst: selamlama + borsa durumu + yenile */}
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0 flex-1">
@@ -202,7 +388,28 @@ export default function Dashboard() {
               {loading
                 ? 'Bugünün fırsatları hazırlanıyor…'
                 : total > 0
-                  ? <>Bugün <strong style={{ color: 'var(--gold-400)' }}>{total} fırsat</strong> bulduk.</>
+                  ? (
+                    <>
+                      Bugün{' '}
+                      <button
+                        onClick={() => setListOpen(true)}
+                        className="font-bold underline-offset-2 hover:underline transition-opacity hover:opacity-80"
+                        style={{ color: 'var(--gold-400)' }}
+                        title="Tüm fırsatları listele"
+                      >
+                        {total} fırsat
+                      </button>
+                      {' '}bulduk —{' '}
+                      <button
+                        onClick={() => setListOpen(true)}
+                        className="text-[12.5px] font-semibold inline-flex items-center gap-0.5 hover:opacity-80"
+                        style={{ color: 'var(--text-muted)' }}
+                      >
+                        listeyi aç
+                        <ChevronRight className="w-3 h-3" />
+                      </button>
+                    </>
+                  )
                   : 'Bugün henüz fırsat hazır değil — birazdan tekrar bak.'}
             </p>
           </div>
@@ -255,7 +462,7 @@ export default function Dashboard() {
             sentence={topLong ? 'Yükseliş başladı. Alıcılar güçleniyor.' : ''}
             empty={!loading && !topLong}
             loading={loading && !dailySnapshot}
-            onDetail={topLong ? () => navigate(`/teknik-analiz-ai?symbol=${topLong.symbol}`) : null}
+            onDetail={topLong ? () => setDetail({ signal: topLong, tone: 'long', title: 'Bugünün Güçlü Hissesi' }) : null}
           />
           <DecisionCard
             tone="short"
@@ -266,7 +473,7 @@ export default function Dashboard() {
             sentence={topShort ? 'Düşüş baskısı sürüyor.' : ''}
             empty={!loading && !topShort}
             loading={loading && !dailySnapshot}
-            onDetail={topShort ? () => navigate(`/teknik-analiz-ai?symbol=${topShort.symbol}`) : null}
+            onDetail={topShort ? () => setDetail({ signal: topShort, tone: 'short', title: 'Riskli Bölge' }) : null}
           />
           <DecisionCard
             tone="watch"
@@ -277,7 +484,7 @@ export default function Dashboard() {
             sentence={watch ? 'Yatay seyir, çıkış yakın.' : ''}
             empty={!loading && !watch}
             loading={loading && !dailySnapshot}
-            onDetail={watch ? () => navigate(`/teknik-analiz-ai?symbol=${watch.symbol}`) : null}
+            onDetail={watch ? () => setDetail({ signal: watch, tone: 'watch', title: 'Takip Et' }) : null}
           />
         </div>
 
@@ -329,6 +536,22 @@ export default function Dashboard() {
       </div>
 
       <HomeFooter />
+
+      {listOpen && (
+        <OpportunityListModal
+          snapshot={dailySnapshot}
+          onClose={() => setListOpen(false)}
+          onPick={(signal, tone, title) => setDetail({ signal, tone, title })}
+        />
+      )}
+      {detail && (
+        <DecisionDetailModal
+          signal={detail.signal}
+          tone={detail.tone}
+          cardTitle={detail.title}
+          onClose={() => setDetail(null)}
+        />
+      )}
     </div>
   )
 }
