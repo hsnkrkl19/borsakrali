@@ -1,0 +1,82 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none" aria-label="Borsa Krali — Royal Rising Bitcoin">
+  <defs>
+    <linearGradient id="rrbGold" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#fef3c7"/>
+      <stop offset="0.45" stop-color="#d4af37"/>
+      <stop offset="1" stop-color="#7a5b0c"/>
+    </linearGradient>
+    <linearGradient id="rrbJade" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#10b981"/>
+      <stop offset="1" stop-color="#22d3a4"/>
+    </linearGradient>
+  </defs>
+
+  <!-- ── TAÇ (sol üst, ₿ ile birlikte) ─────────────────────────── -->
+  <path d="M 12 14
+           L 15 8
+           L 19 12
+           L 23 6
+           L 27 12
+           L 31 8
+           L 34 14
+           L 33 17
+           L 13 17 Z"
+        fill="url(#rrbGold)"
+        stroke="#3b2607"
+        stroke-width="0.7"
+        stroke-linejoin="round"/>
+  <circle cx="23" cy="12.5" r="1.3" fill="#9b2226" stroke="#3b2607" stroke-width="0.3"/>
+  <circle cx="18" cy="14" r="0.85" fill="#005f73" stroke="#3b2607" stroke-width="0.2"/>
+  <circle cx="28" cy="14" r="0.85" fill="#005f73" stroke="#3b2607" stroke-width="0.2"/>
+
+  <!-- ── BITCOIN ₿ (sol, taçın altında) ────────────────────────── -->
+  <rect x="17" y="19" width="2.2" height="3.5" rx="0.4" fill="url(#rrbGold)"/>
+  <rect x="23.4" y="19" width="2.2" height="3.5" rx="0.4" fill="url(#rrbGold)"/>
+
+  <path d="M 12 22.5
+           L 21 22.5
+           Q 28 22.5, 28 28
+           Q 28 31.5, 25 32.5
+           Q 30 33.5, 30 38
+           Q 30 43.5, 22 43.5
+           L 12 43.5 Z"
+        fill="url(#rrbGold)"
+        stroke="#3b2607"
+        stroke-width="0.7"
+        stroke-linejoin="round"/>
+  <path d="M 16 25.5
+           L 20.5 25.5
+           Q 24 25.5, 24 28
+           Q 24 30.5, 20.5 30.5
+           L 16 30.5 Z"
+        fill="#0a1020"/>
+  <path d="M 16 34
+           L 21 34
+           Q 26 34, 26 37.5
+           Q 26 40.5, 21 40.5
+           L 16 40.5 Z"
+        fill="#0a1020"/>
+
+  <rect x="17" y="43.5" width="2.2" height="3.5" rx="0.4" fill="url(#rrbGold)"/>
+  <rect x="23.4" y="43.5" width="2.2" height="3.5" rx="0.4" fill="url(#rrbGold)"/>
+
+  <!-- ── YÜKSELEN GRAFİK + OK (sağ, diagonal yükseliş) ─────────── -->
+  <!-- Çizgi: ₿'nin sağ alttan başlar, sağ üst köşeye çıkar -->
+  <path d="M 34 50 L 42 42 L 46 46 L 56 30"
+        fill="none"
+        stroke="url(#rrbJade)"
+        stroke-width="2.4"
+        stroke-linecap="round"
+        stroke-linejoin="round"/>
+  <!-- Ok başı (üst sağ) -->
+  <path d="M 56 30 L 50 30 M 56 30 L 56 36"
+        fill="none"
+        stroke="url(#rrbJade)"
+        stroke-width="2.4"
+        stroke-linecap="round"/>
+  <!-- Veri noktaları (mum-vari minik daireler) -->
+  <circle cx="34" cy="50" r="1.4" fill="url(#rrbJade)"/>
+  <circle cx="42" cy="42" r="1.4" fill="url(#rrbJade)"/>
+  <circle cx="46" cy="46" r="1.4" fill="url(#rrbJade)"/>
+  <circle cx="56" cy="30" r="2" fill="url(#rrbGold)" stroke="#3b2607" stroke-width="0.4"/>
+</svg>
