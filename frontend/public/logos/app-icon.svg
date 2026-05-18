@@ -1,0 +1,153 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" fill="none" aria-label="Borsa Krali — Uygulama Logosu">
+  <defs>
+    <!-- K harfi: mavi → mor → pembe gradient -->
+    <linearGradient id="kGrad" x1="20" y1="32" x2="108" y2="104" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#1e40af"/>
+      <stop offset="0.35" stop-color="#3b1d8a"/>
+      <stop offset="0.65" stop-color="#7c2d92"/>
+      <stop offset="1" stop-color="#db2777"/>
+    </linearGradient>
+
+    <!-- Taç: yeşil → turkuaz → mor -->
+    <linearGradient id="crownGrad" x1="40" y1="14" x2="88" y2="34" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#065f46"/>
+      <stop offset="0.5" stop-color="#0d9488"/>
+      <stop offset="1" stop-color="#6d28d9"/>
+    </linearGradient>
+
+    <!-- Arka plan dalga rengi -->
+    <linearGradient id="waveGreen" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#10b981" stop-opacity="0.7"/>
+      <stop offset="1" stop-color="#10b981" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="wavePink" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#db2777" stop-opacity="0"/>
+      <stop offset="1" stop-color="#db2777" stop-opacity="0.7"/>
+    </linearGradient>
+    <linearGradient id="wavePurple" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#7c3aed" stop-opacity="0.5"/>
+      <stop offset="1" stop-color="#7c3aed" stop-opacity="0"/>
+    </linearGradient>
+
+    <!-- K iç ışık vurgusu -->
+    <linearGradient id="kHighlight" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#fff" stop-opacity="0.25"/>
+      <stop offset="1" stop-color="#fff" stop-opacity="0"/>
+    </linearGradient>
+
+    <!-- Glow halo (dış aura) -->
+    <radialGradient id="halo" cx="64" cy="64" r="64" gradientUnits="userSpaceOnUse">
+      <stop offset="0.5" stop-color="#7c3aed" stop-opacity="0"/>
+      <stop offset="0.85" stop-color="#7c3aed" stop-opacity="0.12"/>
+      <stop offset="1" stop-color="#7c3aed" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <!-- ═══ ARKA PLAN ═══════════════════════════════════════════════ -->
+  <!-- Dış aura -->
+  <circle cx="64" cy="64" r="62" fill="url(#halo)"/>
+
+  <!-- Sol arka çizgiler (yeşil dalgalar — borsa grafik) -->
+  <g opacity="0.85">
+    <path d="M 6 40 Q 18 35, 28 42 T 50 40" fill="none" stroke="url(#waveGreen)" stroke-width="1.4" stroke-linecap="round"/>
+    <path d="M 4 58 Q 15 53, 26 60 T 48 56" fill="none" stroke="url(#waveGreen)" stroke-width="1.2" stroke-linecap="round"/>
+    <path d="M 6 76 Q 17 71, 28 78 T 50 74" fill="none" stroke="url(#waveGreen)" stroke-width="1.4" stroke-linecap="round"/>
+    <path d="M 4 92 Q 15 87, 26 94 T 50 90" fill="none" stroke="url(#waveGreen)" stroke-width="1.1" stroke-linecap="round"/>
+
+    <!-- Yeşil noktalar -->
+    <circle cx="14" cy="38" r="1.4" fill="#10b981"/>
+    <circle cx="32" cy="44" r="1.2" fill="#10b981"/>
+    <circle cx="20" cy="60" r="1.3" fill="#10b981"/>
+    <circle cx="38" cy="56" r="1.1" fill="#10b981"/>
+    <circle cx="24" cy="78" r="1.3" fill="#10b981"/>
+    <circle cx="18" cy="92" r="1.2" fill="#10b981"/>
+  </g>
+
+  <!-- Sağ arka çizgiler (pembe/mor — kripto dalgalar) -->
+  <g opacity="0.85">
+    <path d="M 78 38 Q 88 44, 100 38 T 122 42" fill="none" stroke="url(#wavePink)" stroke-width="1.4" stroke-linecap="round"/>
+    <path d="M 80 56 Q 90 62, 102 56 T 124 60" fill="none" stroke="url(#wavePink)" stroke-width="1.2" stroke-linecap="round"/>
+    <path d="M 78 74 Q 88 80, 100 74 T 122 78" fill="none" stroke="url(#wavePink)" stroke-width="1.4" stroke-linecap="round"/>
+    <path d="M 80 90 Q 90 96, 102 90 T 124 94" fill="none" stroke="url(#wavePurple)" stroke-width="1.1" stroke-linecap="round"/>
+
+    <!-- Pembe noktalar -->
+    <circle cx="94" cy="40" r="1.4" fill="#db2777"/>
+    <circle cx="112" cy="42" r="1.2" fill="#db2777"/>
+    <circle cx="92" cy="58" r="1.3" fill="#db2777"/>
+    <circle cx="110" cy="60" r="1.1" fill="#db2777"/>
+    <circle cx="96" cy="76" r="1.3" fill="#db2777"/>
+    <circle cx="114" cy="78" r="1.2" fill="#7c3aed"/>
+  </g>
+
+  <!-- ═══ TAÇ (üstte) ═════════════════════════════════════════════ -->
+  <!-- Taç gövdesi (3-uçlu) -->
+  <path d="M 44 26
+           L 50 12
+           L 58 22
+           L 64 6
+           L 70 22
+           L 78 12
+           L 84 26
+           L 82 32
+           L 46 32 Z"
+        fill="url(#crownGrad)"
+        stroke="#052e2b"
+        stroke-width="1.2"
+        stroke-linejoin="round"/>
+
+  <!-- Taç uçlarında küçük topraklar -->
+  <circle cx="50" cy="12" r="2" fill="#0d9488" stroke="#052e2b" stroke-width="0.6"/>
+  <circle cx="64" cy="6" r="2.2" fill="#34d399" stroke="#052e2b" stroke-width="0.6"/>
+  <circle cx="78" cy="12" r="2" fill="#0d9488" stroke="#052e2b" stroke-width="0.6"/>
+
+  <!-- Taç mücevherleri (3 tane) -->
+  <ellipse cx="64" cy="22" rx="2.6" ry="3" fill="#a855f7" stroke="#052e2b" stroke-width="0.5"/>
+  <ellipse cx="54" cy="25" rx="1.8" ry="2.2" fill="#22d3a4" stroke="#052e2b" stroke-width="0.4"/>
+  <ellipse cx="74" cy="25" rx="1.8" ry="2.2" fill="#22d3a4" stroke="#052e2b" stroke-width="0.4"/>
+
+  <!-- Mücevher parlama -->
+  <ellipse cx="63" cy="20.5" rx="0.8" ry="1.1" fill="#fff" opacity="0.6"/>
+  <ellipse cx="53.5" cy="24" rx="0.5" ry="0.7" fill="#fff" opacity="0.6"/>
+  <ellipse cx="73.5" cy="24" rx="0.5" ry="0.7" fill="#fff" opacity="0.6"/>
+
+  <!-- Taç şerit gümrük (dekoratif çizgi) -->
+  <line x1="46" y1="30" x2="82" y2="30" stroke="#052e2b" stroke-width="0.4" opacity="0.5"/>
+
+  <!-- ═══ K HARFİ (merkez, gradient dolgu) ═══════════════════════ -->
+  <!-- K gövde shape -->
+  <path d="M 36 36
+           L 52 36
+           L 52 60
+           L 76 36
+           L 96 36
+           L 70 62
+           L 100 102
+           L 78 102
+           L 56 70
+           L 52 74
+           L 52 102
+           L 36 102 Z"
+        fill="url(#kGrad)"
+        stroke="#1a1208"
+        stroke-width="1.3"
+        stroke-linejoin="round"/>
+
+  <!-- K iç ışık vurgusu (sol omurga üst kısmı) -->
+  <path d="M 38 38 L 50 38 L 50 56 L 38 56 Z" fill="url(#kHighlight)"/>
+
+  <!-- ═══ İÇ DETAYLAR (K üzerinde geçen dalga çizgileri) ════════ -->
+  <g opacity="0.55">
+    <path d="M 40 50 Q 50 48, 58 54" fill="none" stroke="#22d3a4" stroke-width="0.9" stroke-linecap="round"/>
+    <path d="M 60 78 Q 70 76, 80 82" fill="none" stroke="#fbbf24" stroke-width="0.9" stroke-linecap="round"/>
+    <path d="M 38 88 Q 48 86, 56 92" fill="none" stroke="#a855f7" stroke-width="0.8" stroke-linecap="round"/>
+    <circle cx="58" cy="54" r="1" fill="#22d3a4"/>
+    <circle cx="80" cy="82" r="1" fill="#fbbf24"/>
+    <circle cx="56" cy="92" r="0.9" fill="#a855f7"/>
+  </g>
+
+  <!-- ═══ İNCE KÖŞELER (sparkle) ═════════════════════════════════ -->
+  <path d="M 16 22 L 17 24 L 19 25 L 17 26 L 16 28 L 15 26 L 13 25 L 15 24 Z" fill="#fde68a" opacity="0.85"/>
+  <path d="M 110 24 L 110.7 25.4 L 112 26 L 110.7 26.6 L 110 28 L 109.3 26.6 L 108 26 L 109.3 25.4 Z" fill="#fde68a" opacity="0.7"/>
+  <path d="M 112 108 L 112.7 109.4 L 114 110 L 112.7 110.6 L 112 112 L 111.3 110.6 L 110 110 L 111.3 109.4 Z" fill="#fde68a" opacity="0.65"/>
+  <path d="M 14 110 L 14.7 111.4 L 16 112 L 14.7 112.6 L 14 114 L 13.3 112.6 L 12 112 L 13.3 111.4 Z" fill="#fde68a" opacity="0.7"/>
+</svg>
