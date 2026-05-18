@@ -1,0 +1,14 @@
+{
+  "capital": 100000,
+  "cash": 69782.3,
+  "equity": 100000,
+  "totalRealizedPnL": 0,
+  "totalRealizedPnLPct": 0,
+  "openCount": 7,
+  "winCount": 0,
+  "lossCount": 0,
+  "winRate": 0,
+  "startedAt": "2026-05-18T16:52:32.849Z",
+  "resetAt": null,
+  "equityHistory": []
+}
