@@ -58,6 +58,7 @@ import SiteHaritasi from './pages/SiteHaritasi'       // Site haritasi (eski Yen
 import GunSonuPerformans from './pages/GunSonuPerformans' // YENİ: günün sinyallerinin gün sonu performansı
 import TradingBot from './pages/TradingBot' // YENİ v5.1: Freqtrade port + sınama katmanı
 import Yenilikler from './pages/Yenilikler' // YENİ v5.2: Hoşgeldin / yenilikler ekranı (tekrar göster)
+import HisseMerkezi from './pages/HisseMerkezi' // YENİ v5.3: Tek çatı altında hisse detayları
 
 // === PARÇA 1 WRAPPER'LARI (21→6 sekme sadeleştirmesi) ===
 import Firsatlar from './pages/Firsatlar' // Tarayıcılar + Günlük Sinyaller
@@ -199,6 +200,10 @@ function App() {
                 <Route path="/site-haritasi" element={<SiteHaritasi />} />
                 <Route path="/endeks/:symbol" element={<EndeksDetay />} />
                 <Route path="/yenilikler" element={<Yenilikler />} />
+
+                {/* Birleşik hisse detay sayfası — tüm taramalar/analizler/X yorumları tek çatı */}
+                <Route path="/hisse/:symbol" element={<HisseMerkezi />} />
+                <Route path="/hisse" element={<HisseMerkezi />} />
 
                 {/* === EGITIM / BLOG (public, AdSense icin kritik icerik) === */}
                 {/* Parça 1: /egitim eski URL'i REDIRECT_MAP üzerinden /ogren'e gider; alt sayfalar burada kalır. */}
