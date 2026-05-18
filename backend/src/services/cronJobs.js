@@ -14,6 +14,7 @@ const signalConfidenceService = require('./signalConfidenceService');
 const socketService = require('./socketService');
 const pushNotificationService = require('./pushNotificationService');
 const economicCalendarService = require('./economicCalendarService');
+const botEngine = require('./tradingBotV2/botEngine');
 const logger = require('../utils/logger');
 
 // Türkiye saat dilimi — BIST takvimi
@@ -185,9 +186,38 @@ async function runDailyPhase(phase, options = {}) {
     }
 
     logger.info(`✅ Daily signals (${phase}) tamamlandı — Trend: ${trendCount}, Reversion: ${reversionCount}`);
+
+    // Trading bot: yeni snapshot'ı sanal portföye ingest et (sinyal-takipli bot)
+    try {
+      const ingestResult = await botEngine.ingestSnapshot({ ...result, phase });
+      logger.info(
+        `🤖 Bot ingest (${phase}) — logged: ${ingestResult.logged}, opened: ${ingestResult.opened}, pending: ${ingestResult.addedPending}, closedByDrop: ${ingestResult.closedByDrop}`
+      );
+    } catch (botErr) {
+      logger.error(`[Bot] ingest (${phase}) hata: ${botErr.message}`, botErr.stack);
+    }
+
     return result;
   } catch (e) {
     logger.error(`Daily signals (${phase}) hata: ${e.message}`, e.stack);
+    return null;
+  }
+}
+
+// Trading bot tick — açık pozisyonların TP/SL/trailing kontrolü
+async function runBotTick() {
+  try {
+    const dateKey = todayKeyTR();
+    if (TR_HOLIDAYS_2026.has(dateKey)) return null;
+    const result = await botEngine.tick();
+    if (result?.closed || result?.trailed || result?.triggered) {
+      logger.info(
+        `🤖 Bot tick — checked: ${result.checked}, triggered: ${result.triggered}, trailed: ${result.trailed}, closed: ${result.closed}`
+      );
+    }
+    return result;
+  } catch (e) {
+    logger.error(`[Bot] tick hata: ${e.message}`, e.stack);
     return null;
   }
 }
@@ -551,6 +581,15 @@ class CronJobsService {
       { scheduled: false, ...TR_TZ }
     );
 
+    // 26. Trading Bot v6 tick — BIST açık saatlerinde her 5 dk bir.
+    //     Açık pozisyonların TP/SL/trailing kontrolü; pending pozisyonların
+    //     triggerZone'a değiş kontrolü; pozisyon kapanışlarında portföy update.
+    const botTickJob = cron.schedule(
+      '*/5 10-18 * * 1-5',
+      () => runBotTick(),
+      { scheduled: false, ...TR_TZ }
+    );
+
     // Start jobs only during market hours (9 AM - 6 PM, Monday-Friday)
     const marketHoursJob = cron.schedule(
       '* 9-18 * * 1-5', // Mon-Fri, 9 AM - 6 PM
@@ -602,6 +641,7 @@ class CronJobsService {
       marketCloseJob,
       calendarWarningJob,
       confidenceUpdateJob,
+      botTickJob,
       marketHoursJob,
       afterHoursJob
     ];

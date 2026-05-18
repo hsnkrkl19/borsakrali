@@ -1,926 +1,941 @@
 /**
- * TradingBot.jsx — Borsa Krali Trading Bot
+ * TradingBot.jsx — Borsa Krali Sinyal-Takipli Bot (v6)
  *
- * Freqtrade'den portlanmış 7 strateji (5 long + 2 short) + bizim eklediğimiz
- * sınama katmanı (Walk-Forward, Monte Carlo, OOS, Slippage Stress).
+ * Bot, /gunluk-tespitler?tab=bugun sayfasında yayınlanan canlı günlük BIST
+ * sinyallerini (trend + reversion, sadece LONG) sanal işleme çevirir.
+ * TP/SL dinamik trailing (R basamağı + ATR tavanı) uygulanır.
+ * Tüm sinyaller append-only log'ta kalır; bot kararları kısa not olarak yazılır.
  *
  * 5 sekme:
- *   1. Backtest        — tek sembol × tek strateji (custom params + anlık sinyal)
- *   2. Karşılaştır     — tüm stratejilerin aynı sembolde yarışı
- *   3. Sınama          — robustness raporu + verdict
- *   4. Tarama          — universe scan
- *   5. Stratejiler     — strateji kataloğu
+ *   1. Genel Bakış      — KPI kartları + equity chart
+ *   2. Açık Pozisyonlar — şu an taşınan sanal pozisyonlar + notlar
+ *   3. İşlem Geçmişi    — kapanmış sanal işlemler
+ *   4. Sinyal Logu      — immutable: tüm verilmiş sinyaller (filtreli)
+ *   5. Ayarlar          — config + admin reset
  */
 
-import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import {
-  Bot, Play, Activity, ShieldCheck, Search, BookOpen, TrendingUp,
-  TrendingDown, AlertTriangle, CheckCircle2, XCircle, BarChart3, Target,
-  Zap, RefreshCw, Info, Award, Trophy, Sliders, ArrowDownToLine, ArrowUpFromLine,
-  FlaskConical,
+  Bot, TrendingUp, ListChecks, History, FileText, Settings,
+  RefreshCw, ChevronDown, ChevronUp, AlertTriangle, CheckCircle2, XCircle,
+  Activity, Award, Clock, Target,
 } from 'lucide-react'
 import { createChart } from 'lightweight-charts'
 import api from '../services/api'
-import BotRiskCard from '../components/BotRiskCard'
-import BotSetupWizard from '../components/BotSetupWizard'
-import BotStatusCard from '../components/BotStatusCard'
-import RiskAcknowledgeModal from '../components/RiskAcknowledgeModal'
-import {
-  BOT_PROFILES, BOT_PROFILE_LIST,
-  getActiveBot, isBoldAcknowledged, setBoldAcknowledged,
-} from '../utils/botProfiles'
 
 const TABS = [
-  { id: 'backtest', label: 'Backtest',     icon: Play         },
-  { id: 'compare',  label: 'Karşılaştır',  icon: Trophy       },
-  { id: 'validate', label: 'Sınama',       icon: ShieldCheck  },
-  { id: 'scan',     label: 'Tarama',       icon: Search       },
-  { id: 'info',     label: 'Stratejiler',  icon: BookOpen     },
+  { id: 'overview',  label: 'Genel Bakış',     icon: TrendingUp },
+  { id: 'open',      label: 'Açık Pozisyonlar', icon: ListChecks },
+  { id: 'trades',    label: 'İşlem Geçmişi',    icon: History },
+  { id: 'log',       label: 'Sinyal Logu',      icon: FileText },
+  { id: 'settings',  label: 'Ayarlar',          icon: Settings },
 ]
-
-const MARKETS = [
-  { id: 'crypto', label: 'Kripto (Binance)' },
-  { id: 'bist',   label: 'BIST (Yahoo)' },
-]
-
-const CRYPTO_DEFAULTS = ['BTC', 'ETH', 'BNB', 'SOL', 'XRP', 'ADA']
-const BIST_DEFAULTS   = ['THYAO', 'AKBNK', 'BIMAS', 'EREGL', 'KCHOL', 'KOZAL', 'TUPRS', 'GARAN', 'ASELS']
-
-const TIMEFRAMES_CRYPTO = ['15m', '1h', '4h', '1d']
-const TIMEFRAMES_BIST   = ['1d', '1w']
 
 function fmtMoney(v, digits = 2) {
   if (v == null || !isFinite(v)) return '—'
-  return Number(v).toLocaleString('tr-TR', { maximumFractionDigits: digits, minimumFractionDigits: digits })
+  return Number(v).toLocaleString('tr-TR', {
+    maximumFractionDigits: digits,
+    minimumFractionDigits: digits,
+  })
 }
 function fmtPct(v, digits = 2) {
   if (v == null || !isFinite(v)) return '—'
   const s = v >= 0 ? '+' : ''
   return `${s}${Number(v).toFixed(digits)}%`
 }
-function fmtNum(v, digits = 2) {
-  if (v == null || !isFinite(v)) return '—'
-  return Number(v).toFixed(digits)
+function fmtDate(iso) {
+  if (!iso) return '—'
+  try {
+    return new Date(iso).toLocaleString('tr-TR', {
+      day: '2-digit', month: '2-digit', year: 'numeric',
+      hour: '2-digit', minute: '2-digit',
+    })
+  } catch (_) {
+    return iso
+  }
 }
-function fmtPF(v) {
-  if (v == null || !isFinite(v)) return '—'
-  if (v >= 999) return '∞'
-  return Number(v).toFixed(2)
+function fmtDateShort(iso) {
+  if (!iso) return '—'
+  try {
+    return new Date(iso).toLocaleDateString('tr-TR', {
+      day: '2-digit', month: '2-digit', year: '2-digit',
+    })
+  } catch (_) {
+    return (iso || '').slice(0, 10)
+  }
 }
 
-function MetricCard({ label, value, tone = 'neutral', hint }) {
-  const toneClass = {
-    pos: 'text-green-500',
-    neg: 'text-red-500',
-    neutral: 'text-slate-200',
-    warn: 'text-amber-400',
-  }[tone] || 'text-slate-200'
+// ── KPI Kartı ─────────────────────────────────────────────────────────────
+function KpiCard({ icon: Icon, label, value, sub, tone = 'neutral' }) {
+  const palette = {
+    neutral: { color: 'var(--text-primary)', bg: 'rgba(255,255,255,0.04)' },
+    good:    { color: '#22c55e', bg: 'rgba(34,197,94,0.10)' },
+    bad:     { color: '#ef4444', bg: 'rgba(239,68,68,0.10)' },
+    gold:    { color: 'var(--gold-400)', bg: 'rgba(212,175,55,0.10)' },
+  }
+  const p = palette[tone] || palette.neutral
   return (
-    <div className="rounded-lg border border-slate-800 bg-slate-900/50 p-3">
-      <div className="text-xs text-slate-400 mb-1 flex items-center gap-1">{label}{hint && <Info className="h-3 w-3 text-slate-600" title={hint} />}</div>
-      <div className={`text-lg font-semibold ${toneClass}`}>{value}</div>
+    <div
+      className="rounded-2xl p-4 border"
+      style={{ background: p.bg, borderColor: 'var(--border-subtle)' }}
+    >
+      <div className="flex items-center gap-2 text-xs uppercase tracking-wider mb-2"
+           style={{ color: 'var(--text-secondary)' }}>
+        {Icon && <Icon className="w-3.5 h-3.5" />}
+        <span>{label}</span>
+      </div>
+      <div className="text-2xl font-bold" style={{ color: p.color }}>{value}</div>
+      {sub && <div className="text-xs mt-1" style={{ color: 'var(--text-faint)' }}>{sub}</div>}
     </div>
   )
 }
 
-function EquityChart({ equity }) {
-  const containerRef = useRef(null)
+// ── Equity Chart (lightweight-charts) ─────────────────────────────────────
+function EquityChart({ data }) {
+  const ref = useRef(null)
   const chartRef = useRef(null)
+
   useEffect(() => {
-    if (!containerRef.current || !equity || equity.length === 0) return
-    if (chartRef.current) { chartRef.current.remove(); chartRef.current = null }
-    const chart = createChart(containerRef.current, {
-      width: containerRef.current.clientWidth,
-      height: 280,
-      layout: { background: { color: 'transparent' }, textColor: '#cbd5e1' },
-      grid:   { vertLines: { color: '#1e293b' }, horzLines: { color: '#1e293b' } },
-      timeScale: { timeVisible: true, secondsVisible: false },
-      crosshair: { mode: 1 },
+    if (!ref.current) return
+    const chart = createChart(ref.current, {
+      width: ref.current.clientWidth,
+      height: 220,
+      layout: {
+        background: { color: 'transparent' },
+        textColor: 'rgba(255,255,255,0.7)',
+      },
+      grid: {
+        vertLines: { color: 'rgba(255,255,255,0.04)' },
+        horzLines: { color: 'rgba(255,255,255,0.04)' },
+      },
+      timeScale: { borderColor: 'rgba(255,255,255,0.1)' },
+      rightPriceScale: { borderColor: 'rgba(255,255,255,0.1)' },
     })
-    chartRef.current = chart
     const series = chart.addAreaSeries({
-      lineColor: '#3b82f6',
-      topColor: 'rgba(59,130,246,0.3)',
-      bottomColor: 'rgba(59,130,246,0.02)',
+      lineColor: '#d4af37',
+      topColor: 'rgba(212, 175, 55, 0.35)',
+      bottomColor: 'rgba(212, 175, 55, 0.02)',
       lineWidth: 2,
     })
-    const seen = new Set()
-    const data = equity
-      .filter(p => p && p.time != null)
-      .map(p => ({ time: p.time, value: p.equity }))
-      .filter(p => { if (seen.has(p.time)) return false; seen.add(p.time); return true })
-      .sort((a, b) => a.time - b.time)
-    series.setData(data)
-    chart.timeScale().fitContent()
-    const onResize = () => {
-      if (containerRef.current) chart.applyOptions({ width: containerRef.current.clientWidth })
+    chartRef.current = { chart, series }
+
+    const handleResize = () => {
+      if (ref.current) chart.applyOptions({ width: ref.current.clientWidth })
     }
-    window.addEventListener('resize', onResize)
-    return () => { window.removeEventListener('resize', onResize); chart.remove(); chartRef.current = null }
-  }, [equity])
-  return <div ref={containerRef} className="w-full" style={{ minHeight: 280 }} />
-}
-
-function VerdictBadge({ score, verdict }) {
-  let bg, txt, Icon
-  if (score >= 75)      { bg = 'bg-green-500/15 border-green-500/40 text-green-400';   Icon = CheckCircle2 }
-  else if (score >= 60) { bg = 'bg-blue-500/15 border-blue-500/40 text-blue-400';      Icon = ShieldCheck }
-  else if (score >= 40) { bg = 'bg-amber-500/15 border-amber-500/40 text-amber-400';   Icon = AlertTriangle }
-  else                  { bg = 'bg-red-500/15 border-red-500/40 text-red-400';         Icon = XCircle }
-  return (
-    <div className={`flex items-center gap-2 rounded-lg border ${bg} px-3 py-2`}>
-      <Icon className="h-4 w-4" />
-      <div className="text-sm font-medium">{verdict || `Skor: ${score}`}</div>
-      <div className="ml-auto text-lg font-bold">{score}/100</div>
-    </div>
-  )
-}
-
-function SignalPill({ signal }) {
-  if (!signal || signal === 'NONE' || signal === 'no_data') {
-    return <span className="px-2 py-0.5 text-xs rounded bg-slate-700 text-slate-400">YOK</span>
-  }
-  if (signal === 'ENTRY_LONG')  return <span className="px-2 py-0.5 text-xs rounded bg-green-500/20 text-green-300 inline-flex items-center gap-1"><ArrowUpFromLine className="h-3 w-3" />AL</span>
-  if (signal === 'ENTRY_SHORT') return <span className="px-2 py-0.5 text-xs rounded bg-red-500/20 text-red-300 inline-flex items-center gap-1"><ArrowDownToLine className="h-3 w-3" />SAT</span>
-  if (signal === 'EXIT_LONG' || signal === 'EXIT_SHORT') return <span className="px-2 py-0.5 text-xs rounded bg-amber-500/20 text-amber-300">ÇIKIŞ</span>
-  return <span className="px-2 py-0.5 text-xs rounded bg-slate-700">{signal}</span>
-}
-
-function InstantSignalCard({ signal, loading, error }) {
-  if (loading) return (
-    <div className="p-3 rounded-lg border border-slate-800 bg-slate-900/50 flex items-center gap-2 text-sm text-slate-400">
-      <RefreshCw className="h-4 w-4 animate-spin" />Anlık sinyal yükleniyor...
-    </div>
-  )
-  if (error) return null
-  if (!signal) return null
-  const hasEntry = signal.signal === 'ENTRY_LONG' || signal.signal === 'ENTRY_SHORT'
-  return (
-    <div className={`p-3 rounded-lg border ${hasEntry ? 'border-blue-500/40 bg-blue-500/5' : 'border-slate-800 bg-slate-900/50'}`}>
-      <div className="flex items-center gap-3 flex-wrap text-sm">
-        <span className="font-semibold text-slate-200 flex items-center gap-1"><Zap className="h-4 w-4 text-blue-400" />Anlık Sinyal:</span>
-        <SignalPill signal={signal.signal} />
-        <span className="text-slate-400">Son fiyat: <span className="font-mono text-slate-200">{fmtMoney(signal.lastClose, 4)}</span></span>
-        {signal.suggestedStop != null && <span className="text-slate-400">Stop: <span className="font-mono text-red-300">{fmtMoney(signal.suggestedStop, 4)}</span></span>}
-        {signal.suggestedTarget != null && <span className="text-slate-400">Hedef: <span className="font-mono text-green-300">{fmtMoney(signal.suggestedTarget, 4)}</span></span>}
-        {signal.expectedRR != null && <span className="text-slate-400">R/R: <span className="font-mono">{fmtNum(signal.expectedRR, 2)}</span></span>}
-        <span className="text-slate-500 text-xs ml-auto">Rejim: <span className="uppercase text-slate-300">{signal.regime?.regime || '—'}</span></span>
-      </div>
-    </div>
-  )
-}
-
-function ParamEditor({ strategy, values, onChange }) {
-  if (!strategy?.params) return null
-  const numericKeys = Object.keys(strategy.params).filter(k => typeof strategy.params[k] === 'number')
-  return (
-    <div className="p-3 rounded-lg border border-slate-800 bg-slate-900/50">
-      <div className="flex items-center justify-between mb-2">
-        <div className="text-xs text-slate-400 flex items-center gap-1"><Sliders className="h-3 w-3" />Strateji Parametreleri (boş bırak = default)</div>
-        <button onClick={() => onChange({})} className="text-xs text-slate-500 hover:text-slate-300">Sıfırla</button>
-      </div>
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-        {numericKeys.map(k => (
-          <div key={k}>
-            <label className="block text-[10px] text-slate-500 mb-0.5 truncate" title={k}>{k}</label>
-            <input
-              type="number"
-              step={typeof strategy.params[k] === 'number' && strategy.params[k] < 10 ? 0.1 : 1}
-              placeholder={String(strategy.params[k])}
-              value={values?.[k] ?? ''}
-              onChange={e => {
-                const v = e.target.value
-                onChange({ ...values, [k]: v === '' ? undefined : +v })
-              }}
-              className="w-full bg-slate-800 border border-slate-700 rounded px-2 py-1 text-xs"
-            />
-          </div>
-        ))}
-      </div>
-    </div>
-  )
-}
-
-function WalkForwardChart({ windows }) {
-  if (!windows || windows.length === 0) return null
-  const maxAbs = Math.max(1, ...windows.flatMap(w => [Math.abs(w.inSample.ret), Math.abs(w.outSample.ret)]))
-  return (
-    <div className="mt-2 space-y-1">
-      {windows.map(w => (
-        <div key={w.window} className="flex items-center gap-2 text-[10px]">
-          <span className="w-8 text-slate-500">#{w.window}</span>
-          <div className="flex-1 relative h-5 bg-slate-800/30 rounded overflow-hidden">
-            <div className="absolute top-0 bottom-0 left-1/2 w-px bg-slate-600" />
-            <div
-              className={`absolute top-0.5 bottom-2.5 ${w.inSample.ret >= 0 ? 'left-1/2 bg-blue-500/40' : 'right-1/2 bg-blue-500/40'}`}
-              style={{ width: `${(Math.abs(w.inSample.ret) / maxAbs) * 50}%` }}
-            />
-            <div
-              className={`absolute top-2.5 bottom-0.5 ${w.outSample.ret >= 0 ? 'left-1/2 bg-gold-400/60' : 'right-1/2 bg-gold-400/60'}`}
-              style={{ width: `${(Math.abs(w.outSample.ret) / maxAbs) * 50}%` }}
-            />
-          </div>
-          <span className={`w-12 text-right ${w.inSample.ret >= 0 ? 'text-blue-300' : 'text-red-300'}`}>{fmtPct(w.inSample.ret, 1)}</span>
-          <span className={`w-12 text-right ${w.outSample.ret >= 0 ? 'text-gold-400' : 'text-red-300'}`}>{fmtPct(w.outSample.ret, 1)}</span>
-          <span className="w-4">{w.consistent ? '✓' : '✗'}</span>
-        </div>
-      ))}
-      <div className="flex gap-3 text-[10px] text-slate-500 pt-1">
-        <span className="flex items-center gap-1"><span className="w-2 h-2 bg-blue-500/40 inline-block" />In-Sample</span>
-        <span className="flex items-center gap-1"><span className="w-2 h-2 bg-gold-400/60 inline-block" />Out-Sample</span>
-      </div>
-    </div>
-  )
-}
-
-function TradingBotAdvanced() {
-  const [tab, setTab] = useState('backtest')
-  const [strategies, setStrategies] = useState([])
-  const [market, setMarket] = useState('crypto')
-  const [symbol, setSymbol] = useState('BTC')
-  const [strategyId, setStrategyId] = useState('supertrend')
-  const [timeframe, setTimeframe] = useState('4h')
-  const [lookback, setLookback] = useState(1000)
-  const [customParams, setCustomParams] = useState({})
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState(null)
-  const [backtest, setBacktest] = useState(null)
-  const [validation, setValidation] = useState(null)
-  const [scanResults, setScanResults] = useState(null)
-  const [compareResults, setCompareResults] = useState(null)
-  const [instantSignal, setInstantSignal] = useState(null)
-  const [signalLoading, setSignalLoading] = useState(false)
-
-  useEffect(() => {
-    let active = true
-    api.get('/trading-bot/strategies')
-      .then(r => { if (active) setStrategies(r.data.strategies || []) })
-      .catch(e => { if (active) setError('Strateji listesi yüklenemedi: ' + e.message) })
-    return () => { active = false }
+    window.addEventListener('resize', handleResize)
+    return () => {
+      window.removeEventListener('resize', handleResize)
+      chart.remove()
+    }
   }, [])
 
   useEffect(() => {
-    setSymbol(market === 'crypto' ? 'BTC' : 'THYAO')
-    setTimeframe(market === 'crypto' ? '4h' : '1d')
-  }, [market])
+    if (!chartRef.current || !Array.isArray(data)) return
+    const pts = data
+      .filter(p => p.date && isFinite(p.equity))
+      .map(p => ({ time: p.date, value: Number(p.equity) }))
+    chartRef.current.series.setData(pts)
+    if (pts.length > 0) chartRef.current.chart.timeScale().fitContent()
+  }, [data])
 
-  useEffect(() => { setCustomParams({}) }, [strategyId])
-
-  const cleanParams = useMemo(() => {
-    const out = {}
-    for (const k of Object.keys(customParams || {})) {
-      if (customParams[k] !== undefined && customParams[k] !== '' && isFinite(customParams[k])) out[k] = customParams[k]
-    }
-    return Object.keys(out).length ? out : undefined
-  }, [customParams])
-
-  const runBacktest = useCallback(async () => {
-    setLoading(true); setError(null); setBacktest(null)
-    try {
-      const r = await api.post('/trading-bot/backtest', { market, symbol: symbol.toUpperCase(), strategyId, timeframe, lookback: +lookback, params: cleanParams })
-      setBacktest(r.data.result)
-    } catch (e) {
-      setError(e.response?.data?.error || e.message)
-    } finally {
-      setLoading(false)
-    }
-  }, [market, symbol, strategyId, timeframe, lookback, cleanParams])
-
-  const runValidate = useCallback(async () => {
-    setLoading(true); setError(null); setValidation(null)
-    try {
-      const r = await api.post('/trading-bot/validate', { market, symbol: symbol.toUpperCase(), strategyId, timeframe, lookback: +lookback, params: cleanParams })
-      setValidation(r.data.result)
-    } catch (e) {
-      setError(e.response?.data?.error || e.message)
-    } finally {
-      setLoading(false)
-    }
-  }, [market, symbol, strategyId, timeframe, lookback, cleanParams])
-
-  const runScan = useCallback(async () => {
-    setLoading(true); setError(null); setScanResults(null)
-    try {
-      const r = await api.get(`/trading-bot/scan?market=${market}&strategyId=${strategyId}&timeframe=${timeframe}`)
-      setScanResults(r.data.result)
-    } catch (e) {
-      setError(e.response?.data?.error || e.message)
-    } finally {
-      setLoading(false)
-    }
-  }, [market, strategyId, timeframe])
-
-  const runCompare = useCallback(async () => {
-    setLoading(true); setError(null); setCompareResults(null)
-    try {
-      const r = await api.post('/trading-bot/compare-all', { market, symbol: symbol.toUpperCase(), timeframe, lookback: +lookback })
-      setCompareResults(r.data.result)
-    } catch (e) {
-      setError(e.response?.data?.error || e.message)
-    } finally {
-      setLoading(false)
-    }
-  }, [market, symbol, timeframe, lookback])
-
-  // Anında sinyal: sembol/strateji/tf değişince auto fetch (Backtest tab'ında görünür)
-  useEffect(() => {
-    if (tab !== 'backtest' || !symbol || !strategyId) return
-    let active = true
-    setSignalLoading(true)
-    api.get(`/trading-bot/signal?market=${market}&symbol=${symbol.toUpperCase()}&strategyId=${strategyId}&timeframe=${timeframe}`)
-      .then(r => { if (active) setInstantSignal(r.data.result) })
-      .catch(() => { if (active) setInstantSignal(null) })
-      .finally(() => { if (active) setSignalLoading(false) })
-    return () => { active = false }
-  }, [tab, market, symbol, strategyId, timeframe])
-
-  const tfs = market === 'crypto' ? TIMEFRAMES_CRYPTO : TIMEFRAMES_BIST
-  const defaults = market === 'crypto' ? CRYPTO_DEFAULTS : BIST_DEFAULTS
-  const activeStrat = strategies.find(s => s.id === strategyId)
-
-  return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 p-4 md:p-6">
-      <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="flex items-center gap-3 mb-2">
-          <Bot className="h-7 w-7 text-blue-400" />
-          <h1 className="text-2xl font-bold">Trading Bot</h1>
-          <span className="px-2 py-0.5 text-xs rounded-full bg-blue-500/20 text-blue-300 border border-blue-500/30">v1.0 — Freqtrade port</span>
-        </div>
-        <p className="text-sm text-slate-400 mb-5">
-          Freqtrade'in en çok kullanılan 5 stratejisi (NostalgiaForInfinity port'u dahil) Node.js'e taşındı +
-          Walk-Forward Analysis, Monte Carlo permutation, Out-of-Sample split, Slippage Stress Test ve Regime
-          Filter ile sertleştirildi. <span className="text-amber-400">Yatırım tavsiyesi değildir.</span>
-        </p>
-
-        {/* Tabs */}
-        <div className="flex flex-wrap gap-2 mb-5 border-b border-slate-800">
-          {TABS.map(t => {
-            const Icon = t.icon
-            const active = tab === t.id
-            return (
-              <button
-                key={t.id}
-                onClick={() => setTab(t.id)}
-                className={`flex items-center gap-2 px-4 py-2 text-sm rounded-t-lg border-b-2 transition ${active
-                  ? 'border-blue-500 text-blue-400 bg-blue-500/5'
-                  : 'border-transparent text-slate-400 hover:text-slate-200'}`}
-              >
-                <Icon className="h-4 w-4" />{t.label}
-              </button>
-            )
-          })}
-        </div>
-
-        {/* Controls */}
-        {tab !== 'info' && (
-          <div className="grid grid-cols-2 md:grid-cols-6 gap-3 mb-5 p-4 rounded-xl bg-slate-900/50 border border-slate-800">
-            <div className="col-span-2 md:col-span-1">
-              <label className="block text-xs text-slate-400 mb-1">Piyasa</label>
-              <select value={market} onChange={e => setMarket(e.target.value)}
-                className="w-full bg-slate-800 border border-slate-700 rounded px-2 py-1.5 text-sm">
-                {MARKETS.map(m => <option key={m.id} value={m.id}>{m.label}</option>)}
-              </select>
-            </div>
-            {tab !== 'scan' && (
-              <div className="col-span-2 md:col-span-1">
-                <label className="block text-xs text-slate-400 mb-1">Sembol</label>
-                <input value={symbol} onChange={e => setSymbol(e.target.value)} list="symList"
-                  className="w-full bg-slate-800 border border-slate-700 rounded px-2 py-1.5 text-sm uppercase" />
-                <datalist id="symList">
-                  {defaults.map(s => <option key={s} value={s} />)}
-                </datalist>
-              </div>
-            )}
-            <div className="col-span-2 md:col-span-1">
-              <label className="block text-xs text-slate-400 mb-1">Strateji</label>
-              <select value={strategyId} onChange={e => setStrategyId(e.target.value)}
-                className="w-full bg-slate-800 border border-slate-700 rounded px-2 py-1.5 text-sm">
-                {strategies.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-              </select>
-            </div>
-            <div className="col-span-1 md:col-span-1">
-              <label className="block text-xs text-slate-400 mb-1">Timeframe</label>
-              <select value={timeframe} onChange={e => setTimeframe(e.target.value)}
-                className="w-full bg-slate-800 border border-slate-700 rounded px-2 py-1.5 text-sm">
-                {tfs.map(t => <option key={t} value={t}>{t}</option>)}
-              </select>
-            </div>
-            {tab !== 'scan' && (
-              <div className="col-span-1 md:col-span-1">
-                <label className="block text-xs text-slate-400 mb-1">{market === 'crypto' ? 'Mum (max 1000)' : 'Gün (lookback)'}</label>
-                <input type="number" value={lookback} onChange={e => setLookback(e.target.value)} min={100} max={market === 'crypto' ? 1000 : 1825}
-                  className="w-full bg-slate-800 border border-slate-700 rounded px-2 py-1.5 text-sm" />
-              </div>
-            )}
-            <div className={`col-span-2 ${tab === 'scan' ? 'md:col-span-3' : 'md:col-span-1'} flex items-end`}>
-              <button
-                onClick={
-                  tab === 'backtest' ? runBacktest :
-                  tab === 'validate' ? runValidate :
-                  tab === 'compare'  ? runCompare  :
-                  runScan
-                }
-                disabled={loading}
-                className="w-full px-4 py-1.5 rounded bg-blue-600 hover:bg-blue-500 disabled:bg-slate-700 text-white text-sm font-medium flex items-center justify-center gap-2 transition"
-              >
-                {loading ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
-                {loading ? 'Çalışıyor...' : (
-                  tab === 'backtest' ? 'Backtest Çalıştır' :
-                  tab === 'validate' ? 'Sınamayı Başlat' :
-                  tab === 'compare'  ? 'Stratejileri Karşılaştır' :
-                  'Universe Tara'
-                )}
-              </button>
-            </div>
-          </div>
-        )}
-
-        {tab === 'backtest' && (
-          <div className="mb-4 space-y-3">
-            <InstantSignalCard signal={instantSignal} loading={signalLoading} />
-            <ParamEditor strategy={strategies.find(s => s.id === strategyId)} values={customParams} onChange={setCustomParams} />
-          </div>
-        )}
-
-        {/* Error */}
-        {error && (
-          <div className="mb-4 p-3 rounded border border-red-500/40 bg-red-500/10 text-red-300 text-sm flex items-center gap-2">
-            <AlertTriangle className="h-4 w-4" />{error}
-          </div>
-        )}
-
-        {/* === BACKTEST TAB === */}
-        {tab === 'backtest' && backtest && (
-          <div className="space-y-4">
-            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
-              <MetricCard label="Toplam Getiri" value={fmtPct(backtest.metrics.totalReturnPct)} tone={backtest.metrics.totalReturnPct > 0 ? 'pos' : 'neg'} />
-              <MetricCard label="Risk-Getiri (Sharpe)" value={fmtNum(backtest.metrics.sharpe)} tone={backtest.metrics.sharpe > 1 ? 'pos' : backtest.metrics.sharpe < 0 ? 'neg' : 'warn'} />
-              <MetricCard label="Sortino" value={fmtNum(backtest.metrics.sortino)} tone={backtest.metrics.sortino > 1 ? 'pos' : 'neutral'} />
-              <MetricCard label="Kâr Katsayısı" value={fmtPF(backtest.metrics.profitFactor)} tone={backtest.metrics.profitFactor > 1.5 ? 'pos' : 'neutral'} />
-              <MetricCard label="En Kötü Düşüş" value={fmtPct(-backtest.metrics.maxDDPct)} tone="neg" />
-              <MetricCard label="Kârlı Oran" value={`${backtest.metrics.winRate}%`} tone={backtest.metrics.winRate > 50 ? 'pos' : 'warn'} />
-              <MetricCard label="Toplam İşlem" value={backtest.metrics.totalTrades} />
-              <MetricCard label="Beklenen Kazanç (R)" value={fmtNum(backtest.metrics.expectancyR, 3)} tone={backtest.metrics.expectancyR > 0 ? 'pos' : 'neg'} />
-              <MetricCard label="Ort. Tutma Süresi" value={backtest.metrics.avgTradeBars} />
-              <MetricCard label="Brüt Kâr" value={fmtMoney(backtest.metrics.grossProfit)} tone="pos" />
-              <MetricCard label="Brüt Zarar" value={fmtMoney(backtest.metrics.grossLoss)} tone="neg" />
-              <MetricCard label="Bakiye" value={fmtMoney(backtest.finalBalance)} tone={backtest.finalBalance > backtest.initialBalance ? 'pos' : 'neg'} />
-            </div>
-
-            <div className="p-4 rounded-xl bg-slate-900/50 border border-slate-800">
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="text-sm font-semibold flex items-center gap-2"><BarChart3 className="h-4 w-4 text-blue-400" />Equity Eğrisi</h3>
-                <div className="text-xs text-slate-400">{backtest.candlesCount} mum · {backtest.from?.slice(0,10)} → {backtest.to?.slice(0,10)}</div>
-              </div>
-              <EquityChart equity={backtest.equityCurve} />
-            </div>
-
-            <div className="p-4 rounded-xl bg-slate-900/50 border border-slate-800">
-              <h3 className="text-sm font-semibold mb-3 flex items-center gap-2"><Activity className="h-4 w-4 text-blue-400" />İşlemler (son 30)</h3>
-              <div className="overflow-x-auto">
-                <table className="w-full text-xs">
-                  <thead className="text-slate-400 border-b border-slate-800">
-                    <tr>
-                      <th className="text-left py-2 pr-2">Giriş</th>
-                      <th className="text-right pr-2">Fiyat</th>
-                      <th className="text-left pr-2">Çıkış</th>
-                      <th className="text-right pr-2">Fiyat</th>
-                      <th className="text-right pr-2">PnL %</th>
-                      <th className="text-right pr-2">R</th>
-                      <th className="text-right pr-2">Bar</th>
-                      <th className="text-left">Sebep</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {(backtest.trades || []).slice(-30).reverse().map((t, i) => (
-                      <tr key={i} className="border-b border-slate-800/40">
-                        <td className="py-1.5 pr-2 text-slate-300">{new Date(t.entryTime * 1000).toLocaleString('tr-TR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</td>
-                        <td className="text-right pr-2 text-slate-400">{fmtMoney(t.entryPrice, 4)}</td>
-                        <td className="pr-2 text-slate-300">{new Date(t.exitTime * 1000).toLocaleString('tr-TR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</td>
-                        <td className="text-right pr-2 text-slate-400">{fmtMoney(t.exitPrice, 4)}</td>
-                        <td className={`text-right pr-2 font-medium ${t.pnlPct >= 0 ? 'text-green-400' : 'text-red-400'}`}>{fmtPct(t.pnlPct)}</td>
-                        <td className={`text-right pr-2 ${(t.R || 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>{fmtNum(t.R, 2)}</td>
-                        <td className="text-right pr-2 text-slate-400">{t.barsHeld}</td>
-                        <td className="text-slate-400">{t.reason}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-                {(!backtest.trades || backtest.trades.length === 0) && (
-                  <div className="text-slate-500 text-sm py-4 text-center">Bu dönemde işlem üretilmedi.</div>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* === VALIDATE TAB === */}
-        {tab === 'validate' && validation && (
-          <div className="space-y-4">
-            <VerdictBadge score={validation.robustnessScore} verdict={validation.verdict} />
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Walk-forward */}
-              <div className="p-4 rounded-xl bg-slate-900/50 border border-slate-800">
-                <h3 className="text-sm font-semibold mb-2 flex items-center gap-2"><Zap className="h-4 w-4 text-blue-400" />Walk-Forward Analysis</h3>
-                <p className="text-xs text-slate-400 mb-3">Robert Pardo 1992. Veri 5 pencereye bölünür, her pencerede %70 in-sample → %30 out-of-sample. İşaretler tutarlıysa edge gerçektir.</p>
-                {validation.walkForward.error ? (
-                  <div className="text-xs text-amber-300">{validation.walkForward.error}</div>
-                ) : (
-                  <>
-                    <WalkForwardChart windows={validation.walkForward.windows} />
-                    <div className="mt-3 text-xs text-slate-300">Tutarlılık skoru: <span className="font-semibold">{validation.walkForward.score}%</span> · {validation.walkForward.windows?.filter(w => w.consistent).length || 0}/{validation.walkForward.windows?.length || 0} pencere aynı yönde</div>
-                  </>
-                )}
-              </div>
-
-              {/* Out-of-sample */}
-              <div className="p-4 rounded-xl bg-slate-900/50 border border-slate-800">
-                <h3 className="text-sm font-semibold mb-2 flex items-center gap-2"><Target className="h-4 w-4 text-blue-400" />Out-of-Sample (70/30)</h3>
-                <p className="text-xs text-slate-400 mb-3">Veri tek seferlik bölünür. In-sample'da edge varsa out-sample'da da olmalı; aksi: overfit.</p>
-                <div className="grid grid-cols-2 gap-2 text-xs">
-                  <div className="p-2 rounded bg-slate-800/50">
-                    <div className="text-slate-500">In-Sample</div>
-                    <div>Sharpe: <span className="text-slate-200">{fmtNum(validation.outOfSample?.inSample?.sharpe)}</span></div>
-                    <div>Getiri: <span className={validation.outOfSample?.inSample?.totalReturnPct > 0 ? 'text-green-400' : 'text-red-400'}>{fmtPct(validation.outOfSample?.inSample?.totalReturnPct)}</span></div>
-                    <div>Trade: {validation.outOfSample?.inSample?.totalTrades}</div>
-                  </div>
-                  <div className="p-2 rounded bg-slate-800/50">
-                    <div className="text-slate-500">Out-Sample</div>
-                    <div>Sharpe: <span className="text-slate-200">{fmtNum(validation.outOfSample?.outSample?.sharpe)}</span></div>
-                    <div>Getiri: <span className={validation.outOfSample?.outSample?.totalReturnPct > 0 ? 'text-green-400' : 'text-red-400'}>{fmtPct(validation.outOfSample?.outSample?.totalReturnPct)}</span></div>
-                    <div>Trade: {validation.outOfSample?.outSample?.totalTrades}</div>
-                  </div>
-                </div>
-                <div className="mt-2 text-xs text-slate-300">Sharpe Degradasyonu: <span className="font-semibold text-amber-400">{fmtNum(validation.outOfSample?.sharpeDegradationPct)}%</span></div>
-              </div>
-
-              {/* Monte Carlo */}
-              <div className="p-4 rounded-xl bg-slate-900/50 border border-slate-800">
-                <h3 className="text-sm font-semibold mb-2 flex items-center gap-2"><Activity className="h-4 w-4 text-blue-400" />Monte Carlo (1000 koşu)</h3>
-                <p className="text-xs text-slate-400 mb-3">İşlem sırası 1000 kez bootstrap-permüte edilir. Edge gerçekse %95 senaryoda kârlı kalır.</p>
-                {validation.monteCarlo.error ? (
-                  <div className="p-2 rounded bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs flex items-start gap-2">
-                    <AlertTriangle className="h-3 w-3 flex-shrink-0 mt-0.5" />
-                    <div>{validation.monteCarlo.error}<br /><span className="text-slate-500">Daha uzun lookback'te tekrar dene veya farklı bir TF seç.</span></div>
-                  </div>
-                ) : (
-                  <div className="text-xs space-y-1">
-                    <div>5%-tile (kötü senaryo): <span className="text-red-400 font-mono">${fmtMoney(validation.monteCarlo.p5Final)}</span></div>
-                    <div>Medyan: <span className="text-slate-200 font-mono">${fmtMoney(validation.monteCarlo.medianFinal)}</span></div>
-                    <div>95%-tile (iyi senaryo): <span className="text-green-400 font-mono">${fmtMoney(validation.monteCarlo.p95Final)}</span></div>
-                    <div className="pt-1 border-t border-slate-800">Medyan max DD: <span className="text-amber-400">{fmtNum(validation.monteCarlo.medianMaxDD)}%</span> · 95%-tile DD: <span className="text-red-400">{fmtNum(validation.monteCarlo.p95MaxDD)}%</span></div>
-                    <div>Kârlı koşu oranı: <span className="font-semibold">{validation.monteCarlo.profitableRate}%</span></div>
-                  </div>
-                )}
-              </div>
-
-              {/* Slippage stress */}
-              <div className="p-4 rounded-xl bg-slate-900/50 border border-slate-800">
-                <h3 className="text-sm font-semibold mb-2 flex items-center gap-2"><AlertTriangle className="h-4 w-4 text-amber-400" />Slippage Stress Test</h3>
-                <p className="text-xs text-slate-400 mb-3">Slippage 0 → 50 bps yükseltilir. Sağlam strateji 20 bps'de bile kârlı kalır.</p>
-                <div className="text-xs">
-                  <div className="flex justify-between border-b border-slate-800 pb-1 mb-1 font-semibold text-slate-400">
-                    <span>Slip (bps)</span><span>Sharpe</span><span>Getiri</span><span>OK</span>
-                  </div>
-                  {(validation.slippageStress.stress || []).map((s, i) => (
-                    <div key={i} className="flex justify-between py-1 border-b border-slate-800/40">
-                      <span>{s.slippageBps}</span>
-                      <span>{fmtNum(s.sharpe)}</span>
-                      <span className={s.ret > 0 ? 'text-green-400' : 'text-red-400'}>{fmtPct(s.ret)}</span>
-                      <span>{s.profitable ? '✓' : '✗'}</span>
-                    </div>
-                  ))}
-                  <div className="mt-2">Sağlamlık: <span className="font-semibold">{validation.slippageStress.score}%</span></div>
-                </div>
-              </div>
-
-              {/* Regime */}
-              <div className="p-4 rounded-xl bg-slate-900/50 border border-slate-800 md:col-span-2">
-                <h3 className="text-sm font-semibold mb-2 flex items-center gap-2"><Award className="h-4 w-4 text-blue-400" />Piyasa Rejimi (son 60 mum)</h3>
-                <div className="flex flex-wrap gap-4 text-sm">
-                  <div>Rejim: <span className="font-semibold uppercase text-blue-300">{validation.regime?.regime}</span></div>
-                  <div>Trend: <span className={validation.regime?.trendPct > 0 ? 'text-green-400' : 'text-red-400'}>{fmtPct(validation.regime?.trendPct)}</span></div>
-                  <div>Günlük volatilite: <span className="text-amber-400">{fmtNum(validation.regime?.dailyVolPct)}%</span></div>
-                </div>
-                <p className="text-xs text-slate-500 mt-2">Trend-takip stratejileri (Supertrend, EMA Ribbon) <b>trending</b> rejimde iyidir; mean-reversion (BBRSI, NostalgiaLite) <b>ranging</b>'de.</p>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* === COMPARE TAB === */}
-        {tab === 'compare' && compareResults && (
-          <div className="space-y-3">
-            <div className="flex items-center gap-2 text-sm">
-              <Trophy className="h-5 w-5 text-yellow-400" />
-              <span className="font-semibold">{compareResults.symbol}</span>
-              <span className="text-slate-500">·</span>
-              <span className="text-slate-400">En iyi (Sharpe):</span>
-              {compareResults.bestStrategy ? <span className="px-2 py-0.5 rounded bg-blue-500/20 text-blue-300 font-medium">{compareResults.bestStrategy}</span> : <span className="text-slate-500">—</span>}
-              <span className="text-slate-500 text-xs ml-auto">{new Date(compareResults.scannedAt).toLocaleString('tr-TR')}</span>
-            </div>
-            <div className="overflow-x-auto rounded-xl border border-slate-800 bg-slate-900/50">
-              <table className="w-full text-xs">
-                <thead className="text-slate-400 border-b border-slate-800 bg-slate-900/80">
-                  <tr>
-                    <th className="text-left p-2">#</th>
-                    <th className="text-left p-2">Strateji</th>
-                    <th className="text-left p-2">Yön</th>
-                    <th className="text-left p-2">TF</th>
-                    <th className="text-right p-2">Sharpe</th>
-                    <th className="text-right p-2">Getiri</th>
-                    <th className="text-right p-2">PF</th>
-                    <th className="text-right p-2">Max DD</th>
-                    <th className="text-right p-2">Win%</th>
-                    <th className="text-right p-2">İşlem</th>
-                    <th className="text-right p-2">Beklenen R</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {compareResults.rankedBySharpe.map((s, i) => (
-                    <tr key={s.strategyId} className={`border-b border-slate-800/40 hover:bg-slate-800/30 ${i === 0 ? 'bg-yellow-500/5' : ''}`}>
-                      <td className="p-2 text-slate-500">{i + 1}{i === 0 && ' 🥇'}</td>
-                      <td className="p-2 font-medium text-slate-200">{s.name}</td>
-                      <td className="p-2"><span className={`px-1.5 py-0.5 rounded text-[10px] ${s.direction === 'long' ? 'bg-green-500/15 text-green-300' : 'bg-red-500/15 text-red-300'}`}>{s.direction}</span></td>
-                      <td className="p-2 text-slate-400">{s.timeframe}</td>
-                      <td className={`p-2 text-right font-mono ${s.metrics.sharpe > 1 ? 'text-green-400' : s.metrics.sharpe < 0 ? 'text-red-400' : 'text-slate-300'}`}>{fmtNum(s.metrics.sharpe)}</td>
-                      <td className={`p-2 text-right font-mono ${s.metrics.totalReturnPct > 0 ? 'text-green-400' : 'text-red-400'}`}>{fmtPct(s.metrics.totalReturnPct)}</td>
-                      <td className="p-2 text-right font-mono text-slate-300">{fmtPF(s.metrics.profitFactor)}</td>
-                      <td className="p-2 text-right font-mono text-red-300">{fmtPct(-s.metrics.maxDDPct, 1)}</td>
-                      <td className="p-2 text-right font-mono text-slate-300">{s.metrics.winRate}%</td>
-                      <td className="p-2 text-right text-slate-400">{s.metrics.totalTrades}</td>
-                      <td className={`p-2 text-right font-mono ${s.metrics.expectancyR > 0 ? 'text-green-400' : 'text-red-400'}`}>{fmtNum(s.metrics.expectancyR, 3)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            {compareResults.failed.length > 0 && (
-              <div className="text-xs text-amber-300 p-2 rounded border border-amber-500/30 bg-amber-500/5">
-                Çalıştırılamayan: {compareResults.failed.map(f => `${f.strategyId} (${f.error})`).join(', ')}
-              </div>
-            )}
-            <div className="text-xs text-slate-500">
-              Sharpe yüksek = risk-ayarlı getiri yüksek. PF (Profit Factor) {'>'} 1.5 idealdir. Beklenen R = ortalama R-multiple,
-              pozitif olması gerekli. Bu karşılaştırma <b>sadece bu zaman aralığı</b> içindir — başka rejimde sıralama değişebilir.
-            </div>
-          </div>
-        )}
-
-        {/* === SCAN TAB === */}
-        {tab === 'scan' && scanResults && (
-          <div className="space-y-3">
-            <div className="text-xs text-slate-400">
-              {scanResults.hits.length} sembol giriş sinyali verdi · Universe: <span className="text-slate-200">{scanResults.universe}</span> · {new Date(scanResults.scannedAt).toLocaleString('tr-TR')}
-            </div>
-            {scanResults.hits.length === 0 ? (
-              <div className="p-6 text-center text-slate-500 border border-slate-800 rounded-xl bg-slate-900/30">
-                Şu an bu strateji için giriş sinyali yok. Piyasa rejimi uygun olmayabilir — Sınama sekmesinden rejimi kontrol edin.
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                {scanResults.hits.map(h => (
-                  <div key={h.symbol} className="p-3 rounded-lg border border-green-500/30 bg-green-500/5">
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="font-semibold text-lg">{h.symbol}</div>
-                      <span className="px-2 py-0.5 text-xs rounded bg-green-500/20 text-green-300">{h.signal}</span>
-                    </div>
-                    <div className="text-xs space-y-1">
-                      <div className="flex justify-between"><span className="text-slate-500">Fiyat</span><span className="font-mono">{fmtMoney(h.lastClose, 4)}</span></div>
-                      {h.suggestedStop != null && (
-                        <div className="flex justify-between"><span className="text-slate-500">Stop</span><span className="font-mono text-red-400">{fmtMoney(h.suggestedStop, 4)}</span></div>
-                      )}
-                      {h.suggestedTarget != null && (
-                        <div className="flex justify-between"><span className="text-slate-500">Hedef</span><span className="font-mono text-green-400">{fmtMoney(h.suggestedTarget, 4)}</span></div>
-                      )}
-                      {h.expectedRR != null && (
-                        <div className="flex justify-between"><span className="text-slate-500">R/R</span><span className="font-mono">{fmtNum(h.expectedRR, 2)}</span></div>
-                      )}
-                      <div className="flex justify-between"><span className="text-slate-500">Rejim</span><span>{h.regime?.regime}</span></div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* === INFO TAB === */}
-        {tab === 'info' && (
-          <div className="space-y-3">
-            <div className="p-4 rounded-xl bg-blue-500/5 border border-blue-500/20 text-sm">
-              <div className="flex items-start gap-2">
-                <Info className="h-5 w-5 text-blue-400 flex-shrink-0 mt-0.5" />
-                <div>
-                  <div className="font-semibold mb-1 text-blue-300">Trading Bot v1.0 — Nasıl çalışır?</div>
-                  <p className="text-slate-300 mb-2">
-                    Freqtrade, GitHub'da 25k+ yıldızlı en olgun açık kaynak crypto trading bot framework'üdür. Bu sayfa
-                    onun en çok kullanılan 5 stratejisini Node.js'e port eder ve üstüne <b>bizim sertleştirme katmanımızı</b>
-                    ekler. Strateji ham backtest geçse bile, Walk-Forward + Monte Carlo + OOS testlerini geçmiyorsa
-                    "overfit" sayılır ve <span className="text-red-400">REJECT</span> alır.
-                  </p>
-                  <p className="text-slate-400 text-xs">Kaynaklar: <a href="https://github.com/freqtrade/freqtrade" className="text-blue-400 underline" target="_blank" rel="noreferrer">freqtrade</a>, <a href="https://github.com/iterativv/NostalgiaForInfinity" className="text-blue-400 underline" target="_blank" rel="noreferrer">NostalgiaForInfinity</a>, <a href="https://github.com/jesse-ai/jesse" className="text-blue-400 underline" target="_blank" rel="noreferrer">Jesse</a>.</p>
-                </div>
-              </div>
-            </div>
-
-            {strategies.map(s => (
-              <div key={s.id} className="p-4 rounded-xl bg-slate-900/50 border border-slate-800">
-                <div className="flex items-center justify-between mb-2">
-                  <h3 className="font-semibold text-lg flex items-center gap-2">
-                    <TrendingUp className="h-4 w-4 text-blue-400" />{s.name}
-                  </h3>
-                  <div className="flex gap-2 text-xs">
-                    <span className="px-2 py-0.5 rounded bg-slate-800 text-slate-300">TF: {s.timeframe}</span>
-                    <span className="px-2 py-0.5 rounded bg-slate-800 text-slate-300">Yön: {s.direction}</span>
-                    <span className="px-2 py-0.5 rounded bg-slate-800 text-slate-300">Warmup: {s.warmup}</span>
-                  </div>
-                </div>
-                <p className="text-sm text-slate-300 mb-2">{s.description}</p>
-                <details className="text-xs text-slate-400">
-                  <summary className="cursor-pointer hover:text-slate-300">Parametreler</summary>
-                  <pre className="mt-1 p-2 rounded bg-slate-800/50 overflow-x-auto">{JSON.stringify(s.params, null, 2)}</pre>
-                </details>
-              </div>
-            ))}
-
-            <div className="p-4 rounded-xl bg-slate-900/50 border border-slate-800">
-              <h3 className="font-semibold mb-2 flex items-center gap-2"><ShieldCheck className="h-4 w-4 text-green-400" />Bizim Eklediğimiz Sınama Katmanı</h3>
-              <ul className="text-sm text-slate-300 space-y-1.5 list-disc list-inside">
-                <li><b>Walk-Forward Analysis</b>: Veri 5 pencereye bölünür, her birinde %70 in / %30 out backtest yapılır. Trade endüstrisinde "robustness gold standard" — Robert Pardo 1992.</li>
-                <li><b>Monte Carlo Permutation (1000×)</b>: İşlem sırası random shuffle ile 1000 kez yeniden simüle edilir. Edge gerçekse %95 dağılım kârlı.</li>
-                <li><b>Out-of-Sample Split (70/30)</b>: Tek seferlik in/out bölme, "Sharpe degradation" yüzdesi raporlanır. %30+ degradasyon overfit işareti.</li>
-                <li><b>Slippage Stress Test</b>: Slippage 0/5/10/20/50 bps'te tekrar koşulur — strateji slip artarken çöker mi?</li>
-                <li><b>Market Regime Filter</b>: Son 60 mumun trend %'si + günlük volatilite ile rejim sınıflandırılır (trending / ranging / volatile / mixed).</li>
-              </ul>
-              <p className="text-xs text-slate-500 mt-3">
-                Bu 5 testin ortalaması <b>Robustness Score</b> üretir: ≥75 STRONG · ≥60 OK · ≥40 WEAK · &lt;40 REJECT.
-              </p>
-            </div>
-          </div>
-        )}
-
-        {!loading && !error && !backtest && tab === 'backtest' && (
-          <div className="text-center py-12 text-slate-500">
-            <Bot className="h-12 w-12 mx-auto mb-3 text-slate-700" />
-            <div>Strateji + sembol seç ve <b>Backtest Çalıştır</b>'a bas.</div>
-            <div className="text-xs mt-1">Veri Binance/Yahoo'dan canlı çekilir. 5dk cache.</div>
-          </div>
-        )}
-        {!loading && !error && !validation && tab === 'validate' && (
-          <div className="text-center py-12 text-slate-500">
-            <ShieldCheck className="h-12 w-12 mx-auto mb-3 text-slate-700" />
-            <div>Stratejinin gerçek edge'i var mı görmek için <b>Sınamayı Başlat</b>'a bas.</div>
-            <div className="text-xs mt-1">5 bağımsız test + robustness skoru (1-2 dakika sürebilir).</div>
-          </div>
-        )}
-        {!loading && !error && !scanResults && tab === 'scan' && (
-          <div className="text-center py-12 text-slate-500">
-            <Search className="h-12 w-12 mx-auto mb-3 text-slate-700" />
-            <div>Strateji + market seç ve <b>Universe Tara</b>'ya bas.</div>
-            <div className="text-xs mt-1">{market === 'crypto' ? 'Top 15 kripto' : 'BIST30'} taranır; ENTRY_LONG veya ENTRY_SHORT olanlar listelenir.</div>
-          </div>
-        )}
-        {!loading && !error && !compareResults && tab === 'compare' && (
-          <div className="text-center py-12 text-slate-500">
-            <Trophy className="h-12 w-12 mx-auto mb-3 text-slate-700" />
-            <div>Sembol + TF seç ve <b>Stratejileri Karşılaştır</b>'a bas.</div>
-            <div className="text-xs mt-1">7 strateji aynı sembolde paralel çalışır, Sharpe'a göre sıralanır. En üst sıra şampiyondur.</div>
-          </div>
-        )}
-      </div>
-    </div>
-  )
+  return <div ref={ref} className="w-full" />
 }
 
-/* ─────────────────────────────────────────────────────────────────────────
-   Parça 3 — Sade kapak.
-   - ?advanced=true → eski TradingBotAdvanced ekranı
-   - aktif bot varsa → BotStatusCard
-   - yoksa → 3 BotRiskCard + Kağıt Üzerinde Dene linki
-   - kart seçilirse → BotSetupWizard
-   - Cesur Bot ilk kez seçilirse → RiskAcknowledgeModal
-   ───────────────────────────────────────────────────────────────────────── */
-export default function TradingBot() {
-  const [searchParams, setSearchParams] = useSearchParams()
-  const advanced = searchParams.get('advanced') === 'true'
-  const [active, setActive] = useState(() => getActiveBot())
-  const [chosenProfile, setChosenProfile] = useState(null)
-  const [riskModal, setRiskModal] = useState(null)   // 'bold' | null
-
-  // localStorage değişikliklerini izle (başka tab'dan da gelirse)
-  useEffect(() => {
-    const refresh = () => setActive(getActiveBot())
-    window.addEventListener('storage', refresh)
-    return () => window.removeEventListener('storage', refresh)
-  }, [])
-
-  if (advanced) {
-    return <TradingBotAdvanced />
-  }
-
-  const handleSelectProfile = (id) => {
-    if (id === 'bold' && !isBoldAcknowledged()) {
-      setRiskModal('bold')
-      return
-    }
-    setChosenProfile(id)
-  }
-
-  const handleAckBold = () => {
-    setBoldAcknowledged()
-    setRiskModal(null)
-    setChosenProfile('bold')
-  }
-
-  const handleStarted = () => {
-    setChosenProfile(null)
-    setActive(getActiveBot())
-  }
-
-  const handleStop = () => {
-    setActive(null)
-    setChosenProfile(null)
-  }
-
-  const openAdvanced = () => {
-    const params = new URLSearchParams(searchParams)
-    params.set('advanced', 'true')
-    setSearchParams(params)
-  }
-
-  // 1) Aktif bot varsa StatusCard
-  if (active) {
-    return (
-      <div className="space-y-4 max-w-4xl mx-auto">
-        <BotStatusCard active={active} onStop={handleStop} onAdvanced={openAdvanced} />
+// ── Genel Bakış sekmesi ──────────────────────────────────────────────────
+function OverviewTab({ status, loading, onRefresh }) {
+  const p = status?.portfolio || {}
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h2 className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>
+          Bot performansı
+        </h2>
+        <button
+          onClick={onRefresh}
+          className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border"
+          style={{ background: 'rgba(255,255,255,0.05)', borderColor: 'var(--border-subtle)', color: 'var(--text-secondary)' }}
+        >
+          <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+          Yenile
+        </button>
       </div>
-    )
-  }
 
-  // 2) Profil seçildi → Wizard
-  if (chosenProfile) {
-    return (
-      <div className="space-y-4 max-w-2xl mx-auto">
-        <BotSetupWizard
-          profileId={chosenProfile}
-          onCancel={() => setChosenProfile(null)}
-          onStarted={handleStarted}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <KpiCard
+          icon={Award}
+          label="Toplam Getiri"
+          value={fmtPct(p.totalRealizedPnLPct)}
+          sub={`${fmtMoney(p.totalRealizedPnL)} TL gerçekleşen`}
+          tone={(p.totalRealizedPnLPct || 0) >= 0 ? 'good' : 'bad'}
+        />
+        <KpiCard
+          icon={Target}
+          label="Kazanma Oranı"
+          value={`%${(p.winRate ?? 0).toFixed(1)}`}
+          sub={`${p.winCount || 0} kazanç / ${p.lossCount || 0} kayıp`}
+          tone="gold"
+        />
+        <KpiCard
+          icon={Activity}
+          label="Açık Pozisyon"
+          value={`${status?.openCount ?? 0}`}
+          sub={`${status?.pendingCount ?? 0} pending · ${fmtMoney(status?.unrealizedPnL)} TL anlık`}
+        />
+        <KpiCard
+          icon={Bot}
+          label="Sanal Sermaye"
+          value={`${fmtMoney(status?.equity)} TL`}
+          sub={`Nakit ${fmtMoney(p.cash)} · Başlangıç ${fmtMoney(p.capital)}`}
         />
       </div>
-    )
-  }
 
-  // 3) Risk seçim ekranı
-  return (
-    <div className="space-y-6 max-w-5xl mx-auto">
-      <header className="space-y-2">
-        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight" style={{ color: 'var(--text-primary)' }}>
-          Bot kurulumu
-        </h1>
-        <p className="text-sm sm:text-base" style={{ color: 'var(--text-secondary)' }}>
-          Hangi riski tercih edersin? Sonraki adımda bütçe seçeceksin, sonra başlat.
-        </p>
-      </header>
-
-      <a
-        href="/botlar?tab=paper"
-        className="inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold"
-        style={{
-          background: 'rgba(212, 175, 55, 0.10)',
-          color: 'var(--gold-400)',
-          border: '1px solid var(--border-gold)',
-        }}
-      >
-        <FlaskConical className="w-4 h-4" />
-        İlk kez mi? Önce Kağıt Üzerinde Dene →
-      </a>
-
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4">
-        {BOT_PROFILE_LIST.map((p) => (
-          <BotRiskCard key={p.id} profile={p} onSelect={handleSelectProfile} />
-        ))}
+      <div className="rounded-2xl p-4 border"
+           style={{ background: 'rgba(255,255,255,0.02)', borderColor: 'var(--border-subtle)' }}>
+        <div className="text-xs uppercase tracking-wider mb-3"
+             style={{ color: 'var(--text-secondary)' }}>
+          Sanal portföy eğrisi
+        </div>
+        <EquityChart data={p.equityHistory || []} />
       </div>
 
-      <button
-        type="button"
-        onClick={openAdvanced}
-        className="text-[12px] underline"
-        style={{ color: 'var(--text-faint)' }}
-      >
-        Gelişmiş mod (eski ekran)
-      </button>
+      <div className="rounded-xl p-3 text-xs border"
+           style={{ background: 'rgba(59,130,246,0.06)', borderColor: 'rgba(59,130,246,0.25)', color: 'var(--text-secondary)' }}>
+        <strong style={{ color: '#60a5fa' }}>Nasıl çalışıyor?</strong> Bot, Bugünün Sinyalleri sekmesinde verilen
+        <em> AL (LONG) </em> sinyallerini sanal portföyle takip eder. Trend sinyallerinde piyasa fiyatından girer,
+        Reversion sinyallerinde fiyat zone'a düşene kadar bekler. Kâr arttıkça SL kademeli olarak yukarı taşınır
+        (R-basamağı + ATR×2 tavanı). Pozisyonlar TP'ye, SL'e veya 10 işgününe ulaşınca kapanır.
+        Verilen tüm sinyaller değişmez log'da saklanır.
+      </div>
+    </div>
+  )
+}
 
-      <RiskAcknowledgeModal
-        open={riskModal === 'bold'}
-        onClose={() => setRiskModal(null)}
-        onAcknowledge={handleAckBold}
-        title="Cesur Bot — yüksek risk"
-        body={BOT_PROFILES.bold.desc + ' Bu seçim büyük kazanç ihtimali olduğu kadar büyük kayıp ihtimali de taşır.'}
+// ── Açık Pozisyonlar sekmesi ─────────────────────────────────────────────
+function OpenPositionsTab({ open, pending, onRefresh, loading }) {
+  const [expanded, setExpanded] = useState(null)
+  const toggle = (id) => setExpanded(expanded === id ? null : id)
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h2 className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>
+          Aktif pozisyonlar ({open.length} açık · {pending.length} bekleyen)
+        </h2>
+        <button
+          onClick={onRefresh}
+          className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border"
+          style={{ background: 'rgba(255,255,255,0.05)', borderColor: 'var(--border-subtle)', color: 'var(--text-secondary)' }}
+        >
+          <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} /> Yenile
+        </button>
+      </div>
+
+      {open.length === 0 && pending.length === 0 && (
+        <EmptyState text="Şu an açık veya bekleyen pozisyon yok. Yeni sinyaller geldikçe burada görünecek." />
+      )}
+
+      {open.length > 0 && (
+        <PositionTable
+          title="Açık pozisyonlar"
+          positions={open}
+          expanded={expanded}
+          onToggle={toggle}
+          mode="open"
+        />
+      )}
+      {pending.length > 0 && (
+        <PositionTable
+          title="Bekleyen pozisyonlar (zone'a değiş bekleniyor)"
+          positions={pending}
+          expanded={expanded}
+          onToggle={toggle}
+          mode="pending"
+        />
+      )}
+    </div>
+  )
+}
+
+function PositionTable({ title, positions, expanded, onToggle, mode }) {
+  return (
+    <div className="rounded-2xl border overflow-hidden"
+         style={{ background: 'rgba(255,255,255,0.02)', borderColor: 'var(--border-subtle)' }}>
+      <div className="px-4 py-2.5 text-xs uppercase tracking-wider border-b"
+           style={{ color: 'var(--text-secondary)', borderColor: 'var(--border-subtle)' }}>
+        {title}
+      </div>
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="text-left text-xs uppercase"
+                style={{ color: 'var(--text-faint)' }}>
+              <th className="px-3 py-2">Sembol</th>
+              <th className="px-3 py-2">Strateji</th>
+              <th className="px-3 py-2">Sinyal Tarihi</th>
+              {mode === 'open' && <th className="px-3 py-2 text-right">Giriş</th>}
+              {mode === 'open' && <th className="px-3 py-2 text-right">Son Fiyat</th>}
+              {mode === 'pending' && <th className="px-3 py-2 text-right">Beklenen Giriş</th>}
+              <th className="px-3 py-2 text-right">SL</th>
+              <th className="px-3 py-2 text-right">TP</th>
+              {mode === 'open' && <th className="px-3 py-2 text-right">Anlık P&L</th>}
+              <th className="px-3 py-2"></th>
+            </tr>
+          </thead>
+          <tbody>
+            {positions.map(pos => {
+              const last = pos.lastPrice ?? pos.entryPrice
+              const pnlPct = mode === 'open' && pos.entryPrice
+                ? ((last - pos.entryPrice) / pos.entryPrice) * 100
+                : null
+              const isExp = expanded === pos.id
+              return (
+                <FragmentRow key={pos.id}>
+                  <tr className="border-t" style={{ borderColor: 'var(--border-subtle)' }}>
+                    <td className="px-3 py-2 font-semibold" style={{ color: 'var(--text-primary)' }}>
+                      {pos.symbol}
+                      <div className="text-[10px]" style={{ color: 'var(--text-faint)' }}>{pos.name}</div>
+                    </td>
+                    <td className="px-3 py-2">
+                      <span className="px-2 py-0.5 rounded text-[11px] uppercase"
+                            style={{
+                              background: pos.strategy === 'trend' ? 'rgba(59,130,246,0.15)' : 'rgba(168,85,247,0.15)',
+                              color: pos.strategy === 'trend' ? '#60a5fa' : '#c084fc',
+                            }}>
+                        {pos.strategy === 'trend' ? 'Trend' : 'Reversion'}
+                      </span>
+                    </td>
+                    <td className="px-3 py-2 text-xs" style={{ color: 'var(--text-secondary)' }}>
+                      {fmtDateShort(pos.signalDate)} · {pos.signalPhase}
+                    </td>
+                    {mode === 'open' && <td className="px-3 py-2 text-right">{fmtMoney(pos.entryPrice)}</td>}
+                    {mode === 'open' && <td className="px-3 py-2 text-right font-semibold">{fmtMoney(last)}</td>}
+                    {mode === 'pending' && <td className="px-3 py-2 text-right">{fmtMoney(pos.originalEntry)}</td>}
+                    <td className="px-3 py-2 text-right" style={{ color: '#ef4444' }}>
+                      {fmtMoney(pos.currentStop ?? pos.originalStop)}
+                      {mode === 'open' && pos.currentStop != null && pos.currentStop > pos.originalStop && (
+                        <div className="text-[10px]" style={{ color: 'var(--text-faint)' }}>
+                          orijinal {fmtMoney(pos.originalStop)}
+                        </div>
+                      )}
+                    </td>
+                    <td className="px-3 py-2 text-right" style={{ color: '#22c55e' }}>
+                      {fmtMoney(pos.currentTarget ?? pos.originalTarget)}
+                    </td>
+                    {mode === 'open' && (
+                      <td className="px-3 py-2 text-right font-semibold"
+                          style={{ color: pnlPct >= 0 ? '#22c55e' : '#ef4444' }}>
+                        {fmtPct(pnlPct)}
+                      </td>
+                    )}
+                    <td className="px-3 py-2 text-right">
+                      <button onClick={() => onToggle(pos.id)}
+                              className="p-1 rounded hover:bg-white/5">
+                        {isExp ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                      </button>
+                    </td>
+                  </tr>
+                  {isExp && (
+                    <tr style={{ background: 'rgba(255,255,255,0.02)' }}>
+                      <td colSpan={mode === 'open' ? 9 : 7} className="px-3 py-3">
+                        <NotesList notes={pos.notes || []} />
+                      </td>
+                    </tr>
+                  )}
+                </FragmentRow>
+              )
+            })}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  )
+}
+
+function FragmentRow({ children }) { return <>{children}</> }
+
+function NotesList({ notes }) {
+  if (!Array.isArray(notes) || notes.length === 0) {
+    return <div className="text-xs" style={{ color: 'var(--text-faint)' }}>Henüz not yok.</div>
+  }
+  const actionColor = {
+    signal:  { bg: 'rgba(212,175,55,0.15)', color: '#d4af37' },
+    entry:   { bg: 'rgba(34,197,94,0.15)',  color: '#22c55e' },
+    trigger: { bg: 'rgba(34,197,94,0.15)',  color: '#22c55e' },
+    pending: { bg: 'rgba(59,130,246,0.15)', color: '#60a5fa' },
+    trail:   { bg: 'rgba(168,85,247,0.15)', color: '#c084fc' },
+    exit:    { bg: 'rgba(239,68,68,0.15)',  color: '#ef4444' },
+    skip:    { bg: 'rgba(255,255,255,0.05)', color: 'var(--text-faint)' },
+  }
+  return (
+    <ol className="space-y-2 text-xs">
+      {notes.map((n, i) => {
+        const c = actionColor[n.action] || actionColor.skip
+        return (
+          <li key={i} className="flex gap-2">
+            <span className="px-2 py-0.5 rounded text-[10px] uppercase tracking-wider shrink-0"
+                  style={{ background: c.bg, color: c.color }}>
+              {n.action}
+            </span>
+            <div>
+              <div style={{ color: 'var(--text-primary)' }}>{n.text}</div>
+              <div className="text-[10px]" style={{ color: 'var(--text-faint)' }}>{fmtDate(n.time)}</div>
+            </div>
+          </li>
+        )
+      })}
+    </ol>
+  )
+}
+
+function EmptyState({ text }) {
+  return (
+    <div className="rounded-2xl p-8 text-center border-2 border-dashed"
+         style={{ borderColor: 'var(--border-subtle)', color: 'var(--text-faint)' }}>
+      {text}
+    </div>
+  )
+}
+
+// ── İşlem Geçmişi sekmesi ────────────────────────────────────────────────
+function TradesTab({ trades, onRefresh, loading }) {
+  const [expanded, setExpanded] = useState(null)
+  const summary = useMemo(() => {
+    const total = trades.length
+    if (!total) return null
+    const wins = trades.filter(t => (t.realizedPnL || 0) > 0).length
+    const losses = trades.filter(t => (t.realizedPnL || 0) < 0).length
+    const totalPnL = trades.reduce((s, t) => s + (t.realizedPnL || 0), 0)
+    return { total, wins, losses, totalPnL, winRate: total > 0 ? (wins / total) * 100 : 0 }
+  }, [trades])
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h2 className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>
+          Kapanan işlemler ({trades.length})
+        </h2>
+        <button onClick={onRefresh}
+                className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border"
+                style={{ background: 'rgba(255,255,255,0.05)', borderColor: 'var(--border-subtle)', color: 'var(--text-secondary)' }}>
+          <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} /> Yenile
+        </button>
+      </div>
+
+      {summary && (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <KpiCard label="Toplam İşlem" value={summary.total} />
+          <KpiCard label="Kazanç" value={`${summary.wins}`} tone="good" />
+          <KpiCard label="Kayıp" value={`${summary.losses}`} tone="bad" />
+          <KpiCard
+            label="Net P&L"
+            value={`${fmtMoney(summary.totalPnL)} TL`}
+            tone={summary.totalPnL >= 0 ? 'good' : 'bad'}
+          />
+        </div>
+      )}
+
+      {trades.length === 0 ? (
+        <EmptyState text="Henüz kapanmış işlem yok. Bot yeni sinyallerle çalıştıkça burası dolacak." />
+      ) : (
+        <div className="rounded-2xl border overflow-hidden"
+             style={{ background: 'rgba(255,255,255,0.02)', borderColor: 'var(--border-subtle)' }}>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-left text-xs uppercase"
+                    style={{ color: 'var(--text-faint)' }}>
+                  <th className="px-3 py-2">Sembol</th>
+                  <th className="px-3 py-2">Strateji</th>
+                  <th className="px-3 py-2">Giriş → Çıkış</th>
+                  <th className="px-3 py-2 text-right">Giriş Fiyatı</th>
+                  <th className="px-3 py-2 text-right">Çıkış Fiyatı</th>
+                  <th className="px-3 py-2 text-right">P&L</th>
+                  <th className="px-3 py-2">Sebep</th>
+                  <th className="px-3 py-2"></th>
+                </tr>
+              </thead>
+              <tbody>
+                {trades.map(t => {
+                  const isExp = expanded === t.id
+                  return (
+                    <FragmentRow key={t.id}>
+                      <tr className="border-t" style={{ borderColor: 'var(--border-subtle)' }}>
+                        <td className="px-3 py-2 font-semibold">{t.symbol}</td>
+                        <td className="px-3 py-2 text-xs uppercase">{t.strategy}</td>
+                        <td className="px-3 py-2 text-xs" style={{ color: 'var(--text-secondary)' }}>
+                          {fmtDateShort(t.entryDate)} → {fmtDateShort(t.exitDate)}
+                        </td>
+                        <td className="px-3 py-2 text-right">{fmtMoney(t.entryPrice)}</td>
+                        <td className="px-3 py-2 text-right">{fmtMoney(t.exitPrice)}</td>
+                        <td className="px-3 py-2 text-right font-semibold"
+                            style={{ color: (t.realizedPnL || 0) >= 0 ? '#22c55e' : '#ef4444' }}>
+                          {fmtPct(t.realizedPnLPct)}<br />
+                          <span className="text-[10px]" style={{ color: 'var(--text-faint)' }}>
+                            {fmtMoney(t.realizedPnL)} TL
+                          </span>
+                        </td>
+                        <td className="px-3 py-2"><ExitReasonChip reason={t.exitReason} /></td>
+                        <td className="px-3 py-2 text-right">
+                          <button onClick={() => setExpanded(isExp ? null : t.id)}
+                                  className="p-1 rounded hover:bg-white/5">
+                            {isExp ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                          </button>
+                        </td>
+                      </tr>
+                      {isExp && (
+                        <tr style={{ background: 'rgba(255,255,255,0.02)' }}>
+                          <td colSpan={8} className="px-3 py-3">
+                            <NotesList notes={t.notes || []} />
+                          </td>
+                        </tr>
+                      )}
+                    </FragmentRow>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function ExitReasonChip({ reason }) {
+  const map = {
+    target:         { label: 'Hedef',     color: '#22c55e', bg: 'rgba(34,197,94,0.15)',   icon: Target },
+    stop:           { label: 'Stop',      color: '#ef4444', bg: 'rgba(239,68,68,0.15)',   icon: XCircle },
+    timeout:        { label: 'Zaman',     color: '#fbbf24', bg: 'rgba(251,191,36,0.15)',  icon: Clock },
+    signal_dropped: { label: 'Düştü',     color: '#94a3b8', bg: 'rgba(148,163,184,0.15)', icon: AlertTriangle },
+  }
+  const m = map[reason] || { label: reason || '—', color: 'var(--text-faint)', bg: 'rgba(255,255,255,0.05)', icon: Activity }
+  const Icon = m.icon
+  return (
+    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px]"
+          style={{ background: m.bg, color: m.color }}>
+      <Icon className="w-3 h-3" /> {m.label}
+    </span>
+  )
+}
+
+// ── Sinyal Logu sekmesi ──────────────────────────────────────────────────
+const OUTCOME_LABEL = {
+  signaled:        { label: 'Verildi',       color: 'var(--text-secondary)', bg: 'rgba(255,255,255,0.05)' },
+  triggered:       { label: 'Tetiklendi',    color: '#60a5fa', bg: 'rgba(59,130,246,0.15)' },
+  closed_target:   { label: 'Hedef tuttu',   color: '#22c55e', bg: 'rgba(34,197,94,0.15)' },
+  closed_stop:     { label: 'Stop oldu',     color: '#ef4444', bg: 'rgba(239,68,68,0.15)' },
+  closed_timeout:  { label: 'Zaman aşımı',   color: '#fbbf24', bg: 'rgba(251,191,36,0.15)' },
+  closed_dropped:  { label: 'Sinyal düştü',  color: '#94a3b8', bg: 'rgba(148,163,184,0.15)' },
+  closed_other:    { label: 'Kapandı',       color: 'var(--text-faint)', bg: 'rgba(255,255,255,0.05)' },
+  no_trigger:      { label: 'Tetiklenmedi',  color: 'var(--text-faint)', bg: 'rgba(255,255,255,0.05)' },
+}
+
+function SignalLogTab({ entries, onRefresh, loading, filters, setFilters }) {
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h2 className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>
+          Sinyal Logu — {entries.length} kayıt
+        </h2>
+        <button onClick={onRefresh}
+                className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border"
+                style={{ background: 'rgba(255,255,255,0.05)', borderColor: 'var(--border-subtle)', color: 'var(--text-secondary)' }}>
+          <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} /> Yenile
+        </button>
+      </div>
+
+      <div className="rounded-2xl p-3 border flex flex-wrap gap-2 text-xs"
+           style={{ background: 'rgba(255,255,255,0.02)', borderColor: 'var(--border-subtle)' }}>
+        <FilterInput
+          label="Sembol"
+          value={filters.symbol || ''}
+          onChange={v => setFilters(f => ({ ...f, symbol: v.toUpperCase() }))}
+          placeholder="THYAO"
+        />
+        <FilterSelect
+          label="Strateji"
+          value={filters.strategy || ''}
+          onChange={v => setFilters(f => ({ ...f, strategy: v }))}
+          options={[
+            { v: '', label: 'Hepsi' },
+            { v: 'trend', label: 'Trend' },
+            { v: 'reversion', label: 'Reversion' },
+          ]}
+        />
+        <FilterSelect
+          label="Durum"
+          value={filters.outcome || ''}
+          onChange={v => setFilters(f => ({ ...f, outcome: v }))}
+          options={[
+            { v: '', label: 'Hepsi' },
+            { v: 'signaled', label: 'Verildi' },
+            { v: 'triggered', label: 'Tetiklendi (açık)' },
+            { v: 'closed_target', label: 'Hedef tuttu' },
+            { v: 'closed_stop', label: 'Stop oldu' },
+            { v: 'closed_timeout', label: 'Zaman aşımı' },
+            { v: 'closed_dropped', label: 'Sinyal düştü' },
+            { v: 'no_trigger', label: 'Tetiklenmedi' },
+          ]}
+        />
+        <FilterInput
+          label="Tarih (en eski)"
+          value={filters.fromDate || ''}
+          onChange={v => setFilters(f => ({ ...f, fromDate: v }))}
+          placeholder="2026-05-01"
+          type="date"
+        />
+      </div>
+
+      <div className="rounded-2xl border overflow-hidden"
+           style={{ background: 'rgba(255,255,255,0.02)', borderColor: 'var(--border-subtle)' }}>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="text-left text-xs uppercase"
+                  style={{ color: 'var(--text-faint)' }}>
+                <th className="px-3 py-2">Verilme</th>
+                <th className="px-3 py-2">Faz</th>
+                <th className="px-3 py-2">Sembol</th>
+                <th className="px-3 py-2">Strateji</th>
+                <th className="px-3 py-2 text-right">Giriş</th>
+                <th className="px-3 py-2 text-right">SL</th>
+                <th className="px-3 py-2 text-right">TP</th>
+                <th className="px-3 py-2 text-right">Skor</th>
+                <th className="px-3 py-2">Durum</th>
+                <th className="px-3 py-2">Biten</th>
+                <th className="px-3 py-2 text-right">Sonuç</th>
+              </tr>
+            </thead>
+            <tbody>
+              {entries.length === 0 && (
+                <tr><td colSpan={11} className="px-3 py-8 text-center text-xs"
+                        style={{ color: 'var(--text-faint)' }}>
+                  Filtrelere uyan kayıt yok.
+                </td></tr>
+              )}
+              {entries.map(e => {
+                const status = OUTCOME_LABEL[e.outcome] || OUTCOME_LABEL.signaled
+                return (
+                  <tr key={e.id} className="border-t" style={{ borderColor: 'var(--border-subtle)' }}>
+                    <td className="px-3 py-2 text-xs" style={{ color: 'var(--text-secondary)' }}>
+                      {fmtDateShort(e.signalDate)}
+                    </td>
+                    <td className="px-3 py-2 text-[11px] uppercase">{e.signalPhase}</td>
+                    <td className="px-3 py-2 font-semibold">{e.symbol}</td>
+                    <td className="px-3 py-2 text-xs uppercase">{e.strategy}</td>
+                    <td className="px-3 py-2 text-right">{fmtMoney(e.entry)}</td>
+                    <td className="px-3 py-2 text-right" style={{ color: '#ef4444' }}>{fmtMoney(e.stop)}</td>
+                    <td className="px-3 py-2 text-right" style={{ color: '#22c55e' }}>{fmtMoney(e.target)}</td>
+                    <td className="px-3 py-2 text-right">{e.totalScore ?? '—'}</td>
+                    <td className="px-3 py-2">
+                      <span className="px-2 py-0.5 rounded text-[11px]"
+                            style={{ background: status.bg, color: status.color }}>
+                        {status.label}
+                      </span>
+                    </td>
+                    <td className="px-3 py-2 text-xs" style={{ color: 'var(--text-secondary)' }}>
+                      {e.exitDate ? fmtDateShort(e.exitDate) : '—'}
+                    </td>
+                    <td className="px-3 py-2 text-right text-xs font-semibold"
+                        style={{ color: (e.finalReturnPct ?? 0) >= 0 ? '#22c55e' : '#ef4444' }}>
+                      {e.finalReturnPct != null ? fmtPct(e.finalReturnPct) : '—'}
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div className="rounded-xl p-3 text-xs border"
+           style={{ background: 'rgba(255,255,255,0.02)', borderColor: 'var(--border-subtle)', color: 'var(--text-faint)' }}>
+        <strong>Sinyal Logu</strong> append-only'dir — verilen bir sinyalin entry/SL/TP/skor değerleri asla değişmez.
+        Sadece sonuç alanları (tetiklendi mi, ne zaman kapandı, ne kadar getiri sağladı) bot çalışırken eklenir.
+      </div>
+    </div>
+  )
+}
+
+function FilterInput({ label, value, onChange, placeholder, type = 'text' }) {
+  return (
+    <label className="flex items-center gap-2">
+      <span style={{ color: 'var(--text-faint)' }}>{label}:</span>
+      <input
+        type={type}
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        placeholder={placeholder}
+        className="px-2 py-1 rounded border bg-transparent w-32"
+        style={{ borderColor: 'var(--border-subtle)', color: 'var(--text-primary)' }}
       />
+    </label>
+  )
+}
+function FilterSelect({ label, value, onChange, options }) {
+  return (
+    <label className="flex items-center gap-2">
+      <span style={{ color: 'var(--text-faint)' }}>{label}:</span>
+      <select
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        className="px-2 py-1 rounded border bg-transparent"
+        style={{ borderColor: 'var(--border-subtle)', color: 'var(--text-primary)' }}
+      >
+        {options.map(o => (
+          <option key={o.v} value={o.v} style={{ background: '#1a1a1a' }}>{o.label}</option>
+        ))}
+      </select>
+    </label>
+  )
+}
+
+// ── Ayarlar sekmesi ──────────────────────────────────────────────────────
+function SettingsTab({ status, isAdmin, onReset, onTick, busy }) {
+  const c = status?.config || {}
+  const p = status?.portfolio || {}
+  const [confirmingReset, setConfirmingReset] = useState(false)
+
+  return (
+    <div className="space-y-4 max-w-2xl">
+      <h2 className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>
+        Bot ayarları
+      </h2>
+
+      <div className="rounded-2xl p-4 border space-y-2 text-sm"
+           style={{ background: 'rgba(255,255,255,0.02)', borderColor: 'var(--border-subtle)' }}>
+        <SettingRow label="Başlangıç tarihi" value={fmtDate(p.startedAt)} />
+        <SettingRow label="Son reset" value={p.resetAt ? fmtDate(p.resetAt) : '—'} />
+        <SettingRow label="Başlangıç sermayesi" value={`${fmtMoney(p.capital)} TL`} />
+        <SettingRow label="Pozisyon büyüklüğü" value={`%${((c.POSITION_SIZE_PCT || 0.05) * 100).toFixed(1)} (her sinyal için)`} />
+        <SettingRow label="Maks. eşzamanlı pozisyon" value={c.MAX_CONCURRENT_POSITIONS ?? '—'} />
+        <SettingRow label="Komisyon" value={`%${((c.COMMISSION_PCT || 0.002) * 100).toFixed(2)}`} />
+        <SettingRow label="Slippage" value={`%${((c.SLIPPAGE_PCT || 0.001) * 100).toFixed(2)}`} />
+        <SettingRow label="Zaman aşımı" value={`${c.TIMEOUT_BUSINESS_DAYS ?? 10} işgünü`} />
+        <SettingRow label="Trailing kuralı" value="R-basamağı + ATR×2 tavanı (sıkı olan kazanır)" />
+      </div>
+
+      {isAdmin && (
+        <div className="rounded-2xl p-4 border space-y-3"
+             style={{ background: 'rgba(239,68,68,0.04)', borderColor: 'rgba(239,68,68,0.25)' }}>
+          <div className="font-semibold text-sm" style={{ color: '#ef4444' }}>
+            <AlertTriangle className="inline w-4 h-4 mr-1" /> Admin kontrolleri
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <button
+              onClick={onTick}
+              disabled={busy}
+              className="px-3 py-1.5 rounded-lg border text-xs"
+              style={{ background: 'rgba(255,255,255,0.05)', borderColor: 'var(--border-subtle)', color: 'var(--text-secondary)' }}
+            >
+              Manuel tick çalıştır
+            </button>
+            {!confirmingReset ? (
+              <button
+                onClick={() => setConfirmingReset(true)}
+                className="px-3 py-1.5 rounded-lg border text-xs"
+                style={{ background: 'rgba(239,68,68,0.10)', borderColor: 'rgba(239,68,68,0.35)', color: '#ef4444' }}
+              >
+                Botu sıfırla
+              </button>
+            ) : (
+              <>
+                <span className="text-xs self-center" style={{ color: 'var(--text-secondary)' }}>
+                  Tüm pozisyon, işlem ve sinyal logu silinecek. Emin misin?
+                </span>
+                <button
+                  onClick={() => { setConfirmingReset(false); onReset(); }}
+                  disabled={busy}
+                  className="px-3 py-1.5 rounded-lg text-xs font-semibold"
+                  style={{ background: '#ef4444', color: 'white' }}
+                >
+                  Evet, sıfırla
+                </button>
+                <button
+                  onClick={() => setConfirmingReset(false)}
+                  className="px-3 py-1.5 rounded-lg border text-xs"
+                  style={{ borderColor: 'var(--border-subtle)', color: 'var(--text-secondary)' }}
+                >
+                  Vazgeç
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+function SettingRow({ label, value }) {
+  return (
+    <div className="flex items-center justify-between">
+      <span style={{ color: 'var(--text-secondary)' }}>{label}</span>
+      <span className="font-semibold" style={{ color: 'var(--text-primary)' }}>{value}</span>
+    </div>
+  )
+}
+
+// ── Ana sayfa ────────────────────────────────────────────────────────────
+export default function TradingBot() {
+  const [tab, setTab] = useState('overview')
+  const [status, setStatus] = useState(null)
+  const [open, setOpen] = useState([])
+  const [pending, setPending] = useState([])
+  const [trades, setTrades] = useState([])
+  const [logEntries, setLogEntries] = useState([])
+  const [logFilters, setLogFilters] = useState({})
+  const [loading, setLoading] = useState(false)
+  const [busy, setBusy] = useState(false)
+
+  const isAdmin = useMemo(() => {
+    try {
+      const raw = localStorage.getItem('user')
+      if (!raw) return false
+      return JSON.parse(raw)?.role === 'admin'
+    } catch { return false }
+  }, [])
+
+  const loadStatus = useCallback(async () => {
+    try {
+      const { data } = await api.get('/trading-bot/status')
+      if (data?.ok) setStatus(data.status)
+    } catch (_) {}
+  }, [])
+  const loadPositions = useCallback(async () => {
+    try {
+      const { data } = await api.get('/trading-bot/positions')
+      if (data?.ok) {
+        setOpen(data.open || [])
+        setPending(data.pending || [])
+      }
+    } catch (_) {}
+  }, [])
+  const loadTrades = useCallback(async () => {
+    try {
+      const { data } = await api.get('/trading-bot/trades', { params: { limit: 200 } })
+      if (data?.ok) setTrades(data.trades || [])
+    } catch (_) {}
+  }, [])
+  const loadLog = useCallback(async () => {
+    try {
+      const { data } = await api.get('/trading-bot/signal-log', {
+        params: { ...logFilters, limit: 500 },
+      })
+      if (data?.ok) setLogEntries(data.entries || [])
+    } catch (_) {}
+  }, [logFilters])
+
+  const refresh = useCallback(async () => {
+    setLoading(true)
+    await Promise.all([loadStatus(), loadPositions(), loadTrades(), loadLog()])
+    setLoading(false)
+  }, [loadStatus, loadPositions, loadTrades, loadLog])
+
+  useEffect(() => { refresh() }, []) // ilk yüklemede tek seferlik
+  useEffect(() => { loadLog() }, [logFilters, loadLog])
+
+  // Tab'a göre seçici yenileme
+  useEffect(() => {
+    if (tab === 'overview' || tab === 'settings') loadStatus()
+    if (tab === 'open') loadPositions()
+    if (tab === 'trades') loadTrades()
+    if (tab === 'log') loadLog()
+  }, [tab, loadStatus, loadPositions, loadTrades, loadLog])
+
+  const handleReset = async () => {
+    setBusy(true)
+    try {
+      await api.post('/trading-bot/reset')
+      await refresh()
+    } catch (e) {
+      alert(`Reset hata: ${e?.response?.data?.error || e.message}`)
+    } finally {
+      setBusy(false)
+    }
+  }
+  const handleTick = async () => {
+    setBusy(true)
+    try {
+      await api.post('/trading-bot/tick')
+      await refresh()
+    } catch (e) {
+      alert(`Tick hata: ${e?.response?.data?.error || e.message}`)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div className="space-y-4 max-w-7xl mx-auto">
+      <header className="flex items-center gap-3">
+        <div className="p-2.5 rounded-xl"
+             style={{ background: 'rgba(212,175,55,0.10)', border: '1px solid var(--border-gold)' }}>
+          <Bot className="w-6 h-6" style={{ color: 'var(--gold-400)' }} />
+        </div>
+        <div>
+          <h1 className="text-xl sm:text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>
+            Trading Bot
+          </h1>
+          <p className="text-xs sm:text-sm" style={{ color: 'var(--text-secondary)' }}>
+            Bugünün LONG sinyallerini sanal portföyle takip eden bot. Tüm kararlar log'da.
+          </p>
+        </div>
+      </header>
+
+      <div className="flex flex-wrap gap-1 border-b" style={{ borderColor: 'var(--border-subtle)' }}>
+        {TABS.map(t => {
+          const Icon = t.icon
+          const active = tab === t.id
+          return (
+            <button
+              key={t.id}
+              onClick={() => setTab(t.id)}
+              className="inline-flex items-center gap-1.5 px-3 py-2 text-sm border-b-2 -mb-px"
+              style={{
+                borderColor: active ? 'var(--gold-400)' : 'transparent',
+                color: active ? 'var(--gold-400)' : 'var(--text-secondary)',
+                fontWeight: active ? 600 : 400,
+              }}
+            >
+              <Icon className="w-4 h-4" />
+              {t.label}
+            </button>
+          )
+        })}
+      </div>
+
+      {tab === 'overview' && (
+        <OverviewTab status={status} loading={loading} onRefresh={refresh} />
+      )}
+      {tab === 'open' && (
+        <OpenPositionsTab
+          open={open}
+          pending={pending}
+          loading={loading}
+          onRefresh={loadPositions}
+        />
+      )}
+      {tab === 'trades' && (
+        <TradesTab trades={trades} loading={loading} onRefresh={loadTrades} />
+      )}
+      {tab === 'log' && (
+        <SignalLogTab
+          entries={logEntries}
+          loading={loading}
+          onRefresh={loadLog}
+          filters={logFilters}
+          setFilters={setLogFilters}
+        />
+      )}
+      {tab === 'settings' && (
+        <SettingsTab
+          status={status}
+          isAdmin={isAdmin}
+          onReset={handleReset}
+          onTick={handleTick}
+          busy={busy}
+        />
+      )}
     </div>
   )
 }
