@@ -1,8 +1,14 @@
 import { useState, useEffect } from 'react'
-import { useSearchParams } from 'react-router-dom'
-import { TrendingUp, TrendingDown, RefreshCw, Search, Activity, ArrowUp, ArrowDown } from 'lucide-react'
+import { useSearchParams, useNavigate } from 'react-router-dom'
+import { TrendingUp, TrendingDown, RefreshCw, Search, Activity, ArrowUp, ArrowDown, BarChart3, ExternalLink } from 'lucide-react'
 import api from '../services/api'
 import InfoTooltip from '../components/InfoTooltip'
+
+// TradingView eksternal link — BIST + kripto
+function tvLink(symbol, isCrypto) {
+  const tv = isCrypto ? `BINANCE:${symbol}USDT` : `BIST:${symbol}`
+  return `https://tr.tradingview.com/chart/?symbol=${tv}&interval=D`
+}
 
 const SIGNAL_CONFIG = {
   cross_above: { label: '↑ TEMA34 Üstüne Çıktı', color: 'text-green-400', bg: 'bg-green-500/20 border-green-500/40', icon: ArrowUp, priority: 0 },
@@ -20,6 +26,7 @@ const TEMA34_TIP = {
 
 export default function TEMA34Tarayici() {
   const [searchParams] = useSearchParams()
+  const navigate = useNavigate()
   const [scanData, setScanData] = useState(null)
   const [loading, setLoading] = useState(false)
   const [trackSymbol, setTrackSymbol] = useState('')
@@ -261,7 +268,8 @@ export default function TEMA34Tarayici() {
                   <th className="pb-2 pr-3">Kapanış</th>
                   <th className="pb-2 pr-3">TEMA34</th>
                   <th className="pb-2 pr-3">Uzaklık</th>
-                  <th className="pb-2">Skor</th>
+                  <th className="pb-2 pr-3">Skor</th>
+                  <th className="pb-2 text-right">Aksiyon</th>
                 </tr>
               </thead>
               <tbody>
@@ -286,7 +294,7 @@ export default function TEMA34Tarayici() {
                       <td className={`py-2 pr-3 font-mono ${parseFloat(row.distancePct) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
                         {parseFloat(row.distancePct) >= 0 ? '+' : ''}{row.distancePct}%
                       </td>
-                      <td className="py-2">
+                      <td className="py-2 pr-3">
                         <div className="flex items-center gap-2">
                           <div className="w-16 bg-dark-700 rounded-full h-1.5">
                             <div
@@ -295,6 +303,44 @@ export default function TEMA34Tarayici() {
                             />
                           </div>
                           <span className="text-xs text-gray-400">{row.score}</span>
+                        </div>
+                      </td>
+                      <td className="py-2 text-right">
+                        <div
+                          className="inline-flex items-center gap-1"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              navigate(`/hisse/${row.symbol}${listParam === 'crypto' ? '?type=crypto' : ''}`)
+                            }}
+                            title="Hisse merkezinde aç"
+                            className="px-2 py-1 rounded text-[11px] font-semibold flex items-center gap-1 transition-colors"
+                            style={{
+                              background: 'rgba(212, 175, 55, 0.10)',
+                              border: '1px solid rgba(212, 175, 55, 0.30)',
+                              color: 'var(--gold-400)',
+                            }}
+                          >
+                            <Search className="w-3 h-3" /> Detay
+                          </button>
+                          <a
+                            href={tvLink(row.symbol, listParam === 'crypto')}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={(e) => e.stopPropagation()}
+                            title="TradingView'de teknik analiz"
+                            className="px-2 py-1 rounded text-[11px] font-semibold flex items-center gap-1 transition-colors"
+                            style={{
+                              background: 'rgba(33, 150, 243, 0.10)',
+                              border: '1px solid rgba(33, 150, 243, 0.30)',
+                              color: '#56a8f5',
+                            }}
+                          >
+                            <BarChart3 className="w-3 h-3" /> Teknik Analiz
+                            <ExternalLink className="w-2.5 h-2.5" />
+                          </a>
                         </div>
                       </td>
                     </tr>
