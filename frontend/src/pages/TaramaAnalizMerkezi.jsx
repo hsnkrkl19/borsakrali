@@ -9,6 +9,7 @@ import {
   calculateEMA, calculateRSI, calculateMACD, calculateADX,
 } from '../services/technicalIndicators'
 import ScrollableTabBar from '../components/ScrollableTabBar'
+import LazyOnScroll from '../components/LazyOnScroll'
 
 import { getApiBase } from '../config'
 const API_BASE = getApiBase() + '/api'
@@ -585,55 +586,59 @@ export default function TaramaAnalizMerkezi() {
         </div>
       </div>)}
 
-      {/* Ayı Ligi */}
-      {activeTab === 'strateji' && (<div className="bg-surface-100 rounded-2xl border border-dark-700 overflow-hidden">
-        <div className="p-3 md:p-4 border-b border-dark-700 flex items-center gap-2 md:gap-3">
-          <TrendingDown className="w-4 h-4 md:w-5 md:h-5 text-red-400" />
-          <span className="text-white font-semibold text-sm md:text-base">Ayı Ligi (Düşüş Odaklılar)</span>
-          <span className="bg-red-500/20 text-red-400 px-2 py-0.5 rounded text-xs">Günlük</span>
-        </div>
-
-        <div className="divide-y divide-dark-700">
-          {ayiStrategies.map((strategy, idx) => (
-            <div
-              key={strategy.name}
-              className="p-4 hover:bg-dark-800/30 transition-colors cursor-pointer"
-              onClick={() => openStrategyStocks(strategy)}
-            >
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-3">
-                  <div className="w-7 h-7 rounded-lg flex items-center justify-center text-white font-bold text-sm bg-red-600">
-                    {idx + 1}
-                  </div>
-                  <div>
-                    <div className="text-white font-medium text-sm">{strategy.name}</div>
-                    <div className="text-xs text-red-400">{strategy.type}</div>
-                  </div>
-                </div>
-                <span className="text-green-400 font-semibold">+{strategy.avgChange}%</span>
-              </div>
-              <div className="grid grid-cols-4 gap-2 text-center text-xs">
-                <div>
-                  <div className="text-gray-500">Tespit</div>
-                  <div className="text-white font-semibold">{strategy.count}</div>
-                </div>
-                <div>
-                  <div className="text-gray-500">Başarı</div>
-                  <div className="text-white font-semibold">%{strategy.success}</div>
-                </div>
-                <div>
-                  <div className="text-gray-500">Zirve</div>
-                  <div className="text-red-400">%{strategy.peak}</div>
-                </div>
-                <div>
-                  <div className="text-gray-500">R/K</div>
-                  <div className="text-gray-300">{strategy.riskReward}</div>
-                </div>
-              </div>
+      {/* Ayı Ligi — sayfa scroll edilince mount edilir (lazy) */}
+      {activeTab === 'strateji' && (
+        <LazyOnScroll fallback={<div className="bg-surface-100 rounded-2xl border border-dark-700 h-48 flex items-center justify-center text-xs text-gray-500">Ayı Ligi yükleniyor...</div>}>
+          <div className="bg-surface-100 rounded-2xl border border-dark-700 overflow-hidden">
+            <div className="p-3 md:p-4 border-b border-dark-700 flex items-center gap-2 md:gap-3">
+              <TrendingDown className="w-4 h-4 md:w-5 md:h-5 text-red-400" />
+              <span className="text-white font-semibold text-sm md:text-base">Ayı Ligi (Düşüş Odaklılar)</span>
+              <span className="bg-red-500/20 text-red-400 px-2 py-0.5 rounded text-xs">Günlük</span>
             </div>
-          ))}
-        </div>
-      </div>)}
+
+            <div className="divide-y divide-dark-700">
+              {ayiStrategies.map((strategy, idx) => (
+                <div
+                  key={strategy.name}
+                  className="p-4 hover:bg-dark-800/30 transition-colors cursor-pointer"
+                  onClick={() => openStrategyStocks(strategy)}
+                >
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-3">
+                      <div className="w-7 h-7 rounded-lg flex items-center justify-center text-white font-bold text-sm bg-red-600">
+                        {idx + 1}
+                      </div>
+                      <div>
+                        <div className="text-white font-medium text-sm">{strategy.name}</div>
+                        <div className="text-xs text-red-400">{strategy.type}</div>
+                      </div>
+                    </div>
+                    <span className="text-green-400 font-semibold">+{strategy.avgChange}%</span>
+                  </div>
+                  <div className="grid grid-cols-4 gap-2 text-center text-xs">
+                    <div>
+                      <div className="text-gray-500">Tespit</div>
+                      <div className="text-white font-semibold">{strategy.count}</div>
+                    </div>
+                    <div>
+                      <div className="text-gray-500">Başarı</div>
+                      <div className="text-white font-semibold">%{strategy.success}</div>
+                    </div>
+                    <div>
+                      <div className="text-gray-500">Zirve</div>
+                      <div className="text-red-400">%{strategy.peak}</div>
+                    </div>
+                    <div>
+                      <div className="text-gray-500">R/K</div>
+                      <div className="text-gray-300">{strategy.riskReward}</div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </LazyOnScroll>
+      )}
 
       {/* Öne Çıkan Semboller */}
       {activeTab === 'one_cikan' && (
