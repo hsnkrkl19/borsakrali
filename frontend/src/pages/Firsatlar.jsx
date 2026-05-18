@@ -11,8 +11,10 @@ import HelpBubble from '../components/HelpBubble'
 // Başlık aktif sekmeye göre değişir, navbar'dan "Tarayıcılar" diye girmiş
 // kullanıcı tutarlı bir başlık görür.
 const GUNLUK_TABS = new Set([
-  'gunluk', 'bugun', 'today', 'kripto', 'emtia', 'mtf',
-  'likidasyon', 'backtest', 'akilli-suzgec', 'canli-takip', 'detayli-analiz',
+  // Yeni 5'li yapı (2026-05-18)
+  'gunluk', 'bugun', 'kripto', 'emtia', 'analiz', 'araclar',
+  // Eski tab ID'leri — GunlukTespitler içinde yeni yapıya yönlendirilir
+  'today', 'mtf', 'likidasyon', 'backtest', 'akilli-suzgec', 'canli-takip', 'detayli-analiz',
 ])
 
 const SECTIONS = [

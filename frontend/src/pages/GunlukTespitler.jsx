@@ -18,14 +18,55 @@ import ScrollableTabBar from '../components/ScrollableTabBar'
 const API_BASE = getApiBase() + '/api'
 const SOCKET_URL = getSocketBase()
 
+// Eski tek-seviyeli tab ID'lerini yeni ana+alt yapıya çevir (URL geriye uyumluluk)
+const LEGACY_TAB_MAP = {
+  'today':           { tab: 'bugun',   sub: null },
+  'bugun':           { tab: 'bugun',   sub: null },
+  'kripto':          { tab: 'kripto',  sub: null },
+  'emtia':           { tab: 'emtia',   sub: null },
+  'mtf':             { tab: 'analiz',  sub: 'mtf' },
+  'likidasyon':      { tab: 'analiz',  sub: 'likidasyon' },
+  'backtest':        { tab: 'araclar', sub: 'backtest' },
+  'akilli-suzgec':   { tab: 'araclar', sub: 'suzgec' },
+  'canli-takip':     { tab: 'araclar', sub: 'alarmlar' },
+  'detayli-analiz':  { tab: 'araclar', sub: 'detay' },
+}
+
+const SUB_TABS = {
+  analiz:  ['mtf', 'likidasyon'],
+  araclar: ['backtest', 'suzgec', 'alarmlar', 'detay'],
+}
+
 export default function GunlukTespitler() {
   const [searchParams, setSearchParams] = useSearchParams()
-  const initialTab = ['bugun', 'today', 'kripto', 'emtia', 'mtf', 'likidasyon', 'backtest', 'akilli-suzgec', 'canli-takip', 'detayli-analiz'].includes(searchParams.get('tab'))
-    ? (searchParams.get('tab') === 'today' ? 'bugun' : searchParams.get('tab'))
-    : 'bugun'  // varsayılan: Bugünün Sinyalleri (yeni özellik)
-  const [activeTab, setActiveTab] = useState(initialTab)
-  // Tab değiştikçe URL'i güncelle ki kullanıcı yer imi yapabilsin
-  useEffect(() => { setSearchParams({ tab: activeTab }, { replace: true }) }, [activeTab])  // eslint-disable-line react-hooks/exhaustive-deps
+  const resolved = (() => {
+    const rawTab = searchParams.get('tab')
+    const rawSub = searchParams.get('sub')
+    // 1) Yeni 5'li yapı: tab geçerli ise direkt kullan
+    if (['bugun', 'kripto', 'emtia', 'analiz', 'araclar'].includes(rawTab)) {
+      const validSub = SUB_TABS[rawTab]?.includes(rawSub) ? rawSub : (SUB_TABS[rawTab]?.[0] || null)
+      return { tab: rawTab, sub: validSub }
+    }
+    // 2) Eski ID — map'le
+    if (rawTab && LEGACY_TAB_MAP[rawTab]) {
+      return LEGACY_TAB_MAP[rawTab]
+    }
+    // 3) Varsayılan
+    return { tab: 'bugun', sub: null }
+  })()
+  const [activeTab, setActiveTab] = useState(resolved.tab)
+  const [activeSubTab, setActiveSubTab] = useState(resolved.sub)
+  // Ana tab değişince varsayılan alt-tab'ı ayarla
+  const selectMainTab = useCallback((tabId) => {
+    setActiveTab(tabId)
+    const firstSub = SUB_TABS[tabId]?.[0] || null
+    setActiveSubTab(firstSub)
+  }, [])
+  // URL güncelleme
+  useEffect(() => {
+    const params = activeSubTab ? { tab: activeTab, sub: activeSubTab } : { tab: activeTab }
+    setSearchParams(params, { replace: true })
+  }, [activeTab, activeSubTab])  // eslint-disable-line react-hooks/exhaustive-deps
   const [showInfo, setShowInfo] = useState(false)
   const [showGuide, setShowGuide] = useState(false)
   const [expandedSignal, setExpandedSignal] = useState(null)
@@ -254,17 +295,29 @@ export default function GunlukTespitler() {
     return () => clearInterval(interval)
   }, [loadData, loadWatchlist])
 
+  // Ana sekmeler — 5 grup. Analiz ve Araçlar alt sekmelere sahiptir.
   const tabs = [
-    { id: 'bugun',         label: 'Bugünün Sinyalleri',  shortLabel: 'Bugün',      icon: Sparkles },
-    { id: 'kripto',        label: 'Kripto',              shortLabel: 'Kripto',     icon: Coins },
-    { id: 'emtia',         label: 'Altın & Gümüş',       shortLabel: 'Altın',      icon: Coins, isNew: true },
-    { id: 'mtf',           label: 'Çoklu Zaman',         shortLabel: 'Çoklu TF',   icon: Layers },
-    { id: 'likidasyon',    label: 'Likidasyon Haritası', shortLabel: 'Likidasyon', icon: Flame, isNew: true },
-    { id: 'backtest',      label: 'Backtest',            shortLabel: 'Backtest',   icon: Activity },
-    { id: 'akilli-suzgec', label: 'Akıllı Süzgeç',       shortLabel: 'Süzgeç',     icon: Filter },
-    { id: 'canli-takip',   label: 'Canlı Alarmlar',      shortLabel: 'Alarmlar',   icon: BellRing, badge: unreadCount },
-    { id: 'detayli-analiz', label: 'Detaylı Analiz',     shortLabel: 'Detay',      icon: Target }
+    { id: 'bugun',   label: 'Bugünün Sinyalleri', shortLabel: 'Bugün',  icon: Sparkles },
+    { id: 'kripto',  label: 'Kripto',             shortLabel: 'Kripto', icon: Coins },
+    { id: 'emtia',   label: 'Altın & Gümüş',      shortLabel: 'Emtia',  icon: Coins,   isNew: true },
+    { id: 'analiz',  label: 'Analiz',             shortLabel: 'Analiz', icon: Layers },
+    { id: 'araclar', label: 'Araçlar',            shortLabel: 'Araçlar',icon: Filter,  badge: unreadCount },
   ]
+
+  // Alt sekme tanımları — sadece "analiz" ve "araclar" altında görünür
+  const SUB_TAB_DEFS = {
+    analiz: [
+      { id: 'mtf',        label: 'Çoklu Zaman',         shortLabel: 'Çoklu TF',   icon: Layers },
+      { id: 'likidasyon', label: 'Likidasyon Haritası', shortLabel: 'Likidasyon', icon: Flame, isNew: true },
+    ],
+    araclar: [
+      { id: 'backtest',  label: 'Backtest',         shortLabel: 'Backtest', icon: Activity },
+      { id: 'suzgec',    label: 'Akıllı Süzgeç',    shortLabel: 'Süzgeç',   icon: Filter },
+      { id: 'alarmlar',  label: 'Canlı Alarmlar',   shortLabel: 'Alarmlar', icon: BellRing, badge: unreadCount },
+      { id: 'detay',     label: 'Detaylı Analiz',   shortLabel: 'Detay',    icon: Target },
+    ],
+  }
+  const activeSubList = SUB_TAB_DEFS[activeTab] || null
 
   // Filtrelenmis sinyaller
   const filteredSignals = signals.filter(signal => {
@@ -453,7 +506,7 @@ export default function GunlukTespitler() {
         </div>
       )}
 
-      {/* Tabs — sağ/sol ok butonları ile gezinir, aktif tab otomatik görünüre kayar */}
+      {/* Ana sekmeler — 5 grup */}
       <ScrollableTabBar
         activeKey={activeTab}
         className="pb-1 border-b border-dark-700 -mx-1 px-1"
@@ -462,7 +515,7 @@ export default function GunlukTespitler() {
           <button
             key={tab.id}
             data-tab-key={tab.id}
-            onClick={() => setActiveTab(tab.id)}
+            onClick={() => selectMainTab(tab.id)}
             className={`flex-shrink-0 flex items-center gap-1.5 md:gap-2 px-2.5 md:px-4 py-2 md:py-3 border-b-2 transition-colors whitespace-nowrap ${activeTab === tab.id
               ? 'border-primary-600 text-white'
               : 'border-transparent text-gray-400 hover:text-white'
@@ -487,6 +540,38 @@ export default function GunlukTespitler() {
         ))}
       </ScrollableTabBar>
 
+      {/* Alt sekmeler — sadece Analiz veya Araçlar seçili olduğunda */}
+      {activeSubList && (
+        <ScrollableTabBar
+          activeKey={activeSubTab}
+          className="bg-dark-900/60 border border-dark-700 rounded-2xl p-1 md:p-1.5 gap-1"
+        >
+          {activeSubList.map((sub) => (
+            <button
+              key={sub.id}
+              data-tab-key={sub.id}
+              onClick={() => setActiveSubTab(sub.id)}
+              className={`flex-shrink-0 flex items-center gap-1.5 md:gap-2 px-2.5 md:px-3.5 py-1.5 md:py-2 rounded-xl text-[12px] md:text-sm font-semibold whitespace-nowrap transition-all ${activeSubTab === sub.id
+                ? 'bg-gradient-to-r from-amber-500 to-amber-600 text-dark-950 shadow-lg shadow-amber-500/25'
+                : 'text-gray-400 hover:text-white hover:bg-dark-800'
+                }`}
+            >
+              <sub.icon className="w-3.5 h-3.5 md:w-4 md:h-4 flex-shrink-0" />
+              <span className="md:hidden">{sub.shortLabel || sub.label}</span>
+              <span className="hidden md:inline">{sub.label}</span>
+              {sub.isNew && activeSubTab !== sub.id && (
+                <span className="text-[8px] md:text-[9px] font-bold px-1 py-0.5 rounded bg-amber-500/30 text-amber-200 border border-amber-500/40 leading-none">YENİ</span>
+              )}
+              {sub.badge > 0 && (
+                <span className="bg-red-500 text-white text-[10px] md:text-xs min-w-[16px] md:min-w-[18px] h-4 md:h-[18px] px-1 rounded-full flex items-center justify-center leading-none">
+                  {sub.badge}
+                </span>
+              )}
+            </button>
+          ))}
+        </ScrollableTabBar>
+      )}
+
       {/* Bugünün Sinyalleri Tab — pre-market 09:55 + revize 11:00 */}
       {activeTab === 'bugun' && <BugununSinyalleri />}
 
@@ -496,17 +581,17 @@ export default function GunlukTespitler() {
       {/* Emtia Tab — Altın & Gümüş Malaysian SNR sinyalleri */}
       {activeTab === 'emtia' && <EmtiaSinyalleri />}
 
-      {/* Çoklu Zaman Tab — 7 TF (1m-1w) MTF sinyal motoru + confluence engine */}
-      {activeTab === 'mtf' && <MTFSinyalleri />}
+      {/* Analiz → Çoklu Zaman — 7 TF (1m-1w) MTF sinyal motoru + confluence engine */}
+      {activeTab === 'analiz' && activeSubTab === 'mtf' && <MTFSinyalleri />}
 
-      {/* Likidasyon Haritası — Binance Futures forceOrder canlı akışı, Coinglass-tarzı */}
-      {activeTab === 'likidasyon' && <LikidasyonHaritasi />}
+      {/* Analiz → Likidasyon Haritası — Binance Futures forceOrder canlı akışı */}
+      {activeTab === 'analiz' && activeSubTab === 'likidasyon' && <LikidasyonHaritasi />}
 
-      {/* Backtest Tab — geçmiş tarih + horizon ile sinyal performans testi */}
-      {activeTab === 'backtest' && <BacktestPanel />}
+      {/* Araçlar → Backtest — geçmiş tarih + horizon ile sinyal performans testi */}
+      {activeTab === 'araclar' && activeSubTab === 'backtest' && <BacktestPanel />}
 
-      {/* Akilli Suzgec Tab */}
-      {activeTab === 'akilli-suzgec' && (
+      {/* Araçlar → Akıllı Süzgeç */}
+      {activeTab === 'araclar' && activeSubTab === 'suzgec' && (
         <>
           {/* Filters */}
           <div className="card">
@@ -832,8 +917,8 @@ export default function GunlukTespitler() {
         </>
       )}
 
-      {/* Canlı Alarmlar Tab */}
-      {activeTab === 'canli-takip' && (
+      {/* Araçlar → Canlı Alarmlar */}
+      {activeTab === 'araclar' && activeSubTab === 'alarmlar' && (
         <div className="space-y-4">
           {/* Alarm Bilgisi */}
           <div className="bg-primary-500/10 border border-primary-500/30 rounded-xl p-4">
@@ -906,8 +991,8 @@ export default function GunlukTespitler() {
         </div>
       )}
 
-      {/* Detayli Analiz Tab */}
-      {activeTab === 'detayli-analiz' && (
+      {/* Araçlar → Detaylı Analiz */}
+      {activeTab === 'araclar' && activeSubTab === 'detay' && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
           {/* Strateji Istatistikleri */}
           <div className="card">
