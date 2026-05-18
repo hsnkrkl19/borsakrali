@@ -4,6 +4,7 @@ import {
   ArrowRight,
   CandlestickChart,
   Check,
+  ChevronDown,
   KeyRound,
   Minus,
   Moon,
@@ -115,19 +116,30 @@ const CHART_TYPE_OPTIONS = [
   },
 ]
 
-function SectionCard({ icon, title, subtitle, children }) {
+function SectionCard({ icon, title, subtitle, children, defaultOpen = false }) {
+  const [open, setOpen] = useState(defaultOpen)
   return (
-    <div className="card border-gold-500/20">
-      <div className="mb-4 flex items-center gap-3">
-        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gold-500/20">
+    <div className="card border-gold-500/20 !p-0 overflow-hidden">
+      <button
+        type="button"
+        onClick={() => setOpen(v => !v)}
+        className="w-full flex items-center gap-3 p-4 text-left hover:bg-dark-800/40 transition-colors"
+        aria-expanded={open}
+      >
+        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gold-500/20 flex-shrink-0">
           {icon}
         </div>
-        <div>
+        <div className="flex-1 min-w-0">
           <h3 className="font-semibold text-white">{title}</h3>
           {subtitle ? <p className="text-xs text-gray-500">{subtitle}</p> : null}
         </div>
-      </div>
-      {children}
+        <ChevronDown className={`w-4 h-4 text-gray-400 flex-shrink-0 transition-transform ${open ? 'rotate-180' : ''}`} />
+      </button>
+      {open && (
+        <div className="px-4 pb-4 pt-1 border-t border-gold-500/10">
+          {children}
+        </div>
+      )}
     </div>
   )
 }
@@ -199,6 +211,7 @@ export default function Ayarlar() {
         icon={<Type className="h-5 w-5 text-gold-400" />}
         title="Yazi Boyutu"
         subtitle="Ekrandaki metin buyuklugunu ayarlayin"
+        defaultOpen
       >
         <div className="flex items-center gap-4">
           <button
@@ -275,6 +288,7 @@ export default function Ayarlar() {
         icon={<Palette className="h-5 w-5 text-gold-400" />}
         title="Tema"
         subtitle="Uygulamanin gorunum modunu secin"
+        defaultOpen
       >
         <div className="grid gap-3 sm:grid-cols-2">
           <button
