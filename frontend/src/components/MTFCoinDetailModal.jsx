@@ -84,8 +84,8 @@ const GROUP_SENTENCES = {
 export default function MTFCoinDetailModal({ symbol, onClose }) {
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
-  const [mode, setMode] = useState('simple')      // 'simple' | 'detailed' (Parça 2)
-  const [activeTab, setActiveTab] = useState('chart') // detaylı modda kullanılır
+  // Tek seviyeli tab — 'ozet' default (önceki Basit görünüm)
+  const [activeTab, setActiveTab] = useState('ozet')
 
   useEffect(() => {
     if (!symbol) return
@@ -132,30 +132,25 @@ export default function MTFCoinDetailModal({ symbol, onClose }) {
           </div>
         ) : (
           <>
-            {/* Basit / Detaylı toggle (Parça 2) */}
-            <div className="flex items-center gap-1 px-3 pt-3">
-              <ModeBtn active={mode === 'simple'}   onClick={() => setMode('simple')}>Basit</ModeBtn>
-              <ModeBtn active={mode === 'detailed'} onClick={() => setMode('detailed')}>Detaylı</ModeBtn>
-            </div>
+            {/* Tek seviyeli tab — Özet + 4 detay sekmesi (eski Basit/Detaylı toggle kaldırıldı) */}
+            <ScrollableTabBar
+              activeKey={activeTab}
+              className="gap-1 px-3 pt-3 border-b border-dark-700"
+              scrollAmount={150}
+            >
+              <TabBtn tabKey="ozet" active={activeTab === 'ozet'} onClick={() => setActiveTab('ozet')} icon={Sparkles}>Özet</TabBtn>
+              <TabBtn tabKey="chart" active={activeTab === 'chart'} onClick={() => setActiveTab('chart')} icon={LineChart}>Grafik</TabBtn>
+              <TabBtn tabKey="signals" active={activeTab === 'signals'} onClick={() => setActiveTab('signals')} icon={Layers}>Sinyaller</TabBtn>
+              <TabBtn tabKey="indicators" active={activeTab === 'indicators'} onClick={() => setActiveTab('indicators')} icon={BarChart3}>İndikatörler</TabBtn>
+              <TabBtn tabKey="ai" active={activeTab === 'ai'} onClick={() => setActiveTab('ai')} icon={Activity}>AI / Math</TabBtn>
+            </ScrollableTabBar>
 
-            {mode === 'simple' ? (
+            {activeTab === 'ozet' ? (
               <SimpleView confluence={data.confluence} symbol={symbol} onClose={onClose} />
             ) : (
               <>
-                {/* Confluence top panel */}
+                {/* Confluence top panel — detay sekmelerinde sabit */}
                 <ConfluencePanel confluence={data.confluence} />
-
-                {/* Tab selector — sağ/sol ok butonu */}
-                <ScrollableTabBar
-                  activeKey={activeTab}
-                  className="gap-1 px-3 pt-3 border-b border-dark-700"
-                  scrollAmount={150}
-                >
-                  <TabBtn tabKey="chart" active={activeTab === 'chart'} onClick={() => setActiveTab('chart')} icon={LineChart}>Grafik</TabBtn>
-                  <TabBtn tabKey="signals" active={activeTab === 'signals'} onClick={() => setActiveTab('signals')} icon={Layers}>Sinyaller</TabBtn>
-                  <TabBtn tabKey="indicators" active={activeTab === 'indicators'} onClick={() => setActiveTab('indicators')} icon={BarChart3}>İndikatörler</TabBtn>
-                  <TabBtn tabKey="ai" active={activeTab === 'ai'} onClick={() => setActiveTab('ai')} icon={Activity}>AI / Math</TabBtn>
-                </ScrollableTabBar>
 
                 {/* Tab content */}
                 <div className="p-3">
@@ -269,22 +264,6 @@ function ConfluencePanel({ confluence }) {
   )
 }
 
-function ModeBtn({ active, onClick, children }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="text-[11px] font-semibold px-3 py-1.5 rounded-lg transition-colors"
-      style={{
-        background: active ? 'rgba(212, 175, 55, 0.15)' : 'transparent',
-        color: active ? 'var(--gold-400)' : 'var(--text-faint)',
-        border: `1px solid ${active ? 'var(--border-gold)' : 'transparent'}`,
-      }}
-    >
-      {children}
-    </button>
-  )
-}
 
 // Parça 2 — Basit Mod görünümü
 // Büyük etiket + 3 vade satırı + 2 CTA. Hiç ham sayı yok.
