@@ -8,9 +8,26 @@ import BrandMark from './BrandMark'
 import AdSlot from './AdSlot'
 
 export default function Layout({ children }) {
-  const [sidebarOpen, setSidebarOpen] = useState(true)
+  // Desktop sidebar açık/kapalı tercihi localStorage'de hatırlanır.
+  // Mobile'da her zaman kapalı başlar (alt menü ile gezilir).
+  const [sidebarOpen, setSidebarOpen] = useState(() => {
+    if (typeof window === 'undefined') return true
+    if (window.innerWidth < 1024) return false
+    try {
+      const saved = localStorage.getItem('bk-sidebar-open')
+      if (saved === '0') return false
+      if (saved === '1') return true
+    } catch {}
+    return true
+  })
   const [isMobile, setIsMobile] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+
+  // Desktop sidebar değişimini localStorage'ye yaz (kullanıcı tercihi)
+  useEffect(() => {
+    if (isMobile) return
+    try { localStorage.setItem('bk-sidebar-open', sidebarOpen ? '1' : '0') } catch {}
+  }, [sidebarOpen, isMobile])
 
   useEffect(() => {
     const checkMobile = () => {
@@ -20,7 +37,13 @@ export default function Layout({ children }) {
         setSidebarOpen(false)
         setMobileMenuOpen(false)
       } else {
-        setSidebarOpen(true)
+        // Desktop'a geçince kullanıcı tercihini geri yükle (default açık)
+        let restored = true
+        try {
+          const saved = localStorage.getItem('bk-sidebar-open')
+          if (saved === '0') restored = false
+        } catch {}
+        setSidebarOpen(restored)
       }
     }
 
