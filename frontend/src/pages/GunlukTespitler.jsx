@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef, Fragment } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { Search, Filter, TrendingUp, TrendingDown, Target, Activity, Bell, BellRing, RefreshCw, X, Volume2, VolumeX, Star, Clock, Zap, Wifi, WifiOff, Info, CheckCircle, BookOpen, ChevronDown, ChevronUp, HelpCircle, Sparkles, Coins, Layers, Flame, MoreVertical } from 'lucide-react'
 import { io } from 'socket.io-client'
@@ -15,6 +15,8 @@ import MTFSinyalleri from '../components/MTFSinyalleri'
 import BacktestPanel from '../components/BacktestPanel'
 import LikidasyonHaritasi from '../components/LikidasyonHaritasi'
 import ScrollableTabBar from '../components/ScrollableTabBar'
+import DailySignalRow from '../components/DailySignalRow'
+import useMediaQuery from '../hooks/useMediaQuery'
 const API_BASE = getApiBase() + '/api'
 const SOCKET_URL = getSocketBase()
 
@@ -38,6 +40,7 @@ const SUB_TABS = {
 }
 
 export default function GunlukTespitler() {
+  const isDesktop = useMediaQuery('(min-width: 768px)')
   const [searchParams, setSearchParams] = useSearchParams()
   const resolved = (() => {
     const rawTab = searchParams.get('tab')
@@ -710,255 +713,67 @@ export default function GunlukTespitler() {
               </div>
             ) : (
               <>
-                {/* Mobile Card View */}
-                <div className="md:hidden space-y-3">
-                  {filteredSignals.map((signal, idx) => {
-                    const meta = getStrategyMeta(signal.strategy)
-                    const isExpanded = expandedSignal === (signal.id || idx)
-                    const actionStyle = meta.action === 'AL'
-                      ? { color: 'var(--jade)',  bg: 'rgba(0, 201, 138, 0.12)', border: 'rgba(0, 201, 138, 0.30)' }
-                      : meta.action === 'SAT'
-                        ? { color: 'var(--ember)', bg: 'rgba(255, 59, 70, 0.12)', border: 'rgba(255, 59, 70, 0.30)' }
-                        : { color: 'var(--gold-400)', bg: 'rgba(212, 175, 55, 0.12)', border: 'rgba(212, 175, 55, 0.30)' }
-                    return (
-                      <div
+                {/* Mobil kart listesi — sadece mobilde mount */}
+                {!isDesktop && (
+                  <div className="space-y-3">
+                    {filteredSignals.map((signal, idx) => (
+                      <DailySignalRow
                         key={signal.id || idx}
-                        className="rounded-xl p-3"
-                        style={{ background: 'var(--bg-card)', border: '1px solid var(--border-main)' }}
-                      >
-                        <div className="flex items-center justify-between mb-2">
-                          <div className="flex items-center gap-2">
-                            <div
-                              className="w-8 h-8 rounded flex items-center justify-center text-xs font-bold"
-                              style={{ background: 'rgba(212, 175, 55, 0.15)', color: 'var(--gold-400)', border: '1px solid var(--border-gold)' }}
-                            >
-                              {signal.stockSymbol?.slice(0, 2)}
-                            </div>
-                            <div>
-                              <div className="flex items-center gap-1.5">
-                                <span className="font-mono font-semibold text-sm" style={{ color: 'var(--text-primary)' }}>{signal.stockSymbol}</span>
-                                <span
-                                  className="text-[10px] font-bold px-1.5 py-0.5 rounded"
-                                  style={{ background: actionStyle.bg, color: actionStyle.color, border: `1px solid ${actionStyle.border}` }}
-                                >
-                                  {meta.action}
-                                </span>
-                              </div>
-                              <p className="text-[10px]" style={{ color: 'var(--text-faint)' }}>
-                                {formatRelativeTime(signal.detectionDate || signal.detectedAt || signal.timestamp)} · {meta.timeframe}
-                              </p>
-                            </div>
-                          </div>
-                          <div className="text-right">
-                            <span className="text-sm font-semibold block" style={{ color: 'var(--text-primary)' }}>
-                              {signal.currentPrice?.toFixed(2) || signal.detectionPrice?.toFixed(2)} ₺
-                            </span>
-                            <span className="text-xs font-bold" style={{ color: signal.changePercent >= 0 ? 'var(--jade)' : 'var(--ember)' }}>
-                              {signal.changePercent >= 0 ? '+' : ''}{signal.changePercent?.toFixed(2)}%
-                            </span>
-                          </div>
-                        </div>
-                        <div className="flex items-center justify-between gap-2 flex-wrap">
-                          <div className="flex items-center gap-1.5 min-w-0">
-                            <Zap className="w-3 h-3 flex-shrink-0" style={{ color: 'var(--gold-400)' }} />
-                            <span className="text-xs truncate" style={{ color: 'var(--text-secondary)' }}>{meta.label}</span>
-                            <InfoTooltip
-                              size="sm"
-                              title={meta.label}
-                              description={meta.summary + ' ' + meta.explanation}
-                              formula={meta.formula}
-                            />
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <button
-                              type="button"
-                              onClick={() => setExpandedSignal(isExpanded ? null : (signal.id || idx))}
-                              className="text-[10px] font-semibold px-2 py-0.5 rounded inline-flex items-center gap-1"
-                              style={{ background: 'rgba(212, 175, 55, 0.12)', color: 'var(--gold-400)', border: '1px solid var(--border-gold)' }}
-                            >
-                              Plan {isExpanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
-                            </button>
-                            <button
-                              onClick={() => addToWatchlist(signal.stockSymbol)}
-                              disabled={addingToWatchlist === signal.stockSymbol || watchlistSymbols.has(signal.stockSymbol?.toUpperCase())}
-                              title={watchlistSymbols.has(signal.stockSymbol?.toUpperCase()) ? 'Takip listesinde' : 'Takip listesine ekle'}
-                              style={{ color: watchlistSymbols.has(signal.stockSymbol?.toUpperCase()) ? 'var(--gold-400)' : 'var(--text-muted)' }}
-                            >
-                              {watchlistSymbols.has(signal.stockSymbol?.toUpperCase()) ? <CheckCircle className="w-4 h-4" /> : <Star className="w-4 h-4" />}
-                            </button>
-                          </div>
-                        </div>
-                        {isExpanded && (
-                          <div className="mt-3">
-                            <TradePlanCard signal={signal} />
-                          </div>
-                        )}
-                      </div>
-                    )
-                  })}
-                </div>
+                        signal={signal}
+                        idx={idx}
+                        isDesktop={false}
+                        isExpanded={expandedSignal === (signal.id || idx)}
+                        onToggleExpand={() => setExpandedSignal(expandedSignal === (signal.id || idx) ? null : (signal.id || idx))}
+                        onAddWatchlist={addToWatchlist}
+                        addingToWatchlist={addingToWatchlist}
+                        isInWatchlist={watchlistSymbols.has(signal.stockSymbol?.toUpperCase())}
+                      />
+                    ))}
+                  </div>
+                )}
 
-                {/* Desktop Table View */}
-                <div className="hidden md:block overflow-x-auto">
-                  <table className="w-full min-w-[900px]">
-                    <thead>
-                      <tr style={{ borderBottom: '1px solid var(--border-main)' }}>
-                        <th className="text-left text-[11px] font-semibold py-3 px-3" style={{ color: 'var(--text-faint)' }}>TAKİP</th>
-                        <th className="text-left text-[11px] font-semibold py-3 px-3" style={{ color: 'var(--text-faint)' }}>SEMBOL</th>
-                        <th className="text-left text-[11px] font-semibold py-3 px-3" style={{ color: 'var(--text-faint)' }}>
-                          AKSİYON <InfoTooltip title="Aksiyon" description="AL: Algoritma alım fırsatı tespit etti. SAT: Çıkış / kâr alma sinyali. TUT: Belirsiz, yeni işlem önerilmez." size="sm" />
-                        </th>
-                        <th className="text-left text-[11px] font-semibold py-3 px-3" style={{ color: 'var(--text-faint)' }}>
-                          STRATEJİ <InfoTooltip title="Strateji" description="Sinyali tetikleyen teknik gösterge. Üzerine ⓘ ile ne anlama geldiğini görebilirsiniz." size="sm" />
-                        </th>
-                        <th className="text-left text-[11px] font-semibold py-3 px-3" style={{ color: 'var(--text-faint)' }}>PERİYOD</th>
-                        <th className="text-right text-[11px] font-semibold py-3 px-3" style={{ color: 'var(--text-faint)' }}>FİYAT</th>
-                        <th className="text-right text-[11px] font-semibold py-3 px-3" style={{ color: 'var(--text-faint)' }}>DEĞİŞİM</th>
-                        <th className="text-left text-[11px] font-semibold py-3 px-3" style={{ color: 'var(--text-faint)' }}>
-                          TESPİT <InfoTooltip title="Tespit zamanı" description="Sinyalin algoritma tarafından üretildiği zaman. Eski sinyaller geçerliliğini yitirebilir; her stratejinin kendi vade süresi vardır." size="sm" />
-                        </th>
-                        <th className="text-left text-[11px] font-semibold py-3 px-3" style={{ color: 'var(--text-faint)' }}>DURUM</th>
-                        <th className="text-center text-[11px] font-semibold py-3 px-2" style={{ color: 'var(--text-faint)' }}>PLAN</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {filteredSignals.map((signal, idx) => {
-                        const meta = getStrategyMeta(signal.strategy)
-                        const isExpanded = expandedSignal === (signal.id || idx)
-                        const actionStyle = meta.action === 'AL'
-                          ? { color: 'var(--jade)',  bg: 'rgba(0, 201, 138, 0.12)', border: 'rgba(0, 201, 138, 0.30)' }
-                          : meta.action === 'SAT'
-                            ? { color: 'var(--ember)', bg: 'rgba(255, 59, 70, 0.12)', border: 'rgba(255, 59, 70, 0.30)' }
-                            : { color: 'var(--gold-400)', bg: 'rgba(212, 175, 55, 0.12)', border: 'rgba(212, 175, 55, 0.30)' }
-                        return (
-                          <Fragment key={signal.id || idx}>
-                          <tr
-                            className="transition-colors"
-                            style={{ borderBottom: '1px solid var(--border-main)' }}
-                            onMouseEnter={(e) => e.currentTarget.style.background = 'var(--bg-hover)'}
-                            onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
-                          >
-                            <td className="py-3 px-3">
-                              <button
-                                onClick={() => addToWatchlist(signal.stockSymbol)}
-                                disabled={addingToWatchlist === signal.stockSymbol || watchlistSymbols.has(signal.stockSymbol?.toUpperCase())}
-                                title={watchlistSymbols.has(signal.stockSymbol?.toUpperCase()) ? 'Takip listesinde' : 'Takip listesine ekle'}
-                                className="transition-colors"
-                                style={{ color: watchlistSymbols.has(signal.stockSymbol?.toUpperCase()) ? 'var(--gold-400)' : 'var(--text-muted)' }}
-                              >
-                                {addingToWatchlist === signal.stockSymbol ? (
-                                  <RefreshCw className="w-4 h-4 animate-spin" />
-                                ) : watchlistSymbols.has(signal.stockSymbol?.toUpperCase()) ? (
-                                  <CheckCircle className="w-4 h-4" />
-                                ) : (
-                                  <Star className="w-4 h-4" />
-                                )}
-                              </button>
-                            </td>
-                            <td className="py-3 px-3">
-                              <div className="flex items-center space-x-2">
-                                <div
-                                  className="w-8 h-8 rounded flex items-center justify-center text-xs font-bold"
-                                  style={{ background: 'rgba(212, 175, 55, 0.15)', color: 'var(--gold-400)', border: '1px solid var(--border-gold)' }}
-                                >
-                                  {signal.stockSymbol?.slice(0, 2)}
-                                </div>
-                                <div>
-                                  <span className="font-mono font-semibold" style={{ color: 'var(--text-primary)' }}>{signal.stockSymbol}</span>
-                                  <p className="text-xs" style={{ color: 'var(--text-faint)' }}>{signal.stockName || signal.sector}</p>
-                                </div>
-                              </div>
-                            </td>
-                            <td className="py-3 px-3">
-                              <span
-                                className="text-[11px] font-bold px-2 py-0.5 rounded"
-                                style={{ background: actionStyle.bg, color: actionStyle.color, border: `1px solid ${actionStyle.border}` }}
-                              >
-                                {meta.action}
-                              </span>
-                            </td>
-                            <td className="py-3 px-3">
-                              <div className="flex items-center gap-1.5">
-                                <Zap className="w-3 h-3" style={{ color: 'var(--gold-400)' }} />
-                                <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>{meta.label}</span>
-                                <InfoTooltip
-                                  size="sm"
-                                  title={meta.label}
-                                  description={meta.summary + ' ' + meta.explanation}
-                                  formula={meta.formula}
-                                />
-                              </div>
-                              <div className="text-[10.5px] mt-0.5" style={{ color: 'var(--text-faint)' }}>
-                                Vade: {meta.validity}
-                              </div>
-                            </td>
-                            <td className="py-3 px-3">
-                              <span
-                                className="text-[10.5px] font-mono px-1.5 py-0.5 rounded"
-                                style={{ background: 'var(--bg-input)', color: 'var(--text-secondary)', border: '1px solid var(--border-main)' }}
-                              >
-                                {meta.timeframe}
-                              </span>
-                            </td>
-                            <td className="py-3 px-3 text-right">
-                              <span className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
-                                {signal.currentPrice?.toFixed(2) || signal.detectionPrice?.toFixed(2)} ₺
-                              </span>
-                            </td>
-                            <td className="py-3 px-3 text-right">
-                              <span className="text-sm font-bold" style={{ color: signal.changePercent >= 0 ? 'var(--jade)' : 'var(--ember)' }}>
-                                {signal.changePercent >= 0 ? '+' : ''}{signal.changePercent?.toFixed(2)}%
-                              </span>
-                            </td>
-                            <td className="py-3 px-3">
-                              <div className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>
-                                {formatRelativeTime(signal.detectionDate || signal.detectedAt || signal.timestamp)}
-                              </div>
-                              <div className="text-[10px]" style={{ color: 'var(--text-faint)' }} title={new Date(signal.detectionDate || signal.detectedAt || signal.timestamp || Date.now()).toLocaleString('tr-TR')}>
-                                {new Date(signal.detectionDate || signal.detectedAt || signal.timestamp || Date.now()).toLocaleDateString('tr-TR', { day: '2-digit', month: 'short' })}
-                              </div>
-                            </td>
-                            <td className="py-3 px-3">
-                              <span
-                                className="text-[10.5px] font-medium px-2 py-1 rounded"
-                                style={
-                                  signal.status === 'active'
-                                    ? { background: 'rgba(0, 201, 138, 0.12)', color: 'var(--jade)', border: '1px solid rgba(0, 201, 138, 0.28)' }
-                                    : { background: 'var(--bg-input)', color: 'var(--text-faint)', border: '1px solid var(--border-main)' }
-                                }
-                              >
-                                {signal.status === 'active' ? 'AKTİF' : 'KAPANDI'}
-                              </span>
-                            </td>
-                            <td className="py-2 px-2 text-center">
-                              <button
-                                type="button"
-                                onClick={() => setExpandedSignal(isExpanded ? null : (signal.id || idx))}
-                                title={isExpanded ? 'Planı gizle' : 'İşlem planını göster'}
-                                className="inline-flex items-center justify-center w-7 h-7 rounded-lg transition-all"
-                                style={{
-                                  background: isExpanded ? 'rgba(212, 175, 55, 0.18)' : 'var(--bg-input)',
-                                  color: 'var(--gold-400)',
-                                  border: '1px solid var(--border-gold)',
-                                }}
-                              >
-                                {isExpanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
-                              </button>
-                            </td>
-                          </tr>
-                          {isExpanded && (
-                            <tr>
-                              <td colSpan={10} className="px-3 pb-4 pt-1">
-                                <TradePlanCard signal={signal} />
-                              </td>
-                            </tr>
-                          )}
-                          </Fragment>
-                        )
-                      })}
-                    </tbody>
-                  </table>
-                </div>
+                {/* Masaüstü tablosu — sadece desktop'ta mount */}
+                {isDesktop && (
+                  <div className="overflow-x-auto">
+                    <table className="w-full min-w-[900px]">
+                      <thead>
+                        <tr style={{ borderBottom: '1px solid var(--border-main)' }}>
+                          <th className="text-left text-[11px] font-semibold py-3 px-3" style={{ color: 'var(--text-faint)' }}>TAKİP</th>
+                          <th className="text-left text-[11px] font-semibold py-3 px-3" style={{ color: 'var(--text-faint)' }}>SEMBOL</th>
+                          <th className="text-left text-[11px] font-semibold py-3 px-3" style={{ color: 'var(--text-faint)' }}>
+                            AKSİYON <InfoTooltip title="Aksiyon" description="AL: Algoritma alım fırsatı tespit etti. SAT: Çıkış / kâr alma sinyali. TUT: Belirsiz, yeni işlem önerilmez." size="sm" />
+                          </th>
+                          <th className="text-left text-[11px] font-semibold py-3 px-3" style={{ color: 'var(--text-faint)' }}>
+                            STRATEJİ <InfoTooltip title="Strateji" description="Sinyali tetikleyen teknik gösterge. Üzerine ⓘ ile ne anlama geldiğini görebilirsiniz." size="sm" />
+                          </th>
+                          <th className="text-left text-[11px] font-semibold py-3 px-3" style={{ color: 'var(--text-faint)' }}>PERİYOD</th>
+                          <th className="text-right text-[11px] font-semibold py-3 px-3" style={{ color: 'var(--text-faint)' }}>FİYAT</th>
+                          <th className="text-right text-[11px] font-semibold py-3 px-3" style={{ color: 'var(--text-faint)' }}>DEĞİŞİM</th>
+                          <th className="text-left text-[11px] font-semibold py-3 px-3" style={{ color: 'var(--text-faint)' }}>
+                            TESPİT <InfoTooltip title="Tespit zamanı" description="Sinyalin algoritma tarafından üretildiği zaman. Eski sinyaller geçerliliğini yitirebilir; her stratejinin kendi vade süresi vardır." size="sm" />
+                          </th>
+                          <th className="text-left text-[11px] font-semibold py-3 px-3" style={{ color: 'var(--text-faint)' }}>DURUM</th>
+                          <th className="text-center text-[11px] font-semibold py-3 px-2" style={{ color: 'var(--text-faint)' }}>PLAN</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {filteredSignals.map((signal, idx) => (
+                          <DailySignalRow
+                            key={signal.id || idx}
+                            signal={signal}
+                            idx={idx}
+                            isDesktop={true}
+                            isExpanded={expandedSignal === (signal.id || idx)}
+                            onToggleExpand={() => setExpandedSignal(expandedSignal === (signal.id || idx) ? null : (signal.id || idx))}
+                            onAddWatchlist={addToWatchlist}
+                            addingToWatchlist={addingToWatchlist}
+                            isInWatchlist={watchlistSymbols.has(signal.stockSymbol?.toUpperCase())}
+                          />
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
               </>
             )}
           </div>
