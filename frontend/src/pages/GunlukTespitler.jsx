@@ -16,6 +16,8 @@ import BacktestPanel from '../components/BacktestPanel'
 import LikidasyonHaritasi from '../components/LikidasyonHaritasi'
 import ScrollableTabBar from '../components/ScrollableTabBar'
 import AkilliSuzgec from '../components/AkilliSuzgec'
+import CanliAlarmlar from '../components/CanliAlarmlar'
+import DetayliAnaliz from '../components/DetayliAnaliz'
 import useMediaQuery from '../hooks/useMediaQuery'
 const API_BASE = getApiBase() + '/api'
 const SOCKET_URL = getSocketBase()
@@ -609,127 +611,12 @@ export default function GunlukTespitler() {
 
       {/* Araçlar → Canlı Alarmlar */}
       {activeTab === 'araclar' && activeSubTab === 'alarmlar' && (
-        <div className="space-y-4">
-          {/* Alarm Bilgisi */}
-          <div className="bg-primary-500/10 border border-primary-500/30 rounded-xl p-4">
-            <div className="flex items-center gap-3">
-              <BellRing className="w-5 h-5 text-primary-500" />
-              <div>
-                <h3 className="text-white font-semibold">Canlı Alarm Sistemi</h3>
-                <p className="text-sm text-gray-400">
-                  Yeni sinyaller tespit edildiğinde burada anlık bildirim alırsınız.
-                </p>
-              </div>
-            </div>
-          </div>
-
-          {/* Alarm Listesi */}
-          {liveAlerts.length === 0 ? (
-            <div className="card text-center py-12">
-              <Bell className="w-12 h-12 text-gray-600 mx-auto mb-4" />
-              <h3 className="text-white font-semibold mb-2">Henüz Alarm Yok</h3>
-              <p className="text-gray-400 text-sm">Yeni sinyaller tespit edildiğinde burada görünecek</p>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {liveAlerts.map((alert) => (
-                <div
-                  key={alert.id}
-                  className={`card transition-all cursor-pointer hover:border-primary-500 ${alert.read ? 'border-dark-700' : 'border-green-500 bg-green-500/5'
-                    }`}
-                  onClick={() => !alert.read && markAsRead(alert.id)}
-                >
-                  <div className="flex items-start justify-between">
-                    <div className="flex items-start gap-3">
-                      <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${alert.type === 'BUY' ? 'bg-green-500/20 text-green-500' :
-                        alert.type === 'SELL' ? 'bg-red-500/20 text-red-500' :
-                          'bg-yellow-500/20 text-yellow-500'
-                        }`}>
-                        {alert.type === 'BUY' ? <TrendingUp className="w-5 h-5" /> : <TrendingDown className="w-5 h-5" />}
-                      </div>
-                      <div>
-                        <div className="flex items-center gap-2 mb-1">
-                          <span className="font-bold text-white text-lg">{alert.symbol}</span>
-                          <span className="text-xs bg-primary-500/20 text-primary-400 px-2 py-0.5 rounded">
-                            {alert.strategy}
-                          </span>
-                          {!alert.read && (
-                            <span className="text-xs bg-green-500 text-white px-2 py-0.5 rounded animate-pulse">
-                              YENİ
-                            </span>
-                          )}
-                        </div>
-                        <p className="text-sm text-gray-400">{alert.description}</p>
-                        <p className="text-xs text-gray-500 mt-1">{alert.name} - {alert.sector}</p>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-lg font-bold text-white">{alert.price?.toFixed(2)} TL</p>
-                      <p className={`text-sm font-semibold ${alert.changePercent >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-                        {alert.changePercent >= 0 ? '+' : ''}{alert.changePercent?.toFixed(2)}%
-                      </p>
-                      <p className="text-xs text-gray-500 flex items-center justify-end gap-1 mt-1">
-                        <Clock className="w-3 h-3" />
-                        {new Date(alert.timestamp).toLocaleString('tr-TR')}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
+        <CanliAlarmlar liveAlerts={liveAlerts} onMarkAsRead={markAsRead} />
       )}
 
       {/* Araçlar → Detaylı Analiz */}
       {activeTab === 'araclar' && activeSubTab === 'detay' && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
-          {/* Strateji Istatistikleri */}
-          <div className="card">
-            <h3 className="text-white font-semibold text-sm md:text-base mb-3 md:mb-4 flex items-center gap-2">
-              <Target className="w-4 h-4 md:w-5 md:h-5 text-primary-500" />
-              Strateji Istatistikleri
-            </h3>
-            <div className="space-y-2 md:space-y-3">
-              {[
-                { name: 'RSI Asiri Satim', count: signals.filter(s => s.strategy?.includes('RSI')).length, color: 'bg-green-500' },
-                { name: 'MACD Kesisim', count: signals.filter(s => s.strategy?.includes('MACD')).length, color: 'bg-blue-500' },
-                { name: 'EMA Kesisim', count: signals.filter(s => s.strategy?.includes('EMA')).length, color: 'bg-gold-400' },
-                { name: 'Bollinger', count: signals.filter(s => s.strategy?.includes('Bollinger')).length, color: 'bg-yellow-500' }
-              ].map((stat, idx) => (
-                <div key={idx} className="flex items-center justify-between bg-dark-800 rounded-lg p-2.5 md:p-3">
-                  <div className="flex items-center gap-2">
-                    <div className={`w-2.5 h-2.5 md:w-3 md:h-3 rounded-full ${stat.color}`}></div>
-                    <span className="text-gray-300 text-sm md:text-base">{stat.name}</span>
-                  </div>
-                  <span className="text-white font-semibold text-sm md:text-base">{stat.count}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Sektor Dagilimi */}
-          <div className="card">
-            <h3 className="text-white font-semibold text-sm md:text-base mb-3 md:mb-4 flex items-center gap-2">
-              <Activity className="w-4 h-4 md:w-5 md:h-5 text-primary-500" />
-              Sektor Dagilimi
-            </h3>
-            <div className="space-y-2 md:space-y-3">
-              {Object.entries(
-                signals.reduce((acc, s) => {
-                  const sector = s.sector || 'Diger'
-                  acc[sector] = (acc[sector] || 0) + 1
-                  return acc
-                }, {})
-              ).slice(0, 5).map(([sector, count], idx) => (
-                <div key={idx} className="flex items-center justify-between bg-dark-800 rounded-lg p-2.5 md:p-3">
-                  <span className="text-gray-300 text-sm md:text-base truncate max-w-[150px]">{sector}</span>
-                  <span className="text-white font-semibold text-sm md:text-base">{count} sinyal</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
+        <DetayliAnaliz signals={signals} />
       )}
 
       {/* Warning */}
