@@ -128,12 +128,12 @@ export default function GunlukTespitler() {
     })
 
     socketRef.current.on('connect', () => {
-      console.log('[Socket.IO] Baglanildi:', socketRef.current.id)
+      if (import.meta.env.DEV) console.log('[Socket.IO] Baglanildi:', socketRef.current.id)
       setSocketConnected(true)
     })
 
     socketRef.current.on('disconnect', () => {
-      console.log('[Socket.IO] Baglanti koptu')
+      if (import.meta.env.DEV) console.log('[Socket.IO] Baglanti koptu')
       setSocketConnected(false)
     })
 
@@ -156,7 +156,7 @@ export default function GunlukTespitler() {
       // Gerçek alarmlar bir sembol taşımalı; aksi halde popup boş kalır.
       if (!signal?.stockSymbol && !signal?.symbol) return
 
-      console.log('[Socket.IO] Yeni sinyal:', signal)
+      if (import.meta.env.DEV) console.log('[Socket.IO] Yeni sinyal:', signal)
 
       // Listeye ekle
       setLiveAlerts(prev => [signal, ...prev].slice(0, 50))
@@ -176,13 +176,13 @@ export default function GunlukTespitler() {
       const filtered = (signals || []).filter(s =>
         s && !INTERNAL_STRATEGIES.has(s.strategy) && (s.stockSymbol || s.symbol)
       )
-      console.log('[Socket.IO] Son sinyaller:', signals?.length, '→ kullanılabilir:', filtered.length)
+      if (import.meta.env.DEV) console.log('[Socket.IO] Son sinyaller:', signals?.length, '→ kullanılabilir:', filtered.length)
       setLiveAlerts(prev => [...filtered, ...prev].slice(0, 50))
     })
 
     // Baglanti bilgisini al
     socketRef.current.on('connected', (info) => {
-      console.log('[Socket.IO] Baglanti bilgisi:', info)
+      if (import.meta.env.DEV) console.log('[Socket.IO] Baglanti bilgisi:', info)
     })
 
     return () => {
