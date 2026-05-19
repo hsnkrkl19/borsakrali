@@ -42,13 +42,15 @@ function unwrap(v) {
   return v;
 }
 
-// USD/TRY kuru — quote() ile (mode=usd modunda TRY→USD dönüşümü için)
+// USD/TRY kuru — Yahoo → exchangerate.host → frankfurter fallback zinciri
 let _usdTryCache = { rate: null, ts: 0 };
 const USDTRY_TTL = 10 * 60 * 1000; // 10 dk
 async function fetchUsdTryRate() {
   if (_usdTryCache.rate && Date.now() - _usdTryCache.ts < USDTRY_TTL) {
     return _usdTryCache.rate;
   }
+
+  // 1) Yahoo Finance (USDTRY=X)
   try {
     const YF = await getYF();
     const yf = typeof YF === 'function' ? new YF({ suppressNotices: ['yahooSurvey'] }) : YF;
@@ -59,10 +61,37 @@ async function fetchUsdTryRate() {
       return rate;
     }
   } catch (err) {
-    console.warn('[DCF] USD/TRY kuru alınamadı:', err.message?.slice(0, 80));
+    console.warn('[DCF] Yahoo USD/TRY kuru alınamadı:', err.message?.slice(0, 80));
   }
-  // Fallback: makul bir 2026 değeri (kullanıcıyı bloklamaz, eskimiş veri uyarısı UI'da yok)
-  return _usdTryCache.rate || 32.5;
+
+  // 2) exchangerate.host (ücretsiz, anahtar gerektirmez)
+  try {
+    const r = await fetch('https://api.exchangerate.host/latest?base=USD&symbols=TRY', { signal: AbortSignal.timeout(5000) });
+    const j = await r.json();
+    const rate = j?.rates?.TRY;
+    if (rate && Number.isFinite(rate) && rate > 1) {
+      _usdTryCache = { rate, ts: Date.now() };
+      return rate;
+    }
+  } catch (err) {
+    console.warn('[DCF] exchangerate.host hatası:', err.message?.slice(0, 80));
+  }
+
+  // 3) frankfurter.app (ECB tabanlı, ücretsiz)
+  try {
+    const r = await fetch('https://api.frankfurter.app/latest?from=USD&to=TRY', { signal: AbortSignal.timeout(5000) });
+    const j = await r.json();
+    const rate = j?.rates?.TRY;
+    if (rate && Number.isFinite(rate) && rate > 1) {
+      _usdTryCache = { rate, ts: Date.now() };
+      return rate;
+    }
+  } catch (err) {
+    console.warn('[DCF] frankfurter.app hatası:', err.message?.slice(0, 80));
+  }
+
+  // Son çare: eski cache veya 2026 makul fallback (40 TRY — 32.5'tan çok daha doğru)
+  return _usdTryCache.rate || 40;
 }
 
 // Yahoo finansal veri çekimi — yahoo-finance2 v3 quoteSummary + fundamentalsTimeSeries
@@ -79,9 +108,9 @@ async function fetchFinancials(symbol) {
   }
   const yf = typeof YF === 'function' ? new YF({ suppressNotices: ['yahooSurvey', 'ripHistorical'] }) : YF;
 
-  // Paralel: quoteSummary (snapshot) + fundamentalsTimeSeries (5y cashflow)
+  // Paralel: quoteSummary (snapshot) + fundamentalsTimeSeries (5y cashflow) + v7 quote (price fallback)
   const sinceYear = new Date().getFullYear() - 6;
-  const [summary, ftsCash] = await Promise.all([
+  const [summary, ftsCash, v7quote] = await Promise.all([
     yf.quoteSummary(ticker, {
       modules: ['financialData', 'defaultKeyStatistics', 'summaryDetail', 'price', 'incomeStatementHistory']
     }, { validateResult: false }).catch(e => { console.warn(`[DCF] quoteSummary (${ticker}):`, e.message?.slice(0, 80)); return null; }),
@@ -90,9 +119,10 @@ async function fetchFinancials(symbol) {
       type: 'annual',
       module: 'cash-flow'
     }, { validateResult: false }).catch(e => { console.warn(`[DCF] fundamentalsTimeSeries (${ticker}):`, e.message?.slice(0, 80)); return null; }),
+    yf.quote(ticker).catch(e => { console.warn(`[DCF] quote (${ticker}):`, e.message?.slice(0, 80)); return null; }),
   ]);
 
-  if (!summary && !ftsCash) return null;
+  if (!summary && !ftsCash && !v7quote) return null;
 
   // 5y cashflow serisi → extractFCFHistory uyumlu shape: { totalCashFromOperatingActivities, capitalExpenditures, endDate }
   const cashFlowAnnual = Array.isArray(ftsCash)
@@ -117,6 +147,22 @@ async function fetchFinancials(symbol) {
   const ks = summary?.defaultKeyStatistics || {};
   const price = summary?.price || {};
 
+  // currentPrice: 3 katmanlı fallback — Yahoo bazı çağrılarda price modülünü boş döndürebiliyor
+  const priceCandidates = [
+    unwrap(price.regularMarketPrice),
+    unwrap(fd.currentPrice),
+    unwrap(v7quote?.regularMarketPrice),
+    unwrap(v7quote?.postMarketPrice),
+    unwrap(v7quote?.preMarketPrice),
+  ];
+  const currentPrice = priceCandidates.find(p => Number.isFinite(p) && p > 0) || null;
+
+  // marketCap: price modülü yoksa v7 quote'tan al
+  const marketCap = unwrap(price.marketCap) || unwrap(v7quote?.marketCap) || null;
+
+  // shares: defaultKeyStatistics → v7 quote sharesOutstanding fallback
+  const shares = unwrap(ks.sharesOutstanding) || unwrap(v7quote?.sharesOutstanding) || null;
+
   return {
     ok: true,
     cashFlow: { annual: cashFlowAnnual },
@@ -124,10 +170,10 @@ async function fetchFinancials(symbol) {
     financialData: fd,
     statistics: ks,
     price,
-    // Snapshot kestirme (legacy uyum + valuateDCF için)
-    currentPrice: unwrap(price.regularMarketPrice),
-    marketCap:    unwrap(price.marketCap),
-    shares:       unwrap(ks.sharesOutstanding),
+    v7quote,
+    currentPrice,
+    marketCap,
+    shares,
     freeCashflow: unwrap(fd.freeCashflow),
     operatingCF:  unwrap(fd.operatingCashflow),
     totalDebt:    unwrap(fd.totalDebt),
@@ -447,7 +493,13 @@ async function valuateDCF(symbol, opts = {}) {
     sensitivity,
   };
 
-  dcfCache.set(cacheKey, { result, ts: Date.now() });
+  // Cache: yalnızca tam sonuç (currentPrice > 0 ve fairPrice tanımlı). Eksik veri cache'lenmez,
+  // sonraki istek tekrar Yahoo'ya gider — geçici kesintiler 30dk hapsolmasın.
+  const isComplete = Number.isFinite(currentPrice) && currentPrice > 0
+    && Number.isFinite(main.fairPrice) && main.fairPrice > 0;
+  if (isComplete) {
+    dcfCache.set(cacheKey, { result, ts: Date.now() });
+  }
   return result;
 }
 
