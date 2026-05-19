@@ -21,6 +21,17 @@ export function formatPct(value, digits = 2) {
   return `${sign}${value.toFixed(digits)}%`
 }
 
+// 7 verdict label + renk eşlemesi (long/short kuvvet 3 kademeli + neutral)
+export const VERDICT_STYLES = {
+  STRONG_LONG:  { label: '⇈ GÜÇLÜ AL',     color: 'text-emerald-300', bg: 'bg-emerald-500/15', border: 'border-emerald-500/40' },
+  LONG:         { label: '↑ AL',           color: 'text-emerald-400', bg: 'bg-emerald-500/10', border: 'border-emerald-500/30' },
+  WEAK_LONG:    { label: '↗ Zayıf AL',     color: 'text-emerald-200', bg: 'bg-emerald-500/5',  border: 'border-emerald-500/20' },
+  NEUTRAL:      { label: '— BEKLE',        color: 'text-gray-400',    bg: 'bg-gray-500/10',    border: 'border-gray-500/30' },
+  WEAK_SHORT:   { label: '↘ Zayıf SAT',    color: 'text-rose-200',    bg: 'bg-rose-500/5',     border: 'border-rose-500/20' },
+  SHORT:        { label: '↓ SAT',          color: 'text-rose-400',    bg: 'bg-rose-500/10',    border: 'border-rose-500/30' },
+  STRONG_SHORT: { label: '⇊ GÜÇLÜ SAT',    color: 'text-rose-300',    bg: 'bg-rose-500/15',    border: 'border-rose-500/40' },
+}
+
 // 7 timeframe + tier (top-N coin sayısı) + renk eşlemesi.
 export const TF_LIST = [
   { key: '1m',  label: '1 dk',     tier: 10, color: 'rose' },
