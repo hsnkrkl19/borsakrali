@@ -1,8 +1,10 @@
 // Logo processing pipeline:
-// 1. app-icon.png'den K+taç bölümünü kare crop ile çıkar → app-icon-mark.png
-// 2. Mark'tan tüm favicon/PWA boyutlarını public/ köküne üret
-// 3. Diğer 4 logo (bull-color, bull-mono, crown-wordmark, k-wordmark) olduğu gibi kalır,
-//    marka kiti sayfasında ve farklı kullanım yerlerinde referans verilecek
+// 1. app-icon.png yatay format (2814x1536). Alt kısımda BORSAKRALI wordmark var.
+//    Üst yarıyı (y=0..1080) al → trim ile içeriğin gerçek bbox'unu bul →
+//    kare canvasa uniform padding ile ortala → mark olarak kaydet.
+// 2. Mark'tan tüm icon boyutlarını public/ köküne üret.
+//
+// Çalıştırma: cd frontend && node scripts/process-logos.cjs
 
 const fs = require('fs');
 const path = require('path');
@@ -13,32 +15,53 @@ const LOGOS = path.join(ROOT, 'public', 'logos');
 const PUBLIC = path.join(ROOT, 'public');
 
 (async () => {
-  // app-icon.png: 2814x1536 yatay (K+taç üstte, BORSAKRALI altta)
-  // Mark region: ortala, üst %65 (wordmark hariç), kare yap.
   const src = path.join(LOGOS, 'app-icon.png');
-  const meta = await sharp(src).metadata();
-  console.log(`Kaynak: ${meta.width}x${meta.height}`);
+  const srcMeta = await sharp(src).metadata();
+  console.log(`Kaynak: ${srcMeta.width}x${srcMeta.height}`);
 
-  // K+taç region (wordmark öncesi). Dikdörtgen extract → kare canvasa pad.
-  // app-icon.png yatay 2814x1536, K+taç görsel olarak x≈900-1900, y≈80-900 arası.
-  const extractBox = { left: 900, top: 80, width: 1000, height: 820 };
+  // 1) Üst kısmı çıkar — BORSAKRALI wordmark altta y≈900 civarında başlıyor.
+  //    Wordmark'tan önce kes ki trim() sadece K+taç+çizgileri kapsasın.
+  const upperBuf = await sharp(src)
+    .extract({ left: 0, top: 0, width: srcMeta.width, height: 900 })
+    .toBuffer();
 
-  console.log(`Extract box: x=${extractBox.left}, y=${extractBox.top}, ${extractBox.width}x${extractBox.height}`);
+  // 2) Trim ile içeriğin gerçek sınırlarını bul.
+  //    Görsel beyaz arka planlı (köşe pixel: 255,255,255,255), saydam değil.
+  //    Beyaz pixelleri kes, threshold 20 ile yumuşak kenarları da yakalayalım.
+  const trimmedBuf = await sharp(upperBuf)
+    .trim({ background: '#ffffff', threshold: 20 })
+    .toBuffer();
+  const trimmedMeta = await sharp(trimmedBuf).metadata();
+  console.log(`Trim sonrası içerik: ${trimmedMeta.width}x${trimmedMeta.height}`);
+
+  // 3) Kare canvasa uniform padding ile ortala.
+  //    En büyük kenarı al, %6 margin ekle.
+  const contentMax = Math.max(trimmedMeta.width, trimmedMeta.height);
+  const margin = Math.round(contentMax * 0.06);
+  const canvasSize = contentMax + margin * 2;
+
+  const padX = Math.round((canvasSize - trimmedMeta.width) / 2);
+  const padY = Math.round((canvasSize - trimmedMeta.height) / 2);
+
+  console.log(`Canvas: ${canvasSize}x${canvasSize}, pad x=${padX} y=${padY}`);
 
   const markPath = path.join(LOGOS, 'app-icon-mark.png');
-  await sharp(src)
-    .extract(extractBox)
-    .resize(1024, 1024, {
-      fit: 'contain',
+  await sharp(trimmedBuf)
+    .extend({
+      top: padY,
+      bottom: canvasSize - trimmedMeta.height - padY,
+      left: padX,
+      right: canvasSize - trimmedMeta.width - padX,
       background: { r: 255, g: 255, b: 255, alpha: 0 },
     })
+    .resize(1024, 1024, { fit: 'fill' })  // canvas zaten kare, fill=lossless
     .png({ compressionLevel: 9 })
     .toFile(markPath);
 
   const markStat = fs.statSync(markPath);
-  console.log(`✓ app-icon-mark.png  1024x1024  ${(markStat.size/1024).toFixed(0)}KB`);
+  console.log(`✓ app-icon-mark.png  1024x1024  ${(markStat.size / 1024).toFixed(0)}KB`);
 
-  // Icon paketi mark'tan üret
+  // 4) Icon paketi mark'tan üret.
   const OUTPUTS = [
     { name: 'icon-512.png',         size: 512 },
     { name: 'icon-192.png',         size: 192 },

@@ -12,7 +12,7 @@ export default function BrandMark({ size = 'md', className = '', imageClassName 
   return (
     <div className={`relative inline-flex items-center justify-center ${sizeClass} ${className}`.trim()}>
       <img
-        src="/logos/app-icon-mark.png?v=7"
+        src="/logos/app-icon-mark.png?v=7.1"
         alt="Borsa Krali"
         className={`w-full h-full object-contain drop-shadow-[0_2px_10px_rgba(124,58,237,0.3)] ${imageClassName}`.trim()}
         loading="eager"
