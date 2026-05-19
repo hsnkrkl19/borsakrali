@@ -2,9 +2,11 @@ import { useState } from 'react';
 import { X, TrendingUp, BarChart3, ExternalLink } from 'lucide-react';
 import StockChart from './StockChart';
 import TradingViewWidget from './TradingViewWidget';
+import useModalDismiss from '../hooks/useModalDismiss';
 
 export default function StockDetailModal({ symbol, onClose }) {
   const [activeTab, setActiveTab] = useState('our-chart'); // our-chart, tradingview, indicators
+  useModalDismiss(onClose, { open: !!symbol });
 
   if (!symbol) return null;
 
@@ -15,8 +17,14 @@ export default function StockDetailModal({ symbol, onClose }) {
   ];
 
   return (
-    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="bg-dark-900 rounded-xl border border-dark-700 w-full max-w-6xl max-h-[90vh] overflow-hidden flex flex-col">
+    <div
+      className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+      onClick={onClose}
+    >
+      <div
+        className="bg-dark-900 rounded-xl border border-dark-700 w-full max-w-6xl max-h-[90vh] overflow-hidden flex flex-col"
+        onClick={(e) => e.stopPropagation()}
+      >
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-dark-800">
           <div>

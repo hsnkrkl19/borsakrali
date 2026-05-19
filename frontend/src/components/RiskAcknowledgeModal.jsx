@@ -8,9 +8,11 @@
 
 import { useState } from 'react'
 import { AlertTriangle, X } from 'lucide-react'
+import useModalDismiss from '../hooks/useModalDismiss'
 
 export default function RiskAcknowledgeModal({ open, onClose, onAcknowledge, title, body }) {
   const [text, setText] = useState('')
+  useModalDismiss(onClose, { open })
   if (!open) return null
 
   const matches = text.trim().toUpperCase() === 'ANLADIM'

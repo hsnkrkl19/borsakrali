@@ -1,9 +1,12 @@
 import { Crown, Play, X, Zap } from 'lucide-react'
 import { useUsageStore, DAILY_LIMIT, AD_REWARD } from '../store/usageStore'
 import { showRewardedAd } from '../utils/adManager'
+import useModalDismiss from '../hooks/useModalDismiss'
 
 export default function UsageLimitModal({ onClose }) {
   const { addBonus, getRemaining } = useUsageStore()
+  // ESC = iptal sayılır (mevcut "İptal" butonu da onClose(false) çağırıyor)
+  useModalDismiss(() => onClose(false))
 
   const handleWatchAd = async () => {
     try {
@@ -23,8 +26,14 @@ export default function UsageLimitModal({ onClose }) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-      <div className="w-full max-w-sm bg-dark-900 border border-gold-500/30 rounded-2xl shadow-2xl overflow-hidden">
+    <div
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/70 backdrop-blur-sm p-4"
+      onClick={() => onClose(false)}
+    >
+      <div
+        className="w-full max-w-sm bg-dark-900 border border-gold-500/30 rounded-2xl shadow-2xl overflow-hidden"
+        onClick={(e) => e.stopPropagation()}
+      >
         {/* Header */}
         <div className="bg-gradient-to-r from-gold-500/20 to-gold-600/10 p-5 text-center border-b border-gold-500/20">
           <div className="inline-flex items-center justify-center w-14 h-14 bg-gold-500/20 rounded-full mb-3">
