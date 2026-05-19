@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Search, Download, RefreshCw, Calendar, ChevronDown, ChevronRight, Flame, BarChart3, FileSpreadsheet, Info } from 'lucide-react';
 import axios from 'axios';
 import { getTradingViewTheme } from '../../utils/theme';
@@ -123,8 +124,11 @@ function DataRow({ title, value1, value2, level = 2 }) {
 }
 
 export default function BalanceSheetTable() {
-    const [symbol, setSymbol] = useState('THYAO');
-    const [searchInput, setSearchInput] = useState('THYAO');
+    const [searchParams] = useSearchParams();
+    const urlSymbol = (searchParams.get('symbol') || '').toUpperCase();
+    const initialSymbol = urlSymbol || 'THYAO';
+    const [symbol, setSymbol] = useState(initialSymbol);
+    const [searchInput, setSearchInput] = useState(initialSymbol);
     const [period, setPeriod] = useState('quarterly');
     const [data, setData] = useState([]);
     const [loading, setLoading] = useState(false);
@@ -165,6 +169,16 @@ export default function BalanceSheetTable() {
     useEffect(() => {
         fetchBalanceSheet(symbol);
     }, [period]);
+
+    // URL'den symbol değişince takip et
+    useEffect(() => {
+        const sym = (searchParams.get('symbol') || initialSymbol).toUpperCase();
+        if (sym && sym !== symbol) {
+            setSearchInput(sym);
+            fetchBalanceSheet(sym);
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [searchParams]);
 
     const handleSearch = () => {
         if (searchInput.trim()) {

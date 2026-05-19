@@ -739,6 +739,24 @@ async function generateRatiosTS(symbol) {
                 const currentLiab = bs.liabilities?.currentLiabilities?.total || 0;
                 const cash = bs.assets?.currentAssets?.cashAndCashEquivalents || 0;
                 const revenue = is.revenue || 1;
+
+                // PE / PB için fundamentalScoresService'ten gerçek hesaplama
+                // (lazy require — döngüsel bağımlılığı önler)
+                let peRatio = 0, priceToBook = 0;
+                try {
+                    const liveDataService = require('../src/services/liveDataService');
+                    const fundamentalScoresService = require('../src/services/fundamentalScoresService');
+                    const stock = liveDataService.getStock(symbol.toUpperCase().replace('.IS', ''));
+                    const currentPrice = stock?.price || null;
+                    const fs = await fundamentalScoresService.getFundamentalScores(symbol, { currentPrice });
+                    if (fs.success && fs.computedRatios) {
+                        peRatio = fs.computedRatios.priceToEarnings || 0;
+                        priceToBook = fs.computedRatios.priceToBook || 0;
+                    }
+                } catch (e) {
+                    // sessizce devam et — diğer oranlar zaten dolu
+                }
+
                 return {
                     symbol: symbol.toUpperCase(),
                     lastUpdate: new Date().toISOString(),
@@ -765,8 +783,8 @@ async function generateRatiosTS(symbol) {
                         equityTurnover: parseFloat((revenue / equity).toFixed(2)),
                     },
                     valuation: {
-                        peRatio: 0,
-                        priceToBook: 0,
+                        peRatio,
+                        priceToBook,
                         ebitdaMargin: is.ebitdaMargin || 0,
                     },
                 };

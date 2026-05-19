@@ -1463,17 +1463,29 @@ app.get('/api/analysis/ai-score/:symbol', async (req, res) => {
       }
       historicalData = await liveDataService.fetchHistoricalData(upperSymbol, '1y', '1d');
 
-      // Altman/Piotroski/PE — gerçek Yahoo bilanço verisinden. Veri yoksa null
-      // (fundamentalScore'a etki etmez, "Sektörel Tahmin" uydurma değer YOK).
+      // Altman/Piotroski + PE/PB/ROE/ROA — gerçek Yahoo bilanço verisinden.
+      // Veri yoksa null (fundamentalScore nötr 50 kalır, uydurma yok).
       try {
-        const fs = await fundamentalScoresService.getFundamentalScores(upperSymbol);
-        // PE için yine quoteSummary'den realRatios çağrılabilir; ama AI score için
-        // sadece Altman/Piotroski yetiyor. PE yi /analysis/fundamental endpoint'i veriyor.
+        const fs = await fundamentalScoresService.getFundamentalScores(upperSymbol, { currentPrice: stock.price, sector: stock.sector });
+        const cr = fs.computedRatios || {};
         fundamentals = fs.success
-          ? { altmanZScore: fs.altmanZScore, piotroskiFScore: fs.piotroskiFScore, priceToEarnings: null }
-          : { altmanZScore: null, piotroskiFScore: null, priceToEarnings: null };
+          ? {
+              altmanZScore: fs.altmanZScore,
+              altmanInterpretation: fs.altmanInterpretation,
+              piotroskiFScore: fs.piotroskiFScore,
+              piotroskiInterpretation: fs.piotroskiInterpretation,
+              beneishMScore: fs.beneishMScore,
+              beneishInterpretation: fs.beneishInterpretation,
+              priceToEarnings: cr.priceToEarnings ?? null,
+              priceToBook: cr.priceToBook ?? null,
+              returnOnEquity: cr.returnOnEquity ?? null,
+              returnOnAssets: cr.returnOnAssets ?? null,
+              netProfitMargin: cr.netProfitMargin ?? null,
+              debtToEquity: cr.debtToEquity ?? null,
+            }
+          : { altmanZScore: null, piotroskiFScore: null, beneishMScore: null, priceToEarnings: null };
       } catch (_) {
-        fundamentals = { altmanZScore: null, piotroskiFScore: null, priceToEarnings: null };
+        fundamentals = { altmanZScore: null, piotroskiFScore: null, beneishMScore: null, priceToEarnings: null };
       }
     }
 
@@ -1693,8 +1705,10 @@ app.get('/api/analysis/fundamental/:symbol', async (req, res) => {
   // Altman Z, Piotroski F, Beneish M — Yahoo bilanço verisinden GERÇEK hesaplanır.
   // Veri eksikse skor null döner (UI null ise göstermez/gösterip "veri yok" yazar).
   let scores = { altmanZScore: null, piotroskiFScore: null, beneishMScore: null };
+  let computedRatios = null;
   try {
-    const fs = await fundamentalScoresService.getFundamentalScores(upperSymbol);
+    // currentPrice'i geç — Altman marketCap fallback (shares × price) için kullanılır.
+    const fs = await fundamentalScoresService.getFundamentalScores(upperSymbol, { currentPrice: stock.price, sector: stock.sector });
     if (fs.success) {
       scores = {
         altmanZScore: fs.altmanZScore,
@@ -1702,6 +1716,7 @@ app.get('/api/analysis/fundamental/:symbol', async (req, res) => {
         altmanComponents: fs.altmanComponents,
         altmanReason: fs.altmanReason,
         piotroskiFScore: fs.piotroskiFScore,
+        piotroskiMaxScore: fs.piotroskiMaxScore || 9,
         piotroskiInterpretation: fs.piotroskiInterpretation,
         piotroskiChecks: fs.piotroskiChecks,
         piotroskiReason: fs.piotroskiReason,
@@ -1711,10 +1726,32 @@ app.get('/api/analysis/fundamental/:symbol', async (req, res) => {
         beneishReason: fs.beneishReason,
         fiscalYears: fs.fiscalYears,
       };
+      computedRatios = fs.computedRatios || null;
     }
   } catch (e) {
     console.warn(`[Fundamental] Skor hesaplama hatası ${upperSymbol}: ${e.message}`);
   }
+
+  // Yahoo quoteSummary boş alanları varsa, bilançodan hesaplanmış oranlarla doldur.
+  // Quote'tan gelen "live" değer her zaman önceliklidir.
+  const mergedRatios = {
+    priceToEarnings:    ratios.priceToEarnings    ?? computedRatios?.priceToEarnings    ?? null,
+    priceToBook:        ratios.priceToBook        ?? computedRatios?.priceToBook        ?? null,
+    priceToSales:       ratios.priceToSales       ?? computedRatios?.priceToSales       ?? null,
+    evToEbitda:         ratios.evToEbitda         ?? computedRatios?.evToEbitda         ?? null,
+    debtToEquity:       ratios.debtToEquity       ?? computedRatios?.debtToEquity       ?? null,
+    currentRatio:       ratios.currentRatio       ?? computedRatios?.currentRatio       ?? null,
+    quickRatio:         ratios.quickRatio         ?? computedRatios?.quickRatio         ?? null,
+    returnOnEquity:     ratios.returnOnEquity     ?? computedRatios?.returnOnEquity     ?? null,
+    returnOnAssets:     ratios.returnOnAssets     ?? computedRatios?.returnOnAssets     ?? null,
+    netProfitMargin:    ratios.netProfitMargin    ?? computedRatios?.netProfitMargin    ?? null,
+    grossProfitMargin:  ratios.grossProfitMargin  ?? computedRatios?.grossProfitMargin  ?? null,
+    operatingMargin:    ratios.operatingMargin    ?? computedRatios?.operatingMargin    ?? null,
+  };
+
+  // Quality belirleme: en az 2 anahtar oran (PE/PB/ROE/ROA) doluysa "real".
+  const filledKeyRatios = [mergedRatios.priceToEarnings, mergedRatios.priceToBook, mergedRatios.returnOnEquity, mergedRatios.returnOnAssets].filter(v => v != null).length;
+  if (filledKeyRatios >= 2) dataQuality = 'real';
 
   const response = {
     symbol: upperSymbol,
@@ -1728,7 +1765,7 @@ app.get('/api/analysis/fundamental/:symbol', async (req, res) => {
       ? 'Yahoo Finance bu hisse için yeterli oran verisi sağlamadı. Sektörel uydurma rakam üretmiyoruz; eksik alanlar boş bırakıldı.'
       : null,
     lastUpdate: new Date().toISOString(),
-    ...ratios,
+    ...mergedRatios,
     ...scores,
   };
 

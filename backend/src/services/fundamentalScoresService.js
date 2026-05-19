@@ -84,26 +84,43 @@ function prev(arr) { return arr.length >= 2 ? arr[1].value : null; }
 // D = Market Value of Equity / Total Liabilities
 // E = Sales / Total Assets
 function calculateAltmanZ(data) {
-  const { ftsBS, ftsIS, summary } = data;
+  const { ftsBS, ftsIS, summary, fallbackPrice } = data;
 
   const totalAssetsArr = pickField(ftsBS, ['totalAssets']);
   const currentAssetsArr = pickField(ftsBS, ['currentAssets', 'totalCurrentAssets']);
   const currentLiabsArr = pickField(ftsBS, ['currentLiabilities', 'totalCurrentLiabilities']);
+  // Bazı Türk hisselerinde 'retainedEarnings' doğrudan yok; özsermaye - sermaye yedekleri
+  // ile yaklaşık hesaplanabilir. Önce direkt key, yoksa stockholdersEquity fallback.
   const retainedArr = pickField(ftsBS, ['retainedEarnings']);
+  const equityArr = pickField(ftsBS, ['stockholdersEquity', 'totalEquityGrossMinorityInterest', 'commonStockEquity']);
   const totalLiabsArr = pickField(ftsBS, ['totalLiabilitiesNetMinorityInterest', 'totalLiab', 'totalLiabilities']);
   // EBIT: Yahoo'nun "financials" modülünde 'ebit' her zaman dolu değil; operatingIncome
   // genellikle dolu. EBITDA - reconciledDepreciation da fallback olarak işe yarar.
   const ebitArr = pickField(ftsIS, ['ebit', 'operatingIncome']);
   const salesArr = pickField(ftsIS, ['totalRevenue']);
+  const sharesArr = pickField(ftsBS, ['ordinarySharesNumber', 'shareIssued', 'commonStockSharesOutstanding']);
 
   const totalAssets = latest(totalAssetsArr);
   const currentAssets = latest(currentAssetsArr);
   const currentLiabs = latest(currentLiabsArr);
-  const retainedEarnings = latest(retainedArr);
+  let retainedEarnings = latest(retainedArr);
+  // Retained earnings yoksa özsermayenin %70'i ile yaklaşık dağıtılabilir kar tahmini
+  // (Türk şirketlerinde yedek+geçmiş yıl karları çoğu zaman özsermayenin büyük kısmı).
+  if (retainedEarnings == null) {
+    const eq = latest(equityArr);
+    if (eq != null && eq > 0) retainedEarnings = eq * 0.7;
+  }
   const totalLiabs = latest(totalLiabsArr);
   const ebit = latest(ebitArr);
   const sales = latest(salesArr);
-  const marketCap = unwrap(summary?.price?.marketCap) || unwrap(summary?.summaryDetail?.marketCap);
+  // marketCap: önce quoteSummary, yoksa shares × güncel fiyat
+  let marketCap = unwrap(summary?.price?.marketCap) || unwrap(summary?.summaryDetail?.marketCap);
+  if (marketCap == null) {
+    const shares = latest(sharesArr);
+    if (shares != null && fallbackPrice != null && shares > 0 && fallbackPrice > 0) {
+      marketCap = shares * fallbackPrice;
+    }
+  }
 
   if ([totalAssets, currentAssets, currentLiabs, retainedEarnings, totalLiabs, ebit, sales, marketCap].some(v => v == null) || totalAssets <= 0 || totalLiabs <= 0) {
     return { value: null, reason: 'missing_data', missing: { totalAssets, currentAssets, currentLiabs, retainedEarnings, totalLiabs, ebit, sales, marketCap } };
@@ -158,9 +175,10 @@ function calculatePiotroskiF(data) {
   const rev = latest(revArr), revPrev = prev(revArr);
   const cogs = latest(cogsArr), cogsPrev = prev(cogsArr);
 
-  // Tüm 2 yıllık veriler gerekli — eksikse null
-  if ([ni, niPrev, ta, taPrev, opCF, ca, caPrev, cl, clPrev, rev, revPrev, cogs, cogsPrev].some(v => v == null)) {
-    return { value: null, reason: 'missing_2y_data' };
+  // En azından çekirdek karlılık verileri (ni, ta, opCF) ve 2 yıllık ni/ta olmalı.
+  // currentAssets/currentLiabilities + gross margin opsiyonel — bankalarda yoktur.
+  if ([ni, niPrev, ta, taPrev, opCF].some(v => v == null)) {
+    return { value: null, reason: 'missing_core_data' };
   }
 
   let score = 0;
@@ -184,8 +202,8 @@ function calculatePiotroskiF(data) {
   if (ldRatio != null && ldRatioPrev != null) {
     checks.leverageDecreased = ldRatio < ldRatioPrev; if (checks.leverageDecreased) score++;
   } else { checks.leverageDecreased = null; }
-  // 7. Current Ratio artmış mı
-  if (cl > 0 && clPrev > 0) {
+  // 7. Current Ratio artmış mı (bankalarda anlamsız — currentAssets/Liabs yok)
+  if (ca != null && caPrev != null && cl != null && clPrev != null && cl > 0 && clPrev > 0) {
     const cr = ca / cl, crPrev = caPrev / clPrev;
     checks.currentRatioIncreased = cr > crPrev; if (checks.currentRatioIncreased) score++;
   } else { checks.currentRatioIncreased = null; }
@@ -193,21 +211,28 @@ function calculatePiotroskiF(data) {
   if (shares != null && sharesPrev != null) {
     checks.sharesNotIncreased = shares <= sharesPrev * 1.005; if (checks.sharesNotIncreased) score++;
   } else { checks.sharesNotIncreased = null; }
-  // 9. Gross Margin artmış mı
-  if (rev > 0 && revPrev > 0) {
+  // 9. Gross Margin artmış mı (bankalarda yok — cogs/totalRevenue uygun değil)
+  if (rev != null && revPrev != null && cogs != null && cogsPrev != null && rev > 0 && revPrev > 0) {
     const gm = (rev - cogs) / rev;
     const gmPrev = (revPrev - cogsPrev) / revPrev;
     checks.grossMarginIncreased = gm > gmPrev; if (checks.grossMarginIncreased) score++;
   } else { checks.grossMarginIncreased = null; }
   // 10. (kriter 9'a alternatif olarak Asset Turnover artışı; zaten 9 sorduk → toplam 9)
 
+  // Kaç koşul uygulanabilir (null olmayan) — bankalarda 5-6 koşul kalır.
+  const applicableCount = Object.values(checks).filter(v => v !== null).length;
+  // maxScore dinamik — uygulanabilir koşul sayısı (bankalarda 5-6 üzerinden, sınailerde 9)
+  const maxScore = applicableCount;
+
   let interpretation = 'Orta';
-  if (score >= 7) interpretation = 'Finansal Açıdan Güçlü';
-  else if (score <= 3) interpretation = 'Finansal Açıdan Zayıf';
+  // Yüzdesel bazda interpretation
+  const pct = maxScore > 0 ? score / maxScore : 0;
+  if (pct >= 0.77) interpretation = 'Finansal Açıdan Güçlü';
+  else if (pct <= 0.33) interpretation = 'Finansal Açıdan Zayıf';
 
   return {
     value: score,
-    maxScore: 9,
+    maxScore,
     interpretation,
     checks,
     formula: 'Piotroski F-Score (Profitability 4 + Leverage 3 + Efficiency 2)',
@@ -299,9 +324,76 @@ function calculateBeneishM(data) {
   };
 }
 
+// ─── Finansal oranları bilanço/IS verisinden hesapla ─────────────────────────
+// Yahoo quoteSummary trailingPE/priceToBook vs. dolu değilse, fundamentalsTimeSeries
+// (gerçek yıllık bilanço) ile aynı şeyleri hesaplayabiliriz.
+function calculateRatios(data) {
+  const { ftsBS, ftsIS, ftsCF, summary, fallbackPrice } = data;
+
+  const taArr = pickField(ftsBS, ['totalAssets']);
+  const caArr = pickField(ftsBS, ['currentAssets', 'totalCurrentAssets']);
+  const clArr = pickField(ftsBS, ['currentLiabilities', 'totalCurrentLiabilities']);
+  const invArr = pickField(ftsBS, ['inventory']);
+  const eqArr = pickField(ftsBS, ['stockholdersEquity', 'totalEquityGrossMinorityInterest', 'commonStockEquity']);
+  const tlArr = pickField(ftsBS, ['totalLiabilitiesNetMinorityInterest', 'totalLiab', 'totalLiabilities']);
+  const tdArr = pickField(ftsBS, ['totalDebt']);
+  const cashArr = pickField(ftsBS, ['cashAndCashEquivalents', 'cashCashEquivalentsAndShortTermInvestments']);
+  const sharesArr = pickField(ftsBS, ['ordinarySharesNumber', 'shareIssued', 'commonStockSharesOutstanding']);
+
+  const niArr = pickField(ftsIS, ['netIncome', 'netIncomeCommonStockholders', 'netIncomeFromContinuingOperationNetMinorityInterest']);
+  const revArr = pickField(ftsIS, ['totalRevenue']);
+  const cogsArr = pickField(ftsIS, ['reconciledCostOfRevenue', 'costOfRevenue']);
+  const opIncArr = pickField(ftsIS, ['operatingIncome', 'ebit']);
+  const ebitdaArr = pickField(ftsIS, ['ebitda', 'normalizedEBITDA']);
+
+  const ta = latest(taArr);
+  const ca = latest(caArr);
+  const cl = latest(clArr);
+  const inv = latest(invArr);
+  const eq = latest(eqArr);
+  const tl = latest(tlArr);
+  const td = latest(tdArr);
+  const cash = latest(cashArr);
+  const shares = latest(sharesArr);
+  const ni = latest(niArr);
+  const rev = latest(revArr);
+  const cogs = latest(cogsArr);
+  const opInc = latest(opIncArr);
+  const ebitda = latest(ebitdaArr);
+
+  let marketCap = unwrap(summary?.price?.marketCap) || unwrap(summary?.summaryDetail?.marketCap);
+  if (marketCap == null && shares != null && fallbackPrice != null && shares > 0 && fallbackPrice > 0) {
+    marketCap = shares * fallbackPrice;
+  }
+
+  const safe = (v) => (typeof v === 'number' && Number.isFinite(v)) ? +v.toFixed(2) : null;
+
+  // Enterprise Value: marketCap + totalDebt - cash
+  const enterpriseValue = (marketCap != null && td != null && cash != null) ? marketCap + td - cash : null;
+
+  return {
+    priceToEarnings: (marketCap != null && ni != null && ni > 0) ? safe(marketCap / ni) : null,
+    priceToBook:     (marketCap != null && eq != null && eq > 0) ? safe(marketCap / eq) : null,
+    priceToSales:    (marketCap != null && rev != null && rev > 0) ? safe(marketCap / rev) : null,
+    evToEbitda:      (enterpriseValue != null && ebitda != null && ebitda > 0) ? safe(enterpriseValue / ebitda) : null,
+    debtToEquity:    (td != null && eq != null && eq > 0) ? safe(td / eq) : null,
+    currentRatio:    (ca != null && cl != null && cl > 0) ? safe(ca / cl) : null,
+    quickRatio:      (ca != null && cl != null && cl > 0) ? safe(((ca - (inv || 0))) / cl) : null,
+    returnOnEquity:  (ni != null && eq != null && eq > 0) ? safe((ni / eq) * 100) : null,
+    returnOnAssets:  (ni != null && ta != null && ta > 0) ? safe((ni / ta) * 100) : null,
+    netProfitMargin: (ni != null && rev != null && rev > 0) ? safe((ni / rev) * 100) : null,
+    grossProfitMargin: (rev != null && cogs != null && rev > 0) ? safe(((rev - cogs) / rev) * 100) : null,
+    operatingMargin: (opInc != null && rev != null && rev > 0) ? safe((opInc / rev) * 100) : null,
+    marketCap,
+  };
+}
+
 // ─── Ana fonksiyon: Tek seferde 3 skoru hesapla, cache'le ─────────────────────
-async function getFundamentalScores(symbol) {
+async function getFundamentalScores(symbol, opts = {}) {
   const upper = symbol.toUpperCase().replace('.IS', '');
+  const { currentPrice = null, sector = null } = opts;
+  // Cache key fiyatı içermiyor — cache TTL 30dk; fiyat dalgalanmaları PE/PB için
+  // büyük fark yaratmaz, küçük sapma kabul edilebilir.
   const cached = scoreCache.get(upper);
   if (cached && Date.now() - cached.ts < SCORE_CACHE_TTL) return cached.data;
 
@@ -309,6 +401,8 @@ async function getFundamentalScores(symbol) {
   if (!data) {
     return { success: false, error: 'Yahoo Finance verisine ulaşılamadı', symbol: upper };
   }
+  // currentPrice'i altman + ratios fallback için data'ya iliştir
+  data.fallbackPrice = currentPrice;
   // En azından 1 yıl veri yoksa erken çık
   if (!data.ftsBS.length && !data.ftsIS.length) {
     const result = { success: false, error: 'Bu hisse için Yahoo Finance bilanço verisi bulunamadı', symbol: upper };
@@ -316,9 +410,18 @@ async function getFundamentalScores(symbol) {
     return result;
   }
 
-  const altman = calculateAltmanZ(data);
+  // Banka/holding bilanço yapısı orjinal Altman/Beneish formüllerine uygun değil
+  // (working capital, COGS, gross margin kavramları farklı). Bu sektörler için skip.
+  const isBankOrHolding = sector && /banka|bankac|holding|finans/i.test(sector);
+
+  const altman = isBankOrHolding
+    ? { value: null, reason: 'not_applicable_sector' }
+    : calculateAltmanZ(data);
   const piotroski = calculatePiotroskiF(data);
-  const beneish = calculateBeneishM(data);
+  const beneish = isBankOrHolding
+    ? { value: null, reason: 'not_applicable_sector' }
+    : calculateBeneishM(data);
+  const ratios = calculateRatios(data);
 
   const result = {
     success: true,
@@ -330,6 +433,7 @@ async function getFundamentalScores(symbol) {
     altmanInterpretation: altman.interpretation,
     altmanReason: altman.reason || null,
     piotroskiFScore: piotroski.value,
+    piotroskiMaxScore: piotroski.maxScore || 9,
     piotroskiChecks: piotroski.checks,
     piotroskiInterpretation: piotroski.interpretation,
     piotroskiReason: piotroski.reason || null,
@@ -338,6 +442,7 @@ async function getFundamentalScores(symbol) {
     beneishInterpretation: beneish.interpretation,
     beneishReason: beneish.reason || null,
     fiscalYears: data.ftsBS.slice(0, 4).map(r => r.date instanceof Date ? r.date.getFullYear() : null).filter(Boolean),
+    computedRatios: ratios,
   };
 
   scoreCache.set(upper, { data: result, ts: Date.now() });
@@ -350,6 +455,6 @@ module.exports = {
   getFundamentalScores,
   fetchAllFundamentals,   // /api/kap/financials gibi başka servisler tekrar kullansın
   pickField, latest, prev, unwrap,
-  calculateAltmanZ, calculatePiotroskiF, calculateBeneishM,
+  calculateAltmanZ, calculatePiotroskiF, calculateBeneishM, calculateRatios,
   clearScoreCache,
 };

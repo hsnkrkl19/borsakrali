@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Search, Download, RefreshCw, TrendingUp, Activity, DollarSign, BarChart3 } from 'lucide-react';
 import axios from 'axios';
 import { formatRatio, formatPercent, getChangeColor } from '../../utils/formatters';
@@ -7,8 +8,11 @@ import { getApiBase } from '../../config'
 const API_BASE = getApiBase() + '/api';
 
 export default function RatiosTable() {
-    const [symbol, setSymbol] = useState('THYAO');
-    const [searchInput, setSearchInput] = useState('THYAO');
+    const [searchParams] = useSearchParams();
+    const urlSymbol = (searchParams.get('symbol') || '').toUpperCase();
+    const initialSymbol = urlSymbol || 'THYAO';
+    const [symbol, setSymbol] = useState(initialSymbol);
+    const [searchInput, setSearchInput] = useState(initialSymbol);
     const [data, setData] = useState(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
@@ -41,10 +45,13 @@ export default function RatiosTable() {
         }
     };
 
-    // İlk yükleme
+    // URL'den symbol parametresi değişirse takip et
     useEffect(() => {
-        fetchRatios(symbol);
-    }, []);
+        const sym = (searchParams.get('symbol') || initialSymbol).toUpperCase();
+        setSearchInput(sym);
+        fetchRatios(sym);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [searchParams]);
 
     // Arama
     const handleSearch = () => {
@@ -320,6 +327,16 @@ export default function RatiosTable() {
                                     label="FAVÖK Marjı"
                                     value={formatPercent(data.valuation?.ebitdaMargin || 0)}
                                     description="EBITDA / Satışlar"
+                                />
+                                <RatioRow
+                                    label="F/K (Fiyat / Kazanç)"
+                                    value={data.valuation?.peRatio > 0 ? formatRatio(data.valuation.peRatio) : '-'}
+                                    description="Piyasa Değeri / Net Kar"
+                                />
+                                <RatioRow
+                                    label="PD/DD (Piyasa / Defter)"
+                                    value={data.valuation?.priceToBook > 0 ? formatRatio(data.valuation.priceToBook) : '-'}
+                                    description="Piyasa Değeri / Özkaynak"
                                 />
                             </tbody>
                         </table>

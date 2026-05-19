@@ -11,14 +11,16 @@ export default function TemelAnalizAI() {
   const [analysis, setAnalysis] = useState(null)
   const [error, setError] = useState(null)
 
-  // URL'den ?symbol= parametresi ile otomatik analiz başlat
+  // URL'den ?symbol= parametresi ile otomatik analiz başlat — sembol değişince yeniden yükle
   useEffect(() => {
     const sym = searchParams.get('symbol')
     if (sym) {
-      setSymbol(sym.toUpperCase())
-      handleAnalyzeSymbol(sym.toUpperCase())
+      const upper = sym.toUpperCase()
+      setSymbol(upper)
+      handleAnalyzeSymbol(upper)
     }
-  }, [])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams])
 
   const handleAnalyzeSymbol = async (sym) => {
     if (!sym?.trim()) return
@@ -46,6 +48,7 @@ export default function TemelAnalizAI() {
   }
 
   const getScoreColor = (score, type) => {
+    if (score == null) return 'text-gray-500'
     if (type === 'altman') {
       if (score > 2.99) return 'text-success-500'
       if (score > 1.81) return 'text-warning-500'
@@ -60,6 +63,7 @@ export default function TemelAnalizAI() {
   }
 
   const getScoreIcon = (score, type) => {
+    if (score == null) return <Info className="w-5 h-5 text-gray-500" />
     if (type === 'altman') {
       if (score > 2.99) return <CheckCircle className="w-5 h-5 text-success-500" />
       if (score > 1.81) return <AlertTriangle className="w-5 h-5 text-warning-500" />
@@ -140,9 +144,17 @@ export default function TemelAnalizAI() {
                 {getScoreIcon(analysis.altmanZScore, 'altman')}
               </div>
               <div className={`text-4xl font-bold ${getScoreColor(analysis.altmanZScore, 'altman')}`}>
-                {analysis.altmanZScore}
+                {analysis.altmanZScore ?? (
+                  <span className="text-gray-500 text-xl">
+                    {analysis.altmanReason === 'not_applicable_sector' ? 'Uygulanmaz' : 'Veri Yok'}
+                  </span>
+                )}
               </div>
-              <p className="text-sm text-gray-400 mt-2">{analysis.altmanInterpretation}</p>
+              <p className="text-sm text-gray-400 mt-2">
+                {analysis.altmanInterpretation
+                  || (analysis.altmanReason === 'not_applicable_sector' ? 'Banka/Finans sektörü için orjinal Altman formülü uygun değildir.' : '')
+                  || (analysis.altmanReason === 'missing_data' ? 'Yahoo Finance bilanço verisi eksik' : '')}
+              </p>
               <div className="mt-4 space-y-2 text-xs">
                 <div className="flex justify-between">
                   <span className="text-gray-500">&gt; 2.99</span>
@@ -166,7 +178,9 @@ export default function TemelAnalizAI() {
                 {getScoreIcon(analysis.piotroskiFScore, 'piotroski')}
               </div>
               <div className={`text-4xl font-bold ${getScoreColor(analysis.piotroskiFScore, 'piotroski')}`}>
-                {analysis.piotroskiFScore}/9
+                {analysis.piotroskiFScore != null
+                  ? `${analysis.piotroskiFScore}/${analysis.piotroskiMaxScore || 9}`
+                  : <span className="text-gray-500 text-2xl">Veri Yok</span>}
               </div>
               <p className="text-sm text-gray-400 mt-2">{analysis.piotroskiInterpretation}</p>
               <div className="mt-4 space-y-2 text-xs">
@@ -191,9 +205,18 @@ export default function TemelAnalizAI() {
                 <h3 className="font-semibold text-white">Beneish M-Score</h3>
                 <Info className="w-5 h-5 text-gray-400" />
               </div>
-              <div className={`text-4xl font-bold ${analysis.beneishMScore < -2.22 ? 'text-success-500' : 'text-danger-500'}`}>
-                {analysis.beneishMScore}
+              <div className={`text-4xl font-bold ${analysis.beneishMScore == null ? 'text-gray-500' : (analysis.beneishMScore < -2.22 ? 'text-success-500' : 'text-danger-500')}`}>
+                {analysis.beneishMScore ?? (
+                  <span className="text-gray-500 text-xl">
+                    {analysis.beneishReason === 'not_applicable_sector' ? 'Uygulanmaz' : 'Veri Yok'}
+                  </span>
+                )}
               </div>
+              {analysis.beneishMScore == null && (
+                <p className="text-sm text-gray-400 mt-2">
+                  {analysis.beneishReason === 'not_applicable_sector' ? 'Banka/Finans sektörü için Beneish modeli uygun değildir.' : ''}
+                </p>
+              )}
               <p className="text-sm text-gray-400 mt-2">{analysis.beneishInterpretation}</p>
               <div className="mt-4 space-y-2 text-xs">
                 <div className="flex justify-between">

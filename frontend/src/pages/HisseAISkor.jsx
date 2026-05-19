@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { Search, Zap, Target, Shield, TrendingUp, TrendingDown, Activity, BarChart3, AlertCircle, Clock, Database, Info } from 'lucide-react'
 
 import { getApiBase } from '../config'
@@ -233,6 +234,7 @@ function getPlainLanguageSummary(analysis) {
 }
 
 export default function HisseAISkor() {
+  const [searchParams] = useSearchParams()
   const [searchSymbol, setSearchSymbol] = useState('')
   const [assetType, setAssetType] = useState('stock') // 'stock' | 'crypto'
   const [analysis, setAnalysis] = useState(null)
@@ -240,6 +242,17 @@ export default function HisseAISkor() {
   const [error, setError] = useState(null)
 
   const quickSymbols = ['THYAO', 'GARAN', 'ASELS', 'SISE', 'TCELL', 'AKBNK', 'EREGL', 'KCHOL']
+
+  // URL'den ?symbol= parametresi geldiyse otomatik analiz başlat
+  useEffect(() => {
+    const sym = searchParams.get('symbol')
+    if (sym) {
+      const upper = sym.toUpperCase()
+      setSearchSymbol(upper)
+      analyzeStock(upper, 'stock')
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams])
 
   const analyzeStock = async (symbol, forceType) => {
     if (!symbol) return
