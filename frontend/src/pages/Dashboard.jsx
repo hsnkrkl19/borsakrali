@@ -7,6 +7,7 @@ import apiClient from '../services/api'
 import GuestCTA from '../components/GuestCTA'
 import HelpBubble from '../components/HelpBubble'
 import HomeFooter from '../components/home/HomeFooter'
+import LazyOnScroll from '../components/LazyOnScroll'
 import DecisionDetailModal from '../components/DecisionDetailModal'
 import OpportunityListModal from '../components/OpportunityListModal'
 import { useAuthStore } from '../store/authStore'
@@ -558,7 +559,9 @@ export default function Dashboard() {
         </div>
       </div>
 
-      <HomeFooter />
+      <LazyOnScroll rootMargin="600px" fallback={<div style={{ minHeight: 400 }} />}>
+        <HomeFooter />
+      </LazyOnScroll>
 
       {listOpen && (
         <OpportunityListModal
