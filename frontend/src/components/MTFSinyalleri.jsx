@@ -42,6 +42,14 @@ const TF_GROUP_LABEL = {
   30: 'Pozisyon (Top 30)',
 }
 
+// 7 TF → 3 grup. Üst seviye sade, detay isteyen alt chip ile inebilir.
+const TF_GROUPS = [
+  { id: 'short',  label: 'Kısa Vade', sub: 'Scalping · 1-15 dk',     tfs: ['1m', '5m', '15m'], defaultTF: '5m', color: 'rose'    },
+  { id: 'medium', label: 'Orta Vade', sub: 'Swing · 1-4 saat',       tfs: ['1h', '4h'],         defaultTF: '4h', color: 'amber'   },
+  { id: 'long',   label: 'Uzun Vade', sub: 'Pozisyon · günlük+',     tfs: ['1d', '1w'],         defaultTF: '1d', color: 'emerald' },
+]
+const tfToGroup = (tfKey) => TF_GROUPS.find(g => g.tfs.includes(tfKey)) || TF_GROUPS[1]
+
 const GRADE_STYLES = {
   MUKEMMEL: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40',
   GUCLU:    'bg-sky-500/20    text-sky-300    border-sky-500/40',
@@ -395,38 +403,58 @@ export default function MTFSinyalleri() {
           </div>
         </div>
 
-        {/* ── TF seçici (gruplandırılmış: scalping / swing / pozisyon) ─ */}
+        {/* ── 3 vade grubu + aktif grup içi TF chip'leri ─ */}
         <div className="space-y-2">
-          {[10, 20, 30].map(tier => {
-            const tfsInTier = TF_LIST.filter(t => t.tier === tier)
+          {/* Üst seviye: 3 grup */}
+          <div className="grid grid-cols-3 gap-2">
+            {TF_GROUPS.map(g => {
+              const isActive = g.tfs.includes(activeTF)
+              const groupColorCls = isActive
+                ? (g.color === 'rose'    ? 'bg-rose-500/15 border-rose-500/60 text-rose-200'
+                : g.color === 'amber'   ? 'bg-amber-500/15 border-amber-500/60 text-amber-200'
+                :                          'bg-emerald-500/15 border-emerald-500/60 text-emerald-200')
+                : 'bg-dark-800 border-dark-700 text-gray-400 hover:border-dark-600'
+              return (
+                <button
+                  key={g.id}
+                  onClick={() => setActiveTF(g.defaultTF)}
+                  className={`rounded-xl border-2 px-3 py-2 text-left transition-all ${groupColorCls}`}
+                >
+                  <div className="text-sm font-bold leading-tight">{g.label}</div>
+                  <div className="text-[10px] opacity-80 mt-0.5">{g.sub}</div>
+                </button>
+              )
+            })}
+          </div>
+
+          {/* Alt seviye: aktif grubun TF chip'leri (detay isteyen tıklar) */}
+          {(() => {
+            const activeGroup = tfToGroup(activeTF)
+            if (activeGroup.tfs.length <= 1) return null
             return (
-              <div key={tier} className="space-y-1">
-                <div className="flex items-center gap-2 text-[9px] uppercase tracking-wider text-gray-500">
-                  <span className="font-semibold">{TF_GROUP_LABEL[tier]}</span>
-                  <span className="flex-1 h-px bg-dark-700" />
-                </div>
-                <div className="flex gap-1.5 flex-wrap">
-                  {tfsInTier.map(tf => {
-                    const isActive = activeTF === tf.key
-                    return (
-                      <button
-                        key={tf.key}
-                        onClick={() => setActiveTF(tf.key)}
-                        className={`text-xs px-3 py-1.5 rounded-lg border-2 transition-all font-mono font-semibold flex items-center gap-1.5 ${
-                          isActive
-                            ? `bg-${tf.color}-500/20 border-${tf.color}-500/50 text-${tf.color}-300`
-                            : 'bg-dark-800 border-dark-700 text-gray-400 hover:border-dark-600'
-                        }`}
-                      >
-                        <Clock className="w-3 h-3" />
-                        {tf.label}
-                      </button>
-                    )
-                  })}
-                </div>
+              <div className="flex items-center gap-1.5 flex-wrap pl-1">
+                <span className="text-[9px] uppercase tracking-wider text-gray-500">TF:</span>
+                {activeGroup.tfs.map(tfKey => {
+                  const tf = TF_LIST.find(t => t.key === tfKey)
+                  const isActive = activeTF === tfKey
+                  return (
+                    <button
+                      key={tfKey}
+                      onClick={() => setActiveTF(tfKey)}
+                      className={`text-[11px] px-2 py-0.5 rounded-full border transition-all font-mono font-semibold flex items-center gap-1 ${
+                        isActive
+                          ? `bg-${tf.color}-500/20 border-${tf.color}-500/50 text-${tf.color}-300`
+                          : 'bg-dark-800 border-dark-700 text-gray-500 hover:border-dark-600 hover:text-gray-300'
+                      }`}
+                    >
+                      <Clock className="w-2.5 h-2.5" />
+                      {tf.label}
+                    </button>
+                  )
+                })}
               </div>
             )
-          })}
+          })()}
         </div>
 
         {/* Bilgi şeridi */}
