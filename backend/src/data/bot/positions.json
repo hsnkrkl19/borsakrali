@@ -346,5 +346,37 @@
         "text": "Pending: ZOREN 3.12 TL zone'a değişi bekleniyor."
       }
     ]
+  },
+  {
+    "id": "1eb926c06071",
+    "createdAt": "2026-05-19T20:07:24.458Z",
+    "symbol": "MGROS",
+    "name": "Migros Ticaret A.Ş.",
+    "strategy": "reversion",
+    "status": "pending",
+    "signalDate": "2026-05-19",
+    "signalPhase": "intraday",
+    "signalLogId": "eea56221013c",
+    "direction": "long",
+    "originalEntry": 645,
+    "originalStop": 607.23,
+    "originalTarget": 720.54,
+    "triggerZone": {
+      "top": 645,
+      "bottom": 640.5
+    },
+    "plannedPositionSizeTL": 3489.12,
+    "notes": [
+      {
+        "time": "2026-05-19T20:07:24.458Z",
+        "action": "signal",
+        "text": "REVERSION sinyali (skor 7). Giriş 645.00, SL 607.23, TP 720.54."
+      },
+      {
+        "time": "2026-05-19T20:07:24.458Z",
+        "action": "pending",
+        "text": "Pending: MGROS 645.00 TL zone'a değişi bekleniyor."
+      }
+    ]
   }
 ]
