@@ -13,6 +13,8 @@
  *                       + 0.115*DEPI - 0.172*SGAI + 4.679*TATA - 0.327*LVGI
  */
 
+const axios = require('axios');
+
 let _yfModule = null;
 async function getYF() {
   if (_yfModule) return _yfModule;
@@ -36,6 +38,22 @@ async function getCrossRate(priceCur, finCur) {
     const q = await yf.quote(`${finCur}${priceCur}=X`);
     const r = q?.regularMarketPrice;
     return (r && Number.isFinite(r) && r > 0) ? r : null;
+  } catch (_) { return null; }
+}
+
+// Bilanço para birimi — ham fundamentals-timeseries endpoint'inden currencyCode.
+// quoteSummary prod ortamında (Render IP) sık başarısız oluyor; bu ham GET ise
+// fundamentalsTimeSeries ile aynı endpoint ailesinden olduğu için güvenilir.
+async function fetchFinancialCurrency(ticker) {
+  try {
+    const p2 = Math.floor(Date.now() / 1000);
+    const url = `https://query1.finance.yahoo.com/ws/fundamentals-timeseries/v1/finance/timeseries/${ticker}?type=annualTotalRevenue&period1=1577836800&period2=${p2}`;
+    const r = await axios.get(url, { timeout: 12000, headers: { 'User-Agent': 'Mozilla/5.0' } });
+    const vals = r.data?.timeseries?.result?.[0]?.annualTotalRevenue || [];
+    for (let i = vals.length - 1; i >= 0; i--) {
+      if (vals[i]?.currencyCode) return vals[i].currencyCode.toUpperCase();
+    }
+    return null;
   } catch (_) { return null; }
 }
 
@@ -446,8 +464,15 @@ async function getFundamentalScores(symbol, opts = {}) {
   // kur kadar (≈45×) şişirir. Piyasa değerini bilanço para birimine çeviriyoruz.
   const sm = data.summary || {};
   const priceCurrency = (sm.price?.currency || 'TRY').toUpperCase();
-  const financialCurrency = (sm.financialData?.financialCurrency
-    || sm.price?.financialCurrency || priceCurrency).toUpperCase();
+  // Bilanço para birimi: önce ham timeseries (prod'da güvenilir), sonra
+  // quoteSummary fallback. BIST hisseleri TRY işlem görür; THYAO gibi bazıları
+  // bilançoyu USD raporlar → karışık birim P/E, P/B ve Altman'ı şişirir.
+  let financialCurrency = await fetchFinancialCurrency(
+    upper.endsWith('.IS') ? upper : `${upper}.IS`);
+  if (!financialCurrency) {
+    financialCurrency = (sm.financialData?.financialCurrency
+      || sm.price?.financialCurrency || priceCurrency).toUpperCase();
+  }
 
   let marketCap = unwrap(sm.price?.marketCap) || unwrap(sm.summaryDetail?.marketCap);
   if (marketCap == null) {
