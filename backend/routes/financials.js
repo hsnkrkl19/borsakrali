@@ -26,7 +26,7 @@ router.get('/:symbol/balance-sheet', async (req, res) => {
             period,
             data: balanceSheet,
             lastUpdate: new Date().toISOString(),
-            source: 'KAP - Kamuyu Aydınlatma Platformu'
+            source: 'Yahoo Finance — yıllık/çeyreklik finansal tablolar'
         });
     } catch (error) {
         console.error('Balance sheet error:', error);
@@ -51,7 +51,7 @@ router.get('/:symbol/income-statement', async (req, res) => {
             period,
             data: incomeStatement,
             lastUpdate: new Date().toISOString(),
-            source: 'KAP - Kamuyu Aydınlatma Platformu'
+            source: 'Yahoo Finance — yıllık/çeyreklik finansal tablolar'
         });
     } catch (error) {
         console.error('Income statement error:', error);
@@ -76,7 +76,7 @@ router.get('/:symbol/cash-flow', async (req, res) => {
             period,
             data: cashFlow,
             lastUpdate: new Date().toISOString(),
-            source: 'KAP - Kamuyu Aydınlatma Platformu'
+            source: 'Yahoo Finance — yıllık/çeyreklik finansal tablolar'
         });
     } catch (error) {
         console.error('Cash flow error:', error);
@@ -99,7 +99,7 @@ router.get('/:symbol/ratios', async (req, res) => {
             symbol,
             data: ratios,
             lastUpdate: new Date().toISOString(),
-            source: 'KAP - Kamuyu Aydınlatma Platformu'
+            source: 'Yahoo Finance — yıllık/çeyreklik finansal tablolar'
         });
     } catch (error) {
         console.error('Ratios error:', error);
@@ -134,7 +134,7 @@ router.get('/:symbol/all', async (req, res) => {
                 ratios
             },
             lastUpdate: new Date().toISOString(),
-            source: 'KAP - Kamuyu Aydınlatma Platformu'
+            source: 'Yahoo Finance — yıllık/çeyreklik finansal tablolar'
         });
     } catch (error) {
         console.error('All financial data error:', error);

@@ -508,6 +508,7 @@ function clearDcfCache() { dcfCache.clear(); }
 module.exports = {
   valuateDCF,
   clearDcfCache,
+  fetchUsdTryRate,
   // test/utility
   projectFCF,
   calcCAGR,

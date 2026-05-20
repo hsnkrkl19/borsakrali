@@ -47,6 +47,7 @@ const financialsRouter = require('../routes/financials');
 const pushRoutes = require('./routes/push.routes');
 const adminRoutes = require('./routes/admin.routes');
 const tradingBotRoutes = require('./routes/tradingBot.routes');
+const tema34BotRoutes = require('./routes/tema34Bot.routes');
 const pushNotificationService = require('./services/pushNotificationService');
 const { allBistStocks, bist30Stocks, bist100Stocks, sectors } = require('./data/allBistStocks');
 
@@ -208,6 +209,7 @@ app.use('/api/financials', financialsRouter);
 app.use('/api/push', pushRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/trading-bot', tradingBotRoutes);
+app.use('/api/tema34-bot', tema34BotRoutes);
 
 // Tüm kullanicilara açik duyuru listesi (admin tarafindan gönderilen
 // broadcast bildirimlerinin geçmişi). Header bell + Duyurular paneli
@@ -1626,11 +1628,15 @@ app.get('/api/analysis/fundamental/:symbol', async (req, res) => {
   } catch (_) {}
 
   try {
-    const yf = await import('yahoo-finance2').then(m => m.default || m);
+    // yahoo-finance2 v3 sınıf-tabanlı: önce `new YF()` gerekiyor. Eskiden
+    // doğrudan yf.quoteSummary çağrılıyordu → her seferinde throw → realRatios
+    // hep boş kalıyordu. validateResult:false ile de şema doğrulaması atlanır.
+    const YF = await import('yahoo-finance2').then(m => m.default || m);
+    const yf = typeof YF === 'function' ? new YF({ suppressNotices: ['yahooSurvey'] }) : YF;
     const ticker = upperSymbol.endsWith('.IS') ? upperSymbol : `${upperSymbol}.IS`;
     const summary = await yf.quoteSummary(ticker, {
       modules: ['financialData', 'defaultKeyStatistics', 'summaryDetail']
-    }, { timeout: 15000 });
+    }, { validateResult: false });
 
     if (summary) {
       const fd = summary.financialData || {};
@@ -1725,6 +1731,8 @@ app.get('/api/analysis/fundamental/:symbol', async (req, res) => {
         beneishIndices: fs.beneishIndices,
         beneishReason: fs.beneishReason,
         fiscalYears: fs.fiscalYears,
+        financialCurrency: fs.financialCurrency || null,
+        currencyNote: fs.currencyNote || null,
       };
       computedRatios = fs.computedRatios || null;
     }
@@ -1732,13 +1740,21 @@ app.get('/api/analysis/fundamental/:symbol', async (req, res) => {
     console.warn(`[Fundamental] Skor hesaplama hatası ${upperSymbol}: ${e.message}`);
   }
 
-  // Yahoo quoteSummary boş alanları varsa, bilançodan hesaplanmış oranlarla doldur.
-  // Quote'tan gelen "live" değer her zaman önceliklidir.
+  // Oran birleştirme stratejisi:
+  //  • Para birimi uyuşmazlığı olan hisselerde (THYAO — bilanço USD, fiyat TRY)
+  //    Yahoo quoteSummary değerleme oranları ~kur kadar şişiyor; bu durumda para
+  //    birimi düzeltmeli 'computedRatios' öncelikli kullanılır.
+  //  • Para birimi tutarlı hisselerde Yahoo TTM snapshot'ı öncelikli (daha güncel
+  //    + tek bir zayıf yıla bağımlı değil), boşsa bilançodan hesaplanan ile dolar.
+  const currencyMismatch = !!scores.financialCurrency && scores.financialCurrency !== 'TRY';
+  const valPick = (yahooVal, computedVal) => currencyMismatch
+    ? (computedVal ?? yahooVal ?? null)
+    : (yahooVal ?? computedVal ?? null);
   const mergedRatios = {
-    priceToEarnings:    ratios.priceToEarnings    ?? computedRatios?.priceToEarnings    ?? null,
-    priceToBook:        ratios.priceToBook        ?? computedRatios?.priceToBook        ?? null,
-    priceToSales:       ratios.priceToSales       ?? computedRatios?.priceToSales       ?? null,
-    evToEbitda:         ratios.evToEbitda         ?? computedRatios?.evToEbitda         ?? null,
+    priceToEarnings:    valPick(ratios.priceToEarnings, computedRatios?.priceToEarnings),
+    priceToBook:        valPick(ratios.priceToBook,     computedRatios?.priceToBook),
+    priceToSales:       valPick(ratios.priceToSales,    computedRatios?.priceToSales),
+    evToEbitda:         valPick(ratios.evToEbitda,      computedRatios?.evToEbitda),
     debtToEquity:       ratios.debtToEquity       ?? computedRatios?.debtToEquity       ?? null,
     currentRatio:       ratios.currentRatio       ?? computedRatios?.currentRatio       ?? null,
     quickRatio:         ratios.quickRatio         ?? computedRatios?.quickRatio         ?? null,
@@ -5641,7 +5657,9 @@ app.get('/api/portfolio', requireAuth, async (req, res) => {
   const liveQuotes = {};
   if (symbols.length > 0) {
     try {
-      const yahooFinance = (await import('yahoo-finance2')).default;
+      // yahoo-finance2 v3 sınıf-tabanlı: önce `new YF()` gerekiyor.
+      const YF = (await import('yahoo-finance2')).default;
+      const yahooFinance = typeof YF === 'function' ? new YF({ suppressNotices: ['yahooSurvey'] }) : YF;
       const yahooSymbols = symbols.map(s => s.includes('.') ? s : `${s}.IS`);
       const results = await yahooFinance.quote(yahooSymbols, {}, { validateResult: false });
       const arr = Array.isArray(results) ? results : [results];
@@ -5806,8 +5824,9 @@ app.put('/api/portfolio/:lotId', requireAuth, (req, res) => {
   res.json({ success: true, lot });
 });
 
-// ============ KRİPTO MARKETS — ÇOKLU PROVIDER (CoinGecko → CoinCap → Binance) ============
-// Her API anahtarsız & ücretsiz. Birinci 429/error verirse otomatik bir sonrakine geç.
+// ============ KRİPTO MARKETS — ÇOKLU PROVIDER (CoinGecko → Binance) ============
+// CoinGecko zengin veri verir (marketCap, 1s/7g değişim, sparkline, ATH, gerçek
+// isim+logo). 429/hata olursa Binance'e düşülür (sadece USDT fiyat+hacim).
 const cryptoMarketsCache = new Map();
 const CRYPTO_CACHE_TTL = 10 * 60 * 1000; // 10 dakika (cache hit)
 const CRYPTO_STALE_TTL = 6 * 60 * 60 * 1000; // 6 saat (stale OK on 429/error)
@@ -5847,39 +5866,7 @@ async function fetchMarketsCoinGecko(vs, limit) {
   }));
 }
 
-// ─── Provider 2: CoinCap.io (anahtarsız, sınırsız fiilen) ───
-async function fetchMarketsCoinCap(limit) {
-  const url = `https://api.coincap.io/v2/assets?limit=${limit}`;
-  const r = await fetch(url, {
-    headers: { 'User-Agent': 'BorsaKrali/3.3', 'Accept': 'application/json' },
-    signal: AbortSignal.timeout(12000),
-  });
-  if (!r.ok) throw new Error(`CoinCap HTTP ${r.status}`);
-  const { data } = await r.json();
-  return (data || []).map(c => ({
-    id: c.id,
-    symbol: (c.symbol || '').toUpperCase(),
-    name: c.name,
-    image: coinIconUrl(c.symbol || c.id),
-    currentPrice: parseFloat(c.priceUsd) || 0,
-    marketCap: parseFloat(c.marketCapUsd) || 0,
-    marketCapRank: parseInt(c.rank) || null,
-    totalVolume: parseFloat(c.volumeUsd24Hr) || 0,
-    high24h: null,
-    low24h: null,
-    priceChange24h: null,
-    priceChangePercent1h: null,
-    priceChangePercent24h: parseFloat(c.changePercent24Hr) || 0,
-    priceChangePercent7d: null,
-    circulatingSupply: parseFloat(c.supply) || null,
-    totalSupply: parseFloat(c.maxSupply) || null,
-    ath: null,
-    athChangePercent: null,
-    sparkline: [],
-  }));
-}
-
-// ─── Provider 3: Binance (en hızlı, ama sadece USDT çiftleri) ───
+// ─── Provider 2: Binance (fallback — sadece USDT çiftleri; marketCap/7g/sparkline yok) ───
 async function fetchMarketsBinance(limit) {
   const r = await fetch('https://api.binance.com/api/v3/ticker/24hr', {
     headers: { 'User-Agent': 'BorsaKrali/3.3' },
@@ -5923,32 +5910,26 @@ async function fetchMarketsBinance(limit) {
   }));
 }
 
-// Ana orkestratör — Binance önce (en hızlı, rate limit yüksek), sonra CoinCap, son CoinGecko
-// (CoinGecko ücretsiz tier'da Türkiye IP'lerinden sürekli 429 dönüyor)
+// Ana orkestratör — CoinGecko önce (zengin veri seti). 10dk cache + 8dk warmup
+// sayesinde CoinGecko'ya dakikada ~1 istek gider; ücretsiz tier limitleri sorun
+// olmaz. 429/hata olursa Binance fallback devreye girer.
 async function fetchCryptoMarkets(vs, limit) {
   const errors = [];
-  // 1) Binance (USDT, güvenilir, neredeyse hiç 429 yok)
+  // 1) CoinGecko — tam veri (marketCap, 1s/7g değişim, sparkline, ATH, isim, logo)
+  try {
+    const coins = await fetchMarketsCoinGecko(vs, limit);
+    if (coins && coins.length) return { coins, source: 'coingecko' };
+    errors.push('CoinGecko: boş yanıt');
+  } catch (e) {
+    errors.push(`CoinGecko: ${e.message}`);
+  }
+  // 2) Binance fallback — USDT pariteleri, canlı fiyat+hacim+24s (eksik alanlar null)
   try {
     const coins = await fetchMarketsBinance(limit);
-    return { coins, source: 'binance' };
+    if (coins && coins.length) return { coins, source: 'binance' };
+    errors.push('Binance: boş yanıt');
   } catch (e) {
     errors.push(`Binance: ${e.message}`);
-  }
-  // 2) CoinCap (USD, anahtarsız sınırsız)
-  try {
-    const coins = await fetchMarketsCoinCap(limit);
-    return { coins, source: 'coincap' };
-  } catch (e) {
-    errors.push(`CoinCap: ${e.message}`);
-  }
-  // 3) CoinGecko (en zengin veri ama 429 sorunu var) — son çare
-  if (vs !== 'usd' || true) {
-    try {
-      const coins = await fetchMarketsCoinGecko(vs, limit);
-      return { coins, source: 'coingecko' };
-    } catch (e) {
-      errors.push(`CoinGecko: ${e.message}`);
-    }
   }
   throw new Error('Tüm kripto kaynakları başarısız: ' + errors.join(' | '));
 }

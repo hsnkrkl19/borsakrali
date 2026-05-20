@@ -23,6 +23,17 @@ const invalidSymbols = new Set(); // 3+ fail olan semboller
 let liveCache = new Map();
 let lastLiveUpdate = null;
 
+// Piyasa değeri cache'i — symbol → { marketCap, sharesOutstanding }
+// Yahoo'nun chart endpoint'i marketCap vermiyor; ayrı quote çağrısıyla doldurulur.
+const marketCapCache = new Map();
+
+// yahoo-finance2 v3 (sınıf-tabanlı) lazy import
+let _yfPromise = null;
+function getYF() {
+  if (!_yfPromise) _yfPromise = import('yahoo-finance2').then(m => m.default || m);
+  return _yfPromise;
+}
+
 // Retry helper for Yahoo Finance requests
 async function fetchWithRetry(url, options, retries = 3, delayMs = 1000) {
   for (let attempt = 1; attempt <= retries; attempt++) {
@@ -211,6 +222,59 @@ async function fetchBist30() {
 }
 
 // Tum hisseleri guncelle
+// ── Piyasa değeri (marketCap) — Yahoo chart endpoint'i vermiyor ──────────────
+// yahoo-finance2 quote() batch çağrısı marketCap + sharesOutstanding döndürür.
+// Hisse sayısı nadiren değişir; 6 saatte bir tazelenir. marketCap her döngüde
+// sharesOutstanding × canlı fiyat ile tutarlı tutulur.
+async function updateMarketCaps() {
+  try {
+    const YF = await getYF();
+    const yf = typeof YF === 'function' ? new YF({ suppressNotices: ['yahooSurvey'] }) : YF;
+    const symbols = allBistStocks.map(s => s.symbol).filter(s => !invalidSymbols.has(s));
+    const CHUNK = 50;
+    let updated = 0;
+    for (let i = 0; i < symbols.length; i += CHUNK) {
+      const chunk = symbols.slice(i, i + CHUNK);
+      try {
+        const results = await yf.quote(chunk.map(s => getYahooSymbol(s)), {}, { validateResult: false });
+        const arr = Array.isArray(results) ? results : [results];
+        for (const q of arr) {
+          if (!q || !q.symbol) continue;
+          const sym = q.symbol.replace('.IS', '').toUpperCase();
+          const mc = (typeof q.marketCap === 'number' && q.marketCap > 0) ? q.marketCap : null;
+          const sh = (typeof q.sharesOutstanding === 'number' && q.sharesOutstanding > 0) ? q.sharesOutstanding : null;
+          if (mc != null || sh != null) {
+            marketCapCache.set(sym, { marketCap: mc, sharesOutstanding: sh });
+            updated++;
+          }
+        }
+      } catch (e) {
+        console.warn(`[MarketCap] ${i}-${i + CHUNK} chunk hatasi: ${e.message?.slice(0, 80)}`);
+      }
+      if (i + CHUNK < symbols.length) await new Promise(r => setTimeout(r, 400));
+    }
+    console.log(`[MarketCap] ${updated}/${symbols.length} hisse icin piyasa degeri guncellendi`);
+    // Mevcut cache kayıtlarına marketCap'i hemen uygula — borsa kapalıyken boot
+    // edildiğinde 60sn'lik güncelleme döngüsü beklenmeden değerler dolsun.
+    for (const [sym, s] of stockCache) {
+      stockCache.set(sym, { ...s, marketCap: resolveMarketCap(sym, s.price) });
+    }
+    for (const [sym, s] of liveCache) {
+      liveCache.set(sym, { ...s, marketCap: resolveMarketCap(sym, s.price) });
+    }
+  } catch (e) {
+    console.error('[MarketCap] Guncelleme hatasi:', e.message);
+  }
+}
+
+// Canlı fiyat × hisse sayısı ile güncel piyasa değeri (fallback: çekilen marketCap)
+function resolveMarketCap(symbol, price) {
+  const mc = marketCapCache.get(symbol);
+  if (!mc) return null;
+  if (mc.sharesOutstanding && price > 0) return Math.round(mc.sharesOutstanding * price);
+  return mc.marketCap ?? null;
+}
+
 async function updateAllStocks() {
   if (isUpdating) {
     console.log('Guncelleme zaten devam ediyor...');
@@ -242,7 +306,8 @@ async function updateAllStocks() {
         if (data) {
           stockCache.set(stock.symbol, {
             ...stock,
-            ...data
+            ...data,
+            marketCap: resolveMarketCap(stock.symbol, data.price),
           });
         }
         return data;
@@ -275,7 +340,8 @@ async function updateLiveStocks() {
       if (data) {
         liveCache.set(stock.symbol, {
           ...stock,
-          ...data
+          ...data,
+          marketCap: resolveMarketCap(stock.symbol, data.price),
         });
       }
       return data;
@@ -672,10 +738,16 @@ function calculateFundamentalScores(stock) {
 // 1 dakikada bir otomatik guncelleme baslat
 let updateInterval = null;
 let liveUpdateInterval = null;
+let marketCapInterval = null;
 
 function startAutoUpdate(intervalMs = 60 * 1000) {
   // Ilk guncellemeyi hemen yap
   updateAllStocks();
+
+  // Piyasa degerlerini doldur (boot) + 6 saatte bir tazele (hisse sayisi nadiren degisir)
+  updateMarketCaps();
+  if (marketCapInterval) clearInterval(marketCapInterval);
+  marketCapInterval = setInterval(updateMarketCaps, 6 * 60 * 60 * 1000);
 
   // Periyodik guncelleme (1 dakika)
   if (updateInterval) {

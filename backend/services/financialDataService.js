@@ -526,7 +526,7 @@ function buildPeriodsFromTimeseries(map, prefix = 'annual') {
     const anchor = tsValues(map, totalAssetsKey);
     if (anchor.length === 0) return [];
 
-    const M = 1_000_000; // Milyon USD
+    const M = 1_000_000; // değerleri milyona indir (para birimi aşağıda gerçek koddan)
 
     return anchor.map(a => {
         const date = a.date;
@@ -554,7 +554,9 @@ function buildPeriodsFromTimeseries(map, prefix = 'annual') {
             period: periodLabel,
             year: parseInt(yearLabel),
             date,
-            currency: 'Milyon USD',
+            // Para birimi Yahoo timeseries verisinden (v.currencyCode) gelir —
+            // BIST hisseleri çoğunlukla TRY, THYAO gibi bazıları USD raporlar.
+            currency: a.currency === 'TRY' ? 'Milyon TL' : `Milyon ${a.currency || 'USD'}`,
             assets: {
                 currentAssets: {
                     total: currentAssets,

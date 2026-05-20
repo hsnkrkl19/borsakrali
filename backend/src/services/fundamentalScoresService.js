@@ -21,6 +21,24 @@ async function getYF() {
   return _yfModule;
 }
 
+// priceCur cinsinden 1 birim finCur kaç eder? (finCur=USD, priceCur=TRY → ≈45)
+// USD/TRY için DCF servisinin sağlam 3-kaynaklı kur zincirini tekrar kullanır.
+async function getCrossRate(priceCur, finCur) {
+  if (priceCur === finCur) return 1;
+  if (priceCur === 'TRY' && finCur === 'USD') {
+    try { return await require('./dcfService').fetchUsdTryRate(); }
+    catch (_) { /* Yahoo FX fallback'ine düş */ }
+  }
+  // Diğer kombinasyonlar — Yahoo FX kotasyonu: {finCur}{priceCur}=X → 1 finCur kaç priceCur
+  try {
+    const YF = await getYF();
+    const yf = typeof YF === 'function' ? new YF({ suppressNotices: ['yahooSurvey'] }) : YF;
+    const q = await yf.quote(`${finCur}${priceCur}=X`);
+    const r = q?.regularMarketPrice;
+    return (r && Number.isFinite(r) && r > 0) ? r : null;
+  } catch (_) { return null; }
+}
+
 const SCORE_CACHE_TTL = 30 * 60 * 1000; // 30 dk
 const scoreCache = new Map();
 
@@ -113,12 +131,19 @@ function calculateAltmanZ(data) {
   const totalLiabs = latest(totalLiabsArr);
   const ebit = latest(ebitArr);
   const sales = latest(salesArr);
-  // marketCap: önce quoteSummary, yoksa shares × güncel fiyat
-  let marketCap = unwrap(summary?.price?.marketCap) || unwrap(summary?.summaryDetail?.marketCap);
-  if (marketCap == null) {
-    const shares = latest(sharesArr);
-    if (shares != null && fallbackPrice != null && shares > 0 && fallbackPrice > 0) {
-      marketCap = shares * fallbackPrice;
+  // marketCap — getFundamentalScores para birimi düzeltmeli değeri data.marketCap'e
+  // yazar (bilanço USD, fiyat TRY ise çevrilir). Doğrudan çağrımlar (test) için
+  // eski quoteSummary→shares×fiyat yöntemi fallback olarak kalır.
+  let marketCap;
+  if ('marketCap' in data) {
+    marketCap = data.marketCap;
+  } else {
+    marketCap = unwrap(summary?.price?.marketCap) || unwrap(summary?.summaryDetail?.marketCap);
+    if (marketCap == null) {
+      const shares = latest(sharesArr);
+      if (shares != null && fallbackPrice != null && shares > 0 && fallbackPrice > 0) {
+        marketCap = shares * fallbackPrice;
+      }
     }
   }
 
@@ -361,9 +386,14 @@ function calculateRatios(data) {
   const opInc = latest(opIncArr);
   const ebitda = latest(ebitdaArr);
 
-  let marketCap = unwrap(summary?.price?.marketCap) || unwrap(summary?.summaryDetail?.marketCap);
-  if (marketCap == null && shares != null && fallbackPrice != null && shares > 0 && fallbackPrice > 0) {
-    marketCap = shares * fallbackPrice;
+  let marketCap;
+  if ('marketCap' in data) {
+    marketCap = data.marketCap;
+  } else {
+    marketCap = unwrap(summary?.price?.marketCap) || unwrap(summary?.summaryDetail?.marketCap);
+    if (marketCap == null && shares != null && fallbackPrice != null && shares > 0 && fallbackPrice > 0) {
+      marketCap = shares * fallbackPrice;
+    }
   }
 
   const safe = (v) => (typeof v === 'number' && Number.isFinite(v)) ? +v.toFixed(2) : null;
@@ -410,6 +440,35 @@ async function getFundamentalScores(symbol, opts = {}) {
     return result;
   }
 
+  // ─── Para birimi tutarlılığı ───────────────────────────────────────────────
+  // Bazı BIST şirketleri (THYAO vb.) Yahoo'da bilançoyu USD raporlar; ama hisse
+  // fiyatı / piyasa değeri TRY'dir. Karışık para birimi P/E, P/B ve Altman D'yi
+  // kur kadar (≈45×) şişirir. Piyasa değerini bilanço para birimine çeviriyoruz.
+  const sm = data.summary || {};
+  const priceCurrency = (sm.price?.currency || 'TRY').toUpperCase();
+  const financialCurrency = (sm.financialData?.financialCurrency
+    || sm.price?.financialCurrency || priceCurrency).toUpperCase();
+
+  let marketCap = unwrap(sm.price?.marketCap) || unwrap(sm.summaryDetail?.marketCap);
+  if (marketCap == null) {
+    const shares = latest(pickField(data.ftsBS, ['ordinarySharesNumber', 'shareIssued', 'commonStockSharesOutstanding']));
+    if (shares != null && currentPrice != null && shares > 0 && currentPrice > 0) {
+      marketCap = shares * currentPrice;
+    }
+  }
+
+  let currencyNote = null;
+  if (marketCap != null && financialCurrency !== priceCurrency) {
+    const fx = await getCrossRate(priceCurrency, financialCurrency);
+    if (fx && fx > 0) {
+      marketCap = marketCap / fx;
+      currencyNote = `Bilanço ${financialCurrency}, fiyat ${priceCurrency} — oranlar için piyasa değeri ${financialCurrency}'ye çevrildi (1 ${financialCurrency} = ${fx.toFixed(2)} ${priceCurrency})`;
+    } else {
+      currencyNote = `Bilanço ${financialCurrency}, fiyat ${priceCurrency} — kur alınamadı, P/E ve P/B yaklaşık olabilir`;
+    }
+  }
+  data.marketCap = marketCap;
+
   // Banka/holding bilanço yapısı orjinal Altman/Beneish formüllerine uygun değil
   // (working capital, COGS, gross margin kavramları farklı). Bu sektörler için skip.
   const isBankOrHolding = sector && /banka|bankac|holding|finans/i.test(sector);
@@ -428,6 +487,8 @@ async function getFundamentalScores(symbol, opts = {}) {
     symbol: upper,
     fetchedAt: new Date().toISOString(),
     dataSource: 'Yahoo Finance fundamentalsTimeSeries (annual)',
+    financialCurrency,
+    currencyNote,
     altmanZScore: altman.value,
     altmanComponents: altman.components,
     altmanInterpretation: altman.interpretation,
