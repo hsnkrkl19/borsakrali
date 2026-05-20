@@ -2804,6 +2804,7 @@ async function runSmcScan(scope) {
   let isCrypto = false;
   if (scope === 'bist30') universe = bist30Stocks;
   else if (scope === 'bist100') universe = bist100Stocks;
+  else if (scope === 'all') universe = allBistStocks;
   else if (scope === 'crypto') {
     universe = ['BTC','ETH','BNB','SOL','XRP','ADA','AVAX','DOGE','TRX','LINK',
                 'TON','DOT','MATIC','LTC','BCH','NEAR','UNI','APT','ATOM','OP'];
@@ -2857,10 +2858,11 @@ async function runSmcScan(scope) {
 
 app.get('/api/smc/scanner/:scope', async (req, res) => {
   try {
-    const scope = ['bist30', 'bist100', 'crypto'].includes(req.params.scope)
-      ? req.params.scope : 'bist100';
+    const scope = ['bist30', 'bist100', 'all', 'crypto'].includes(req.params.scope)
+      ? req.params.scope : 'all';
     const cached = smcScannerCache.get(scope);
-    if (cached && Date.now() - cached.ts < SMC_SCAN_TTL) {
+    const ttl = scope === 'all' ? 30 * 60 * 1000 : SMC_SCAN_TTL;
+    if (cached && Date.now() - cached.ts < ttl) {
       return res.json({ success: true, scope, results: cached.results, cached: true });
     }
     const results = await runSmcScan(scope);

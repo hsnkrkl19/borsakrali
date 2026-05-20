@@ -68,7 +68,7 @@ export default function StratejiKombolari() {
   const [search, setSearch] = useState('')
   const [expandedCombo, setExpandedCombo] = useState(null)
   const [view, setView] = useState('combo') // combo | symbol | catalog
-  const [scope, setScope] = useState('bist100')
+  const [scope, setScope] = useState('all')
   const [timeframe, setTimeframe] = useState('daily') // daily | weekly | hourly | fifteen
 
   useEffect(() => { load(scope, timeframe) }, [scope, timeframe])

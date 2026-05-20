@@ -33,7 +33,7 @@ export default function TEMA34Tarayici() {
   const [trackInput, setTrackInput] = useState('')
   const [trackData, setTrackData] = useState(null)
   const [trackLoading, setTrackLoading] = useState(false)
-  const [listParam, setListParam] = useState('bist30')
+  const [listParam, setListParam] = useState('all')
   const [filterSignal, setFilterSignal] = useState('all')
 
   const runScan = async (list = listParam) => {

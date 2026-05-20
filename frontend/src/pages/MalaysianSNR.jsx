@@ -355,7 +355,7 @@ export default function MalaysianSNR() {
   const [error, setError]         = useState(null)
   const [scanner, setScanner]     = useState(null)
   const [scanLoading, setScanLoading] = useState(false)
-  const [scanScope, setScanScope] = useState('bist100')
+  const [scanScope, setScanScope] = useState('all')
   const [tab, setTab]             = useState('zones')
   const [cryptoPage, setCryptoPage] = useState(0) // kripto sayfa (50'şer)
   const chartRef = useRef(null)

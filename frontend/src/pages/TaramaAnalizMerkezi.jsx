@@ -71,7 +71,7 @@ export default function TaramaAnalizMerkezi() {
   const [detailLoading, setDetailLoading] = useState(false)
   const [detailView, setDetailView] = useState('standart')
 
-  const [scope, setScope] = useState('bist100')
+  const [scope, setScope] = useState('all')
 
   useEffect(() => {
     loadData()

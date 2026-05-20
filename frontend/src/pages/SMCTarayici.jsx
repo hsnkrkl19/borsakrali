@@ -34,7 +34,7 @@ const GRADE_COLOR = {
 
 export default function SMCTarayici() {
   const [searchParams] = useSearchParams()
-  const [scope, setScope] = useState('bist30')
+  const [scope, setScope] = useState('all')
   const [scan, setScan] = useState(null)
   const [scanLoading, setScanLoading] = useState(false)
   const [trackInput, setTrackInput] = useState('')
@@ -129,6 +129,7 @@ export default function SMCTarayici() {
       <div className="flex flex-wrap gap-2 items-center">
         <span className="text-xs text-gray-500 mr-1">Kapsam:</span>
         {[
+          { id: 'all', label: 'Tümü' },
           { id: 'bist30', label: 'BIST30' },
           { id: 'bist100', label: 'BIST100' },
           { id: 'crypto', label: '🪙 Kripto Top 20' },
@@ -204,7 +205,7 @@ export default function SMCTarayici() {
         <div className="px-4 py-3 border-b border-dark-700 flex items-center justify-between">
           <h3 className="font-semibold text-white flex items-center gap-2">
             <Search className="w-4 h-4 text-amber-400" />
-            SMC Tarayıcı — {scope.toUpperCase()}
+            SMC Tarayıcı — {scope === 'all' ? 'TÜM BIST' : scope.toUpperCase()}
             {scan?.cached && <span className="text-[10px] text-gray-500">(cache)</span>}
           </h3>
           <span className="text-xs text-gray-500">{filtered.length} sonuç</span>
@@ -213,7 +214,7 @@ export default function SMCTarayici() {
         {scanLoading && (
           <div className="flex items-center justify-center py-12">
             <RefreshCw className="w-5 h-5 text-amber-400 animate-spin mr-2" />
-            <span className="text-gray-400">Taranıyor... (BIST için 30-60 sn)</span>
+            <span className="text-gray-400">Taranıyor... ({scope === 'all' ? 'Tüm BIST — 2-3 dk sürebilir' : 'BIST için 30-60 sn'})</span>
           </div>
         )}
 
