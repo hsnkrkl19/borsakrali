@@ -1,183 +1,69 @@
 /**
- * TradingBot.jsx — Borsa Krali Sinyal-Takipli Bot (v6)
+ * TradingBot.jsx — Borsa Krali Sinyal-Takipli Bot
  *
- * Bot, /gunluk-tespitler?tab=bugun sayfasında yayınlanan canlı günlük BIST
- * sinyallerini (trend + reversion, sadece LONG) sanal işleme çevirir.
- * TP/SL dinamik trailing (R basamağı + ATR tavanı) uygulanır.
- * Tüm sinyaller append-only log'ta kalır; bot kararları kısa not olarak yazılır.
+ * /gunluk-tespitler?tab=bugun sayfasında yayınlanan günlük BIST sinyallerini
+ * (trend + reversion, sadece LONG) sanal işleme çevirir. Pozisyon kâra geçtikçe
+ * stop-loss kademeli yukarı taşınır. Verilen tüm sinyaller değişmez kayıtta
+ * saklanır.
  *
- * 5 sekme:
- *   1. Genel Bakış      — KPI kartları + equity chart
- *   2. Açık Pozisyonlar — şu an taşınan sanal pozisyonlar + notlar
- *   3. İşlem Geçmişi    — kapanmış sanal işlemler
- *   4. Sinyal Logu      — immutable: tüm verilmiş sinyaller (filtreli)
- *   5. Ayarlar          — config + admin reset
+ * 5 sekme: Genel Bakış · Açık Pozisyonlar · İşlem Geçmişi · Sinyal Kaydı · Ayarlar
  */
-
-import { useState, useEffect, useMemo, useRef, useCallback } from 'react'
+import { useState, useEffect, useMemo, useCallback } from 'react'
 import {
   Bot, TrendingUp, ListChecks, History, FileText, Settings,
-  RefreshCw, ChevronDown, ChevronUp, AlertTriangle, CheckCircle2, XCircle,
+  RefreshCw, ChevronDown, ChevronUp, AlertTriangle, XCircle,
   Activity, Award, Clock, Target,
 } from 'lucide-react'
-import { createChart } from 'lightweight-charts'
 import api from '../services/api'
-import { Button } from '../components/ui'
+import { Button, Card, EmptyState } from '../components/ui'
+import {
+  fmtMoney, fmtPct, fmtDate, fmtDateShort,
+  TabHeader, BotTabs, StatCard, Chip, TableShell, HowItWorks, NotesList, EquityChart,
+} from '../components/BotKit'
 
 const TABS = [
-  { id: 'overview',  label: 'Genel Bakış',     icon: TrendingUp },
-  { id: 'open',      label: 'Açık Pozisyonlar', icon: ListChecks },
-  { id: 'trades',    label: 'İşlem Geçmişi',    icon: History },
-  { id: 'log',       label: 'Sinyal Logu',      icon: FileText },
-  { id: 'settings',  label: 'Ayarlar',          icon: Settings },
+  { id: 'overview', label: 'Genel Bakış',      icon: TrendingUp },
+  { id: 'open',     label: 'Açık Pozisyonlar', icon: ListChecks },
+  { id: 'trades',   label: 'İşlem Geçmişi',    icon: History },
+  { id: 'log',      label: 'Sinyal Kaydı',     icon: FileText },
+  { id: 'settings', label: 'Ayarlar',          icon: Settings },
 ]
 
-function fmtMoney(v, digits = 2) {
-  if (v == null || !isFinite(v)) return '—'
-  return Number(v).toLocaleString('tr-TR', {
-    maximumFractionDigits: digits,
-    minimumFractionDigits: digits,
-  })
-}
-function fmtPct(v, digits = 2) {
-  if (v == null || !isFinite(v)) return '—'
-  const s = v >= 0 ? '+' : ''
-  return `${s}${Number(v).toFixed(digits)}%`
-}
-function fmtDate(iso) {
-  if (!iso) return '—'
-  try {
-    return new Date(iso).toLocaleString('tr-TR', {
-      day: '2-digit', month: '2-digit', year: 'numeric',
-      hour: '2-digit', minute: '2-digit',
-    })
-  } catch (_) {
-    return iso
-  }
-}
-function fmtDateShort(iso) {
-  if (!iso) return '—'
-  try {
-    return new Date(iso).toLocaleDateString('tr-TR', {
-      day: '2-digit', month: '2-digit', year: '2-digit',
-    })
-  } catch (_) {
-    return (iso || '').slice(0, 10)
-  }
-}
+function FragmentRow({ children }) { return <>{children}</> }
 
-// ── KPI Kartı ─────────────────────────────────────────────────────────────
-function KpiCard({ icon: Icon, label, value, sub, tone = 'neutral' }) {
-  const palette = {
-    neutral: { color: 'var(--text-primary)', bg: 'rgba(255,255,255,0.04)' },
-    good:    { color: '#22c55e', bg: 'rgba(34,197,94,0.10)' },
-    bad:     { color: '#ef4444', bg: 'rgba(239,68,68,0.10)' },
-    gold:    { color: 'var(--gold-400)', bg: 'rgba(212,175,55,0.10)' },
-  }
-  const p = palette[tone] || palette.neutral
-  return (
-    <div
-      className="rounded-2xl p-4 border"
-      style={{ background: p.bg, borderColor: 'var(--border-subtle)' }}
-    >
-      <div className="flex items-center gap-2 text-xs uppercase tracking-wider mb-2"
-           style={{ color: 'var(--text-secondary)' }}>
-        {Icon && <Icon className="w-3.5 h-3.5" />}
-        <span>{label}</span>
-      </div>
-      <div className="text-2xl font-bold" style={{ color: p.color }}>{value}</div>
-      {sub && <div className="text-xs mt-1" style={{ color: 'var(--text-faint)' }}>{sub}</div>}
-    </div>
-  )
-}
-
-// ── Equity Chart (lightweight-charts) ─────────────────────────────────────
-function EquityChart({ data }) {
-  const ref = useRef(null)
-  const chartRef = useRef(null)
-
-  useEffect(() => {
-    if (!ref.current) return
-    const chart = createChart(ref.current, {
-      width: ref.current.clientWidth,
-      height: 220,
-      layout: {
-        background: { color: 'transparent' },
-        textColor: 'rgba(255,255,255,0.7)',
-      },
-      grid: {
-        vertLines: { color: 'rgba(255,255,255,0.04)' },
-        horzLines: { color: 'rgba(255,255,255,0.04)' },
-      },
-      timeScale: { borderColor: 'rgba(255,255,255,0.1)' },
-      rightPriceScale: { borderColor: 'rgba(255,255,255,0.1)' },
-    })
-    const series = chart.addAreaSeries({
-      lineColor: '#d4af37',
-      topColor: 'rgba(212, 175, 55, 0.35)',
-      bottomColor: 'rgba(212, 175, 55, 0.02)',
-      lineWidth: 2,
-    })
-    chartRef.current = { chart, series }
-
-    const handleResize = () => {
-      if (ref.current) chart.applyOptions({ width: ref.current.clientWidth })
-    }
-    window.addEventListener('resize', handleResize)
-    return () => {
-      window.removeEventListener('resize', handleResize)
-      chart.remove()
-    }
-  }, [])
-
-  useEffect(() => {
-    if (!chartRef.current || !Array.isArray(data)) return
-    const pts = data
-      .filter(p => p.date && isFinite(p.equity))
-      .map(p => ({ time: p.date, value: Number(p.equity) }))
-    chartRef.current.series.setData(pts)
-    if (pts.length > 0) chartRef.current.chart.timeScale().fitContent()
-  }, [data])
-
-  return <div ref={ref} className="w-full" />
-}
-
-// ── Genel Bakış sekmesi ──────────────────────────────────────────────────
+// ── Genel Bakış ────────────────────────────────────────────────────────────
 function OverviewTab({ status, loading, onRefresh }) {
   const p = status?.portfolio || {}
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>
-          Bot performansı
-        </h2>
+      <TabHeader title="Bot performansı">
         <Button variant="ghost" size="sm" icon={RefreshCw} loading={loading} onClick={onRefresh}>
           Yenile
         </Button>
-      </div>
+      </TabHeader>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <KpiCard
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+        <StatCard
           icon={Award}
           label="Toplam Getiri"
           value={fmtPct(p.totalRealizedPnLPct)}
           sub={`${fmtMoney(p.totalRealizedPnL)} TL gerçekleşen`}
           tone={(p.totalRealizedPnLPct || 0) >= 0 ? 'good' : 'bad'}
         />
-        <KpiCard
+        <StatCard
           icon={Target}
           label="Kazanma Oranı"
           value={`%${(p.winRate ?? 0).toFixed(1)}`}
-          sub={`${p.winCount || 0} kazanç / ${p.lossCount || 0} kayıp`}
+          sub={`${p.winCount || 0} kazanç · ${p.lossCount || 0} kayıp`}
           tone="gold"
         />
-        <KpiCard
+        <StatCard
           icon={Activity}
           label="Açık Pozisyon"
           value={`${status?.openCount ?? 0}`}
-          sub={`${status?.pendingCount ?? 0} pending · ${fmtMoney(status?.unrealizedPnL)} TL anlık`}
+          sub={`${status?.pendingCount ?? 0} bekleyen · ${fmtMoney(status?.unrealizedPnL)} TL anlık`}
         />
-        <KpiCard
+        <StatCard
           icon={Bot}
           label="Sanal Sermaye"
           value={`${fmtMoney(status?.equity)} TL`}
@@ -185,63 +71,70 @@ function OverviewTab({ status, loading, onRefresh }) {
         />
       </div>
 
-      <div className="rounded-2xl p-4 border"
-           style={{ background: 'rgba(255,255,255,0.02)', borderColor: 'var(--border-subtle)' }}>
-        <div className="text-xs uppercase tracking-wider mb-3"
-             style={{ color: 'var(--text-secondary)' }}>
+      <Card>
+        <div className="mb-3 text-[11px] font-semibold uppercase tracking-wider text-gray-500">
           Sanal portföy eğrisi
         </div>
-        <EquityChart data={p.equityHistory || []} />
-      </div>
+        {(p.equityHistory || []).length > 0 ? (
+          <EquityChart data={p.equityHistory} />
+        ) : (
+          <p className="py-8 text-center text-xs text-gray-500">
+            İlk işlemler kapandıkça portföy eğrisi burada görünecek.
+          </p>
+        )}
+      </Card>
 
-      <div className="rounded-xl p-3 text-xs border"
-           style={{ background: 'rgba(59,130,246,0.06)', borderColor: 'rgba(59,130,246,0.25)', color: 'var(--text-secondary)' }}>
-        <strong style={{ color: '#60a5fa' }}>Nasıl çalışıyor?</strong> Bot, Bugünün Sinyalleri sekmesinde verilen
-        <em> AL (LONG) </em> sinyallerini sanal portföyle takip eder. Trend sinyallerinde piyasa fiyatından girer,
-        Reversion sinyallerinde fiyat zone'a düşene kadar bekler. Kâr arttıkça SL kademeli olarak yukarı taşınır
-        (R-basamağı + ATR×2 tavanı). Pozisyonlar TP'ye, SL'e veya 10 işgününe ulaşınca kapanır.
-        Verilen tüm sinyaller değişmez log'da saklanır.
-      </div>
+      <HowItWorks summary="Günlük BIST sinyallerini sanal parayla işler, sonuçları takip eder.">
+        Bot, <strong className="text-gray-200">Bugünün Sinyalleri</strong> sekmesinde verilen
+        AL (LONG) sinyallerini sanal portföyle takip eder. Trend sinyallerinde piyasa fiyatından
+        girer, Reversion sinyallerinde fiyat hedef bölgeye düşene kadar bekler. Pozisyon kâra
+        geçtikçe stop-loss kademeli olarak yukarı taşınır, böylece kazanç korunur. Pozisyonlar
+        hedefe, stop-loss'a veya 10 işgünü sınırına ulaşınca kapanır. Verilen her sinyal{' '}
+        <strong className="text-gray-200">Sinyal Kaydı</strong> sekmesinde değişmez biçimde saklanır.
+      </HowItWorks>
     </div>
   )
 }
 
-// ── Açık Pozisyonlar sekmesi ─────────────────────────────────────────────
+// ── Açık Pozisyonlar ──────────────────────────────────────────────────────
 function OpenPositionsTab({ open, pending, onRefresh, loading }) {
   const [expanded, setExpanded] = useState(null)
-  const toggle = (id) => setExpanded(expanded === id ? null : id)
+  const toggle = (id) => setExpanded((e) => (e === id ? null : id))
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>
-          Aktif pozisyonlar ({open.length} açık · {pending.length} bekleyen)
-        </h2>
+      <TabHeader title="Aktif pozisyonlar" sub={`${open.length} açık · ${pending.length} bekleyen`}>
         <Button variant="ghost" size="sm" icon={RefreshCw} loading={loading} onClick={onRefresh}>
           Yenile
         </Button>
-      </div>
+      </TabHeader>
 
       {open.length === 0 && pending.length === 0 && (
-        <EmptyState text="Şu an açık veya bekleyen pozisyon yok. Yeni sinyaller geldikçe burada görünecek." />
+        <Card padding="none">
+          <EmptyState
+            icon={ListChecks}
+            title="Açık pozisyon yok"
+            description="Yeni sinyaller geldikçe bot pozisyon açar ve burada görünür."
+          />
+        </Card>
       )}
 
       {open.length > 0 && (
         <PositionTable
           title="Açık pozisyonlar"
           positions={open}
+          mode="open"
           expanded={expanded}
           onToggle={toggle}
-          mode="open"
         />
       )}
       {pending.length > 0 && (
         <PositionTable
-          title="Bekleyen pozisyonlar (zone'a değiş bekleniyor)"
+          title="Bekleyen pozisyonlar — fiyatın hedef bölgeye gelmesi bekleniyor"
           positions={pending}
+          mode="pending"
           expanded={expanded}
           onToggle={toggle}
-          mode="pending"
         />
       )}
     </div>
@@ -249,175 +142,122 @@ function OpenPositionsTab({ open, pending, onRefresh, loading }) {
 }
 
 function PositionTable({ title, positions, expanded, onToggle, mode }) {
+  const colSpan = mode === 'open' ? 9 : 7
   return (
-    <div className="rounded-2xl border overflow-hidden"
-         style={{ background: 'rgba(255,255,255,0.02)', borderColor: 'var(--border-subtle)' }}>
-      <div className="px-4 py-2.5 text-xs uppercase tracking-wider border-b"
-           style={{ color: 'var(--text-secondary)', borderColor: 'var(--border-subtle)' }}>
-        {title}
-      </div>
-      <div className="overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="text-left text-xs uppercase"
-                style={{ color: 'var(--text-faint)' }}>
-              <th className="px-3 py-2">Sembol</th>
-              <th className="px-3 py-2">Strateji</th>
-              <th className="px-3 py-2">Sinyal Tarihi</th>
-              {mode === 'open' && <th className="px-3 py-2 text-right">Giriş</th>}
-              {mode === 'open' && <th className="px-3 py-2 text-right">Son Fiyat</th>}
-              {mode === 'pending' && <th className="px-3 py-2 text-right">Beklenen Giriş</th>}
-              <th className="px-3 py-2 text-right">SL</th>
-              <th className="px-3 py-2 text-right">TP</th>
-              {mode === 'open' && <th className="px-3 py-2 text-right">Anlık P&L</th>}
-              <th className="px-3 py-2"></th>
-            </tr>
-          </thead>
-          <tbody>
-            {positions.map(pos => {
-              const last = pos.lastPrice ?? pos.entryPrice
-              const pnlPct = mode === 'open' && pos.entryPrice
-                ? ((last - pos.entryPrice) / pos.entryPrice) * 100
-                : null
-              const isExp = expanded === pos.id
-              return (
-                <FragmentRow key={pos.id}>
-                  <tr className="border-t" style={{ borderColor: 'var(--border-subtle)' }}>
-                    <td className="px-3 py-2 font-semibold" style={{ color: 'var(--text-primary)' }}>
-                      {pos.symbol}
-                      <div className="text-[10px]" style={{ color: 'var(--text-faint)' }}>{pos.name}</div>
-                    </td>
-                    <td className="px-3 py-2">
-                      <span className="px-2 py-0.5 rounded text-[11px] uppercase"
-                            style={{
-                              background: pos.strategy === 'trend' ? 'rgba(59,130,246,0.15)' : 'rgba(168,85,247,0.15)',
-                              color: pos.strategy === 'trend' ? '#60a5fa' : '#c084fc',
-                            }}>
-                        {pos.strategy === 'trend' ? 'Trend' : 'Reversion'}
-                      </span>
-                    </td>
-                    <td className="px-3 py-2 text-xs" style={{ color: 'var(--text-secondary)' }}>
-                      {fmtDateShort(pos.signalDate)} · {pos.signalPhase}
-                    </td>
-                    {mode === 'open' && <td className="px-3 py-2 text-right">{fmtMoney(pos.entryPrice)}</td>}
-                    {mode === 'open' && <td className="px-3 py-2 text-right font-semibold">{fmtMoney(last)}</td>}
-                    {mode === 'pending' && <td className="px-3 py-2 text-right">{fmtMoney(pos.originalEntry)}</td>}
-                    <td className="px-3 py-2 text-right" style={{ color: '#ef4444' }}>
-                      {fmtMoney(pos.currentStop ?? pos.originalStop)}
-                      {mode === 'open' && pos.currentStop != null && pos.currentStop > pos.originalStop && (
-                        <div className="text-[10px]" style={{ color: 'var(--text-faint)' }}>
-                          orijinal {fmtMoney(pos.originalStop)}
-                        </div>
-                      )}
-                    </td>
-                    <td className="px-3 py-2 text-right" style={{ color: '#22c55e' }}>
-                      {fmtMoney(pos.currentTarget ?? pos.originalTarget)}
-                    </td>
-                    {mode === 'open' && (
-                      <td className="px-3 py-2 text-right font-semibold"
-                          style={{ color: pnlPct >= 0 ? '#22c55e' : '#ef4444' }}>
-                        {fmtPct(pnlPct)}
-                      </td>
+    <TableShell title={title}>
+      <table className="w-full text-sm">
+        <thead>
+          <tr className="text-left text-[11px] uppercase tracking-wider text-gray-500">
+            <th className="px-3 py-2 font-semibold">Sembol</th>
+            <th className="px-3 py-2 font-semibold">Strateji</th>
+            <th className="px-3 py-2 font-semibold">Sinyal Tarihi</th>
+            {mode === 'open' && <th className="px-3 py-2 text-right font-semibold">Giriş</th>}
+            {mode === 'open' && <th className="px-3 py-2 text-right font-semibold">Son Fiyat</th>}
+            {mode === 'pending' && <th className="px-3 py-2 text-right font-semibold">Beklenen Giriş</th>}
+            <th className="px-3 py-2 text-right font-semibold">Stop</th>
+            <th className="px-3 py-2 text-right font-semibold">Hedef</th>
+            {mode === 'open' && <th className="px-3 py-2 text-right font-semibold">Anlık K/Z</th>}
+            <th className="px-3 py-2" />
+          </tr>
+        </thead>
+        <tbody>
+          {positions.map((pos) => {
+            const last = pos.lastPrice ?? pos.entryPrice
+            const pnlPct = mode === 'open' && pos.entryPrice
+              ? ((last - pos.entryPrice) / pos.entryPrice) * 100
+              : null
+            const isExp = expanded === pos.id
+            return (
+              <FragmentRow key={pos.id}>
+                <tr className="border-t border-dark-700/60">
+                  <td className="px-3 py-2.5">
+                    <div className="font-semibold text-white">{pos.symbol}</div>
+                    {pos.name && <div className="text-[10px] text-gray-500">{pos.name}</div>}
+                  </td>
+                  <td className="px-3 py-2.5">
+                    <Chip tone={pos.strategy === 'trend' ? 'info' : 'gold'}>
+                      {pos.strategy === 'trend' ? 'Trend' : 'Reversion'}
+                    </Chip>
+                  </td>
+                  <td className="px-3 py-2.5 text-xs text-gray-400">
+                    {fmtDateShort(pos.signalDate)} · {pos.signalPhase}
+                  </td>
+                  {mode === 'open' && (
+                    <td className="px-3 py-2.5 text-right text-gray-300">{fmtMoney(pos.entryPrice)}</td>
+                  )}
+                  {mode === 'open' && (
+                    <td className="px-3 py-2.5 text-right font-semibold text-white">{fmtMoney(last)}</td>
+                  )}
+                  {mode === 'pending' && (
+                    <td className="px-3 py-2.5 text-right text-gray-300">{fmtMoney(pos.originalEntry)}</td>
+                  )}
+                  <td className="px-3 py-2.5 text-right text-rose-300">
+                    {fmtMoney(pos.currentStop ?? pos.originalStop)}
+                    {mode === 'open' && pos.currentStop != null && pos.currentStop > pos.originalStop && (
+                      <div className="text-[10px] text-gray-500">ilk: {fmtMoney(pos.originalStop)}</div>
                     )}
-                    <td className="px-3 py-2 text-right">
-                      <button onClick={() => onToggle(pos.id)}
-                              className="p-1 rounded hover:bg-white/5">
-                        {isExp ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-                      </button>
+                  </td>
+                  <td className="px-3 py-2.5 text-right text-emerald-300">
+                    {fmtMoney(pos.currentTarget ?? pos.originalTarget)}
+                  </td>
+                  {mode === 'open' && (
+                    <td className={`px-3 py-2.5 text-right font-semibold ${(pnlPct || 0) >= 0 ? 'text-emerald-300' : 'text-rose-300'}`}>
+                      {fmtPct(pnlPct)}
+                    </td>
+                  )}
+                  <td className="px-3 py-2.5 text-right">
+                    <button
+                      onClick={() => onToggle(pos.id)}
+                      className="rounded p-1 text-gray-400 hover:bg-white/5 hover:text-white"
+                      aria-label="Detay"
+                    >
+                      {isExp ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                    </button>
+                  </td>
+                </tr>
+                {isExp && (
+                  <tr className="bg-white/[0.02]">
+                    <td colSpan={colSpan} className="px-3 py-3">
+                      <NotesList notes={pos.notes || []} />
                     </td>
                   </tr>
-                  {isExp && (
-                    <tr style={{ background: 'rgba(255,255,255,0.02)' }}>
-                      <td colSpan={mode === 'open' ? 9 : 7} className="px-3 py-3">
-                        <NotesList notes={pos.notes || []} />
-                      </td>
-                    </tr>
-                  )}
-                </FragmentRow>
-              )
-            })}
-          </tbody>
-        </table>
-      </div>
-    </div>
+                )}
+              </FragmentRow>
+            )
+          })}
+        </tbody>
+      </table>
+    </TableShell>
   )
 }
 
-function FragmentRow({ children }) { return <>{children}</> }
-
-function NotesList({ notes }) {
-  if (!Array.isArray(notes) || notes.length === 0) {
-    return <div className="text-xs" style={{ color: 'var(--text-faint)' }}>Henüz not yok.</div>
-  }
-  const actionColor = {
-    signal:  { bg: 'rgba(212,175,55,0.15)', color: '#d4af37' },
-    entry:   { bg: 'rgba(34,197,94,0.15)',  color: '#22c55e' },
-    trigger: { bg: 'rgba(34,197,94,0.15)',  color: '#22c55e' },
-    pending: { bg: 'rgba(59,130,246,0.15)', color: '#60a5fa' },
-    trail:   { bg: 'rgba(168,85,247,0.15)', color: '#c084fc' },
-    exit:    { bg: 'rgba(239,68,68,0.15)',  color: '#ef4444' },
-    skip:    { bg: 'rgba(255,255,255,0.05)', color: 'var(--text-faint)' },
-  }
-  return (
-    <ol className="space-y-2 text-xs">
-      {notes.map((n, i) => {
-        const c = actionColor[n.action] || actionColor.skip
-        return (
-          <li key={i} className="flex gap-2">
-            <span className="px-2 py-0.5 rounded text-[10px] uppercase tracking-wider shrink-0"
-                  style={{ background: c.bg, color: c.color }}>
-              {n.action}
-            </span>
-            <div>
-              <div style={{ color: 'var(--text-primary)' }}>{n.text}</div>
-              <div className="text-[10px]" style={{ color: 'var(--text-faint)' }}>{fmtDate(n.time)}</div>
-            </div>
-          </li>
-        )
-      })}
-    </ol>
-  )
-}
-
-function EmptyState({ text }) {
-  return (
-    <div className="rounded-2xl p-8 text-center border-2 border-dashed"
-         style={{ borderColor: 'var(--border-subtle)', color: 'var(--text-faint)' }}>
-      {text}
-    </div>
-  )
-}
-
-// ── İşlem Geçmişi sekmesi ────────────────────────────────────────────────
+// ── İşlem Geçmişi ─────────────────────────────────────────────────────────
 function TradesTab({ trades, onRefresh, loading }) {
   const [expanded, setExpanded] = useState(null)
   const summary = useMemo(() => {
     const total = trades.length
     if (!total) return null
-    const wins = trades.filter(t => (t.realizedPnL || 0) > 0).length
-    const losses = trades.filter(t => (t.realizedPnL || 0) < 0).length
+    const wins = trades.filter((t) => (t.realizedPnL || 0) > 0).length
+    const losses = trades.filter((t) => (t.realizedPnL || 0) < 0).length
     const totalPnL = trades.reduce((s, t) => s + (t.realizedPnL || 0), 0)
-    return { total, wins, losses, totalPnL, winRate: total > 0 ? (wins / total) * 100 : 0 }
+    return { total, wins, losses, totalPnL }
   }, [trades])
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>
-          Kapanan işlemler ({trades.length})
-        </h2>
+      <TabHeader title="Kapanan işlemler" sub={`${trades.length} işlem`}>
         <Button variant="ghost" size="sm" icon={RefreshCw} loading={loading} onClick={onRefresh}>
           Yenile
         </Button>
-      </div>
+      </TabHeader>
 
       {summary && (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <KpiCard label="Toplam İşlem" value={summary.total} />
-          <KpiCard label="Kazanç" value={`${summary.wins}`} tone="good" />
-          <KpiCard label="Kayıp" value={`${summary.losses}`} tone="bad" />
-          <KpiCard
-            label="Net P&L"
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+          <StatCard label="Toplam İşlem" value={summary.total} />
+          <StatCard label="Kazanç" value={summary.wins} tone="good" />
+          <StatCard label="Kayıp" value={summary.losses} tone="bad" />
+          <StatCard
+            label="Net Kâr/Zarar"
             value={`${fmtMoney(summary.totalPnL)} TL`}
             tone={summary.totalPnL >= 0 ? 'good' : 'bad'}
           />
@@ -425,67 +265,74 @@ function TradesTab({ trades, onRefresh, loading }) {
       )}
 
       {trades.length === 0 ? (
-        <EmptyState text="Henüz kapanmış işlem yok. Bot yeni sinyallerle çalıştıkça burası dolacak." />
+        <Card padding="none">
+          <EmptyState
+            icon={History}
+            title="Kapanmış işlem yok"
+            description="Bot yeni sinyallerle çalıştıkça kapanan işlemler burada listelenir."
+          />
+        </Card>
       ) : (
-        <div className="rounded-2xl border overflow-hidden"
-             style={{ background: 'rgba(255,255,255,0.02)', borderColor: 'var(--border-subtle)' }}>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="text-left text-xs uppercase"
-                    style={{ color: 'var(--text-faint)' }}>
-                  <th className="px-3 py-2">Sembol</th>
-                  <th className="px-3 py-2">Strateji</th>
-                  <th className="px-3 py-2">Giriş → Çıkış</th>
-                  <th className="px-3 py-2 text-right">Giriş Fiyatı</th>
-                  <th className="px-3 py-2 text-right">Çıkış Fiyatı</th>
-                  <th className="px-3 py-2 text-right">P&L</th>
-                  <th className="px-3 py-2">Sebep</th>
-                  <th className="px-3 py-2"></th>
-                </tr>
-              </thead>
-              <tbody>
-                {trades.map(t => {
-                  const isExp = expanded === t.id
-                  return (
-                    <FragmentRow key={t.id}>
-                      <tr className="border-t" style={{ borderColor: 'var(--border-subtle)' }}>
-                        <td className="px-3 py-2 font-semibold">{t.symbol}</td>
-                        <td className="px-3 py-2 text-xs uppercase">{t.strategy}</td>
-                        <td className="px-3 py-2 text-xs" style={{ color: 'var(--text-secondary)' }}>
-                          {fmtDateShort(t.entryDate)} → {fmtDateShort(t.exitDate)}
-                        </td>
-                        <td className="px-3 py-2 text-right">{fmtMoney(t.entryPrice)}</td>
-                        <td className="px-3 py-2 text-right">{fmtMoney(t.exitPrice)}</td>
-                        <td className="px-3 py-2 text-right font-semibold"
-                            style={{ color: (t.realizedPnL || 0) >= 0 ? '#22c55e' : '#ef4444' }}>
-                          {fmtPct(t.realizedPnLPct)}<br />
-                          <span className="text-[10px]" style={{ color: 'var(--text-faint)' }}>
-                            {fmtMoney(t.realizedPnL)} TL
-                          </span>
-                        </td>
-                        <td className="px-3 py-2"><ExitReasonChip reason={t.exitReason} /></td>
-                        <td className="px-3 py-2 text-right">
-                          <button onClick={() => setExpanded(isExp ? null : t.id)}
-                                  className="p-1 rounded hover:bg-white/5">
-                            {isExp ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-                          </button>
+        <TableShell>
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="text-left text-[11px] uppercase tracking-wider text-gray-500">
+                <th className="px-3 py-2 font-semibold">Sembol</th>
+                <th className="px-3 py-2 font-semibold">Strateji</th>
+                <th className="px-3 py-2 font-semibold">Giriş → Çıkış</th>
+                <th className="px-3 py-2 text-right font-semibold">Giriş</th>
+                <th className="px-3 py-2 text-right font-semibold">Çıkış</th>
+                <th className="px-3 py-2 text-right font-semibold">Kâr/Zarar</th>
+                <th className="px-3 py-2 font-semibold">Çıkış Sebebi</th>
+                <th className="px-3 py-2" />
+              </tr>
+            </thead>
+            <tbody>
+              {trades.map((t) => {
+                const isExp = expanded === t.id
+                const win = (t.realizedPnL || 0) >= 0
+                return (
+                  <FragmentRow key={t.id}>
+                    <tr className="border-t border-dark-700/60">
+                      <td className="px-3 py-2.5 font-semibold text-white">{t.symbol}</td>
+                      <td className="px-3 py-2.5">
+                        <Chip tone={t.strategy === 'trend' ? 'info' : 'gold'}>
+                          {t.strategy === 'trend' ? 'Trend' : 'Reversion'}
+                        </Chip>
+                      </td>
+                      <td className="px-3 py-2.5 text-xs text-gray-400">
+                        {fmtDateShort(t.entryDate)} → {fmtDateShort(t.exitDate)}
+                      </td>
+                      <td className="px-3 py-2.5 text-right text-gray-300">{fmtMoney(t.entryPrice)}</td>
+                      <td className="px-3 py-2.5 text-right text-gray-300">{fmtMoney(t.exitPrice)}</td>
+                      <td className={`px-3 py-2.5 text-right font-semibold ${win ? 'text-emerald-300' : 'text-rose-300'}`}>
+                        {fmtPct(t.realizedPnLPct)}
+                        <div className="text-[10px] font-normal text-gray-500">{fmtMoney(t.realizedPnL)} TL</div>
+                      </td>
+                      <td className="px-3 py-2.5"><ExitReasonChip reason={t.exitReason} /></td>
+                      <td className="px-3 py-2.5 text-right">
+                        <button
+                          onClick={() => setExpanded(isExp ? null : t.id)}
+                          className="rounded p-1 text-gray-400 hover:bg-white/5 hover:text-white"
+                          aria-label="Detay"
+                        >
+                          {isExp ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                        </button>
+                      </td>
+                    </tr>
+                    {isExp && (
+                      <tr className="bg-white/[0.02]">
+                        <td colSpan={8} className="px-3 py-3">
+                          <NotesList notes={t.notes || []} />
                         </td>
                       </tr>
-                      {isExp && (
-                        <tr style={{ background: 'rgba(255,255,255,0.02)' }}>
-                          <td colSpan={8} className="px-3 py-3">
-                            <NotesList notes={t.notes || []} />
-                          </td>
-                        </tr>
-                      )}
-                    </FragmentRow>
-                  )
-                })}
-              </tbody>
-            </table>
-          </div>
-        </div>
+                    )}
+                  </FragmentRow>
+                )
+              })}
+            </tbody>
+          </table>
+        </TableShell>
       )}
     </div>
   )
@@ -493,277 +340,230 @@ function TradesTab({ trades, onRefresh, loading }) {
 
 function ExitReasonChip({ reason }) {
   const map = {
-    target:         { label: 'Hedef',     color: '#22c55e', bg: 'rgba(34,197,94,0.15)',   icon: Target },
-    stop:           { label: 'Stop',      color: '#ef4444', bg: 'rgba(239,68,68,0.15)',   icon: XCircle },
-    timeout:        { label: 'Zaman',     color: '#fbbf24', bg: 'rgba(251,191,36,0.15)',  icon: Clock },
-    signal_dropped: { label: 'Düştü',     color: '#94a3b8', bg: 'rgba(148,163,184,0.15)', icon: AlertTriangle },
+    target:         { tone: 'good',    label: 'Hedef',        icon: Target },
+    stop:           { tone: 'bad',     label: 'Stop',         icon: XCircle },
+    timeout:        { tone: 'warn',    label: 'Süre doldu',   icon: Clock },
+    signal_dropped: { tone: 'neutral', label: 'Sinyal düştü', icon: AlertTriangle },
   }
-  const m = map[reason] || { label: reason || '—', color: 'var(--text-faint)', bg: 'rgba(255,255,255,0.05)', icon: Activity }
-  const Icon = m.icon
-  return (
-    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px]"
-          style={{ background: m.bg, color: m.color }}>
-      <Icon className="w-3 h-3" /> {m.label}
-    </span>
-  )
+  const m = map[reason] || { tone: 'neutral', label: reason || '—', icon: Activity }
+  return <Chip tone={m.tone} icon={m.icon}>{m.label}</Chip>
 }
 
-// ── Sinyal Logu sekmesi ──────────────────────────────────────────────────
-const OUTCOME_LABEL = {
-  signaled:        { label: 'Verildi',       color: 'var(--text-secondary)', bg: 'rgba(255,255,255,0.05)' },
-  triggered:       { label: 'Tetiklendi',    color: '#60a5fa', bg: 'rgba(59,130,246,0.15)' },
-  closed_target:   { label: 'Hedef tuttu',   color: '#22c55e', bg: 'rgba(34,197,94,0.15)' },
-  closed_stop:     { label: 'Stop oldu',     color: '#ef4444', bg: 'rgba(239,68,68,0.15)' },
-  closed_timeout:  { label: 'Zaman aşımı',   color: '#fbbf24', bg: 'rgba(251,191,36,0.15)' },
-  closed_dropped:  { label: 'Sinyal düştü',  color: '#94a3b8', bg: 'rgba(148,163,184,0.15)' },
-  closed_other:    { label: 'Kapandı',       color: 'var(--text-faint)', bg: 'rgba(255,255,255,0.05)' },
-  no_trigger:      { label: 'Tetiklenmedi',  color: 'var(--text-faint)', bg: 'rgba(255,255,255,0.05)' },
+// ── Sinyal Kaydı ──────────────────────────────────────────────────────────
+const OUTCOME = {
+  signaled:       { tone: 'neutral', label: 'Verildi' },
+  triggered:      { tone: 'info',    label: 'Tetiklendi' },
+  closed_target:  { tone: 'good',    label: 'Hedef tuttu' },
+  closed_stop:    { tone: 'bad',     label: 'Stop oldu' },
+  closed_timeout: { tone: 'warn',    label: 'Süre doldu' },
+  closed_dropped: { tone: 'neutral', label: 'Sinyal düştü' },
+  closed_other:   { tone: 'neutral', label: 'Kapandı' },
+  no_trigger:     { tone: 'neutral', label: 'Tetiklenmedi' },
+}
+
+function FilterField({ label, children }) {
+  return (
+    <label className="flex flex-col gap-1">
+      <span className="text-[10px] font-semibold uppercase tracking-wider text-gray-500">{label}</span>
+      {children}
+    </label>
+  )
 }
 
 function SignalLogTab({ entries, onRefresh, loading, filters, setFilters }) {
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>
-          Sinyal Logu — {entries.length} kayıt
-        </h2>
+      <TabHeader title="Sinyal kaydı" sub={`${entries.length} kayıt · değişmez geçmiş`}>
         <Button variant="ghost" size="sm" icon={RefreshCw} loading={loading} onClick={onRefresh}>
           Yenile
         </Button>
-      </div>
+      </TabHeader>
 
-      <div className="rounded-2xl p-3 border flex flex-wrap gap-2 text-xs"
-           style={{ background: 'rgba(255,255,255,0.02)', borderColor: 'var(--border-subtle)' }}>
-        <FilterInput
-          label="Sembol"
-          value={filters.symbol || ''}
-          onChange={v => setFilters(f => ({ ...f, symbol: v.toUpperCase() }))}
-          placeholder="THYAO"
-        />
-        <FilterSelect
-          label="Strateji"
-          value={filters.strategy || ''}
-          onChange={v => setFilters(f => ({ ...f, strategy: v }))}
-          options={[
-            { v: '', label: 'Hepsi' },
-            { v: 'trend', label: 'Trend' },
-            { v: 'reversion', label: 'Reversion' },
-          ]}
-        />
-        <FilterSelect
-          label="Durum"
-          value={filters.outcome || ''}
-          onChange={v => setFilters(f => ({ ...f, outcome: v }))}
-          options={[
-            { v: '', label: 'Hepsi' },
-            { v: 'signaled', label: 'Verildi' },
-            { v: 'triggered', label: 'Tetiklendi (açık)' },
-            { v: 'closed_target', label: 'Hedef tuttu' },
-            { v: 'closed_stop', label: 'Stop oldu' },
-            { v: 'closed_timeout', label: 'Zaman aşımı' },
-            { v: 'closed_dropped', label: 'Sinyal düştü' },
-            { v: 'no_trigger', label: 'Tetiklenmedi' },
-          ]}
-        />
-        <FilterInput
-          label="Tarih (en eski)"
-          value={filters.fromDate || ''}
-          onChange={v => setFilters(f => ({ ...f, fromDate: v }))}
-          placeholder="2026-05-01"
-          type="date"
-        />
-      </div>
-
-      <div className="rounded-2xl border overflow-hidden"
-           style={{ background: 'rgba(255,255,255,0.02)', borderColor: 'var(--border-subtle)' }}>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="text-left text-xs uppercase"
-                  style={{ color: 'var(--text-faint)' }}>
-                <th className="px-3 py-2">Verilme</th>
-                <th className="px-3 py-2">Faz</th>
-                <th className="px-3 py-2">Sembol</th>
-                <th className="px-3 py-2">Strateji</th>
-                <th className="px-3 py-2 text-right">Giriş</th>
-                <th className="px-3 py-2 text-right">SL</th>
-                <th className="px-3 py-2 text-right">TP</th>
-                <th className="px-3 py-2 text-right">Skor</th>
-                <th className="px-3 py-2">Durum</th>
-                <th className="px-3 py-2">Biten</th>
-                <th className="px-3 py-2 text-right">Sonuç</th>
-              </tr>
-            </thead>
-            <tbody>
-              {entries.length === 0 && (
-                <tr><td colSpan={11} className="px-3 py-8 text-center text-xs"
-                        style={{ color: 'var(--text-faint)' }}>
-                  Filtrelere uyan kayıt yok.
-                </td></tr>
-              )}
-              {entries.map(e => {
-                const status = OUTCOME_LABEL[e.outcome] || OUTCOME_LABEL.signaled
-                return (
-                  <tr key={e.id} className="border-t" style={{ borderColor: 'var(--border-subtle)' }}>
-                    <td className="px-3 py-2 text-xs" style={{ color: 'var(--text-secondary)' }}>
-                      {fmtDateShort(e.signalDate)}
-                    </td>
-                    <td className="px-3 py-2 text-[11px] uppercase">{e.signalPhase}</td>
-                    <td className="px-3 py-2 font-semibold">{e.symbol}</td>
-                    <td className="px-3 py-2 text-xs uppercase">{e.strategy}</td>
-                    <td className="px-3 py-2 text-right">{fmtMoney(e.entry)}</td>
-                    <td className="px-3 py-2 text-right" style={{ color: '#ef4444' }}>{fmtMoney(e.stop)}</td>
-                    <td className="px-3 py-2 text-right" style={{ color: '#22c55e' }}>{fmtMoney(e.target)}</td>
-                    <td className="px-3 py-2 text-right">{e.totalScore ?? '—'}</td>
-                    <td className="px-3 py-2">
-                      <span className="px-2 py-0.5 rounded text-[11px]"
-                            style={{ background: status.bg, color: status.color }}>
-                        {status.label}
-                      </span>
-                    </td>
-                    <td className="px-3 py-2 text-xs" style={{ color: 'var(--text-secondary)' }}>
-                      {e.exitDate ? fmtDateShort(e.exitDate) : '—'}
-                    </td>
-                    <td className="px-3 py-2 text-right text-xs font-semibold"
-                        style={{ color: (e.finalReturnPct ?? 0) >= 0 ? '#22c55e' : '#ef4444' }}>
-                      {e.finalReturnPct != null ? fmtPct(e.finalReturnPct) : '—'}
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
+      <Card padding="sm">
+        <div className="flex flex-wrap items-end gap-3">
+          <FilterField label="Sembol">
+            <input
+              value={filters.symbol || ''}
+              placeholder="THYAO"
+              onChange={(e) => setFilters((f) => ({ ...f, symbol: e.target.value.toUpperCase() }))}
+              className="input w-32 text-sm"
+            />
+          </FilterField>
+          <FilterField label="Strateji">
+            <select
+              value={filters.strategy || ''}
+              onChange={(e) => setFilters((f) => ({ ...f, strategy: e.target.value }))}
+              className="input text-sm"
+            >
+              <option value="">Hepsi</option>
+              <option value="trend">Trend</option>
+              <option value="reversion">Reversion</option>
+            </select>
+          </FilterField>
+          <FilterField label="Durum">
+            <select
+              value={filters.outcome || ''}
+              onChange={(e) => setFilters((f) => ({ ...f, outcome: e.target.value }))}
+              className="input text-sm"
+            >
+              <option value="">Hepsi</option>
+              <option value="signaled">Verildi</option>
+              <option value="triggered">Tetiklendi (açık)</option>
+              <option value="closed_target">Hedef tuttu</option>
+              <option value="closed_stop">Stop oldu</option>
+              <option value="closed_timeout">Süre doldu</option>
+              <option value="closed_dropped">Sinyal düştü</option>
+              <option value="no_trigger">Tetiklenmedi</option>
+            </select>
+          </FilterField>
+          <FilterField label="En eski tarih">
+            <input
+              type="date"
+              value={filters.fromDate || ''}
+              onChange={(e) => setFilters((f) => ({ ...f, fromDate: e.target.value }))}
+              className="input text-sm"
+            />
+          </FilterField>
         </div>
-      </div>
+      </Card>
 
-      <div className="rounded-xl p-3 text-xs border"
-           style={{ background: 'rgba(255,255,255,0.02)', borderColor: 'var(--border-subtle)', color: 'var(--text-faint)' }}>
-        <strong>Sinyal Logu</strong> append-only'dir — verilen bir sinyalin entry/SL/TP/skor değerleri asla değişmez.
-        Sadece sonuç alanları (tetiklendi mi, ne zaman kapandı, ne kadar getiri sağladı) bot çalışırken eklenir.
-      </div>
+      <TableShell>
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="text-left text-[11px] uppercase tracking-wider text-gray-500">
+              <th className="px-3 py-2 font-semibold">Verilme</th>
+              <th className="px-3 py-2 font-semibold">Faz</th>
+              <th className="px-3 py-2 font-semibold">Sembol</th>
+              <th className="px-3 py-2 font-semibold">Strateji</th>
+              <th className="px-3 py-2 text-right font-semibold">Giriş</th>
+              <th className="px-3 py-2 text-right font-semibold">Stop</th>
+              <th className="px-3 py-2 text-right font-semibold">Hedef</th>
+              <th className="px-3 py-2 text-right font-semibold">Skor</th>
+              <th className="px-3 py-2 font-semibold">Durum</th>
+              <th className="px-3 py-2 font-semibold">Biten</th>
+              <th className="px-3 py-2 text-right font-semibold">Sonuç</th>
+            </tr>
+          </thead>
+          <tbody>
+            {entries.length === 0 && (
+              <tr>
+                <td colSpan={11} className="px-3 py-10 text-center text-xs text-gray-500">
+                  Filtrelere uyan kayıt yok.
+                </td>
+              </tr>
+            )}
+            {entries.map((e) => {
+              const o = OUTCOME[e.outcome] || OUTCOME.signaled
+              return (
+                <tr key={e.id} className="border-t border-dark-700/60">
+                  <td className="px-3 py-2.5 text-xs text-gray-400">{fmtDateShort(e.signalDate)}</td>
+                  <td className="px-3 py-2.5 text-[11px] uppercase text-gray-400">{e.signalPhase}</td>
+                  <td className="px-3 py-2.5 font-semibold text-white">{e.symbol}</td>
+                  <td className="px-3 py-2.5 text-xs text-gray-400">
+                    {e.strategy === 'trend' ? 'Trend' : 'Reversion'}
+                  </td>
+                  <td className="px-3 py-2.5 text-right text-gray-300">{fmtMoney(e.entry)}</td>
+                  <td className="px-3 py-2.5 text-right text-rose-300">{fmtMoney(e.stop)}</td>
+                  <td className="px-3 py-2.5 text-right text-emerald-300">{fmtMoney(e.target)}</td>
+                  <td className="px-3 py-2.5 text-right text-gray-300">{e.totalScore ?? '—'}</td>
+                  <td className="px-3 py-2.5"><Chip tone={o.tone}>{o.label}</Chip></td>
+                  <td className="px-3 py-2.5 text-xs text-gray-400">
+                    {e.exitDate ? fmtDateShort(e.exitDate) : '—'}
+                  </td>
+                  <td className={`px-3 py-2.5 text-right text-xs font-semibold ${(e.finalReturnPct ?? 0) >= 0 ? 'text-emerald-300' : 'text-rose-300'}`}>
+                    {e.finalReturnPct != null ? fmtPct(e.finalReturnPct) : '—'}
+                  </td>
+                </tr>
+              )
+            })}
+          </tbody>
+        </table>
+      </TableShell>
+
+      <p className="px-1 text-[11px] leading-relaxed text-gray-500">
+        Sinyal kaydı değişmezdir — verilen bir sinyalin giriş/stop/hedef/skor değerleri sonradan
+        düzenlenmez. Yalnızca sonuç alanları (tetiklendi mi, ne zaman kapandı, ne kadar getiri
+        sağladı) bot çalışırken eklenir.
+      </p>
     </div>
   )
 }
 
-function FilterInput({ label, value, onChange, placeholder, type = 'text' }) {
+// ── Ayarlar ────────────────────────────────────────────────────────────────
+function SettingRow({ label, value }) {
   return (
-    <label className="flex items-center gap-2">
-      <span style={{ color: 'var(--text-faint)' }}>{label}:</span>
-      <input
-        type={type}
-        value={value}
-        onChange={e => onChange(e.target.value)}
-        placeholder={placeholder}
-        className="px-2 py-1 rounded border bg-transparent w-32"
-        style={{ borderColor: 'var(--border-subtle)', color: 'var(--text-primary)' }}
-      />
-    </label>
-  )
-}
-function FilterSelect({ label, value, onChange, options }) {
-  return (
-    <label className="flex items-center gap-2">
-      <span style={{ color: 'var(--text-faint)' }}>{label}:</span>
-      <select
-        value={value}
-        onChange={e => onChange(e.target.value)}
-        className="px-2 py-1 rounded border bg-transparent"
-        style={{ borderColor: 'var(--border-subtle)', color: 'var(--text-primary)' }}
-      >
-        {options.map(o => (
-          <option key={o.v} value={o.v} style={{ background: '#1a1a1a' }}>{o.label}</option>
-        ))}
-      </select>
-    </label>
+    <div className="flex items-center justify-between gap-4 py-2">
+      <span className="text-gray-400">{label}</span>
+      <span className="text-right font-semibold text-white">{value}</span>
+    </div>
   )
 }
 
-// ── Ayarlar sekmesi ──────────────────────────────────────────────────────
 function SettingsTab({ status, isAdmin, onReset, onTick, busy }) {
   const c = status?.config || {}
   const p = status?.portfolio || {}
   const [confirmingReset, setConfirmingReset] = useState(false)
 
   return (
-    <div className="space-y-4 max-w-2xl">
-      <h2 className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>
-        Bot ayarları
-      </h2>
+    <div className="max-w-2xl space-y-4">
+      <TabHeader title="Bot ayarları" />
 
-      <div className="rounded-2xl p-4 border space-y-2 text-sm"
-           style={{ background: 'rgba(255,255,255,0.02)', borderColor: 'var(--border-subtle)' }}>
-        <SettingRow label="Başlangıç tarihi" value={fmtDate(p.startedAt)} />
-        <SettingRow label="Son reset" value={p.resetAt ? fmtDate(p.resetAt) : '—'} />
-        <SettingRow label="Başlangıç sermayesi" value={`${fmtMoney(p.capital)} TL`} />
-        <SettingRow label="Pozisyon büyüklüğü" value={`%${((c.POSITION_SIZE_PCT || 0.05) * 100).toFixed(1)} (her sinyal için)`} />
-        <SettingRow label="Maks. eşzamanlı pozisyon" value={c.MAX_CONCURRENT_POSITIONS ?? '—'} />
-        <SettingRow label="Komisyon" value={`%${((c.COMMISSION_PCT || 0.002) * 100).toFixed(2)}`} />
-        <SettingRow label="Slippage" value={`%${((c.SLIPPAGE_PCT || 0.001) * 100).toFixed(2)}`} />
-        <SettingRow label="Zaman aşımı" value={`${c.TIMEOUT_BUSINESS_DAYS ?? 10} işgünü`} />
-        <SettingRow label="Trailing kuralı" value="R-basamağı + ATR×2 tavanı (sıkı olan kazanır)" />
-      </div>
+      <Card>
+        <div className="divide-y divide-dark-700 text-sm">
+          <SettingRow label="Başlangıç tarihi" value={fmtDate(p.startedAt)} />
+          <SettingRow label="Son sıfırlama" value={p.resetAt ? fmtDate(p.resetAt) : '—'} />
+          <SettingRow label="Başlangıç sermayesi" value={`${fmtMoney(p.capital)} TL`} />
+          <SettingRow
+            label="Pozisyon büyüklüğü"
+            value={`Her sinyalde sermayenin %${((c.POSITION_SIZE_PCT || 0.05) * 100).toFixed(1)}'i`}
+          />
+          <SettingRow label="En fazla açık pozisyon" value={c.MAX_CONCURRENT_POSITIONS ?? '—'} />
+          <SettingRow label="Komisyon" value={`%${((c.COMMISSION_PCT || 0.002) * 100).toFixed(2)}`} />
+          <SettingRow label="Kayma payı (slippage)" value={`%${((c.SLIPPAGE_PCT || 0.001) * 100).toFixed(2)}`} />
+          <SettingRow label="Zaman sınırı" value={`${c.TIMEOUT_BUSINESS_DAYS ?? 10} işgünü`} />
+          <SettingRow label="Stop-loss kuralı" value="Kâr büyüdükçe kademeli yukarı çekilir" />
+        </div>
+      </Card>
 
       {isAdmin && (
-        <div className="rounded-2xl p-4 border space-y-3"
-             style={{ background: 'rgba(239,68,68,0.04)', borderColor: 'rgba(239,68,68,0.25)' }}>
-          <div className="font-semibold text-sm" style={{ color: '#ef4444' }}>
-            <AlertTriangle className="inline w-4 h-4 mr-1" /> Admin kontrolleri
+        <Card tone="ember" className="space-y-3">
+          <div className="flex items-center gap-1.5 text-sm font-semibold text-rose-300">
+            <AlertTriangle className="h-4 w-4" /> Yönetici kontrolleri
           </div>
-          <div className="flex flex-wrap gap-2">
-            <button
-              onClick={onTick}
-              disabled={busy}
-              className="px-3 py-1.5 rounded-lg border text-xs"
-              style={{ background: 'rgba(255,255,255,0.05)', borderColor: 'var(--border-subtle)', color: 'var(--text-secondary)' }}
-            >
-              Manuel tick çalıştır
-            </button>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button variant="outline" size="sm" disabled={busy} onClick={onTick}>
+              Botu manuel çalıştır
+            </Button>
             {!confirmingReset ? (
-              <button
-                onClick={() => setConfirmingReset(true)}
-                className="px-3 py-1.5 rounded-lg border text-xs"
-                style={{ background: 'rgba(239,68,68,0.10)', borderColor: 'rgba(239,68,68,0.35)', color: '#ef4444' }}
-              >
+              <Button variant="danger" size="sm" onClick={() => setConfirmingReset(true)}>
                 Botu sıfırla
-              </button>
+              </Button>
             ) : (
               <>
-                <span className="text-xs self-center" style={{ color: 'var(--text-secondary)' }}>
-                  Tüm pozisyon, işlem ve sinyal logu silinecek. Emin misin?
+                <span className="text-xs text-gray-400">
+                  Tüm pozisyon, işlem ve sinyal kaydı silinecek. Emin misin?
                 </span>
-                <button
-                  onClick={() => { setConfirmingReset(false); onReset(); }}
-                  disabled={busy}
-                  className="px-3 py-1.5 rounded-lg text-xs font-semibold"
-                  style={{ background: '#ef4444', color: 'white' }}
+                <Button
+                  variant="danger"
+                  size="sm"
+                  loading={busy}
+                  onClick={() => { setConfirmingReset(false); onReset() }}
                 >
                   Evet, sıfırla
-                </button>
-                <button
-                  onClick={() => setConfirmingReset(false)}
-                  className="px-3 py-1.5 rounded-lg border text-xs"
-                  style={{ borderColor: 'var(--border-subtle)', color: 'var(--text-secondary)' }}
-                >
+                </Button>
+                <Button variant="ghost" size="sm" onClick={() => setConfirmingReset(false)}>
                   Vazgeç
-                </button>
+                </Button>
               </>
             )}
           </div>
-        </div>
+        </Card>
       )}
     </div>
   )
 }
-function SettingRow({ label, value }) {
-  return (
-    <div className="flex items-center justify-between">
-      <span style={{ color: 'var(--text-secondary)' }}>{label}</span>
-      <span className="font-semibold" style={{ color: 'var(--text-primary)' }}>{value}</span>
-    </div>
-  )
-}
 
-// ── Ana sayfa ────────────────────────────────────────────────────────────
+// ── Ana sayfa ──────────────────────────────────────────────────────────────
 export default function TradingBot() {
   const [tab, setTab] = useState('overview')
   const [status, setStatus] = useState(null)
@@ -854,39 +654,14 @@ export default function TradingBot() {
   }
 
   return (
-    <div className="space-y-4 max-w-7xl mx-auto">
-      <div className="flex flex-wrap gap-1 border-b" style={{ borderColor: 'var(--border-subtle)' }}>
-        {TABS.map(t => {
-          const Icon = t.icon
-          const active = tab === t.id
-          return (
-            <button
-              key={t.id}
-              onClick={() => setTab(t.id)}
-              className="inline-flex items-center gap-1.5 px-3 py-2 text-sm border-b-2 -mb-px"
-              style={{
-                borderColor: active ? 'var(--gold-400)' : 'transparent',
-                color: active ? 'var(--gold-400)' : 'var(--text-secondary)',
-                fontWeight: active ? 600 : 400,
-              }}
-            >
-              <Icon className="w-4 h-4" />
-              {t.label}
-            </button>
-          )
-        })}
-      </div>
+    <div className="mx-auto max-w-7xl space-y-4">
+      <BotTabs tabs={TABS} active={tab} onChange={setTab} />
 
       {tab === 'overview' && (
         <OverviewTab status={status} loading={loading} onRefresh={refresh} />
       )}
       {tab === 'open' && (
-        <OpenPositionsTab
-          open={open}
-          pending={pending}
-          loading={loading}
-          onRefresh={loadPositions}
-        />
+        <OpenPositionsTab open={open} pending={pending} loading={loading} onRefresh={loadPositions} />
       )}
       {tab === 'trades' && (
         <TradesTab trades={trades} loading={loading} onRefresh={loadTrades} />

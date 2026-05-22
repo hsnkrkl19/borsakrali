@@ -1,5 +1,5 @@
 /**
- * Paper Trading Sayfası — Borsa Krali (Faz 20)
+ * Paper Trading Sayfası — Borsa Krali
  *
  * Backend paperTradingService'in tüm endpoint'lerini tüketir:
  *   - GET  /api/paper-trading/portfolio
@@ -7,20 +7,17 @@
  *   - POST /api/paper-trading/reset
  *   - GET  /api/paper-trading/leaderboard
  *
- * 3 sekme:
- *   1. AÇIK POZİSYONLAR — mark-to-market PnL canlı
- *   2. GEÇMİŞ           — kapanmış pozisyonlar + win/loss tablosu
- *   3. LEADERBOARD      — top kullanıcılar (toplam PnL sırası)
+ * 3 sekme: Açık Pozisyonlar · Geçmiş · Sıralama
  */
-
 import { useCallback, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   RefreshCw, TrendingUp, TrendingDown, Wallet, Trophy, History,
-  X, RotateCcw, ExternalLink, AlertTriangle, Sparkles, Activity, Coins, Layers,
+  X, RotateCcw, ExternalLink, Activity, Layers,
 } from 'lucide-react'
 import api from '../services/api'
-import { Button, Card, EmptyState } from '../components/ui'
+import { Button, Card, EmptyState, Spinner } from '../components/ui'
+import { TabHeader, BotTabs, StatCard, Chip, TableShell, HowItWorks } from '../components/BotKit'
 
 function formatUsd(v, digits = 2) {
   if (v == null) return '—'
@@ -57,7 +54,7 @@ export default function PaperTrading() {
   const [leaderboard, setLeaderboard] = useState([])
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
-  const [activeTab, setActiveTab] = useState('open')  // 'open' | 'history' | 'leaderboard'
+  const [activeTab, setActiveTab] = useState('open')
   const [closingPosId, setClosingPosId] = useState(null)
   const [resetting, setResetting] = useState(false)
 
@@ -101,7 +98,7 @@ export default function PaperTrading() {
   }
 
   const handleReset = async () => {
-    if (!confirm('Portfolio sıfırlanacak. Tüm açık pozisyonlar ve geçmiş silinecek. Emin misin?')) return
+    if (!confirm('Portföy sıfırlanacak. Tüm açık pozisyonlar ve geçmiş silinecek. Emin misin?')) return
     setResetting(true)
     try {
       await api.post('/paper-trading/reset', {})
@@ -113,12 +110,10 @@ export default function PaperTrading() {
 
   if (loading) {
     return (
-      <div className="space-y-4">
-        <div className="card p-8 text-center">
-          <RefreshCw className="w-6 h-6 text-gold-400 animate-spin mx-auto mb-2" />
-          <p className="text-sm text-gray-400">Portfolio yükleniyor...</p>
-        </div>
-      </div>
+      <Card className="flex flex-col items-center gap-3 py-12">
+        <Spinner size={26} />
+        <p className="text-sm text-gray-400">Portföy yükleniyor…</p>
+      </Card>
     )
   }
 
@@ -133,73 +128,55 @@ export default function PaperTrading() {
   const openPositions = portfolio?.positions || []
   const history = portfolio?.history || []
 
+  const TABS = [
+    { id: 'open',        label: 'Açık Pozisyonlar', icon: Activity, count: openPositions.length },
+    { id: 'history',     label: 'Geçmiş',           icon: History,  count: history.length },
+    { id: 'leaderboard', label: 'Sıralama',         icon: Trophy,   count: leaderboard.length },
+  ]
+
   return (
     <div className="space-y-4">
-      {/* Aksiyon çubuğu — sayfa başlığı Botlar wrapper'ında */}
-      <div className="flex flex-wrap items-center justify-end gap-2">
+      <TabHeader title="Sanal portföyün" sub="Başlangıç bakiyesi $10.000">
         <Button variant="ghost" size="sm" icon={RefreshCw} loading={refreshing} onClick={handleRefresh}>
           Yenile
         </Button>
-        <Button
-          variant="danger"
-          size="sm"
-          icon={RotateCcw}
-          loading={resetting}
-          onClick={handleReset}
-          title="Portfolio'yu sıfırla — başlangıç bakiyesine dön"
-        >
+        <Button variant="danger" size="sm" icon={RotateCcw} loading={resetting} onClick={handleReset}>
           Sıfırla
         </Button>
-      </div>
+      </TabHeader>
 
-      {/* Üst stats kartları */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <StatCard
+          icon={Wallet}
           label="Toplam Değer"
           value={formatUsd(equity)}
-          sub={`Bakiye: ${formatUsd(balance)}`}
-          icon={Wallet}
-          color="gold"
+          sub={`Bakiye ${formatUsd(balance)}`}
         />
         <StatCard
-          label="Toplam PnL"
-          value={formatUsd(totalPnl)}
-          valueColor={totalPnl >= 0 ? 'emerald' : 'rose'}
-          sub={`${wins} kazanç / ${losses} kayıp`}
           icon={totalPnl >= 0 ? TrendingUp : TrendingDown}
-          color={totalPnl >= 0 ? 'emerald' : 'rose'}
+          label="Toplam Kâr/Zarar"
+          value={formatUsd(totalPnl)}
+          sub={`${wins} kazanç · ${losses} kayıp`}
+          tone={totalPnl >= 0 ? 'good' : 'bad'}
         />
         <StatCard
-          label="Gerçekleşmemiş"
-          value={formatUsd(totalUnrealized)}
-          valueColor={totalUnrealized >= 0 ? 'emerald' : 'rose'}
-          sub={`${openPositions.length} açık pozisyon`}
           icon={Activity}
-          color="amber"
+          label="Açık Kâr/Zarar"
+          value={formatUsd(totalUnrealized)}
+          sub={`${openPositions.length} açık pozisyon`}
+          tone={totalUnrealized >= 0 ? 'good' : 'bad'}
         />
         <StatCard
-          label="Kârlı işlem oranı"
+          icon={Trophy}
+          label="Kârlı İşlem Oranı"
           value={`%${winRate}`}
           sub={`${totalTrades} toplam işlem`}
-          icon={Trophy}
-          color="sky"
+          tone="gold"
         />
       </div>
 
-      {/* Tab selector */}
-      <div className="flex items-center gap-1 border-b border-dark-700">
-        <TabBtn active={activeTab === 'open'} onClick={() => setActiveTab('open')} icon={Activity} count={openPositions.length}>
-          Açık
-        </TabBtn>
-        <TabBtn active={activeTab === 'history'} onClick={() => setActiveTab('history')} icon={History} count={history.length}>
-          Geçmiş
-        </TabBtn>
-        <TabBtn active={activeTab === 'leaderboard'} onClick={() => setActiveTab('leaderboard')} icon={Trophy} count={leaderboard.length}>
-          Sıralama
-        </TabBtn>
-      </div>
+      <BotTabs tabs={TABS} active={activeTab} onChange={setActiveTab} />
 
-      {/* Tab content */}
       {activeTab === 'open' && (
         <OpenPositionsTab
           positions={openPositions}
@@ -208,82 +185,32 @@ export default function PaperTrading() {
           navigate={navigate}
         />
       )}
-      {activeTab === 'history' && (
-        <HistoryTab history={history} />
-      )}
-      {activeTab === 'leaderboard' && (
-        <LeaderboardTab leaderboard={leaderboard} />
-      )}
+      {activeTab === 'history' && <HistoryTab history={history} />}
+      {activeTab === 'leaderboard' && <LeaderboardTab leaderboard={leaderboard} />}
 
-      {/* Bottom info */}
-      <div className="card p-3 bg-blue-500/5 border-blue-500/20 text-[11px] text-gray-400 flex items-start gap-2">
-        <Sparkles className="w-3.5 h-3.5 text-blue-400 mt-0.5 flex-shrink-0" />
-        <p className="leading-relaxed">
-          <span className="text-white">Nasıl kullanılır:</span>{' '}
-          <button onClick={() => navigate('/gunluk-tespitler?tab=mtf')} className="text-gold-400 hover:text-gold-400 underline">
-            MTF tarayıcı
-          </button>'da bir sinyale tıkla → "7-TF Detay" → "Paper Trade Aç". $1,000 fixed pozisyon
-          açılır (sinyaldeki kaldıraçla). Stop/Target tetiklenince otomatik kapanır.
-          Başlangıç bakiye: $10,000.
-        </p>
-      </div>
+      <HowItWorks summary="MTF tarayıcıdan seçtiğin sinyallerle gerçek para riske atmadan işlem dene.">
+        <button
+          onClick={() => navigate('/gunluk-tespitler?tab=mtf')}
+          className="font-semibold text-gold-300 underline"
+        >
+          MTF tarayıcı
+        </button>
+        'da bir sinyale tıkla → "7-TF Detay" → "Paper Trade Aç". Sinyaldeki kaldıraçla $1.000'lık
+        sabit pozisyon açılır. Stop veya hedef tetiklenince pozisyon otomatik kapanır. Başlangıç
+        bakiyen $10.000'dır ve istediğin an Sıfırla ile başa dönebilirsin.
+      </HowItWorks>
     </div>
   )
 }
 
-function StatCard({ label, value, valueColor = 'white', sub, icon: Icon, color }) {
-  const colorMap = {
-    gold:    'border-gold-500/30 bg-gold-500/5',
-    emerald: 'border-emerald-500/30 bg-emerald-500/5',
-    rose:    'border-rose-500/30 bg-rose-500/5',
-    amber:   'border-amber-500/30 bg-amber-500/5',
-    sky:     'border-sky-500/30 bg-sky-500/5',
-  }
-  const valueColorClass = {
-    white:   'text-white',
-    emerald: 'text-emerald-300',
-    rose:    'text-rose-300',
-  }[valueColor] || 'text-white'
-
-  return (
-    <div className={`card p-3 border ${colorMap[color] || colorMap.gold}`}>
-      <div className="flex items-center justify-between gap-2 mb-1">
-        <span className="text-[10px] uppercase tracking-wider text-gray-400">{label}</span>
-        <Icon className={`w-3.5 h-3.5 text-${color}-400`} />
-      </div>
-      <div className={`text-lg sm:text-xl font-bold font-mono ${valueColorClass}`}>{value}</div>
-      {sub && <div className="text-[10px] text-gray-500 mt-0.5">{sub}</div>}
-    </div>
-  )
-}
-
-function TabBtn({ active, onClick, icon: Icon, count, children }) {
-  return (
-    <button
-      onClick={onClick}
-      className={`text-xs px-3 py-2 transition-colors flex items-center gap-1.5 border-b-2 ${
-        active
-          ? 'border-gold-500 text-white'
-          : 'border-transparent text-gray-400 hover:text-white'
-      }`}
-    >
-      <Icon className="w-3.5 h-3.5" />
-      {children}
-      {count > 0 && (
-        <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-dark-700 text-gray-400">{count}</span>
-      )}
-    </button>
-  )
-}
-
-// ─── AÇIK POZİSYONLAR TAB ──────────────────────────────────────────────────
+// ── Açık Pozisyonlar ──────────────────────────────────────────────────────
 function OpenPositionsTab({ positions, onClose, closingPosId, navigate }) {
   if (positions.length === 0) {
     return (
       <Card padding="none">
         <EmptyState
           icon={Activity}
-          title="Henüz açık pozisyon yok"
+          title="Açık pozisyon yok"
           description="MTF tarayıcıdan bir sinyal seçip kağıt üzerinde pozisyon açabilirsin."
           action={
             <Button variant="gold" size="sm" icon={Layers} onClick={() => navigate('/gunluk-tespitler?tab=mtf')}>
@@ -303,16 +230,24 @@ function OpenPositionsTab({ positions, onClose, closingPosId, navigate }) {
   )
 }
 
+function Metric({ label, value, valueCls = 'text-white', extra }) {
+  return (
+    <div className="rounded-lg bg-dark-800 px-2 py-1.5">
+      <div className="text-[9px] uppercase tracking-wider text-gray-500">{label}</div>
+      <div className={`font-mono text-xs ${valueCls}`}>
+        {value}
+        {extra && <span className="ml-1 text-[9px] text-gray-500">({extra})</span>}
+      </div>
+    </div>
+  )
+}
+
 function PositionCard({ pos, onClose, closing }) {
   const isLong = pos.direction === 'long'
-  const dirStyle = isLong
-    ? { label: '↑ LONG', color: 'text-emerald-300', bg: 'bg-emerald-500/10', border: 'border-emerald-500/30' }
-    : { label: '↓ SHORT', color: 'text-rose-300', bg: 'bg-rose-500/10', border: 'border-rose-500/30' }
   const pnl = pos.unrealizedPnl || 0
   const pnlPct = pos.unrealizedPnlPct || 0
-  const pnlClass = pnl >= 0 ? 'text-emerald-300' : 'text-rose-300'
+  const pnlCls = pnl >= 0 ? 'text-emerald-300' : 'text-rose-300'
 
-  // Mevcut fiyat stop/target yakınlığı (% mesafe)
   const distToStop = pos.currentPrice && pos.stop
     ? ((pos.currentPrice - pos.stop) / pos.currentPrice * 100) * (isLong ? 1 : -1)
     : null
@@ -321,202 +256,175 @@ function PositionCard({ pos, onClose, closing }) {
     : null
 
   return (
-    <div className="card border-2 border-dark-700">
-      <div className="flex items-center gap-3 flex-wrap">
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
+    <Card>
+      <div className="flex flex-wrap items-start gap-3">
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-1.5">
             <span className="text-base font-bold text-white">{pos.symbol}</span>
-            <span className={`text-[10px] px-2 py-0.5 rounded-full border font-bold ${dirStyle.bg} ${dirStyle.border} ${dirStyle.color}`}>
-              {dirStyle.label}
-            </span>
-            {pos.timeframe && (
-              <span className="text-[10px] px-2 py-0.5 rounded-full bg-dark-700 text-gray-300 font-mono">
-                {pos.timeframe}
-              </span>
-            )}
-            {pos.leverage > 1 && (
-              <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/30">
-                {pos.leverage}x
-              </span>
-            )}
-            {pos.grade && (
-              <span className="text-[10px] px-2 py-0.5 rounded-full bg-gold-500/10 text-gold-300 border border-gold-500/30">
-                {pos.grade}
-              </span>
-            )}
+            <Chip tone={isLong ? 'good' : 'bad'}>{isLong ? '↑ LONG' : '↓ SHORT'}</Chip>
+            {pos.timeframe && <Chip tone="neutral">{pos.timeframe}</Chip>}
+            {pos.leverage > 1 && <Chip tone="warn">{pos.leverage}x</Chip>}
+            {pos.grade && <Chip tone="gold">{pos.grade}</Chip>}
           </div>
-          <p className="text-[10px] text-gray-500 mt-0.5">
-            Açılış: {formatDate(pos.openedAt)} · Notional: {formatUsd(pos.notional)}
+          <p className="mt-1 text-[10px] text-gray-500">
+            Açılış: {formatDate(pos.openedAt)} · Tutar {formatUsd(pos.notional)}
           </p>
         </div>
-        <div className="text-right flex-shrink-0">
-          <div className={`text-lg font-bold font-mono ${pnlClass}`}>
+        <div className="text-right">
+          <div className={`text-lg font-bold ${pnlCls}`}>
             {pnl >= 0 ? '+' : ''}{formatUsd(pnl)}
           </div>
-          <div className={`text-xs ${pnlClass}`}>{formatPct(pnlPct)}</div>
+          <div className={`text-xs ${pnlCls}`}>{formatPct(pnlPct)}</div>
         </div>
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-3 text-[11px]">
-        <div className="p-1.5 rounded bg-dark-800 border border-dark-700">
-          <div className="text-[9px] text-gray-500 uppercase">Giriş</div>
-          <div className="text-white font-mono">{formatPrice(pos.entry)}</div>
-        </div>
-        <div className="p-1.5 rounded bg-dark-800 border border-dark-700">
-          <div className="text-[9px] text-gray-500 uppercase">Mevcut</div>
-          <div className="text-gold-300 font-mono">{formatPrice(pos.currentPrice)}</div>
-        </div>
-        <div className="p-1.5 rounded bg-rose-500/5 border border-rose-500/30">
-          <div className="text-[9px] text-gray-500 uppercase">Stop</div>
-          <div className="text-rose-300 font-mono">
-            {formatPrice(pos.stop)}
-            {distToStop != null && <span className="text-[9px] opacity-70 ml-1">({distToStop.toFixed(1)}%)</span>}
-          </div>
-        </div>
-        <div className="p-1.5 rounded bg-emerald-500/5 border border-emerald-500/30">
-          <div className="text-[9px] text-gray-500 uppercase">Hedef 1</div>
-          <div className="text-emerald-300 font-mono">
-            {formatPrice(pos.target1)}
-            {distToTarget != null && <span className="text-[9px] opacity-70 ml-1">({distToTarget.toFixed(1)}%)</span>}
-          </div>
-        </div>
+      <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
+        <Metric label="Giriş" value={formatPrice(pos.entry)} />
+        <Metric label="Mevcut" value={formatPrice(pos.currentPrice)} valueCls="text-gold-300" />
+        <Metric
+          label="Stop"
+          value={formatPrice(pos.stop)}
+          valueCls="text-rose-300"
+          extra={distToStop != null ? `%${distToStop.toFixed(1)}` : null}
+        />
+        <Metric
+          label="Hedef"
+          value={formatPrice(pos.target1)}
+          valueCls="text-emerald-300"
+          extra={distToTarget != null ? `%${distToTarget.toFixed(1)}` : null}
+        />
       </div>
 
-      <div className="flex items-center justify-between gap-2 mt-3 pt-3 border-t border-dark-700/50">
+      <div className="mt-3 flex items-center justify-between gap-2 border-t border-dark-700 pt-3">
         <span className="text-[10px] text-gray-500">
-          Boyut: <span className="text-gray-300 font-mono">{pos.size?.toFixed(6)}</span> {pos.symbol}
+          Boyut: <span className="font-mono text-gray-300">{pos.size?.toFixed(6)}</span>
           {pos.winProbability != null && (
-            <span className="ml-2">· Sinyal güveni: <span className="text-gold-400">%{(pos.winProbability * 100).toFixed(0)}</span></span>
+            <> · Sinyal güveni <span className="text-gold-300">%{(pos.winProbability * 100).toFixed(0)}</span></>
           )}
         </span>
         <div className="flex items-center gap-2">
-          <a
+          <Button
+            as="a"
             href={`https://www.binance.com/en/trade/${pos.symbol}_USDT`}
-            target="_blank" rel="noopener noreferrer"
-            className="text-[10px] text-gold-400 hover:text-gold-300 inline-flex items-center gap-1"
+            target="_blank"
+            rel="noopener noreferrer"
+            variant="ghost"
+            size="sm"
+            icon={ExternalLink}
           >
-            <ExternalLink className="w-2.5 h-2.5" />
             Binance
-          </a>
+          </Button>
           <Button variant="danger" size="sm" icon={X} loading={closing} onClick={() => onClose(pos.id)}>
             {closing ? 'Kapanıyor…' : 'Kapat'}
           </Button>
         </div>
       </div>
-    </div>
+    </Card>
   )
 }
 
-// ─── GEÇMİŞ TAB ────────────────────────────────────────────────────────────
+// ── Geçmiş ─────────────────────────────────────────────────────────────────
 function HistoryTab({ history }) {
   if (history.length === 0) {
     return (
       <Card padding="none">
-        <EmptyState icon={History} title="Henüz kapanmış pozisyon yok" />
+        <EmptyState icon={History} title="Kapanmış pozisyon yok" description="Kapanan işlemlerin burada listelenir." />
       </Card>
     )
   }
   return (
-    <div className="card p-0 overflow-x-auto">
-      <table className="w-full text-[11px]" style={{ minWidth: 720 }}>
+    <TableShell>
+      <table className="w-full text-sm">
         <thead>
-          <tr className="border-b border-dark-700 text-gray-500">
-            <th className="text-left py-2 px-2">Coin</th>
-            <th className="text-left py-2 px-2">Yön</th>
-            <th className="text-center py-2 px-2">TF</th>
-            <th className="text-center py-2 px-2">Sonuç</th>
-            <th className="text-right py-2 px-2">Giriş</th>
-            <th className="text-right py-2 px-2">Çıkış</th>
-            <th className="text-right py-2 px-2">PnL</th>
-            <th className="text-right py-2 px-2">PnL %</th>
-            <th className="text-right py-2 px-2">Süre</th>
+          <tr className="text-left text-[11px] uppercase tracking-wider text-gray-500">
+            <th className="px-3 py-2 font-semibold">Coin</th>
+            <th className="px-3 py-2 font-semibold">Yön</th>
+            <th className="px-3 py-2 font-semibold">Zaman Dilimi</th>
+            <th className="px-3 py-2 font-semibold">Sonuç</th>
+            <th className="px-3 py-2 text-right font-semibold">Giriş</th>
+            <th className="px-3 py-2 text-right font-semibold">Çıkış</th>
+            <th className="px-3 py-2 text-right font-semibold">Kâr/Zarar</th>
+            <th className="px-3 py-2 text-right font-semibold">Süre</th>
           </tr>
         </thead>
         <tbody>
-          {history.map(h => {
+          {history.map((h) => {
             const isLong = h.direction === 'long'
             const isWin = h.pnl > 0
-            const outcomeStyle = h.exitReason === 'hit_target'
-              ? { label: '🎯 Hedef', cls: 'text-emerald-300 bg-emerald-500/10' }
+            const outcome = h.exitReason === 'hit_target'
+              ? { tone: 'good', label: 'Hedef' }
               : h.exitReason === 'hit_stop'
-              ? { label: '🛑 Stop', cls: 'text-rose-300 bg-rose-500/10' }
-              : { label: '✕ Manuel', cls: 'text-gray-300 bg-gray-500/10' }
+              ? { tone: 'bad', label: 'Stop' }
+              : { tone: 'neutral', label: 'Manuel' }
             const dur = h.openedAt && h.closedAt
               ? Math.round((new Date(h.closedAt) - new Date(h.openedAt)) / 60000) + ' dk'
               : '—'
             return (
-              <tr key={h.id} className="border-b border-dark-700/40 hover:bg-dark-800/50">
-                <td className="py-1.5 px-2 font-mono font-semibold text-white">{h.symbol}</td>
-                <td className="py-1.5 px-2">
-                  <span className={`text-[10px] px-1.5 py-0.5 rounded ${isLong ? 'bg-emerald-500/10 text-emerald-300' : 'bg-rose-500/10 text-rose-300'}`}>
-                    {isLong ? '↑ LONG' : '↓ SHORT'}
-                  </span>
+              <tr key={h.id} className="border-t border-dark-700/60">
+                <td className="px-3 py-2.5 font-mono font-semibold text-white">{h.symbol}</td>
+                <td className="px-3 py-2.5">
+                  <Chip tone={isLong ? 'good' : 'bad'}>{isLong ? '↑ LONG' : '↓ SHORT'}</Chip>
                 </td>
-                <td className="py-1.5 px-2 text-center text-gray-400 font-mono">{h.timeframe || '—'}</td>
-                <td className="py-1.5 px-2 text-center">
-                  <span className={`text-[10px] px-1.5 py-0.5 rounded ${outcomeStyle.cls}`}>
-                    {outcomeStyle.label}
-                  </span>
-                </td>
-                <td className="py-1.5 px-2 text-right text-gray-300 font-mono">{formatPrice(h.entry)}</td>
-                <td className="py-1.5 px-2 text-right text-gray-300 font-mono">{formatPrice(h.exitPrice)}</td>
-                <td className={`py-1.5 px-2 text-right font-mono font-bold ${isWin ? 'text-emerald-300' : 'text-rose-300'}`}>
+                <td className="px-3 py-2.5 font-mono text-xs text-gray-400">{h.timeframe || '—'}</td>
+                <td className="px-3 py-2.5"><Chip tone={outcome.tone}>{outcome.label}</Chip></td>
+                <td className="px-3 py-2.5 text-right font-mono text-gray-300">{formatPrice(h.entry)}</td>
+                <td className="px-3 py-2.5 text-right font-mono text-gray-300">{formatPrice(h.exitPrice)}</td>
+                <td className={`px-3 py-2.5 text-right font-mono font-semibold ${isWin ? 'text-emerald-300' : 'text-rose-300'}`}>
                   {h.pnl >= 0 ? '+' : ''}{formatUsd(h.pnl)}
+                  <div className="text-[10px] font-normal text-gray-500">{formatPct(h.pnlPct)}</div>
                 </td>
-                <td className={`py-1.5 px-2 text-right font-mono ${isWin ? 'text-emerald-300' : 'text-rose-300'}`}>
-                  {formatPct(h.pnlPct)}
-                </td>
-                <td className="py-1.5 px-2 text-right text-gray-500">{dur}</td>
+                <td className="px-3 py-2.5 text-right text-xs text-gray-500">{dur}</td>
               </tr>
             )
           })}
         </tbody>
       </table>
-    </div>
+    </TableShell>
   )
 }
 
-// ─── LEADERBOARD TAB ───────────────────────────────────────────────────────
+// ── Sıralama ───────────────────────────────────────────────────────────────
 function LeaderboardTab({ leaderboard }) {
   if (leaderboard.length === 0) {
     return (
       <Card padding="none">
-        <EmptyState icon={Trophy} title="Henüz sıralanmış kullanıcı yok" />
+        <EmptyState icon={Trophy} title="Sıralanmış kullanıcı yok" description="Kullanıcılar işlem yaptıkça sıralama burada oluşur." />
       </Card>
     )
   }
   return (
-    <div className="card p-0 overflow-x-auto">
-      <table className="w-full text-[11px]" style={{ minWidth: 540 }}>
+    <TableShell>
+      <table className="w-full text-sm">
         <thead>
-          <tr className="border-b border-dark-700 text-gray-500">
-            <th className="text-left py-2 px-2">#</th>
-            <th className="text-left py-2 px-2">Kullanıcı</th>
-            <th className="text-right py-2 px-2">Toplam Kâr / Zarar</th>
-            <th className="text-right py-2 px-2">İşlem</th>
-            <th className="text-right py-2 px-2">Kârlı Oran</th>
+          <tr className="text-left text-[11px] uppercase tracking-wider text-gray-500">
+            <th className="px-3 py-2 font-semibold">Sıra</th>
+            <th className="px-3 py-2 font-semibold">Kullanıcı</th>
+            <th className="px-3 py-2 text-right font-semibold">Toplam Kâr/Zarar</th>
+            <th className="px-3 py-2 text-right font-semibold">İşlem</th>
+            <th className="px-3 py-2 text-right font-semibold">Kârlı Oran</th>
           </tr>
         </thead>
         <tbody>
           {leaderboard.map((row, idx) => {
-            const medal = idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : `#${idx + 1}`
-            const pnlClass = row.totalPnl >= 0 ? 'text-emerald-300' : 'text-rose-300'
+            const pnlCls = row.totalPnl >= 0 ? 'text-emerald-300' : 'text-rose-300'
             return (
-              <tr key={row.userId} className="border-b border-dark-700/40 hover:bg-dark-800/50">
-                <td className="py-1.5 px-2 font-bold">{medal}</td>
-                <td className="py-1.5 px-2 font-mono text-white">{row.userId}</td>
-                <td className={`py-1.5 px-2 text-right font-mono font-bold ${pnlClass}`}>
+              <tr key={row.userId} className="border-t border-dark-700/60">
+                <td className={`px-3 py-2.5 font-bold ${idx === 0 ? 'text-gold-300' : 'text-gray-400'}`}>
+                  #{idx + 1}
+                </td>
+                <td className="px-3 py-2.5 font-mono text-white">{row.userId}</td>
+                <td className={`px-3 py-2.5 text-right font-mono font-semibold ${pnlCls}`}>
                   {row.totalPnl >= 0 ? '+' : ''}{formatUsd(row.totalPnl)}
                 </td>
-                <td className="py-1.5 px-2 text-right text-gray-300">
-                  {row.totalTrades} ({row.wins}W / {row.losses}L)
+                <td className="px-3 py-2.5 text-right text-gray-300">
+                  {row.totalTrades} ({row.wins}K / {row.losses}Z)
                 </td>
-                <td className="py-1.5 px-2 text-right text-sky-300">%{row.winRate}</td>
+                <td className="px-3 py-2.5 text-right text-gold-300">%{row.winRate}</td>
               </tr>
             )
           })}
         </tbody>
       </table>
-    </div>
+    </TableShell>
   )
 }
