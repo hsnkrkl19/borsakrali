@@ -44,6 +44,19 @@ import TemelGostergeler from './pages/egitim/TemelGostergeler'
 import BilancoOkuma from './pages/egitim/BilancoOkuma'
 import DestekDirenc from './pages/egitim/DestekDirenc'
 import YatirimStratejisi from './pages/egitim/YatirimStratejisi'
+// Kripto & strateji eğitim makaleleri (AdSense içerik genişletmesi)
+import KriptoParaGiris from './pages/egitim/KriptoParaGiris'
+import KriptoAnaliz from './pages/egitim/KriptoAnaliz'
+import OnchainAnaliz from './pages/egitim/OnchainAnaliz'
+import SpotVsFutures from './pages/egitim/SpotVsFutures'
+import FundingRate from './pages/egitim/FundingRate'
+import BitcoinDominansi from './pages/egitim/BitcoinDominansi'
+import RiskYonetimi from './pages/egitim/RiskYonetimi'
+import PortfoyYonetimi from './pages/egitim/PortfoyYonetimi'
+import MaliyetOrtalama from './pages/egitim/MaliyetOrtalama'
+import YatirimPsikolojisi from './pages/egitim/YatirimPsikolojisi'
+import TradePlani from './pages/egitim/TradePlani'
+import YatirimHatalari from './pages/egitim/YatirimHatalari'
 
 // === BİRLEŞİK SAYFALAR (sadeleştirme) ===
 import Tarayicilar from './pages/Tarayicilar'         // Taramalar + EMA34 Wave + TEMA34 + Malaysian SNR + Tarama Merkezi
@@ -214,6 +227,19 @@ function App() {
                 <Route path="/egitim/bilanco-okuma" element={<BilancoOkuma />} />
                 <Route path="/egitim/destek-direnc" element={<DestekDirenc />} />
                 <Route path="/egitim/yatirim-stratejisi" element={<YatirimStratejisi />} />
+                {/* Kripto & strateji makaleleri — public, prerender edilir */}
+                <Route path="/egitim/kripto-para-giris" element={<KriptoParaGiris />} />
+                <Route path="/egitim/kripto-analiz" element={<KriptoAnaliz />} />
+                <Route path="/egitim/onchain-analiz" element={<OnchainAnaliz />} />
+                <Route path="/egitim/spot-vs-futures" element={<SpotVsFutures />} />
+                <Route path="/egitim/funding-rate" element={<FundingRate />} />
+                <Route path="/egitim/bitcoin-dominansi" element={<BitcoinDominansi />} />
+                <Route path="/egitim/risk-yonetimi" element={<RiskYonetimi />} />
+                <Route path="/egitim/portfoy-yonetimi" element={<PortfoyYonetimi />} />
+                <Route path="/egitim/maliyet-ortalama" element={<MaliyetOrtalama />} />
+                <Route path="/egitim/yatirim-psikolojisi" element={<YatirimPsikolojisi />} />
+                <Route path="/egitim/trade-plani" element={<TradePlani />} />
+                <Route path="/egitim/yatirim-hatalari" element={<YatirimHatalari />} />
 
                 {/* === PREMIUM / KISISEL — login zorunlu === */}
                 <Route path="/kripto" element={<RequireAuth><Kripto /></RequireAuth>} />

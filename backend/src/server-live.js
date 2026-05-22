@@ -7988,9 +7988,25 @@ app.get('*', (req, res, next) => {
   if (req.path.startsWith('/api') || req.path.startsWith('/socket.io')) return next();
   res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
   res.setHeader('Pragma', 'no-cache');
-  res.sendFile(path.join(frontendDist, 'index.html'), err => {
+
+  const sendOr404 = (file) => res.sendFile(file, err => {
     if (err) res.status(404).json({ error: 'Sayfa bulunamadı', path: req.path });
   });
+
+  // 1) Prerender edilmiş sayfa (dist/<rota>.html) — gerçek içerik, index,follow.
+  //    scripts/prerender.mjs build sırasında bunları üretir.
+  const rel = req.path.replace(/\/+$/, '');
+  if (rel && /^\/[a-zA-Z0-9/_-]+$/.test(rel)) {
+    const prerendered = path.join(frontendDist, `${rel}.html`);
+    if (prerendered.startsWith(frontendDist) && fs.existsSync(prerendered)) {
+      return sendOr404(prerendered);
+    }
+  }
+
+  // 2) Prerender edilmemiş rota (araç/login/SPA): noindex kabuğu gönderilir —
+  //    zayıf/araç sayfaları Google kalite değerlendirmesini düşürmesin.
+  const shell = path.join(frontendDist, 'spa-shell.html');
+  return sendOr404(fs.existsSync(shell) ? shell : path.join(frontendDist, 'index.html'));
 });
 
 // 404 Handler (API için)

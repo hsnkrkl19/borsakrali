@@ -13,12 +13,27 @@ import { Button, Card, PageHeader, EmptyState } from '../components/ui'
 
 // Eski uzun makaleler — "Detaylı oku" hedefi olarak kalır.
 const DETAILED_ARTICLES = [
-  { slug: 'teknik-analiz-giris', title: 'Teknik Analize Giriş', readingTime: '8 dk' },
-  { slug: 'bist100-rehberi',     title: 'BIST 100 Rehberi',      readingTime: '9 dk' },
+  // Teknik & temel analiz
+  { slug: 'teknik-analiz-giris', title: 'Teknik Analize Giriş',  readingTime: '8 dk' },
   { slug: 'temel-gostergeler',   title: 'Temel Göstergeler',     readingTime: '10 dk' },
-  { slug: 'bilanco-okuma',       title: 'Bilanço Okuma',         readingTime: '11 dk' },
   { slug: 'destek-direnc',       title: 'Destek/Direnç',         readingTime: '9 dk' },
+  { slug: 'bist100-rehberi',     title: 'BIST 100 Rehberi',      readingTime: '9 dk' },
+  { slug: 'bilanco-okuma',       title: 'Bilanço Okuma',         readingTime: '11 dk' },
   { slug: 'yatirim-stratejisi',  title: 'Yatırım Stratejisi',    readingTime: '10 dk' },
+  // Kripto
+  { slug: 'kripto-para-giris',   title: 'Kripto Paraya Giriş',   readingTime: '9 dk' },
+  { slug: 'kripto-analiz',       title: 'Kripto Para Analizi',   readingTime: '10 dk' },
+  { slug: 'onchain-analiz',      title: 'On-Chain Analiz',       readingTime: '9 dk' },
+  { slug: 'spot-vs-futures',     title: 'Spot ve Futures İşlemler', readingTime: '10 dk' },
+  { slug: 'funding-rate',        title: 'Funding Rate',          readingTime: '9 dk' },
+  { slug: 'bitcoin-dominansi',   title: 'Bitcoin Dominansı',     readingTime: '8 dk' },
+  // Strateji & risk
+  { slug: 'risk-yonetimi',       title: 'Risk Yönetimi',         readingTime: '11 dk' },
+  { slug: 'portfoy-yonetimi',    title: 'Portföy Yönetimi',      readingTime: '10 dk' },
+  { slug: 'maliyet-ortalama',    title: 'Maliyet Ortalama (DCA)', readingTime: '8 dk' },
+  { slug: 'yatirim-psikolojisi', title: 'Yatırım Psikolojisi',   readingTime: '10 dk' },
+  { slug: 'trade-plani',         title: 'Trade Planı Oluşturma', readingTime: '9 dk' },
+  { slug: 'yatirim-hatalari',    title: 'Yatırımda 10 Hata',     readingTime: '9 dk' },
 ]
 
 function CardModal({ card, onClose }) {
