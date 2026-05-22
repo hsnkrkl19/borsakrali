@@ -20,6 +20,7 @@ import { Button, Card, EmptyState } from '../components/ui'
 import {
   fmtMoney, fmtPct, fmtDate, fmtDateShort,
   TabHeader, BotTabs, StatCard, Chip, TableShell, HowItWorks, NotesList, EquityChart,
+  TradeLedger, PortfolioSummary, BuyDetail,
 } from '../components/BotKit'
 
 const TABS = [
@@ -31,6 +32,47 @@ const TABS = [
 ]
 
 function FragmentRow({ children }) { return <>{children}</> }
+
+// ── Yardımcılar — maliyet & alış-detayı ───────────────────────────────────
+function lotCost(entryPrice, shares, commission) {
+  if (entryPrice != null && shares != null) return entryPrice * shares + (commission || 0)
+  return null
+}
+
+// Kapanmış işlemi TradeLedger'ın beklediği şekle çevirir
+function toLedgerTrade(t) {
+  return {
+    id: t.id,
+    symbol: t.symbol,
+    outcome: { tone: 'neutral', label: 'TEMA34 altı' },
+    buyAt: t.entryAt || t.entryDate,
+    sellAt: t.exitAt || t.exitDate,
+    buyText: `${fmtMoney(t.entryPrice)} ₺`,
+    sellText: `${fmtMoney(t.exitPrice)} ₺`,
+    pnlText: fmtPct(t.realizedPnLPct),
+    pnlSubText: `${fmtMoney(t.realizedPnL)} ₺`,
+    win: (t.realizedPnL || 0) >= 0,
+    _src: t,
+  }
+}
+
+// Açık pozisyon / kapanmış işlem için BuyDetail props'ları
+function temaBuyDetail(o) {
+  const cost = lotCost(o.entryPrice, o.shares, o.commissionPaid)
+  return {
+    buyAt: o.entryAt || o.entryDate,
+    priceText: o.entryPrice != null ? `${fmtMoney(o.entryPrice)} ₺` : '—',
+    qtyText: o.shares != null ? `${fmtMoney(o.shares, o.shares < 1 ? 4 : 2)} adet` : null,
+    costText: cost != null
+      ? `${fmtMoney(cost)} ₺`
+      : (o.positionSizeTL != null ? `${fmtMoney(o.positionSizeTL)} ₺` : null),
+    signalLabel: 'TEMA34 kesişimi — günlük kapanış, TEMA34 (34 günlük üçlü EMA) çizgisinin üzerine yeni çıktı.',
+    signalRows: [
+      { label: 'Giriş kapanışı', value: o.entryPrice != null ? `${fmtMoney(o.entryPrice)} ₺` : '—' },
+      { label: 'Giriş TEMA34', value: o.entryTema != null ? `${fmtMoney(o.entryTema)} ₺` : '—' },
+    ],
+  }
+}
 
 // ── Genel Bakış ────────────────────────────────────────────────────────────
 function OverviewTab({ status, loading, onRefresh }) {
@@ -112,12 +154,24 @@ function OverviewTab({ status, loading, onRefresh }) {
   )
 }
 
-// ── Açık Pozisyonlar ──────────────────────────────────────────────────────
+// ── Açık Pozisyonlar (Portföy) ────────────────────────────────────────────
 function OpenPositionsTab({ open, onRefresh, loading }) {
   const [expanded, setExpanded] = useState(null)
+
+  const folio = useMemo(() => {
+    let cost = 0
+    let value = 0
+    for (const p of open) {
+      const c = lotCost(p.entryPrice, p.shares, p.commissionPaid)
+      if (c != null) cost += c
+      if (p.shares != null) value += (p.lastPrice ?? p.entryPrice) * p.shares
+    }
+    return { cost, value, pnl: value - cost }
+  }, [open])
+
   return (
     <div className="space-y-4">
-      <TabHeader title="Açık pozisyonlar" sub={`${open.length} pozisyon`}>
+      <TabHeader title="Portföy — açık pozisyonlar" sub={`${open.length} pozisyon`}>
         <Button variant="ghost" size="sm" icon={RefreshCw} loading={loading} onClick={onRefresh}>
           Yenile
         </Button>
@@ -132,65 +186,87 @@ function OpenPositionsTab({ open, onRefresh, loading }) {
           />
         </Card>
       ) : (
-        <TableShell>
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="text-left text-[11px] uppercase tracking-wider text-gray-500">
-                <th className="px-3 py-2 font-semibold">Sembol</th>
-                <th className="px-3 py-2 font-semibold">Giriş Tarihi</th>
-                <th className="px-3 py-2 text-right font-semibold">Giriş Fiyatı</th>
-                <th className="px-3 py-2 text-right font-semibold">Son Kapanış</th>
-                <th className="px-3 py-2 text-right font-semibold">Son TEMA34</th>
-                <th className="px-3 py-2 text-right font-semibold">Anlık K/Z</th>
-                <th className="px-3 py-2" />
-              </tr>
-            </thead>
-            <tbody>
-              {open.map((pos) => {
-                const last = pos.lastPrice ?? pos.entryPrice
-                const pnlPct = pos.entryPrice ? ((last - pos.entryPrice) / pos.entryPrice) * 100 : null
-                const isExp = expanded === pos.id
-                return (
-                  <FragmentRow key={pos.id}>
-                    <tr className="border-t border-dark-700/60">
-                      <td className="px-3 py-2.5">
-                        <div className="font-semibold text-white">{pos.symbol}</div>
-                        {pos.name && (
-                          <div className="max-w-[180px] truncate text-[10px] text-gray-500">{pos.name}</div>
-                        )}
-                      </td>
-                      <td className="px-3 py-2.5 text-xs text-gray-400">{fmtDateShort(pos.entryDate)}</td>
-                      <td className="px-3 py-2.5 text-right text-gray-300">{fmtMoney(pos.entryPrice)}</td>
-                      <td className="px-3 py-2.5 text-right font-semibold text-white">{fmtMoney(last)}</td>
-                      <td className="px-3 py-2.5 text-right text-gold-300">
-                        {fmtMoney(pos.lastTema ?? pos.entryTema)}
-                      </td>
-                      <td className={`px-3 py-2.5 text-right font-semibold ${(pnlPct || 0) >= 0 ? 'text-emerald-300' : 'text-rose-300'}`}>
-                        {fmtPct(pnlPct)}
-                      </td>
-                      <td className="px-3 py-2.5 text-right">
-                        <button
-                          onClick={() => setExpanded(isExp ? null : pos.id)}
-                          className="rounded p-1 text-gray-400 hover:bg-white/5 hover:text-white"
-                          aria-label="Detay"
-                        >
-                          {isExp ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-                        </button>
-                      </td>
-                    </tr>
-                    {isExp && (
-                      <tr className="bg-white/[0.02]">
-                        <td colSpan={7} className="px-3 py-3">
-                          <NotesList notes={pos.notes || []} />
+        <>
+          <PortfolioSummary
+            count={open.length}
+            costText={`${fmtMoney(folio.cost)} ₺`}
+            valueText={`${fmtMoney(folio.value)} ₺`}
+            pnlText={`${fmtMoney(folio.pnl)} ₺  (${fmtPct(folio.cost > 0 ? (folio.pnl / folio.cost) * 100 : 0)})`}
+            win={folio.pnl >= 0}
+          />
+          <TableShell>
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-left text-[11px] uppercase tracking-wider text-gray-500">
+                  <th className="px-3 py-2 font-semibold">Sembol</th>
+                  <th className="px-3 py-2 font-semibold">Giriş Tarihi</th>
+                  <th className="px-3 py-2 text-right font-semibold">Giriş Fiyatı</th>
+                  <th className="px-3 py-2 text-right font-semibold">Son Kapanış</th>
+                  <th className="px-3 py-2 text-right font-semibold">Maliyet</th>
+                  <th className="px-3 py-2 text-right font-semibold">Son TEMA34</th>
+                  <th className="px-3 py-2 text-right font-semibold">Anlık K/Z</th>
+                  <th className="px-3 py-2" />
+                </tr>
+              </thead>
+              <tbody>
+                {open.map((pos) => {
+                  const last = pos.lastPrice ?? pos.entryPrice
+                  const pnlPct = pos.entryPrice ? ((last - pos.entryPrice) / pos.entryPrice) * 100 : null
+                  const cost = lotCost(pos.entryPrice, pos.shares, pos.commissionPaid)
+                  const isExp = expanded === pos.id
+                  return (
+                    <FragmentRow key={pos.id}>
+                      <tr className="border-t border-dark-700/60">
+                        <td className="px-3 py-2.5">
+                          <div className="font-semibold text-white">{pos.symbol}</div>
+                          {pos.name && (
+                            <div className="max-w-[180px] truncate text-[10px] text-gray-500">{pos.name}</div>
+                          )}
+                        </td>
+                        <td className="px-3 py-2.5 text-xs text-gray-400">{fmtDateShort(pos.entryDate)}</td>
+                        <td className="px-3 py-2.5 text-right text-gray-300">{fmtMoney(pos.entryPrice)}</td>
+                        <td className="px-3 py-2.5 text-right font-semibold text-white">{fmtMoney(last)}</td>
+                        <td className="px-3 py-2.5 text-right text-gray-300">
+                          {cost != null ? fmtMoney(cost) : fmtMoney(pos.positionSizeTL)}
+                          {pos.shares != null && (
+                            <div className="text-[10px] text-gray-500">
+                              {fmtMoney(pos.shares, pos.shares < 1 ? 4 : 2)} adet
+                            </div>
+                          )}
+                        </td>
+                        <td className="px-3 py-2.5 text-right text-gold-300">
+                          {fmtMoney(pos.lastTema ?? pos.entryTema)}
+                        </td>
+                        <td className={`px-3 py-2.5 text-right font-semibold ${(pnlPct || 0) >= 0 ? 'text-emerald-300' : 'text-rose-300'}`}>
+                          {fmtPct(pnlPct)}
+                        </td>
+                        <td className="px-3 py-2.5 text-right">
+                          <button
+                            onClick={() => setExpanded(isExp ? null : pos.id)}
+                            className="rounded p-1 text-gray-400 hover:bg-white/5 hover:text-white"
+                            aria-label="Detay"
+                          >
+                            {isExp ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                          </button>
                         </td>
                       </tr>
-                    )}
-                  </FragmentRow>
-                )
-              })}
-            </tbody>
-          </table>
-        </TableShell>
+                      {isExp && (
+                        <tr className="bg-white/[0.02]">
+                          <td colSpan={8} className="px-3 py-3">
+                            <div className="space-y-3">
+                              <BuyDetail {...temaBuyDetail(pos)} />
+                              <NotesList notes={pos.notes || []} />
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </FragmentRow>
+                  )
+                })}
+              </tbody>
+            </table>
+          </TableShell>
+        </>
       )}
     </div>
   )
@@ -198,7 +274,6 @@ function OpenPositionsTab({ open, onRefresh, loading }) {
 
 // ── İşlem Geçmişi ─────────────────────────────────────────────────────────
 function TradesTab({ trades, onRefresh, loading }) {
-  const [expanded, setExpanded] = useState(null)
   const summary = useMemo(() => {
     const total = trades.length
     if (!total) return null
@@ -208,9 +283,11 @@ function TradesTab({ trades, onRefresh, loading }) {
     return { total, wins, losses, totalPnL }
   }, [trades])
 
+  const ledger = useMemo(() => trades.map(toLedgerTrade), [trades])
+
   return (
     <div className="space-y-4">
-      <TabHeader title="Kapanan işlemler" sub={`${trades.length} işlem`}>
+      <TabHeader title="Kapanan işlemler" sub={`${trades.length} işlem · gün gün`}>
         <Button variant="ghost" size="sm" icon={RefreshCw} loading={loading} onClick={onRefresh}>
           Yenile
         </Button>
@@ -238,63 +315,15 @@ function TradesTab({ trades, onRefresh, loading }) {
           />
         </Card>
       ) : (
-        <TableShell>
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="text-left text-[11px] uppercase tracking-wider text-gray-500">
-                <th className="px-3 py-2 font-semibold">Sembol</th>
-                <th className="px-3 py-2 font-semibold">Giriş → Çıkış</th>
-                <th className="px-3 py-2 text-right font-semibold">Giriş</th>
-                <th className="px-3 py-2 text-right font-semibold">Çıkış</th>
-                <th className="px-3 py-2 text-right font-semibold">Kâr/Zarar</th>
-                <th className="px-3 py-2" />
-              </tr>
-            </thead>
-            <tbody>
-              {trades.map((t) => {
-                const isExp = expanded === t.id
-                const win = (t.realizedPnL || 0) >= 0
-                return (
-                  <FragmentRow key={t.id}>
-                    <tr className="border-t border-dark-700/60">
-                      <td className="px-3 py-2.5">
-                        <div className="font-semibold text-white">{t.symbol}</div>
-                        {t.name && (
-                          <div className="max-w-[180px] truncate text-[10px] text-gray-500">{t.name}</div>
-                        )}
-                      </td>
-                      <td className="px-3 py-2.5 text-xs text-gray-400">
-                        {fmtDateShort(t.entryDate)} → {fmtDateShort(t.exitDate)}
-                      </td>
-                      <td className="px-3 py-2.5 text-right text-gray-300">{fmtMoney(t.entryPrice)}</td>
-                      <td className="px-3 py-2.5 text-right text-gray-300">{fmtMoney(t.exitPrice)}</td>
-                      <td className={`px-3 py-2.5 text-right font-semibold ${win ? 'text-emerald-300' : 'text-rose-300'}`}>
-                        {fmtPct(t.realizedPnLPct)}
-                        <div className="text-[10px] font-normal text-gray-500">{fmtMoney(t.realizedPnL)} TL</div>
-                      </td>
-                      <td className="px-3 py-2.5 text-right">
-                        <button
-                          onClick={() => setExpanded(isExp ? null : t.id)}
-                          className="rounded p-1 text-gray-400 hover:bg-white/5 hover:text-white"
-                          aria-label="Detay"
-                        >
-                          {isExp ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-                        </button>
-                      </td>
-                    </tr>
-                    {isExp && (
-                      <tr className="bg-white/[0.02]">
-                        <td colSpan={6} className="px-3 py-3">
-                          <NotesList notes={t.notes || []} />
-                        </td>
-                      </tr>
-                    )}
-                  </FragmentRow>
-                )
-              })}
-            </tbody>
-          </table>
-        </TableShell>
+        <TradeLedger
+          trades={ledger}
+          renderDetail={(lt) => (
+            <div className="space-y-3">
+              <BuyDetail {...temaBuyDetail(lt._src)} />
+              <NotesList notes={lt._src.notes || []} />
+            </div>
+          )}
+        />
       )}
     </div>
   )

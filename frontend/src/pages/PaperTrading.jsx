@@ -9,15 +9,18 @@
  *
  * 3 sekme: Açık Pozisyonlar · Geçmiş · Sıralama
  */
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   RefreshCw, TrendingUp, TrendingDown, Wallet, Trophy, History,
-  X, RotateCcw, ExternalLink, Activity, Layers,
+  X, RotateCcw, ExternalLink, Activity, Layers, ChevronDown, ChevronUp,
 } from 'lucide-react'
 import api from '../services/api'
 import { Button, Card, EmptyState, Spinner } from '../components/ui'
-import { TabHeader, BotTabs, StatCard, Chip, TableShell, HowItWorks } from '../components/BotKit'
+import {
+  TabHeader, BotTabs, StatCard, Chip, TableShell, HowItWorks,
+  TradeLedger, PortfolioSummary, BuyDetail,
+} from '../components/BotKit'
 
 function formatUsd(v, digits = 2) {
   if (v == null) return '—'
@@ -46,6 +49,50 @@ function formatPct(v) {
 function formatDate(iso) {
   if (!iso) return '—'
   return new Date(iso).toLocaleString('tr-TR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
+}
+
+// ── Yardımcılar — işlem defteri & alış-detayı ─────────────────────────────
+function toLedgerTrade(h) {
+  const outcome = h.exitReason === 'hit_target'
+    ? { tone: 'good', label: 'Hedef' }
+    : h.exitReason === 'hit_stop'
+    ? { tone: 'bad', label: 'Stop' }
+    : { tone: 'neutral', label: 'Manuel' }
+  return {
+    id: h.id,
+    symbol: h.symbol,
+    outcome,
+    buyAt: h.openedAt,
+    sellAt: h.closedAt,
+    buyText: formatPrice(h.entry),
+    sellText: formatPrice(h.exitPrice),
+    pnlText: formatPct(h.pnlPct),
+    pnlSubText: `${(h.pnl || 0) >= 0 ? '+' : ''}${formatUsd(h.pnl)}`,
+    win: (h.pnl || 0) >= 0,
+    _src: h,
+  }
+}
+
+function paperBuyDetail(o) {
+  const isLong = o.direction === 'long'
+  const rows = [
+    { label: 'Yön', value: isLong ? 'LONG (alış)' : 'SHORT (satış)' },
+    { label: 'Zaman dilimi', value: o.timeframe || '—' },
+  ]
+  if (o.leverage) rows.push({ label: 'Kaldıraç', value: `${o.leverage}x` })
+  if (o.score != null) rows.push({ label: 'Sinyal skoru', value: String(o.score) })
+  if (o.grade) rows.push({ label: 'Sinyal notu', value: o.grade })
+  if (o.winProbability != null) {
+    rows.push({ label: 'Kazanma olasılığı', value: `%${(o.winProbability * 100).toFixed(0)}` })
+  }
+  return {
+    buyAt: o.openedAt,
+    priceText: formatPrice(o.entry),
+    qtyText: o.size != null ? Number(o.size).toFixed(6) : null,
+    costText: o.notional != null ? formatUsd(o.notional) : null,
+    signalLabel: 'MTF tarayıcıdan seçilen sinyalle açıldı — çok-zaman-dilimli (MTF) analiz sonucu.',
+    signalRows: rows,
+  }
 }
 
 export default function PaperTrading() {
@@ -203,8 +250,20 @@ export default function PaperTrading() {
   )
 }
 
-// ── Açık Pozisyonlar ──────────────────────────────────────────────────────
+// ── Açık Pozisyonlar (Portföy) ────────────────────────────────────────────
 function OpenPositionsTab({ positions, onClose, closingPosId, navigate }) {
+  const [expanded, setExpanded] = useState(null)
+
+  const folio = useMemo(() => {
+    let cost = 0
+    let pnl = 0
+    for (const p of positions) {
+      cost += p.notional ?? (p.entry != null && p.size != null ? p.entry * p.size : 0)
+      pnl += p.unrealizedPnl || 0
+    }
+    return { cost, pnl, value: cost + pnl }
+  }, [positions])
+
   if (positions.length === 0) {
     return (
       <Card padding="none">
@@ -222,9 +281,23 @@ function OpenPositionsTab({ positions, onClose, closingPosId, navigate }) {
     )
   }
   return (
-    <div className="space-y-2">
+    <div className="space-y-2.5">
+      <PortfolioSummary
+        count={positions.length}
+        costText={formatUsd(folio.cost)}
+        valueText={formatUsd(folio.value)}
+        pnlText={`${formatUsd(folio.pnl)}  (${formatPct(folio.cost > 0 ? (folio.pnl / folio.cost) * 100 : 0)})`}
+        win={folio.pnl >= 0}
+      />
       {positions.map((pos) => (
-        <PositionCard key={pos.id} pos={pos} onClose={onClose} closing={closingPosId === pos.id} />
+        <PositionCard
+          key={pos.id}
+          pos={pos}
+          onClose={onClose}
+          closing={closingPosId === pos.id}
+          expanded={expanded === pos.id}
+          onToggle={() => setExpanded((e) => (e === pos.id ? null : pos.id))}
+        />
       ))}
     </div>
   )
@@ -242,7 +315,7 @@ function Metric({ label, value, valueCls = 'text-white', extra }) {
   )
 }
 
-function PositionCard({ pos, onClose, closing }) {
+function PositionCard({ pos, onClose, closing, expanded, onToggle }) {
   const isLong = pos.direction === 'long'
   const pnl = pos.unrealizedPnl || 0
   const pnlPct = pos.unrealizedPnlPct || 0
@@ -254,6 +327,8 @@ function PositionCard({ pos, onClose, closing }) {
   const distToTarget = pos.currentPrice && pos.target1
     ? ((pos.target1 - pos.currentPrice) / pos.currentPrice * 100) * (isLong ? 1 : -1)
     : null
+
+  const cost = pos.notional ?? (pos.entry != null && pos.size != null ? pos.entry * pos.size : null)
 
   return (
     <Card>
@@ -267,7 +342,7 @@ function PositionCard({ pos, onClose, closing }) {
             {pos.grade && <Chip tone="gold">{pos.grade}</Chip>}
           </div>
           <p className="mt-1 text-[10px] text-gray-500">
-            Açılış: {formatDate(pos.openedAt)} · Tutar {formatUsd(pos.notional)}
+            Açılış: {formatDate(pos.openedAt)} · Maliyet {formatUsd(cost)}
           </p>
         </div>
         <div className="text-right">
@@ -304,6 +379,14 @@ function PositionCard({ pos, onClose, closing }) {
         </span>
         <div className="flex items-center gap-2">
           <Button
+            variant="ghost"
+            size="sm"
+            icon={expanded ? ChevronUp : ChevronDown}
+            onClick={() => onToggle()}
+          >
+            Detay
+          </Button>
+          <Button
             as="a"
             href={`https://www.binance.com/en/trade/${pos.symbol}_USDT`}
             target="_blank"
@@ -319,11 +402,17 @@ function PositionCard({ pos, onClose, closing }) {
           </Button>
         </div>
       </div>
+
+      {expanded && (
+        <div className="mt-3 border-t border-dark-700 pt-3">
+          <BuyDetail {...paperBuyDetail(pos)} />
+        </div>
+      )}
     </Card>
   )
 }
 
-// ── Geçmiş ─────────────────────────────────────────────────────────────────
+// ── Geçmiş — gün gün, saatli işlem defteri ────────────────────────────────
 function HistoryTab({ history }) {
   if (history.length === 0) {
     return (
@@ -333,53 +422,12 @@ function HistoryTab({ history }) {
     )
   }
   return (
-    <TableShell>
-      <table className="w-full text-sm">
-        <thead>
-          <tr className="text-left text-[11px] uppercase tracking-wider text-gray-500">
-            <th className="px-3 py-2 font-semibold">Coin</th>
-            <th className="px-3 py-2 font-semibold">Yön</th>
-            <th className="px-3 py-2 font-semibold">Zaman Dilimi</th>
-            <th className="px-3 py-2 font-semibold">Sonuç</th>
-            <th className="px-3 py-2 text-right font-semibold">Giriş</th>
-            <th className="px-3 py-2 text-right font-semibold">Çıkış</th>
-            <th className="px-3 py-2 text-right font-semibold">Kâr/Zarar</th>
-            <th className="px-3 py-2 text-right font-semibold">Süre</th>
-          </tr>
-        </thead>
-        <tbody>
-          {history.map((h) => {
-            const isLong = h.direction === 'long'
-            const isWin = h.pnl > 0
-            const outcome = h.exitReason === 'hit_target'
-              ? { tone: 'good', label: 'Hedef' }
-              : h.exitReason === 'hit_stop'
-              ? { tone: 'bad', label: 'Stop' }
-              : { tone: 'neutral', label: 'Manuel' }
-            const dur = h.openedAt && h.closedAt
-              ? Math.round((new Date(h.closedAt) - new Date(h.openedAt)) / 60000) + ' dk'
-              : '—'
-            return (
-              <tr key={h.id} className="border-t border-dark-700/60">
-                <td className="px-3 py-2.5 font-mono font-semibold text-white">{h.symbol}</td>
-                <td className="px-3 py-2.5">
-                  <Chip tone={isLong ? 'good' : 'bad'}>{isLong ? '↑ LONG' : '↓ SHORT'}</Chip>
-                </td>
-                <td className="px-3 py-2.5 font-mono text-xs text-gray-400">{h.timeframe || '—'}</td>
-                <td className="px-3 py-2.5"><Chip tone={outcome.tone}>{outcome.label}</Chip></td>
-                <td className="px-3 py-2.5 text-right font-mono text-gray-300">{formatPrice(h.entry)}</td>
-                <td className="px-3 py-2.5 text-right font-mono text-gray-300">{formatPrice(h.exitPrice)}</td>
-                <td className={`px-3 py-2.5 text-right font-mono font-semibold ${isWin ? 'text-emerald-300' : 'text-rose-300'}`}>
-                  {h.pnl >= 0 ? '+' : ''}{formatUsd(h.pnl)}
-                  <div className="text-[10px] font-normal text-gray-500">{formatPct(h.pnlPct)}</div>
-                </td>
-                <td className="px-3 py-2.5 text-right text-xs text-gray-500">{dur}</td>
-              </tr>
-            )
-          })}
-        </tbody>
-      </table>
-    </TableShell>
+    <TradeLedger
+      trades={history.map(toLedgerTrade)}
+      entryLabel="GİRİŞ"
+      exitLabel="ÇIKIŞ"
+      renderDetail={(lt) => <BuyDetail {...paperBuyDetail(lt._src)} />}
+    />
   )
 }
 

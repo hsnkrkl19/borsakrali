@@ -6,8 +6,8 @@
  * sarmalayıcı, katlanır "nasıl çalışır" paneli, durum etiketi, işlem-notu
  * listesi, portföy grafiği ve ortak formatlayıcılar.
  */
-import { useState, useRef, useEffect } from 'react'
-import { ChevronDown, ChevronUp, Info } from 'lucide-react'
+import { useState, useRef, useEffect, useMemo } from 'react'
+import { ChevronDown, ChevronUp, Info, ShoppingCart, Sparkles, CalendarDays } from 'lucide-react'
 import { createChart } from 'lightweight-charts'
 import { Card } from './ui'
 import ScrollableTabBar from './ScrollableTabBar'
@@ -261,4 +261,169 @@ export function EquityChart({ data, height = 200 }) {
   }, [data])
 
   return <div ref={ref} className="w-full" />
+}
+
+// ── Saat / gün formatlayıcıları ────────────────────────────────────────────
+export function fmtTime(iso) {
+  if (!iso) return ''
+  try {
+    return new Date(iso).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })
+  } catch { return '' }
+}
+export function fmtDayLabel(iso) {
+  if (!iso) return '—'
+  try {
+    return new Date(iso).toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric' })
+  } catch { return String(iso).slice(0, 10) }
+}
+function dayKeyOf(iso) {
+  if (!iso) return '0000-00-00'
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return String(iso).slice(0, 10)
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+function shortDT(iso) {
+  if (!iso) return ''
+  try {
+    return new Date(iso).toLocaleString('tr-TR', {
+      day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit',
+    })
+  } catch { return '' }
+}
+
+// ── Etiket-değer çifti ─────────────────────────────────────────────────────
+function KV({ label, value, valueCls = 'text-gray-200' }) {
+  return (
+    <div className="min-w-0">
+      <div className="text-[10px] font-semibold uppercase tracking-wider text-gray-500">{label}</div>
+      <div className={`truncate text-xs font-medium ${valueCls}`}>{value}</div>
+    </div>
+  )
+}
+
+// ── Portföy özet şeridi — açık pozisyonların toplam maliyet/değer/K-Z'si ───
+export function PortfolioSummary({ count = 0, costText = '—', valueText = '—', pnlText = '—', win = true }) {
+  return (
+    <Card padding="sm">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <KV label="Pozisyon" value={count} valueCls="text-white" />
+        <KV label="Toplam maliyet" value={costText} valueCls="text-white" />
+        <KV label="Güncel değer" value={valueText} valueCls="text-white" />
+        <KV label="Anlık K/Z" value={pnlText} valueCls={win ? 'text-emerald-300' : 'text-rose-300'} />
+      </div>
+    </Card>
+  )
+}
+
+// ── Alış bilgisi + alış sinyali bloğu (satır detayında gösterilir) ─────────
+export function BuyDetail({ buyAt, priceText, qtyText, costText, signalLabel, signalRows }) {
+  return (
+    <div className="space-y-2.5">
+      <div className="rounded-lg border border-emerald-500/15 bg-emerald-500/[0.04] p-3">
+        <div className="mb-2 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-emerald-300/90">
+          <ShoppingCart className="h-3.5 w-3.5" aria-hidden="true" /> Alış bilgisi
+        </div>
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <KV label="Alış tarihi" value={fmtDate(buyAt)} />
+          <KV label="Alış fiyatı" value={priceText || '—'} />
+          {qtyText && <KV label="Adet" value={qtyText} />}
+          {costText && <KV label="Maliyet" value={costText} />}
+        </div>
+      </div>
+      {(signalLabel || (signalRows && signalRows.length > 0)) && (
+        <div className="rounded-lg border border-gold-500/15 bg-gold-500/[0.04] p-3">
+          <div className="mb-2 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-gold-300/90">
+            <Sparkles className="h-3.5 w-3.5" aria-hidden="true" /> Alış sinyali
+          </div>
+          {signalLabel && <div className="mb-2 text-xs leading-relaxed text-gray-200">{signalLabel}</div>}
+          {signalRows && signalRows.length > 0 && (
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+              {signalRows.map((r, i) => <KV key={i} label={r.label} value={r.value} />)}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── Gün-gruplu işlem geçmişi defteri ──────────────────────────────────────
+// trades: normalize edilmiş kapanmış işlemler — her biri:
+//   { id, symbol, outcome:{tone,label}|null, buyAt, sellAt (ISO),
+//     buyText, sellText, pnlText, pnlSubText, win }
+// renderDetail(trade) verilirse satır tıklanınca açılır.
+export function TradeLedger({ trades, renderDetail, entryLabel = 'ALIŞ', exitLabel = 'SATIŞ' }) {
+  const [expanded, setExpanded] = useState(null)
+  const groups = useMemo(() => {
+    const map = new Map()
+    for (const t of (trades || [])) {
+      const k = dayKeyOf(t.sellAt)
+      if (!map.has(k)) map.set(k, [])
+      map.get(k).push(t)
+    }
+    return [...map.entries()].sort((a, b) => b[0].localeCompare(a[0]))
+  }, [trades])
+
+  if (!groups.length) return null
+
+  return (
+    <div className="space-y-3">
+      {groups.map(([key, dayTrades]) => (
+        <Card key={key} padding="none" className="overflow-hidden">
+          <div className="flex items-center gap-1.5 border-b border-dark-700 bg-dark-800/40 px-3.5 py-2 text-xs font-semibold text-gray-300">
+            <CalendarDays className="h-3.5 w-3.5 text-gray-500" aria-hidden="true" />
+            {fmtDayLabel(dayTrades[0].sellAt)}
+            <span className="font-normal text-gray-500">· {dayTrades.length} işlem</span>
+          </div>
+          <div className="divide-y divide-dark-700/60">
+            {dayTrades.map((t) => {
+              const isExp = expanded === t.id
+              const sameDay = dayKeyOf(t.buyAt) === dayKeyOf(t.sellAt)
+              return (
+                <div key={t.id}>
+                  <button
+                    type="button"
+                    onClick={() => renderDetail && setExpanded(isExp ? null : t.id)}
+                    className="flex w-full items-center gap-3 px-3.5 py-2.5 text-left transition-colors hover:bg-white/[0.02]"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-1.5">
+                        <span className="font-semibold text-white">{t.symbol}</span>
+                        {t.outcome && <Chip tone={t.outcome.tone}>{t.outcome.label}</Chip>}
+                      </div>
+                      <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px]">
+                        <span className="text-emerald-300">
+                          {entryLabel} {sameDay ? fmtTime(t.buyAt) : shortDT(t.buyAt)} · {t.buyText}
+                        </span>
+                        <span className="text-gray-600" aria-hidden="true">→</span>
+                        <span className="text-rose-300">
+                          {exitLabel} {fmtTime(t.sellAt)} · {t.sellText}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="flex-shrink-0 text-right">
+                      <div className={`text-sm font-semibold ${t.win ? 'text-emerald-300' : 'text-rose-300'}`}>
+                        {t.pnlText}
+                      </div>
+                      {t.pnlSubText && <div className="text-[10px] text-gray-500">{t.pnlSubText}</div>}
+                    </div>
+                    {renderDetail && (
+                      isExp
+                        ? <ChevronUp className="h-4 w-4 flex-shrink-0 text-gray-500" aria-hidden="true" />
+                        : <ChevronDown className="h-4 w-4 flex-shrink-0 text-gray-500" aria-hidden="true" />
+                    )}
+                  </button>
+                  {isExp && renderDetail && (
+                    <div className="border-t border-dark-700/60 bg-white/[0.02] px-3.5 py-3">
+                      {renderDetail(t)}
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        </Card>
+      ))}
+    </div>
+  )
 }
