@@ -87,6 +87,46 @@ const klinesCache = new Map(); // key -> { data, t }
 let binanceSymbolsCache = { spot: null, futures: null, t: 0 };
 const SYMBOLS_TTL = 60 * 60 * 1000; // 1 saat
 
+// ── Evren fallback: CoinGecko 429 verince Bybit 24s hacminden türet ───────
+// Prod'da (Render ABD IP) CoinGecko sık 429 atıyor; evren boş kalmasın diye
+// Bybit spot ticker'larından 24s işlem hacmine göre top N coin çıkarılır.
+async function getUniverseFromBybit() {
+  try {
+    const res = await axios.get(`${BYBIT_BASE}/v5/market/tickers`, {
+      params: { category: 'spot' }, timeout: 20000,
+    });
+    if (res.data?.retCode !== 0) return [];
+    return (res.data?.result?.list || [])
+      .filter(t => typeof t.symbol === 'string' && t.symbol.endsWith('USDT'))
+      .map(t => {
+        const base = t.symbol.slice(0, -4).toUpperCase();
+        return {
+          id: base.toLowerCase(),
+          symbol: base,
+          name: base,
+          image: null,
+          currentPrice: parseFloat(t.lastPrice) || null,
+          marketCap: null,
+          marketCapRank: null,
+          change24h: t.price24hPcnt != null ? parseFloat(t.price24hPcnt) * 100 : null,
+          volume24h: parseFloat(t.turnover24h) || 0,
+        };
+      })
+      .filter(c => {
+        if (EXCLUDED_SYMBOLS.has(c.symbol)) return false;
+        const p = c.currentPrice, ch = c.change24h;
+        if (p != null && p >= 0.985 && p <= 1.015 && ch != null && Math.abs(ch) < 0.5) return false;
+        return true;
+      })
+      .sort((a, b) => b.volume24h - a.volume24h)
+      .slice(0, COIN_UNIVERSE_SIZE)
+      .map((c, i) => ({ ...c, marketCapRank: i + 1 }));
+  } catch (e) {
+    console.error('[CryptoSignals] Bybit evren fallback hata:', e.message);
+    return [];
+  }
+}
+
 // ── Top 100 coin listesi (CoinGecko market data) ──────────────────────────
 async function getTop100Coins() {
   const now = Date.now();
@@ -136,7 +176,14 @@ async function getTop100Coins() {
     console.error('[CryptoSignals] CoinGecko top 100 hata:', e.message);
     // Cache'te eski veri varsa onu döndür (kısa süreliğine de olsa)
     if (universeCache.data) return universeCache.data;
-    return [];
+    // CoinGecko başarısız + cache yok (prod'da Render IP'sine sık 429) →
+    // evreni Bybit 24s işlem hacminden türet ki analiz boş kalmasın.
+    const bybitUniverse = await getUniverseFromBybit();
+    if (bybitUniverse.length) {
+      universeCache = { data: bybitUniverse, t: Date.now() };
+      console.log(`[CryptoSignals] Evren Bybit fallback'ten dolduruldu: ${bybitUniverse.length} coin`);
+    }
+    return bybitUniverse;
   }
 }
 
