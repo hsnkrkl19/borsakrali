@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none" aria-label="Borsa Krali — Taçlı K Monogramı">
+  <defs>
+    <linearGradient id="goldB" x1="0" y1="0" x2="64" y2="64" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#fef3c7"/>
+      <stop offset="0.45" stop-color="#d4af37"/>
+      <stop offset="1" stop-color="#7a5b0c"/>
+    </linearGradient>
+    <linearGradient id="goldBLight" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#fde68a"/>
+      <stop offset="1" stop-color="#d4af37"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Taç — 5 sivri uçlu, ufak ve dengeli -->
+  <path d="M 18 14 L 23 8 L 28 12 L 32 6 L 36 12 L 41 8 L 46 14 L 44 18 L 20 18 Z"
+        fill="url(#goldBLight)" stroke="#5a3a06" stroke-width="0.9" stroke-linejoin="round"/>
+  <!-- Taç içindeki 3 mücevher -->
+  <circle cx="26" cy="14" r="1.1" fill="#9b2226"/>
+  <circle cx="32" cy="13" r="1.3" fill="#005f73"/>
+  <circle cx="38" cy="14" r="1.1" fill="#9b2226"/>
+
+  <!-- K harfi — kalın, modern -->
+  <path d="
+    M 18 24
+    L 25 24
+    L 25 36
+    L 36 24
+    L 44 24
+    L 33 36
+    L 46 54
+    L 38 54
+    L 28 40
+    L 25 43
+    L 25 54
+    L 18 54
+    Z"
+    fill="url(#goldB)" stroke="#3b2607" stroke-width="0.8" stroke-linejoin="round"/>
+
+  <!-- Hafif parlak vurgu — sol-üst köşe -->
+  <path d="M 19 25 L 24 25 L 24 32 L 19 32 Z" fill="rgba(255,255,255,0.18)"/>
+</svg>

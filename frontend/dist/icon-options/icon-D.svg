@@ -1,0 +1,71 @@
+<svg viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="D2_bg" x1="0" y1="0" x2="1024" y2="1024" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#0B1F33"/>
+      <stop offset="1" stop-color="#020A12"/>
+    </linearGradient>
+    <linearGradient id="D2_gold" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FFE39A"/>
+      <stop offset="0.55" stop-color="#F2A41A"/>
+      <stop offset="1" stop-color="#8E4D00"/>
+    </linearGradient>
+    <linearGradient id="D2_goldDark" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#F5B524"/>
+      <stop offset="1" stop-color="#5A3000"/>
+    </linearGradient>
+    <linearGradient id="D2_green" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#3CE6A0"/>
+      <stop offset="1" stop-color="#0E7A4B"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="1024" height="1024" rx="220" fill="url(#D2_bg)"/>
+
+  <g stroke="#1B3A55" stroke-width="3" opacity="0.4" stroke-linecap="round">
+    <line x1="150" y1="870" x2="874" y2="870"/>
+    <line x1="150" y1="790" x2="874" y2="790"/>
+    <line x1="150" y1="710" x2="874" y2="710"/>
+  </g>
+
+  <!-- Crown silhouette as a single connected shape — candles form the spikes,
+       all visually unified as one crown. -->
+  <path d="
+    M 180 720
+    L 260 380
+    L 340 540
+    L 420 200
+    L 480 540
+    L 512 60
+    L 544 540
+    L 604 200
+    L 684 540
+    L 764 380
+    L 844 720
+    L 844 760
+    L 180 760
+    Z
+  " fill="url(#D2_gold)" stroke="#6B3D00" stroke-width="6" stroke-linejoin="round"/>
+
+  <!-- Highlight gleam on left side of crown -->
+  <path d="M 200 720 L 260 400 L 290 480 L 220 700 Z" fill="#FFE39A" opacity="0.35"/>
+
+  <!-- Candle body inside the tallest center spike (bullish green = "kralı"=center peak) -->
+  <rect x="478" y="180" width="68" height="350" rx="14" fill="url(#D2_green)" stroke="#0B5C39" stroke-width="5"/>
+  <line x1="512" y1="100" x2="512" y2="180" stroke="#0B5C39" stroke-width="10" stroke-linecap="round"/>
+  <line x1="512" y1="530" x2="512" y2="560" stroke="#0B5C39" stroke-width="10" stroke-linecap="round"/>
+
+  <!-- Two smaller candles inside the side spikes (subtle but readable) -->
+  <rect x="390" y="320" width="58" height="200" rx="12" fill="url(#D2_goldDark)" stroke="#6B3D00" stroke-width="4" opacity="0.85"/>
+  <rect x="576" y="320" width="58" height="200" rx="12" fill="url(#D2_goldDark)" stroke="#6B3D00" stroke-width="4" opacity="0.85"/>
+
+  <!-- Jewel dots at each crown peak tip -->
+  <circle cx="260" cy="378" r="14" fill="#FF4D6D" stroke="#6B3D00" stroke-width="3"/>
+  <circle cx="420" cy="198" r="16" fill="#FFE39A" stroke="#6B3D00" stroke-width="3"/>
+  <circle cx="512" cy="58" r="20" fill="#7BD8FF" stroke="#6B3D00" stroke-width="3"/>
+  <circle cx="604" cy="198" r="16" fill="#FFE39A" stroke="#6B3D00" stroke-width="3"/>
+  <circle cx="764" cy="378" r="14" fill="#22D17E" stroke="#6B3D00" stroke-width="3"/>
+
+  <!-- Crown base band -->
+  <rect x="170" y="720" width="684" height="60" rx="14" fill="url(#D2_goldDark)" stroke="#6B3D00" stroke-width="6"/>
+  <rect x="185" y="734" width="654" height="14" rx="5" fill="#FFE39A" opacity="0.55"/>
+</svg>

@@ -1,0 +1,66 @@
+<svg viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="F_bg" x1="0" y1="0" x2="1024" y2="1024" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#0E2438"/>
+      <stop offset="1" stop-color="#03101A"/>
+    </linearGradient>
+    <radialGradient id="F_coin" cx="0.35" cy="0.35" r="0.85">
+      <stop offset="0" stop-color="#FFEFB8"/>
+      <stop offset="0.45" stop-color="#F5B524"/>
+      <stop offset="0.85" stop-color="#A05A00"/>
+      <stop offset="1" stop-color="#5A3000"/>
+    </radialGradient>
+    <linearGradient id="F_rim" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FFE39A"/>
+      <stop offset="0.5" stop-color="#9F5A00"/>
+      <stop offset="1" stop-color="#FFD46B"/>
+    </linearGradient>
+    <linearGradient id="F_emboss" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#7A4400"/>
+      <stop offset="1" stop-color="#3D2200"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="1024" height="1024" rx="220" fill="url(#F_bg)"/>
+
+  <circle cx="512" cy="512" r="380" fill="url(#F_rim)"/>
+  <circle cx="512" cy="512" r="340" fill="url(#F_coin)"/>
+
+  <g stroke="#7A4400" stroke-width="6" fill="none" opacity="0.5">
+    <circle cx="512" cy="512" r="318"/>
+  </g>
+
+  <g transform="translate(512, 360)">
+    <path d="M -120 30 L -75 -55 L -38 30 L 0 -90 L 38 30 L 75 -55 L 120 30 Z"
+          fill="url(#F_emboss)" stroke="#3D2200" stroke-width="3" stroke-linejoin="round"/>
+    <circle cx="-75" cy="-55" r="10" fill="#3D2200"/>
+    <circle cx="0" cy="-90" r="13" fill="#3D2200"/>
+    <circle cx="75" cy="-55" r="10" fill="#3D2200"/>
+    <rect x="-120" y="30" width="240" height="22" rx="6" fill="url(#F_emboss)"/>
+  </g>
+
+  <g transform="translate(512, 580)" fill="url(#F_emboss)" stroke="#3D2200" stroke-width="3" stroke-linejoin="round">
+    <path d="M -85 -85
+             L -85 90
+             L -35 90
+             L -35 30
+             L -10 30
+             L 60 90
+             L 130 90
+             L 30 -5
+             L 125 -85
+             L 60 -85
+             L -35 -5
+             L -35 -85
+             Z"/>
+  </g>
+
+  <g stroke="#3D2200" stroke-width="8" stroke-linecap="round" fill="none" opacity="0.85">
+    <path d="M 380 780 L 430 750 L 480 770 L 540 720 L 600 740 L 644 700"/>
+    <path d="M 600 700 L 644 700 L 644 744"/>
+  </g>
+
+  <g fill="#FFE3A0" opacity="0.35">
+    <ellipse cx="380" cy="280" rx="80" ry="30" transform="rotate(-30 380 280)"/>
+  </g>
+</svg>

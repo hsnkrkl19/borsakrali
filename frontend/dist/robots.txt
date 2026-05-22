@@ -1,0 +1,15 @@
+# borsakrali.com
+# Tum sayfalar taranabilir. Zayif/arac/login sayfalari sunucu tarafinda
+# "noindex" meta etiketiyle servis edilir (bkz. server-live.js), bu yuzden
+# burada Disallow ile engellenmezler — aksi halde Google noindex etiketini
+# goremez. Yalnizca API uc noktalari taramaya kapatilir.
+
+User-agent: *
+Allow: /
+Disallow: /api/
+
+# AdSense tarayicisi
+User-agent: Mediapartners-Google
+Allow: /
+
+Sitemap: https://www.borsakrali.com/sitemap.xml

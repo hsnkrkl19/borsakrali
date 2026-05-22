@@ -1,0 +1,50 @@
+<svg viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="B_bg" x1="0" y1="0" x2="1024" y2="1024" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#0A1F30"/>
+      <stop offset="1" stop-color="#02080F"/>
+    </linearGradient>
+    <linearGradient id="B_gold" x1="200" y1="850" x2="800" y2="180" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#C2780A"/>
+      <stop offset="0.5" stop-color="#FFC93C"/>
+      <stop offset="1" stop-color="#FFEFB0"/>
+    </linearGradient>
+    <linearGradient id="B_green" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#3CE6A0"/>
+      <stop offset="1" stop-color="#15875A"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="1024" height="1024" rx="220" fill="url(#B_bg)"/>
+
+  <g opacity="0.18">
+    <line x1="120" y1="200" x2="904" y2="200" stroke="#2A4D6E" stroke-width="2"/>
+    <line x1="120" y1="350" x2="904" y2="350" stroke="#2A4D6E" stroke-width="2"/>
+    <line x1="120" y1="500" x2="904" y2="500" stroke="#2A4D6E" stroke-width="2"/>
+    <line x1="120" y1="650" x2="904" y2="650" stroke="#2A4D6E" stroke-width="2"/>
+    <line x1="120" y1="800" x2="904" y2="800" stroke="#2A4D6E" stroke-width="2"/>
+  </g>
+
+  <g transform="translate(300, 220)">
+    <path d="M -40 -40 L 0 -110 L 40 -40 L 80 -110 L 120 -40 L 160 -110 L 200 -40 Z"
+          fill="url(#B_gold)" stroke="#6B3D00" stroke-width="5" stroke-linejoin="round"/>
+    <circle cx="0" cy="-110" r="14" fill="#FF4D6D" stroke="#6B3D00" stroke-width="3"/>
+    <circle cx="80" cy="-110" r="16" fill="#7BD8FF" stroke="#6B3D00" stroke-width="3"/>
+    <circle cx="160" cy="-110" r="14" fill="#22D17E" stroke="#6B3D00" stroke-width="3"/>
+    <rect x="-40" y="-40" width="240" height="34" rx="8" fill="url(#B_gold)" stroke="#6B3D00" stroke-width="5"/>
+  </g>
+
+  <g stroke="url(#B_gold)" stroke-width="80" stroke-linecap="round" stroke-linejoin="round" fill="none">
+    <line x1="290" y1="260" x2="290" y2="820"/>
+  </g>
+
+  <g stroke="url(#B_gold)" stroke-width="80" stroke-linecap="round" stroke-linejoin="round" fill="none">
+    <path d="M 290 540 L 700 260"/>
+    <path d="M 290 540 L 700 820"/>
+  </g>
+
+  <g fill="none" stroke="url(#B_green)" stroke-width="22" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M 720 320 L 760 280 L 800 240"/>
+    <path d="M 750 230 L 800 230 L 800 280"/>
+  </g>
+</svg>

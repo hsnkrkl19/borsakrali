@@ -1,0 +1,49 @@
+<svg viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="C_bg" x1="0" y1="0" x2="1024" y2="1024" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#0E2438"/>
+      <stop offset="1" stop-color="#03101A"/>
+    </linearGradient>
+    <linearGradient id="C_gold" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FFE39A"/>
+      <stop offset="0.5" stop-color="#F4B423"/>
+      <stop offset="1" stop-color="#A45F00"/>
+    </linearGradient>
+    <linearGradient id="C_candle" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#33EBA8"/>
+      <stop offset="1" stop-color="#0E7A4B"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="1024" height="1024" rx="220" fill="url(#C_bg)"/>
+
+  <g stroke="#1F3D58" stroke-width="3" opacity="0.4" stroke-linecap="round">
+    <line x1="150" y1="850" x2="874" y2="850"/>
+    <line x1="150" y1="770" x2="874" y2="770"/>
+    <line x1="150" y1="690" x2="874" y2="690"/>
+    <line x1="150" y1="610" x2="874" y2="610"/>
+  </g>
+
+  <path d="M 350 240
+           L 410 140 L 440 240
+           L 482 100 L 512 240
+           L 542 100 L 572 240
+           L 614 140 L 644 240 Z"
+        fill="url(#C_gold)" stroke="#6B3D00" stroke-width="6" stroke-linejoin="round"/>
+
+  <circle cx="410" cy="140" r="14" fill="#FF4D6D" stroke="#6B3D00" stroke-width="3"/>
+  <circle cx="482" cy="100" r="14" fill="#7BD8FF" stroke="#6B3D00" stroke-width="3"/>
+  <circle cx="542" cy="100" r="14" fill="#7BD8FF" stroke="#6B3D00" stroke-width="3"/>
+  <circle cx="614" cy="140" r="14" fill="#22D17E" stroke="#6B3D00" stroke-width="3"/>
+
+  <rect x="350" y="240" width="294" height="40" rx="10" fill="url(#C_gold)" stroke="#6B3D00" stroke-width="5"/>
+
+  <line x1="497" y1="280" x2="497" y2="340" stroke="#0E7A4B" stroke-width="14" stroke-linecap="round"/>
+  <rect x="380" y="340" width="234" height="490" rx="34" fill="url(#C_candle)" stroke="#0A5C39" stroke-width="6"/>
+  <line x1="497" y1="830" x2="497" y2="880" stroke="#0E7A4B" stroke-width="14" stroke-linecap="round"/>
+
+  <g fill="#FFE39A" opacity="0.18">
+    <rect x="410" y="380" width="180" height="14" rx="4"/>
+    <rect x="410" y="410" width="180" height="14" rx="4"/>
+  </g>
+</svg>

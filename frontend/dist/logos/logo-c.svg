@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none" aria-label="Borsa Krali — Taçlı Yükselen Mumlar">
+  <defs>
+    <linearGradient id="goldC" x1="0" y1="0" x2="0" y2="64" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#fde68a"/>
+      <stop offset="1" stop-color="#b8860b"/>
+    </linearGradient>
+    <linearGradient id="jadeC" x1="0" y1="0" x2="0" y2="64" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#22d3a4"/>
+      <stop offset="1" stop-color="#047857"/>
+    </linearGradient>
+  </defs>
+
+  <!-- 3 mum: yükselen sıra (kısa → orta → uzun) -->
+  <!-- Mum 1 (sol, kısa, yeşil) -->
+  <line x1="14" y1="42" x2="14" y2="32" stroke="url(#jadeC)" stroke-width="1.5" stroke-linecap="round"/>
+  <rect x="10" y="42" width="8" height="14" rx="1.2" fill="url(#jadeC)"/>
+
+  <!-- Mum 2 (orta, orta, yeşil) -->
+  <line x1="32" y1="34" x2="32" y2="22" stroke="url(#jadeC)" stroke-width="1.5" stroke-linecap="round"/>
+  <rect x="28" y="34" width="8" height="22" rx="1.2" fill="url(#jadeC)"/>
+
+  <!-- Mum 3 (sağ, en uzun, altın — "kralın mumu") -->
+  <line x1="50" y1="24" x2="50" y2="14" stroke="url(#goldC)" stroke-width="1.5" stroke-linecap="round"/>
+  <rect x="46" y="24" width="8" height="32" rx="1.2" fill="url(#goldC)"/>
+
+  <!-- En uzun mumun üstünde minimal taç -->
+  <path d="M 44 12 L 47 7 L 50 10 L 53 7 L 56 12 L 54.5 14.5 L 45.5 14.5 Z"
+        fill="url(#goldC)" stroke="#5a3a06" stroke-width="0.7" stroke-linejoin="round"/>
+  <!-- Tacın merkez taşı -->
+  <circle cx="50" cy="11" r="0.9" fill="#5a3a06"/>
+</svg>
