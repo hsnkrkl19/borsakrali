@@ -55,6 +55,11 @@ function formatAssetPrice(value, assetType) {
 export default function StockChart({ symbol, assetType = 'stock', height = 520 }) {
   const chartContainerRef = useRef(null)
   const chartRef = useRef(null)
+  const mainSeriesRef = useRef(null)
+  const volumeSeriesRef = useRef(null)
+  const smaSeriesRef = useRef(null)
+  const chartTypeRef = useRef('candlestick')
+  const fitNextRef = useRef(true)
   const stockRequestIdRef = useRef(0)
   const chartRequestIdRef = useRef(0)
   const chartAbortRef = useRef(null)
@@ -134,8 +139,7 @@ export default function StockChart({ symbol, assetType = 'stock', height = 520 }
       if (err.name === 'AbortError') return
       console.error('Chart data error:', err)
       if (requestId === chartRequestIdRef.current) {
-        setChartData([])
-        setVolumeData([])
+        // Mevcut veriyi koru — geçici bir hata grafiği boşaltmasın
         setError('Grafik verisi alınamadı')
       }
     }
@@ -155,12 +159,9 @@ export default function StockChart({ symbol, assetType = 'stock', height = 520 }
     }
   }, [])
 
+  // Grafiği ve serileri bir kez kur — veri değişiminde yeniden yaratma (zoom/kaydırma korunur)
   useEffect(() => {
     if (!chartContainerRef.current) return undefined
-    if (chartRef.current) {
-      chartRef.current.remove()
-      chartRef.current = null
-    }
 
     const chart = createChart(chartContainerRef.current, {
       width: Math.max(chartContainerRef.current.clientWidth || 0, 280),
@@ -180,6 +181,7 @@ export default function StockChart({ symbol, assetType = 'stock', height = 520 }
     })
 
     const chartType = localStorage.getItem('bk-chart-type') || 'candlestick'
+    chartTypeRef.current = chartType
     let mainSeries
 
     if (chartType === 'line') {
@@ -211,43 +213,18 @@ export default function StockChart({ symbol, assetType = 'stock', height = 520 }
       scaleMargins: { top: 0.8, bottom: 0 },
     })
 
-    if (chartData.length > 0) {
-      const seriesData =
-        chartType === 'line'
-          ? chartData.map((candle) => ({ time: candle.time, value: candle.close }))
-          : chartData
+    const smaSeries = chart.addLineSeries({
+      color: '#f59e0b',
+      lineWidth: 1,
+      lastValueVisible: false,
+      priceLineVisible: false,
+    })
 
-      mainSeries.setData(seriesData)
-
-      if (volumeData.length > 0) {
-        volumeSeries.setData(
-          volumeData.map((bar) => ({
-            time: bar.time,
-            value: bar.value,
-            color: bar.isUp ? palette.volumeUp : palette.volumeDown,
-          })),
-        )
-      }
-
-      if (chartData.length >= 20) {
-        const sma20 = []
-        for (let i = 19; i < chartData.length; i += 1) {
-          const average =
-            chartData.slice(i - 19, i + 1).reduce((sum, candle) => sum + candle.close, 0) / 20
-          sma20.push({ time: chartData[i].time, value: average })
-        }
-
-        const smaSeries = chart.addLineSeries({
-          color: '#f59e0b',
-          lineWidth: 1,
-          lastValueVisible: false,
-          priceLineVisible: false,
-        })
-        smaSeries.setData(sma20)
-      }
-
-      chart.timeScale().fitContent()
-    }
+    chartRef.current = chart
+    mainSeriesRef.current = mainSeries
+    volumeSeriesRef.current = volumeSeries
+    smaSeriesRef.current = smaSeries
+    fitNextRef.current = true
 
     const handleResize = () => {
       chart.applyOptions({
@@ -261,32 +238,91 @@ export default function StockChart({ symbol, assetType = 'stock', height = 520 }
     const ro = new ResizeObserver(handleResize)
     ro.observe(chartContainerRef.current)
 
-    chartRef.current = chart
-
     return () => {
       window.removeEventListener('resize', handleResize)
       ro.disconnect()
-      if (chartRef.current) {
-        chartRef.current.remove()
-        chartRef.current = null
+      chart.remove()
+      chartRef.current = null
+      mainSeriesRef.current = null
+      volumeSeriesRef.current = null
+      smaSeriesRef.current = null
+    }
+  }, [palette.background, palette.borderColor, palette.gridColor, palette.textColor, tf.interval, height])
+
+  // Veriyi mevcut serilere uygula — grafik yeniden yaratılmaz, sadece ilk yüklemede/timeframe değişiminde içerik sığdırılır
+  useEffect(() => {
+    const mainSeries = mainSeriesRef.current
+    const volumeSeries = volumeSeriesRef.current
+    const smaSeries = smaSeriesRef.current
+    if (!mainSeries || !volumeSeries || !smaSeries) return
+
+    if (chartData.length === 0) {
+      mainSeries.setData([])
+      volumeSeries.setData([])
+      smaSeries.setData([])
+      return
+    }
+
+    const seriesData =
+      chartTypeRef.current === 'line'
+        ? chartData.map((candle) => ({ time: candle.time, value: candle.close }))
+        : chartData
+
+    mainSeries.setData(seriesData)
+
+    volumeSeries.setData(
+      volumeData.map((bar) => ({
+        time: bar.time,
+        value: bar.value,
+        color: bar.isUp ? palette.volumeUp : palette.volumeDown,
+      })),
+    )
+
+    if (chartData.length >= 20) {
+      const sma20 = []
+      for (let i = 19; i < chartData.length; i += 1) {
+        const average =
+          chartData.slice(i - 19, i + 1).reduce((sum, candle) => sum + candle.close, 0) / 20
+        sma20.push({ time: chartData[i].time, value: average })
       }
+      smaSeries.setData(sma20)
+    } else {
+      smaSeries.setData([])
+    }
+
+    if (fitNextRef.current) {
+      chartRef.current?.timeScale().fitContent()
+      fitNextRef.current = false
     }
   }, [
     chartData,
+    volumeData,
     palette.background,
     palette.borderColor,
     palette.gridColor,
     palette.textColor,
-    palette.volumeDown,
     palette.volumeUp,
+    palette.volumeDown,
     tf.interval,
-    volumeData,
     height,
   ])
 
   useEffect(() => {
+    fitNextRef.current = true
     fetchStockData()
     fetchChartData(tf)
+  }, [symbol, tf, fetchStockData, fetchChartData])
+
+  // Fiyat ve grafik verisini her dakika otomatik yenile — gecikmeli de olsa güncel kalsın
+  useEffect(() => {
+    if (!symbol) return undefined
+
+    const intervalId = setInterval(() => {
+      fetchStockData()
+      fetchChartData(tf)
+    }, 60_000)
+
+    return () => clearInterval(intervalId)
   }, [symbol, tf, fetchStockData, fetchChartData])
 
   useEffect(
