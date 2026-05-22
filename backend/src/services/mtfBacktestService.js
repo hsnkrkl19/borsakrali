@@ -21,24 +21,9 @@ const patterns = require('./mtfPatternDetection');
 const calibration = require('./mtfCalibrationService');
 const logger = require('../utils/logger');
 
-// Binance prod ortamında (Render ABD IP) HTTP 451 veriyor → Bybit v5 public
-// market data kullanılıyor (geo-engelsiz).
-const BYBIT_BASE = 'https://api.bybit.com';
-const BYBIT_INTERVAL = {
-  '1m': '1', '3m': '3', '5m': '5', '15m': '15', '30m': '30',
-  '1h': '60', '2h': '120', '4h': '240', '6h': '360', '12h': '720',
-  '1d': 'D', '1w': 'W', '1M': 'M',
-};
-// Bybit kline (yeni→eski, [start,o,h,l,c,vol,turnover]) → eski→yeni normalize
-function parseBybitKlines(list) {
-  return (list || [])
-    .map(k => ({
-      time: Math.floor(Number(k[0]) / 1000),
-      open: +k[1], high: +k[2], low: +k[3], close: +k[4], volume: +k[5],
-    }))
-    .filter(c => Number.isFinite(c.close) && c.close > 0)
-    .sort((a, b) => a.time - b.time);
-}
+// Kripto OHLC: Render prod'da Binance(451)/Bybit(403)/CoinGecko(429) kapalı →
+// Yahoo Finance chart endpoint (cryptoKlines katmanı) tek güvenilir kaynak.
+const cryptoKlines = require('./cryptoKlines');
 
 const HIGHER_TF_MAP = {
   '1m':  '5m',
@@ -78,33 +63,11 @@ const BATCH_PAUSE_MS = 250;
 // ───────────────────────────────────────────────────────────────────────────
 
 async function fetchKlinesHistorical(symbol, interval, endTimeMs, limit = 250) {
-  const bi = BYBIT_INTERVAL[interval];
-  if (!bi) return null;
-  try {
-    const res = await axios.get(`${BYBIT_BASE}/v5/market/kline`, {
-      params: { category: 'spot', symbol: `${symbol}USDT`, interval: bi, limit: Math.min(limit, 1000), end: endTimeMs },
-      timeout: 15000,
-    });
-    if (res.data?.retCode !== 0) return null;
-    return parseBybitKlines(res.data?.result?.list);
-  } catch (e) {
-    return null;
-  }
+  return cryptoKlines.fetchCandlesHistorical(symbol, interval, endTimeMs, limit);
 }
 
 async function fetchForwardKlines(symbol, interval, startTimeMs, limit) {
-  const bi = BYBIT_INTERVAL[interval];
-  if (!bi) return [];
-  try {
-    const res = await axios.get(`${BYBIT_BASE}/v5/market/kline`, {
-      params: { category: 'spot', symbol: `${symbol}USDT`, interval: bi, limit: Math.min(limit || 200, 1000), start: startTimeMs },
-      timeout: 15000,
-    });
-    if (res.data?.retCode !== 0) return [];
-    return parseBybitKlines(res.data?.result?.list);
-  } catch (e) {
-    return [];
-  }
+  return cryptoKlines.fetchCandlesForward(symbol, interval, startTimeMs, limit || 200);
 }
 
 // ───────────────────────────────────────────────────────────────────────────

@@ -57,74 +57,44 @@ const EXCLUDED_SYMBOLS = new Set([
 ]);
 
 const COINGECKO_BASE = 'https://api.coingecko.com/api/v3';
-// Binance prod ortamında (Render ABD IP) HTTP 451 veriyor → Bybit v5 public
-// market data kullanılıyor (geo-engelsiz; liquidationService de Bybit'te).
-const BYBIT_BASE = 'https://api.bybit.com';
 
-// Binance interval kodu → Bybit v5 interval kodu
-const BYBIT_INTERVAL = {
-  '1m': '1', '3m': '3', '5m': '5', '15m': '15', '30m': '30',
-  '1h': '60', '2h': '120', '4h': '240', '6h': '360', '12h': '720',
-  '1d': 'D', '1w': 'W', '1M': 'M',
-};
+// Kripto OHLC: Render prod'da Binance(451)/Bybit(403)/CoinGecko(429) kapalı →
+// Yahoo Finance chart endpoint (cryptoKlines katmanı) tek güvenilir kaynak.
+const cryptoKlines = require('./cryptoKlines');
 
-// Bybit kline (yeni→eski sıra, [start,o,h,l,c,volume,turnover]) → eski→yeni normalize
-function parseBybitKlines(list) {
-  return (list || [])
-    .map(k => ({
-      time: Math.floor(Number(k[0]) / 1000),
-      open: +k[1], high: +k[2], low: +k[3], close: +k[4], volume: +k[5],
-    }))
-    .filter(c => Number.isFinite(c.close) && c.close > 0)
-    .sort((a, b) => a.time - b.time);
-}
+// CoinGecko 429 verip cache de boşsa kullanılacak statik evren — analiz hiç
+// boş kalmasın. İsim/logo CoinGecko gelene kadar sembole düşer.
+const STATIC_UNIVERSE = [
+  'BTC','ETH','BNB','SOL','XRP','ADA','DOGE','TRX','AVAX','LINK','DOT','MATIC',
+  'TON','SHIB','LTC','BCH','UNI','XLM','ATOM','XMR','ETC','HBAR','FIL','APT',
+  'NEAR','ICP','ARB','OP','VET','INJ','AAVE','RUNE','GRT','ALGO','STX','IMX',
+  'SUI','SEI','TIA','MKR','RNDR','EGLD','FLOW','SAND','MANA','THETA','AXS',
+  'CRV','SNX','FTM','PEPE','WIF','BONK','FLOKI','JUP','ENA','WLD','ORDI',
+  'PYTH','JTO','STRK','ENS','LDO','GMX','DYDX','COMP','ZRX','CAKE','APE',
+  'CHZ','GALA','KSM','ZEC','DASH','EOS','XTZ','IOTA','NEO','KAVA','ROSE',
+  'CFX','MINA','FET','CELO','GMT','BLUR','MASK','WOO','SUSHI','BAT','ANKR',
+  'ONE','ZIL','QTUM','KNC','LRC','SKL','HOT','AR','RVN','WAVES','GLMR',
+];
 
 // Modül-içi cache (process restart'ta sıfırlanır)
 let universeCache = { data: null, t: 0 };
 const klinesCache = new Map(); // key -> { data, t }
 
-// Binance USDT spot pariteleri (process içinde cache'lenir, ilk istekte doldurulur)
-let binanceSymbolsCache = { spot: null, futures: null, t: 0 };
-const SYMBOLS_TTL = 60 * 60 * 1000; // 1 saat
-
-// ── Evren fallback: CoinGecko 429 verince Bybit 24s hacminden türet ───────
-// Prod'da (Render ABD IP) CoinGecko sık 429 atıyor; evren boş kalmasın diye
-// Bybit spot ticker'larından 24s işlem hacmine göre top N coin çıkarılır.
-async function getUniverseFromBybit() {
-  try {
-    const res = await axios.get(`${BYBIT_BASE}/v5/market/tickers`, {
-      params: { category: 'spot' }, timeout: 20000,
-    });
-    if (res.data?.retCode !== 0) return [];
-    return (res.data?.result?.list || [])
-      .filter(t => typeof t.symbol === 'string' && t.symbol.endsWith('USDT'))
-      .map(t => {
-        const base = t.symbol.slice(0, -4).toUpperCase();
-        return {
-          id: base.toLowerCase(),
-          symbol: base,
-          name: base,
-          image: null,
-          currentPrice: parseFloat(t.lastPrice) || null,
-          marketCap: null,
-          marketCapRank: null,
-          change24h: t.price24hPcnt != null ? parseFloat(t.price24hPcnt) * 100 : null,
-          volume24h: parseFloat(t.turnover24h) || 0,
-        };
-      })
-      .filter(c => {
-        if (EXCLUDED_SYMBOLS.has(c.symbol)) return false;
-        const p = c.currentPrice, ch = c.change24h;
-        if (p != null && p >= 0.985 && p <= 1.015 && ch != null && Math.abs(ch) < 0.5) return false;
-        return true;
-      })
-      .sort((a, b) => b.volume24h - a.volume24h)
-      .slice(0, COIN_UNIVERSE_SIZE)
-      .map((c, i) => ({ ...c, marketCapRank: i + 1 }));
-  } catch (e) {
-    console.error('[CryptoSignals] Bybit evren fallback hata:', e.message);
-    return [];
-  }
+// ── Evren fallback: CoinGecko 429 + cache yoksa statik listeden üret ──────
+// Prod'da (Render ABD IP) CoinGecko sık 429 atıyor; Binance/Bybit de engelli.
+// Statik sembol listesinden minimal evren üretilir — analiz boş kalmaz.
+function getStaticUniverse() {
+  return STATIC_UNIVERSE.slice(0, COIN_UNIVERSE_SIZE).map((sym, i) => ({
+    id: sym.toLowerCase(),
+    symbol: sym,
+    name: sym,
+    image: null,
+    currentPrice: null,
+    marketCap: null,
+    marketCapRank: i + 1,
+    change24h: null,
+    volume24h: 0,
+  }));
 }
 
 // ── Top 100 coin listesi (CoinGecko market data) ──────────────────────────
@@ -177,97 +147,39 @@ async function getTop100Coins() {
     // Cache'te eski veri varsa onu döndür (kısa süreliğine de olsa)
     if (universeCache.data) return universeCache.data;
     // CoinGecko başarısız + cache yok (prod'da Render IP'sine sık 429) →
-    // evreni Bybit 24s işlem hacminden türet ki analiz boş kalmasın.
-    const bybitUniverse = await getUniverseFromBybit();
-    if (bybitUniverse.length) {
-      universeCache = { data: bybitUniverse, t: Date.now() };
-      console.log(`[CryptoSignals] Evren Bybit fallback'ten dolduruldu: ${bybitUniverse.length} coin`);
-    }
-    return bybitUniverse;
+    // statik evrene düş ki analiz hiç boş kalmasın.
+    const fallback = getStaticUniverse();
+    universeCache = { data: fallback, t: Date.now() };
+    console.log(`[CryptoSignals] Evren statik listeden dolduruldu: ${fallback.length} coin`);
+    return fallback;
   }
 }
 
-// ── Bybit USDT pariteleri (spot + linear perpetual) — geçerli sembol filtresi
+// ── "Tradable" sembol kümesi ──────────────────────────────────────────────
+// Yahoo'da çoğu coin {SYM}-USD olarak var; veri gelmeyen coin'ler analiz
+// sırasında null klines ile zaten elenir. Bu yüzden evrendeki tüm semboller
+// tradable kabul edilir (spot = futures = evren).
 async function getBinanceUsdtSymbols() {
-  const now = Date.now();
-  if (binanceSymbolsCache.spot && now - binanceSymbolsCache.t < SYMBOLS_TTL) {
-    return binanceSymbolsCache;
-  }
-  try {
-    const [spotRes, futRes] = await Promise.allSettled([
-      axios.get(`${BYBIT_BASE}/v5/market/instruments-info`, { params: { category: 'spot' }, timeout: 20000 }),
-      axios.get(`${BYBIT_BASE}/v5/market/instruments-info`, { params: { category: 'linear' }, timeout: 20000 }),
-    ]);
-    const spot = spotRes.status === 'fulfilled'
-      ? new Set(
-          (spotRes.value.data?.result?.list || [])
-            .filter(s => s.status === 'Trading' && s.quoteCoin === 'USDT')
-            .map(s => String(s.baseCoin).toUpperCase())
-        )
-      : new Set();
-    const futures = futRes.status === 'fulfilled'
-      ? new Set(
-          (futRes.value.data?.result?.list || [])
-            .filter(s => s.status === 'Trading' && s.quoteCoin === 'USDT' && s.contractType === 'LinearPerpetual')
-            .map(s => String(s.baseCoin).toUpperCase())
-        )
-      : new Set();
-    binanceSymbolsCache = { spot, futures, t: now };
-    return binanceSymbolsCache;
-  } catch (e) {
-    console.error('[CryptoSignals] Bybit instruments-info hata:', e.message);
-    return { spot: new Set(), futures: new Set(), t: now };
-  }
+  const universe = await getTop100Coins();
+  const all = new Set(universe.map(c => c.symbol));
+  return { spot: all, futures: all, t: Date.now() };
 }
 
-// ── Bybit klines (mum verisi) ─────────────────────────────────────────────
+// ── Klines (mum verisi) — Yahoo Finance üzerinden ─────────────────────────
 async function fetchKlines(symbol, interval, limit = 200) {
   const cacheKey = `${symbol}:${interval}:${limit}`;
   const now = Date.now();
   const cached = klinesCache.get(cacheKey);
   if (cached && now - cached.t < KLINES_CACHE_TTL_MS) return cached.data;
-
-  const bi = BYBIT_INTERVAL[interval];
-  if (!bi) return null;
-  try {
-    const res = await axios.get(`${BYBIT_BASE}/v5/market/kline`, {
-      params: { category: 'spot', symbol: `${symbol}USDT`, interval: bi, limit: Math.min(limit, 1000) },
-      timeout: 15000,
-    });
-    // retCode != 0 → sembol yok / USDT paritesi değil
-    if (res.data?.retCode !== 0) {
-      klinesCache.set(cacheKey, { data: null, t: now });
-      return null;
-    }
-    const candles = parseBybitKlines(res.data?.result?.list);
-    if (!candles.length) {
-      klinesCache.set(cacheKey, { data: null, t: now });
-      return null;
-    }
-    klinesCache.set(cacheKey, { data: candles, t: now });
-    return candles;
-  } catch (e) {
-    console.error(`[CryptoSignals] Bybit klines hata ${symbol}/${interval}:`, e.message);
-    return null;
-  }
+  const candles = await cryptoKlines.fetchCandles(symbol, interval, limit);
+  klinesCache.set(cacheKey, { data: candles, t: now });
+  return candles;
 }
 
-// ── Funding rate (USDT-M perpetual) — Bybit linear tickers ────────────────
+// ── Funding rate — Yahoo Finance funding verisi sağlamıyor; futures
+// stratejileri funding koşulu olmadan (null) çalışır, skorlama tolere eder.
 async function fetchFundingRate(symbol) {
-  try {
-    const res = await axios.get(`${BYBIT_BASE}/v5/market/tickers`, {
-      params: { category: 'linear', symbol: `${symbol}USDT` },
-      timeout: 10000,
-    });
-    const d = res.data?.result?.list?.[0];
-    if (!d || d.fundingRate == null || d.fundingRate === '') return null;
-    return {
-      rate: parseFloat(d.fundingRate),
-      nextTime: d.nextFundingTime ? Number(d.nextFundingTime) : null,
-    };
-  } catch (e) {
-    return null;
-  }
+  return null;
 }
 
 // ── İndikatörler ──────────────────────────────────────────────────────────
@@ -584,41 +496,14 @@ async function analyzeSingleCoin(symbol) {
 }
 
 // ── Backtest: geçmiş tarih ile sinyal performans simülasyonu ──────────────
-// Bybit kline API'nin start/end parametrelerini kullanır — gelecek veri
-// sızdırmayı önler.
+// Yahoo chart period1/period2 ile geçmiş pencere — gelecek veri sızdırmaz.
 
 async function fetchKlinesHistorical(symbol, interval, endTimeMs, limit = 250) {
-  const bi = BYBIT_INTERVAL[interval];
-  if (!bi) return null;
-  try {
-    const res = await axios.get(`${BYBIT_BASE}/v5/market/kline`, {
-      params: {
-        category: 'spot', symbol: `${symbol}USDT`,
-        interval: bi, limit: Math.min(limit, 1000), end: endTimeMs,
-      },
-      timeout: 15000,
-    });
-    if (res.data?.retCode !== 0) return null;
-    return parseBybitKlines(res.data?.result?.list);
-  } catch (e) {
-    return null;
-  }
+  return cryptoKlines.fetchCandlesHistorical(symbol, interval, endTimeMs, limit);
 }
 
 async function fetchFutureCandles(symbol, startTimeMs, days = 7) {
-  try {
-    const res = await axios.get(`${BYBIT_BASE}/v5/market/kline`, {
-      params: {
-        category: 'spot', symbol: `${symbol}USDT`,
-        interval: 'D', limit: days, start: startTimeMs,
-      },
-      timeout: 15000,
-    });
-    if (res.data?.retCode !== 0) return [];
-    return parseBybitKlines(res.data?.result?.list);
-  } catch (e) {
-    return [];
-  }
+  return cryptoKlines.fetchCandlesForward(symbol, '1d', startTimeMs, days);
 }
 
 async function gatherForCoinAsOf(coin, asOfDate, horizonDays) {

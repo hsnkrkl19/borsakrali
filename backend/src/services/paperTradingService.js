@@ -21,8 +21,9 @@ const axios = require('axios');
 const logger = require('../utils/logger');
 
 const DATA_DIR = path.join(__dirname, '..', 'data', 'paper-trading');
-// Binance prod ortamında (Render ABD IP) HTTP 451 veriyor → Bybit v5 public
-const BYBIT_BASE = 'https://api.bybit.com';
+// Kripto fiyatı: Render prod'da Binance(451)/Bybit(403)/CoinGecko(429) kapalı →
+// Yahoo Finance chart endpoint (cryptoKlines katmanı) tek güvenilir kaynak.
+const cryptoKlines = require('./cryptoKlines');
 
 const STARTING_BALANCE = 10000;  // $10,000 default başlangıç (USD)
 const PER_POSITION_USD = 1000;   // Her pozisyon $1,000 fixed (margin/spot ortak)
@@ -93,18 +94,14 @@ function save(userId) {
   }
 }
 
-// Bybit current price (cache'li)
+// Kripto anlık fiyatı (cache'li) — Yahoo Finance son kapanış
 async function getCurrentPrice(symbol) {
   const now = Date.now();
   const cached = priceCache.get(symbol);
   if (cached && now - cached.t < PRICE_TTL_MS) return cached.p;
   try {
-    const r = await axios.get(`${BYBIT_BASE}/v5/market/tickers`, {
-      params: { category: 'spot', symbol: `${symbol}USDT` },
-      timeout: 8000,
-    });
-    const p = parseFloat(r.data?.result?.list?.[0]?.lastPrice);
-    if (isFinite(p)) {
+    const p = await cryptoKlines.getSpotPrice(symbol);
+    if (typeof p === 'number' && isFinite(p) && p > 0) {
       priceCache.set(symbol, { p, t: now });
       return p;
     }
