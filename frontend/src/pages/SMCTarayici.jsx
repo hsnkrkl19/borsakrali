@@ -6,6 +6,7 @@ import {
 } from 'lucide-react'
 import api from '../services/api'
 import InfoTooltip from '../components/InfoTooltip'
+import { Button } from '../components/ui'
 
 const SMC_TIP = {
   title: 'Smart Money Concepts (SMC) — Kurumsal Akış Analizi',
@@ -107,22 +108,14 @@ export default function SMCTarayici() {
 
   return (
     <div className="space-y-6">
-      {/* Başlık */}
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <div>
-          <h1 className="text-2xl font-bold text-white flex items-center gap-2">
-            <Layers className="w-6 h-6 text-amber-400" />
-            Smart Money Concepts (SMC)
-            <InfoTooltip size="lg" {...SMC_TIP} />
-          </h1>
-          <p className="text-gray-400 text-sm mt-1">
-            Kurumsal akış izi: Order Block · Fair Value Gap · BOS/CHoCH · Likidite Sweep
-          </p>
+      {/* Toolbar — başlık Tarayıcılar wrapper'ında */}
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <div className="flex items-center gap-2 min-w-0">
+          <Layers className="w-4 h-4 text-amber-400 shrink-0" />
+          <p className="text-gray-400 text-sm truncate">Kurumsal akış izi: Order Block · FVG · BOS/CHoCH · Likidite Sweep</p>
+          <InfoTooltip size="lg" {...SMC_TIP} />
         </div>
-        <button onClick={() => runScan(scope)} disabled={scanLoading} className="btn-secondary flex items-center gap-2">
-          <RefreshCw className={`w-4 h-4 ${scanLoading ? 'animate-spin' : ''}`} />
-          Yenile
-        </button>
+        <Button variant="ghost" size="sm" icon={RefreshCw} loading={scanLoading} onClick={() => runScan(scope)}>Yenile</Button>
       </div>
 
       {/* Kapsam seçici */}
@@ -309,10 +302,7 @@ export default function SMCTarayici() {
             placeholder={scope === 'crypto' ? 'BTC, ETH, SOL...' : 'THYAO, GARAN, ASELS...'}
             className="flex-1 bg-dark-800 border border-dark-600 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-amber-500"
           />
-          <button onClick={() => runTrack()} disabled={trackLoading} className="btn-primary flex items-center gap-2">
-            <Search className="w-4 h-4" />
-            Analiz Et
-          </button>
+          <Button variant="gold" icon={Search} loading={trackLoading} onClick={() => runTrack()}>Analiz Et</Button>
         </div>
         <p className="text-[11px] text-gray-500 mt-2">
           Analiz sonucu açılır pencerede gösterilir.

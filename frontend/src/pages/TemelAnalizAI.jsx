@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { Search, TrendingUp, AlertTriangle, CheckCircle, XCircle, Info, AlertCircle } from 'lucide-react'
 import { getApiBase } from '../config'
+import { Button } from '../components/ui'
 const API_BASE = getApiBase() + '/api'
 
 export default function TemelAnalizAI() {
@@ -79,10 +80,6 @@ export default function TemelAnalizAI() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-white">Temel Analiz AI</h1>
-        <p className="text-gray-400 mt-1">Akademik finansal skorlama modelleri ile derinlemesine analiz</p>
-      </div>
 
       {/* Arama */}
       <div className="card">
@@ -99,9 +96,7 @@ export default function TemelAnalizAI() {
               className="input w-full pl-10"
             />
           </div>
-          <button onClick={handleAnalyze} disabled={loading} className="btn-primary px-8">
-            {loading ? 'Analiz Ediliyor...' : 'Analiz Et'}
-          </button>
+          <Button variant="gold" icon={Search} loading={loading} onClick={handleAnalyze}>Analiz Et</Button>
         </div>
         <p className="text-xs text-gray-500 mt-2">
           Bu analizler eğitim amaçlıdır, yatırım tavsiyesi niteliği taşımaz.

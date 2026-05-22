@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { FileText, TrendingUp, TrendingDown, Activity, Clock, Tag, ChevronRight, Search, Filter, RefreshCw } from 'lucide-react'
+import { Button } from '../components/ui'
 
 import { getApiBase } from '../config'
 const API_BASE = getApiBase() + '/api'
@@ -63,19 +64,8 @@ export default function TeknikNotlar() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-white">Teknik İnceleme Notları</h1>
-          <p className="text-gray-400 mt-1">AI destekli teknik analiz değerlendirmeleri ve notlar</p>
-        </div>
-        <button
-          onClick={fetchNotes}
-          className="flex items-center gap-2 px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg transition-colors"
-        >
-          <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-          Yenile
-        </button>
+      <div className="flex justify-end">
+        <Button variant="ghost" size="sm" icon={RefreshCw} loading={loading} onClick={fetchNotes}>Yenile</Button>
       </div>
 
       {/* Filters */}

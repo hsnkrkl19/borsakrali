@@ -8,6 +8,7 @@ import { createChart } from 'lightweight-charts'
 
 import { getApiBase } from '../config'
 import { fetchCommodityHistory } from '../utils/commodityHistory'
+import { Button } from '../components/ui'
 const API_BASE = getApiBase() + '/api'
 
 // ─── Kıymetli Metaller Analiz Bileşeni ────────────────────────────────────────
@@ -379,12 +380,8 @@ export default function Taramalar() {
 
   return (
     <div className="space-y-5">
-      {/* Header */}
-      <div className="flex items-start justify-between flex-wrap gap-3">
-        <div>
-          <h1 className="text-2xl font-bold text-white">Piyasa Radarı</h1>
-          <p className="text-gray-400 mt-1 text-sm">15+ profesyonel teknik analiz taraması — BIST, kripto ve altın/gümüş için tek arayüz</p>
-        </div>
+      {/* Toolbar — başlık Tarayıcılar wrapper'ında */}
+      <div className="flex justify-end">
         <div className="text-xs text-gray-500 bg-dark-800 px-3 py-1.5 rounded-lg border border-dark-700">
           {activeAsset.emoji} {activeAsset.desc} taranıyor
         </div>
@@ -507,17 +504,10 @@ export default function Taramalar() {
                     <span className="text-xs text-gray-400">koşul sağlasın</span>
                   </div>
                 )}
-                <button
-                  onClick={runMultiScan}
-                  disabled={loading}
-                  className="flex items-center gap-2 px-4 py-2 bg-gold-500 hover:bg-gold-400 text-dark-900 font-bold text-sm rounded-lg transition-colors disabled:opacity-50"
-                >
-                  <Play className="w-4 h-4" />
+                <Button variant="gold" icon={Play} loading={loading} onClick={runMultiScan}>
                   {selectedCount === 1 ? 'Tara' : 'Kombine Tara'}
-                </button>
-                <button onClick={clearSelection} className="p-2 rounded-lg bg-dark-700 hover:bg-dark-600 text-gray-400 hover:text-white transition-colors">
-                  <X className="w-4 h-4" />
-                </button>
+                </Button>
+                <Button variant="ghost" size="sm" icon={X} aria-label="Seçimi temizle" onClick={clearSelection} />
               </div>
             </div>
           )}
@@ -577,12 +567,8 @@ export default function Taramalar() {
               Fiyat bulut üstünde + TK kesişim = Güçlü boğa sinyali.
             </p>
             <div className="flex gap-2">
-              <button onClick={() => runSingleScan('ichimoku-bullish')} className="btn-primary text-sm flex items-center gap-2">
-                <TrendingUp className="w-4 h-4" /> Boğa Sinyalleri
-              </button>
-              <button onClick={() => runSingleScan('ichimoku-bearish')} className="px-4 py-2 bg-red-500/10 text-red-400 rounded-lg text-sm hover:bg-red-500/20 transition-colors flex items-center gap-2 border border-red-500/30">
-                <TrendingDown className="w-4 h-4" /> Ayı Sinyalleri
-              </button>
+              <Button size="sm" icon={TrendingUp} onClick={() => runSingleScan('ichimoku-bullish')}>Boğa Sinyalleri</Button>
+              <Button variant="danger" size="sm" icon={TrendingDown} onClick={() => runSingleScan('ichimoku-bearish')}>Ayı Sinyalleri</Button>
             </div>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 text-xs">
@@ -643,9 +629,7 @@ export default function Taramalar() {
               <span className="text-xs text-gray-400 bg-dark-800 px-3 py-1.5 rounded-lg border border-dark-700">
                 {multiResults.length} hisse bulundu
               </span>
-              <button onClick={runMultiScan} className="p-1.5 bg-dark-800 rounded-lg hover:bg-dark-700 transition-colors" title="Yenile">
-                <RefreshCw className="w-4 h-4 text-gray-400" />
-              </button>
+              <Button variant="ghost" size="sm" icon={RefreshCw} aria-label="Yenile" onClick={runMultiScan} />
             </div>
           </div>
 
@@ -778,9 +762,7 @@ export default function Taramalar() {
               <span className="text-xs text-gray-400 bg-dark-800 px-3 py-1.5 rounded-lg border border-dark-700">
                 {scanResults.length}/{scanMeta?.scanned || 30} hisse bulundu
               </span>
-              <button onClick={() => runSingleScan([...selectedIds][0])} className="p-1.5 bg-dark-800 rounded-lg hover:bg-dark-700 transition-colors" title="Yenile">
-                <RefreshCw className="w-4 h-4 text-gray-400" />
-              </button>
+              <Button variant="ghost" size="sm" icon={RefreshCw} aria-label="Yenile" onClick={() => runSingleScan([...selectedIds][0])} />
             </div>
           </div>
 

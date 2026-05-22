@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Plus, Search, Trash2, Edit3, Save, X, FileText, Tag, TrendingUp } from 'lucide-react'
+import { Button } from '../components/ui'
 
 const STORAGE_KEY = 'bk-notes'
 const CATEGORIES = ['Analiz', 'Fikir', 'Hatırlatıcı', 'Haber', 'Diğer']
@@ -85,19 +86,8 @@ export default function FinansalNotlar() {
 
   return (
     <div className="space-y-5 max-w-2xl mx-auto">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-white">Finansal Notlar</h1>
-          <p className="text-xs text-gray-500 mt-0.5">Hisseleriniz için kişisel notlar</p>
-        </div>
-        <button
-          onClick={() => { resetForm(); setShowForm(true) }}
-          className="btn-primary flex items-center gap-2 text-sm"
-        >
-          <Plus className="w-4 h-4" />
-          Not Ekle
-        </button>
+      <div className="flex justify-end">
+        <Button variant="gold" size="sm" icon={Plus} onClick={() => { resetForm(); setShowForm(true) }}>Not Ekle</Button>
       </div>
 
       {/* Search + Filter */}
@@ -173,11 +163,10 @@ export default function FinansalNotlar() {
               <p className="text-xs text-gray-600 text-right mt-1">{form.content.length}/2000</p>
             </div>
             <div className="flex gap-2">
-              <button type="submit" disabled={saving} className="btn-primary flex-1 flex items-center justify-center gap-2">
-                <Save className="w-4 h-4" />
+              <Button type="submit" variant="gold" icon={Save} loading={saving} className="flex-1">
                 {saving ? 'Kaydediliyor...' : 'Kaydet'}
-              </button>
-              <button type="button" onClick={resetForm} className="btn-secondary px-6">İptal</button>
+              </Button>
+              <Button type="button" variant="ghost" onClick={resetForm}>İptal</Button>
             </div>
           </form>
         </div>

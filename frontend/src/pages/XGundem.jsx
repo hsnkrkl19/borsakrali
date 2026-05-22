@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom'
 import { Hash, TrendingUp, TrendingDown, MessageCircle, RefreshCw, AlertCircle, ExternalLink, X as XIcon, Smile, Frown, Meh, Flame, Bitcoin, BarChart3 } from 'lucide-react'
 import api from '../services/api'
 import ScrollableTabBar from '../components/ScrollableTabBar'
+import { Button } from '../components/ui'
 
 const ASSET_TYPES = [
   { id: 'stock',  label: 'BIST Hisseleri', icon: BarChart3, color: 'amber' },
@@ -382,31 +383,23 @@ export default function XGundem() {
 
   return (
     <div className="space-y-4 max-w-5xl mx-auto">
-      {/* Header */}
-      <div className="flex items-start justify-between flex-wrap gap-3">
-        <div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-xl sm:text-2xl font-bold text-white">X Gündemi</h1>
-            {data?.dataSource === 'x_scraper' ? (
-              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-green-500/30 text-green-200 border border-green-500/40">CANLI · X.COM</span>
-            ) : data?.dataSource === 'x_scraper_partial' ? (
-              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-500/30 text-amber-200 border border-amber-500/40">KISMİ · {data.totalScanned}/{data.totalItems}</span>
-            ) : data?.dataSource === 'x_scraper_warming' ? (
-              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-blue-500/30 text-blue-200 border border-blue-500/40">ISINIYOR</span>
-            ) : data?.dataSource === 'x_scraper_unconfigured' ? (
-              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-red-500/30 text-red-200 border border-red-500/40">BAĞLI DEĞİL</span>
-            ) : null}
-          </div>
-          <p className="text-xs text-gray-500 mt-0.5">
-            {assetType === 'crypto'
-              ? 'Kripto paraların X.com\'da hashtag/cashtag bazlı mention analizi'
-              : 'BIST hisselerinin X.com\'da hashtag/cashtag bazlı mention analizi'}
-          </p>
+      {/* Toolbar — başlık Tarayıcılar wrapper'ında */}
+      <div className="flex items-center justify-between flex-wrap gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
+          {data?.dataSource === 'x_scraper' && (
+            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-green-500/30 text-green-200 border border-green-500/40">CANLI · X.COM</span>
+          )}
+          {data?.dataSource === 'x_scraper_partial' && (
+            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-500/30 text-amber-200 border border-amber-500/40">KISMİ · {data.totalScanned}/{data.totalItems}</span>
+          )}
+          {data?.dataSource === 'x_scraper_warming' && (
+            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-blue-500/30 text-blue-200 border border-blue-500/40">ISINIYOR</span>
+          )}
+          {data?.dataSource === 'x_scraper_unconfigured' && (
+            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-red-500/30 text-red-200 border border-red-500/40">BAĞLI DEĞİL</span>
+          )}
         </div>
-        <button onClick={() => load(scope)} disabled={loading} className="btn-secondary flex items-center gap-2 text-sm">
-          {loading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
-          Yenile
-        </button>
+        <Button variant="ghost" size="sm" icon={RefreshCw} loading={loading} onClick={() => load(scope)}>Yenile</Button>
       </div>
 
       {/* Asset type toggle */}

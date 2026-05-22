@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Newspaper, RefreshCw, AlertCircle, ExternalLink, Bitcoin, Globe, Filter, Clock, Hash } from 'lucide-react'
 import api from '../services/api'
+import { Button } from '../components/ui'
 
 const CATEGORY_FILTERS = [
   { id: 'all',     label: 'Tümü',          icon: Globe },
@@ -143,21 +144,9 @@ export default function HaberAkisi() {
 
   return (
     <div className="space-y-4 max-w-4xl mx-auto">
-      {/* Header */}
-      <div className="flex items-start justify-between flex-wrap gap-3">
-        <div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-xl sm:text-2xl font-bold text-white">Haber Akışı</h1>
-            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-500/30 text-amber-200 border border-amber-500/40">YENİ</span>
-          </div>
-          <p className="text-xs text-gray-500 mt-0.5">
-            Türk finans medyası + kripto kaynaklarından canlı haber kazıma (RSS)
-          </p>
-        </div>
-        <button onClick={() => load(category)} disabled={loading} className="btn-secondary flex items-center gap-2 text-sm">
-          <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-          Yenile
-        </button>
+      {/* Toolbar — başlık Tarayıcılar wrapper'ında */}
+      <div className="flex justify-end">
+        <Button variant="ghost" size="sm" icon={RefreshCw} loading={loading} onClick={() => load(category)}>Yenile</Button>
       </div>
 
       {/* Category filter */}

@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { Calculator, Search, TrendingUp, TrendingDown, RefreshCw, AlertCircle, Info, Target, Zap } from 'lucide-react'
 import api from '../services/api'
+import { Button } from '../components/ui'
 
 const POPULAR = ['THYAO', 'ASELS', 'GARAN', 'KCHOL', 'EREGL', 'SASA', 'BIMAS', 'TUPRS', 'SAHOL', 'AKBNK']
 
@@ -253,15 +254,8 @@ export default function DCFDegerleme() {
 
   return (
     <div className="space-y-4 max-w-5xl mx-auto">
-      {/* Header */}
-      <div className="flex items-start justify-between flex-wrap gap-3">
-        <div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-2xl sm:text-3xl font-bold text-white">DCF Değerleme</h1>
-            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-500/30 text-amber-200 border border-amber-500/40">YENİ</span>
-          </div>
-          <p className="text-sm text-gray-400 mt-1">İndirgenmiş Nakit Akımı yöntemiyle içsel değer hesabı (5 yıl projeksiyon + Gordon terminal)</p>
-        </div>
+      {/* Toolbar — başlık SirketAnalizi wrapper'ında */}
+      <div className="flex items-center justify-end flex-wrap gap-3">
         <div className="flex gap-1 bg-dark-900/60 border border-dark-700 rounded-xl p-1">
           {[
             { id: 'usd', label: 'USD bazlı' },
@@ -321,10 +315,7 @@ export default function DCFDegerleme() {
               </div>
             )}
           </div>
-          <button onClick={() => calculate()} disabled={loading} className="btn-primary px-5 flex items-center gap-2">
-            {loading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Calculator className="w-4 h-4" />}
-            Hesapla
-          </button>
+          <Button variant="gold" icon={Calculator} loading={loading} onClick={() => calculate()}>Hesapla</Button>
         </div>
         <div className="flex flex-wrap gap-1.5 mt-3">
           {POPULAR.map(s => (

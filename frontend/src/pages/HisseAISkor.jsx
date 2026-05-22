@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { Search, Zap, Target, Shield, TrendingUp, TrendingDown, Activity, BarChart3, AlertCircle, Clock, Database, Info } from 'lucide-react'
+import { Button } from '../components/ui'
 
 import { getApiBase } from '../config'
 const API_BASE = getApiBase() + '/api'
@@ -359,18 +360,12 @@ export default function HisseAISkor() {
 
   return (
     <div className="space-y-6 p-6">
-      {/* Header */}
-      <div className="text-center max-w-3xl mx-auto">
-        <div className="inline-flex items-center space-x-2 bg-green-500/20 text-green-500 px-4 py-2 rounded-full text-sm font-medium mb-4">
-          <Zap className="w-4 h-4" />
-        <span>AI Engine Aktif - Gerçek Veri</span>
+      {/* AI status badge */}
+      <div className="flex justify-center">
+        <div className="inline-flex items-center gap-2 bg-green-500/20 text-green-400 px-3 py-1.5 rounded-full text-xs font-semibold border border-green-500/30">
+          <Zap className="w-3.5 h-3.5" />
+          <span>AI Engine Aktif · Gerçek Veri</span>
         </div>
-
-        <h1 className="text-3xl font-bold text-white mb-2">Hisse AI Skor Analizi</h1>
-        <p className="text-gray-400">
-          Yapay zeka destekli kapsamlı hisse analizi. Skor kartları ve açıklamalar ilk kez bakan
-          kullanıcı için daha sade hale getirildi.
-        </p>
       </div>
 
       {/* Varlık Tipi Toggle */}

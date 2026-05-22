@@ -205,8 +205,6 @@ export default function Ayarlar() {
 
   return (
     <div className="mx-auto max-w-3xl space-y-5">
-      <h1 className="text-2xl font-bold text-white">Ayarlar</h1>
-
       <SectionCard
         icon={<Type className="h-5 w-5 text-gold-400" />}
         title="Yazı Boyutu"

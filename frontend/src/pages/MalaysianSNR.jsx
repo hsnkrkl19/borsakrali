@@ -5,7 +5,7 @@ import { createChart, LineStyle } from 'lightweight-charts'
 import api from '../services/api'
 import InfoTooltip from '../components/InfoTooltip'
 import { fetchCommodityHistory } from '../utils/commodityHistory'
-import { Button } from '../components/ui'
+import { PageHeader, Button } from '../components/ui'
 
 // ─── lightweight-charts SNR Grafiği ──────────────────────────────────────────
 const CHART_TIMEFRAMES = [
@@ -430,19 +430,17 @@ export default function MalaysianSNR() {
 
   return (
     <div className="space-y-5 max-w-4xl mx-auto">
-      {/* ── Header ─────────────────────────────────────────────────────────── */}
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <div>
+      <PageHeader
+        icon={Shield}
+        title="Malaysian SNR"
+        description="Body-Bazlı Destek/Direnç — Engulfing Teyitli Sinyal Sistemi"
+        actions={
           <div className="flex items-center gap-2">
-            <h1 className="text-2xl font-bold text-white">Malaysian SNR</h1>
             <InfoTooltip size="lg" {...TIPS.methodology} />
+            <Button variant="ghost" size="sm" icon={BarChart2} onClick={() => { setTab('scanner'); loadScanner() }}>BIST Tarayıcı</Button>
           </div>
-          <p className="text-xs text-gray-500 mt-0.5">Body-Bazlı Destek/Direnç — Engulfing Teyitli Sinyal Sistemi</p>
-        </div>
-        <Button variant="ghost" size="sm" icon={BarChart2} onClick={() => { setTab('scanner'); loadScanner() }}>
-          BIST Tarayıcı
-        </Button>
-      </div>
+        }
+      />
 
       {/* ── Varlık Tipi Seçimi ──────────────────────────────────────────────── */}
       <div className="flex gap-2 flex-wrap">

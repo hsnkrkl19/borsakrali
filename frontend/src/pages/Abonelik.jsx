@@ -4,6 +4,7 @@ import { Crown, Check, Zap, Star, Infinity, Sparkles, ArrowRight, AlertCircle } 
 import { useAuthStore } from '../store/authStore'
 import { useUsageStore } from '../store/usageStore'
 import api from '../services/api'
+import { PageHeader, Card } from '../components/ui'
 
 const PLAN_ICONS = {
   free: Zap,
@@ -59,22 +60,21 @@ export default function Abonelik() {
 
   // TEST AŞAMASI — abonelik sistemi henüz aktif değil
   return (
-    <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-6 px-4">
-      <div className="w-20 h-20 rounded-full bg-gold-500/10 border border-gold-500/30 flex items-center justify-center">
-        <Crown className="w-10 h-10 text-gold-400" />
-      </div>
-      <div className="text-center space-y-2">
-        <h1 className="text-2xl font-bold text-white">Abonelik Sistemi</h1>
-        <p className="text-gold-400 font-medium">Yakında Aktif Olacak</p>
-        <p className="text-gray-400 text-sm max-w-md">
-          Abonelik işlemleri şu an test aşamasındadır. Platform ücretsiz olarak kullanılmaya devam etmektedir.
-          Abonelik sistemi yakında devreye girecektir.
+    <div className="space-y-6 max-w-2xl mx-auto">
+      <PageHeader
+        icon={Crown}
+        eyebrow="Yakında Aktif"
+        title="Abonelik Sistemi"
+        description="Abonelik işlemleri şu an test aşamasındadır. Platform ücretsiz olarak kullanılmaya devam etmektedir."
+      />
+      <Card tone="gold" accent padding="md" className="text-center">
+        <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
+          Tüm özellikler <span className="text-green-400 font-semibold">ücretsiz</span> olarak aktif
         </p>
-      </div>
-      <div className="bg-surface-100 border border-gold-500/20 rounded-xl p-4 max-w-sm w-full text-center">
-        <p className="text-sm text-gray-400">Tüm özellikler <span className="text-green-400 font-semibold">ücretsiz</span> olarak aktif</p>
-        <p className="text-xs text-gray-500 mt-1">Abonelik sistemi devreye girdiğinde bildirim alacaksınız</p>
-      </div>
+        <p className="text-xs mt-1" style={{ color: 'var(--text-faint)' }}>
+          Abonelik sistemi devreye girdiğinde bildirim alacaksınız
+        </p>
+      </Card>
     </div>
   )
 

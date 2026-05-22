@@ -7,6 +7,7 @@ import {
   Brain, Target, Award, Flame, Clock, Calendar, CalendarDays, Timer, Info
 } from 'lucide-react'
 import { getApiBase } from '../config'
+import { Button } from '../components/ui'
 
 const API_BASE = getApiBase() + '/api'
 
@@ -108,22 +109,12 @@ export default function StratejiKombolari() {
       <div className="rounded-2xl border border-amber-500/20 bg-gradient-to-br from-amber-500/[0.08] via-dark-900/60 to-dark-900/30 p-4 sm:p-5">
         <div className="flex items-start justify-between gap-3 flex-wrap">
           <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center shadow-lg shadow-amber-500/30">
-              <Brain className="w-6 h-6 text-dark-950" />
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center shadow-lg shadow-amber-500/30">
+              <Brain className="w-5 h-5 text-dark-950" />
             </div>
-            <div className="min-w-0">
-              <h1 className="text-xl sm:text-2xl font-bold text-white tracking-tight">Strateji Komboları</h1>
-              <p className="text-xs sm:text-sm text-gray-400">TradingView tarzı çoklu indikatör birleşimleri — özgün isimlerle</p>
-            </div>
+            <p className="text-xs sm:text-sm text-gray-400">TradingView tarzı çoklu indikatör birleşimleri — özgün isimlerle</p>
           </div>
-          <button
-            onClick={() => load()}
-            disabled={refreshing}
-            className="px-3 py-2 rounded-xl text-sm font-semibold border border-amber-500/30 bg-amber-500/10 text-amber-300 hover:bg-amber-500/20 transition flex items-center gap-2 disabled:opacity-60"
-          >
-            <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
-            Yenile
-          </button>
+          <Button variant="ghost" size="sm" icon={RefreshCw} loading={refreshing} onClick={() => load()}>Yenile</Button>
         </div>
 
         {/* Aktif zaman dilimi — büyük ve net etiket. Hangi mum periyodunda çalıştığı kullanıcı için kritik. */}

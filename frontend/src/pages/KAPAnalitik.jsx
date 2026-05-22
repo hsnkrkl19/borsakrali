@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { FileText, TrendingUp, TrendingDown, Minus, AlertTriangle, RefreshCw, Filter } from 'lucide-react'
+import { Button } from '../components/ui'
 
 export default function KAPAnalitik() {
   const [activeTab, setActiveTab] = useState('haberler')
@@ -84,19 +85,8 @@ export default function KAPAnalitik() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-white">KAP Analitik</h1>
-          <p className="text-gray-400 mt-1">AI destekli KAP bildirim analizi</p>
-        </div>
-        <button
-          onClick={fetchData}
-          disabled={loading}
-          className="btn-secondary flex items-center gap-2"
-        >
-          <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-          Yenile
-        </button>
+      <div className="flex justify-end">
+        <Button variant="ghost" size="sm" icon={RefreshCw} loading={loading} onClick={fetchData}>Yenile</Button>
       </div>
 
       {/* Tabs */}

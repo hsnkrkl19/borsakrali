@@ -3,6 +3,7 @@ import { useSearchParams, useNavigate } from 'react-router-dom'
 import { TrendingUp, TrendingDown, RefreshCw, Search, Activity, ArrowUp, ArrowDown, BarChart3, ExternalLink } from 'lucide-react'
 import api from '../services/api'
 import InfoTooltip from '../components/InfoTooltip'
+import { Button } from '../components/ui'
 
 // TradingView eksternal link — BIST + kripto
 function tvLink(symbol, isCrypto) {
@@ -88,18 +89,12 @@ export default function TEMA34Tarayici() {
   return (
     <div className="space-y-6">
       {/* Başlık */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-white flex items-center gap-2">
-            TEMA34 Takip
-            <InfoTooltip size="lg" {...TEMA34_TIP} />
-          </h1>
-          <p className="text-gray-400 text-sm mt-1">Günlük kapanışa göre TEMA34 (Triple EMA) üstü/altı tarayıcı ve al-devam sinyali</p>
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <div className="flex items-center gap-2 min-w-0">
+          <InfoTooltip size="lg" {...TEMA34_TIP} />
+          <p className="text-gray-400 text-sm truncate">Günlük kapanışa göre TEMA34 üstü/altı tarayıcı ve al-devam sinyali</p>
         </div>
-        <button onClick={() => runScan(listParam)} disabled={loading} className="btn-secondary flex items-center gap-2">
-          <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-          Yenile
-        </button>
+        <Button variant="ghost" size="sm" icon={RefreshCw} loading={loading} onClick={() => runScan(listParam)}>Yenile</Button>
       </div>
 
       {/* Liste seçici + Filtre */}
@@ -163,10 +158,9 @@ export default function TEMA34Tarayici() {
             placeholder="Sembol: THYAO, GARAN..."
             className="flex-1 bg-dark-800 border border-dark-600 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-primary-500"
           />
-          <button onClick={() => trackStock()} disabled={trackLoading} className="btn-primary flex items-center gap-2">
-            <Search className="w-4 h-4" />
+          <Button variant="gold" icon={TrendingUp} loading={trackLoading} onClick={() => trackStock()}>
             Takip Et
-          </button>
+          </Button>
         </div>
 
         {trackLoading && (

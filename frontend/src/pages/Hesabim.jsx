@@ -5,6 +5,7 @@ import TakipListem from './TakipListem'
 import Notlarim from './Notlarim'
 import Abonelik from './Abonelik'
 import HelpBubble from '../components/HelpBubble'
+import { PageHeader } from '../components/ui'
 
 const HELP_TEXTS = {
   ayarlar:  'Bildirim, tema, dil ayarlarını buradan yaparsın.',
@@ -41,10 +42,11 @@ export default function Hesabim() {
 
   return (
     <div className="space-y-3">
-      <h1 className="text-xl sm:text-2xl font-bold tracking-tight flex items-center" style={{ color: 'var(--text-primary)' }}>
-        Hesabım
-        <HelpBubble text={HELP_TEXTS[active] || 'Hesabınla ilgili her şey burada.'} />
-      </h1>
+      <PageHeader
+        icon={Settings}
+        title="Hesabım"
+        actions={<HelpBubble text={HELP_TEXTS[active] || 'Hesabınla ilgili her şey burada.'} />}
+      />
       <div className="flex flex-wrap gap-1.5">
         {SECTIONS.map((s) => {
           const Icon = s.icon

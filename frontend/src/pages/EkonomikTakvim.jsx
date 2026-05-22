@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { RefreshCw, AlertCircle, Calendar, ExternalLink, Brain, TrendingUp, TrendingDown, Minus, ChevronDown, ChevronUp } from 'lucide-react'
 import api from '../services/api'
 import GuestCTA from '../components/GuestCTA'
+import { PageHeader, Button } from '../components/ui'
 
 const IMPORTANCE_CONFIG = {
   high:   { label: 'Yüksek', color: 'text-red-400',    dot: 'bg-red-400',    bg: 'bg-red-500/10 border-red-500/20' },
@@ -101,26 +102,14 @@ export default function EkonomikTakvim() {
     <div className="space-y-5 max-w-3xl mx-auto">
       <GuestCTA />
 
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-white flex items-center gap-2">
-            <Calendar className="w-6 h-6 text-gold-400" />
-            Ekonomik Takvim
-          </h1>
-          <p className="text-xs text-gray-500 mt-0.5">
-            {MONTH_NAMES_TR[month]} {year} — Türkiye ve ABD önemli veri açıklamaları
-          </p>
-        </div>
-        <button
-          onClick={() => fetchCalendar(year, month, true)}
-          disabled={loading}
-          className="btn-secondary flex items-center gap-2 text-sm"
-        >
-          <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-          Yenile
-        </button>
-      </div>
+      <PageHeader
+        icon={Calendar}
+        title="Ekonomik Takvim"
+        description={`${MONTH_NAMES_TR[month]} ${year} — Türkiye ve ABD önemli veri açıklamaları`}
+        actions={
+          <Button variant="ghost" size="sm" icon={RefreshCw} loading={loading} onClick={() => fetchCalendar(year, month, true)}>Yenile</Button>
+        }
+      />
 
       {/* Ay Navigasyonu */}
       <div className="flex items-center gap-2">

@@ -5,6 +5,7 @@ import {
   X, History, Hash, CalendarClock, Layers,
 } from 'lucide-react'
 import api from '../services/api'
+import { PageHeader, Button } from '../components/ui'
 
 const TABS = [
   { id: 'stocks', label: 'Hisse', icon: Activity },
@@ -201,19 +202,11 @@ export default function GunSonuPerformans() {
 
   return (
     <div className="space-y-4">
-      {/* HEADER */}
-      <div className="rounded-2xl border border-amber-500/20 bg-gradient-to-br from-amber-500/[0.06] via-dark-900/60 to-dark-900/30 p-4 sm:p-5">
-        <div className="flex items-center justify-between flex-wrap gap-3">
-          <div className="flex items-center gap-3">
-            <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center shadow-lg shadow-amber-500/30">
-              <BarChart3 className="w-5 h-5 text-dark-950" />
-            </div>
-            <div className="min-w-0">
-              <h1 className="text-xl sm:text-2xl font-bold text-white tracking-tight">Gün Sonu Performans</h1>
-              <p className="text-xs sm:text-sm text-gray-400">O gün üretilen sinyallerin gün sonu sonuçları — hedef, stop, kapanış</p>
-            </div>
-          </div>
-
+      <PageHeader
+        icon={BarChart3}
+        title="Gün Sonu Performans"
+        description="O gün üretilen sinyallerin gün sonu sonuçları — hedef, stop, kapanış"
+        actions={
           <div className="flex items-center gap-2">
             <select
               value={date}
@@ -223,18 +216,10 @@ export default function GunSonuPerformans() {
               {dates.length === 0 && <option value="">Tarih yok</option>}
               {dates.map(d => <option key={d} value={d}>{d}</option>)}
             </select>
-            <button
-              onClick={refresh}
-              disabled={loading || !date}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-300 text-sm font-medium hover:bg-amber-500/20 disabled:opacity-50 disabled:cursor-not-allowed"
-              title="Tekrar hesapla"
-            >
-              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-              Yenile
-            </button>
+            <Button variant="ghost" size="sm" icon={RefreshCw} loading={loading} disabled={!date} onClick={refresh}>Yenile</Button>
           </div>
-        </div>
-      </div>
+        }
+      />
 
       {/* TAB */}
       <div className="bg-dark-900/60 border border-dark-700 rounded-2xl p-1.5">

@@ -6,6 +6,7 @@ import {
 } from 'lucide-react'
 import api from '../services/api'
 import { showError, showSuccess } from '../utils/toast'
+import { Button } from '../components/ui'
 
 const fmt    = (n, d = 2) => n == null || isNaN(n) ? '—' : n.toLocaleString('tr-TR', { minimumFractionDigits: d, maximumFractionDigits: d })
 const fmtTL  = (n) => n == null ? '—' : `${fmt(n)} ₺`
@@ -181,35 +182,9 @@ export default function TakipListem() {
 
   return (
     <div className="space-y-4">
-      {/* Header */}
-      <div className="rounded-2xl border border-amber-500/20 bg-gradient-to-br from-amber-500/[0.06] via-dark-900/60 to-dark-900/30 p-4 sm:p-5">
-        <div className="flex items-center justify-between gap-3 flex-wrap">
-          <div className="flex items-center gap-3 min-w-0">
-            <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center shadow-lg shadow-amber-500/30 flex-shrink-0">
-              <Briefcase className="w-5 h-5 text-dark-950" />
-            </div>
-            <div className="min-w-0">
-              <h1 className="text-xl sm:text-2xl font-bold text-white tracking-tight">Portföyüm</h1>
-              <p className="text-xs sm:text-sm text-gray-400">Lot bazlı takip · canlı kar/zarar · 60sn auto-refresh</p>
-            </div>
-          </div>
-          <div className="flex gap-2">
-            <button
-              onClick={() => setRefreshTick(t => t + 1)}
-              className="p-2 bg-dark-800 hover:bg-dark-700 rounded-xl text-gray-300"
-              title="Yenile"
-            >
-              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-            </button>
-            <button
-              onClick={() => { resetForm(); setShowAdd(true) }}
-              className="flex items-center gap-2 px-3 py-2 bg-amber-500 hover:bg-amber-600 text-dark-950 font-bold rounded-xl text-sm shadow-lg shadow-amber-500/25"
-            >
-              <Plus className="w-4 h-4" />
-              <span className="hidden sm:inline">İşlem Ekle</span>
-            </button>
-          </div>
-        </div>
+      <div className="flex items-center justify-end gap-2">
+        <Button variant="ghost" size="sm" icon={RefreshCw} loading={loading} aria-label="Yenile" onClick={() => setRefreshTick(t => t + 1)} />
+        <Button variant="gold" size="sm" icon={Plus} onClick={() => { resetForm(); setShowAdd(true) }}>İşlem Ekle</Button>
       </div>
 
       {/* Toplam Özet */}

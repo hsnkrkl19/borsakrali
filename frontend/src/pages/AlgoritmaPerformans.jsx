@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Trophy, TrendingUp, Target, BarChart3, RefreshCw, Award, Users, Clock, Zap } from 'lucide-react'
 import InfoTooltip from '../components/InfoTooltip'
+import { Button } from '../components/ui'
 
 import { getApiBase } from '../config'
 const API_BASE = getApiBase() + '/api'
@@ -85,10 +86,6 @@ export default function AlgoritmaPerformans() {
   if (loading) {
     return (
       <div className="space-y-6">
-        <div>
-          <h1 className="text-2xl font-bold text-white">Algoritma Performans</h1>
-          <p className="text-gray-400 text-sm mt-1">Teknik analiz taramalarının performans takibi</p>
-        </div>
         <div className="flex items-center justify-center py-20">
           <RefreshCw className="w-8 h-8 text-primary-500 animate-spin" />
         </div>
@@ -119,19 +116,12 @@ export default function AlgoritmaPerformans() {
         </div>
       </div>
 
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-white flex items-center gap-2">Algoritma Performans <InfoTooltip size="lg" title="Algoritma Performans Takibi" description="Teknik analiz stratejilerinin geçmiş sinyal başarı oranlarını ve ortalama getirilerini gösterir. Her strateji gerçek fiyat hareketleriyle kıyaslanarak değerlendirilir." formula="Başarı Oranı = Pozitif Kapanan / Toplam Sinyal × 100\nOrtalama Getiri = Σ(Sinyal Getirisi) / Sinyal Sayısı\n\nDeğerlendirme: >60% başarı + >%2 ort. getiri = Güçlü strateji" source="Borsa Kralı — Backtest Motoru" /></h1>
-          <p className="text-gray-400 text-sm mt-1">Teknik analiz taramalarının performans takibi</p>
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <div className="flex items-center gap-2 min-w-0">
+          <InfoTooltip size="lg" title="Algoritma Performans Takibi" description="Teknik analiz stratejilerinin geçmiş sinyal başarı oranlarını ve ortalama getirilerini gösterir. Her strateji gerçek fiyat hareketleriyle kıyaslanarak değerlendirilir." formula="Başarı Oranı = Pozitif Kapanan / Toplam Sinyal × 100\nOrtalama Getiri = Σ(Sinyal Getirisi) / Sinyal Sayısı\n\nDeğerlendirme: >60% başarı + >%2 ort. getiri = Güçlü strateji" source="Borsa Kralı — Backtest Motoru" />
+          <p className="text-gray-400 text-sm truncate">Teknik analiz taramalarının performans takibi</p>
         </div>
-        <button
-          onClick={fetchPerformanceData}
-          disabled={loading}
-          className="btn-secondary flex items-center gap-2"
-        >
-          <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-          Yenile
-        </button>
+        <Button variant="ghost" size="sm" icon={RefreshCw} loading={loading} onClick={fetchPerformanceData}>Yenile</Button>
       </div>
 
       {/* Tabs */}

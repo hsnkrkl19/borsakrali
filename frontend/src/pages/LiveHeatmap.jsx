@@ -117,9 +117,9 @@ export default function LiveHeatmap() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 gap-2">
         <div>
-          <h1 className="text-xl sm:text-3xl font-bold bg-gradient-to-r from-gold-400 to-gold-600 bg-clip-text text-transparent">
+          <div className="text-xl sm:text-3xl font-bold bg-gradient-to-r from-gold-400 to-gold-600 bg-clip-text text-transparent">
             BIST 30 {marketStatus} Heatmap
-          </h1>
+          </div>
           <p className="text-gray-400 text-xs sm:text-sm mt-0.5">
             Tıklayın → teknik analiz görün
           </p>

@@ -4,6 +4,7 @@ import {
   Bell, Search, X, Check, CheckCheck, Trash2, RotateCcw, Filter, Settings as SettingsIcon,
   Megaphone, ExternalLink, Inbox, AlertCircle,
 } from 'lucide-react'
+import { PageHeader, Button } from '../components/ui'
 import apiClient from '../services/api'
 import {
   useAnnouncementsStore,
@@ -312,59 +313,32 @@ export default function Bildirimler() {
 
   return (
     <div className="max-w-4xl mx-auto px-4 lg:px-6 py-6">
-      {/* ─── Başlık şeridi ─── */}
-      <div className="mb-6">
-        <div className="flex items-center justify-between gap-3 flex-wrap mb-2">
-          <div className="flex items-center gap-3">
-            <div
-              className="w-11 h-11 rounded-xl flex items-center justify-center"
-              style={{
-                background: 'linear-gradient(135deg, rgba(212, 175, 55, 0.18), rgba(212, 175, 55, 0.06))',
-                border: '1px solid var(--border-gold)',
-              }}
-            >
-              <Bell className="w-5 h-5" style={{ color: 'var(--gold-400)' }} />
-            </div>
-            <div>
-              <h1 className="text-[20px] lg:text-[24px] font-bold" style={{ color: 'var(--text-primary)' }}>
-                Bildirim Merkezi
-              </h1>
-              <p className="text-[12px]" style={{ color: 'var(--text-faint)' }}>
-                Tüm duyurular, sinyal uyarıları ve piyasa bildirimleri burada toplanır.
-              </p>
-            </div>
-          </div>
+      <PageHeader
+        icon={Bell}
+        title="Bildirim Merkezi"
+        description="Tüm duyurular, sinyal uyarıları ve piyasa bildirimleri burada toplanır."
+        actions={
           <div className="flex items-center gap-2">
-            <button
-              type="button"
+            <Button
+              variant={showPrefs ? 'gold' : 'ghost'}
+              size="sm"
+              icon={SettingsIcon}
               onClick={() => setShowPrefs((v) => !v)}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-[12px] font-semibold transition-colors"
-              style={{
-                background: showPrefs ? 'rgba(212, 175, 55, 0.15)' : 'var(--bg-card)',
-                color: showPrefs ? 'var(--gold-400)' : 'var(--text-muted)',
-                border: `1px solid ${showPrefs ? 'var(--border-gold)' : 'var(--border-main)'}`,
-              }}
             >
-              <SettingsIcon className="w-3.5 h-3.5" />
               Tercihler
-            </button>
-            <button
-              type="button"
-              onClick={markAllRead}
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              icon={CheckCheck}
               disabled={totalUnread === 0}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-[12px] font-semibold transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-              style={{
-                background: 'rgba(212, 175, 55, 0.10)',
-                color: 'var(--gold-400)',
-                border: '1px solid var(--border-gold)',
-              }}
+              onClick={markAllRead}
             >
-              <CheckCheck className="w-3.5 h-3.5" />
-              Tümünü Okundu Say {totalUnread > 0 && `(${totalUnread})`}
-            </button>
+              Tümünü Okundu Say{totalUnread > 0 && ` (${totalUnread})`}
+            </Button>
           </div>
-        </div>
-      </div>
+        }
+      />
 
       {/* ─── Tercihler paneli ─── */}
       {showPrefs && (

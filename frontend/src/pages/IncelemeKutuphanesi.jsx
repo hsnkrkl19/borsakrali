@@ -617,14 +617,6 @@ export default function IncelemeKutuphanesi() {
 
   return (
     <div className="space-y-4 md:space-y-6">
-      {/* Header */}
-      <div>
-        <h1 className="text-xl md:text-2xl font-bold text-white flex items-center gap-2">
-          <BookOpen className="w-6 h-6 md:w-7 md:h-7 text-primary-500" />
-          İnceleme Kütüphanesi
-        </h1>
-        <p className="text-gray-400 text-sm mt-1">Teknik ve temel analiz göstergeleri hakkında detaylı bilgi</p>
-      </div>
 
       {/* Search */}
       <div className="relative">

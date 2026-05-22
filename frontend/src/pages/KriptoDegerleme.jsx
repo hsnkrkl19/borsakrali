@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { Calculator, RefreshCw, AlertCircle, Info, TrendingDown, TrendingUp, Activity, Coins, Layers } from 'lucide-react'
 import api from '../services/api'
+import { PageHeader, Button } from '../components/ui'
 
 const POPULAR = ['BTC', 'ETH', 'BNB', 'SOL', 'XRP', 'ADA', 'AVAX', 'LINK', 'DOT', 'MATIC']
 
@@ -197,16 +198,12 @@ export default function KriptoDegerleme() {
 
   return (
     <div className="space-y-4 max-w-5xl mx-auto">
-      {/* Header */}
-      <div className="flex items-start justify-between flex-wrap gap-3">
-        <div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-xl sm:text-2xl font-bold text-white">Kripto Değerleme</h1>
-            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-500/30 text-amber-200 border border-amber-500/40">YENİ</span>
-          </div>
-          <p className="text-xs text-gray-500 mt-0.5">5 modelin (drawdown · MA reversion · Stock-to-Flow · NVT · volatility band) composite analizi</p>
-        </div>
-      </div>
+      <PageHeader
+        icon={Coins}
+        eyebrow="YENİ"
+        title="Kripto Değerleme"
+        description="5 modelin (drawdown · MA reversion · Stock-to-Flow · NVT · volatility band) composite analizi"
+      />
 
       {/* Search */}
       <div className="card p-4">
@@ -218,10 +215,7 @@ export default function KriptoDegerleme() {
             onChange={e => setInputVal(e.target.value.toUpperCase())}
             onKeyDown={e => e.key === 'Enter' && calculate()}
           />
-          <button onClick={() => calculate()} disabled={loading} className="btn-primary px-5 flex items-center gap-2">
-            {loading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Calculator className="w-4 h-4" />}
-            Hesapla
-          </button>
+          <Button variant="gold" icon={Calculator} loading={loading} onClick={() => calculate()}>Hesapla</Button>
         </div>
         <div className="flex flex-wrap gap-1.5 mt-3">
           {POPULAR.map(s => (

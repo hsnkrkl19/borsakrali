@@ -4,6 +4,7 @@ import {
   Trophy, Flame, BarChart3, ArrowUpDown,
 } from 'lucide-react'
 import api from '../services/api'
+import { PageHeader, Button } from '../components/ui'
 
 const TR_LOCALE = 'tr-TR'
 
@@ -243,36 +244,24 @@ export default function Kripto() {
 
   return (
     <div className="space-y-4">
-      {/* Header */}
-      <div className="rounded-2xl border border-amber-500/20 bg-gradient-to-br from-amber-500/[0.06] via-dark-900/60 to-dark-900/30 p-4 sm:p-5">
-        <div className="flex items-center justify-between gap-3 flex-wrap">
-          <div className="flex items-center gap-3">
-            <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center shadow-lg shadow-amber-500/30">
-              <Coins className="w-5 h-5 text-dark-950" />
-            </div>
-            <div>
-              <h1 className="text-xl sm:text-2xl font-bold text-white tracking-tight">Kripto Piyasası</h1>
-              <p className="text-xs sm:text-sm text-gray-400">
-                {source === 'coingecko' && 'CoinGecko'}
-                {source === 'coincap' && 'CoinCap'}
-                {source === 'binance' && 'Binance'}
-                {!source && 'CoinGecko/CoinCap/Binance'}
-                <span> · 5 dk auto-refresh</span>
-                {lastUpdate && <span className="ml-1 text-gray-500">· {new Date(lastUpdate).toLocaleTimeString('tr-TR')}</span>}
-                {stale && <span className="ml-2 text-amber-400">● önbellek</span>}
-              </p>
-            </div>
-          </div>
-          <button
-            onClick={() => setRefreshTick(t => t + 1)}
-            disabled={loading}
-            className="flex items-center gap-2 px-3 py-2 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-400 rounded-xl text-sm font-medium transition-colors"
-          >
-            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-            Yenile
-          </button>
-        </div>
-      </div>
+      <PageHeader
+        icon={Coins}
+        title="Kripto Piyasası"
+        description={
+          <>
+            {source === 'coingecko' && 'CoinGecko'}
+            {source === 'coincap' && 'CoinCap'}
+            {source === 'binance' && 'Binance'}
+            {!source && 'CoinGecko/CoinCap/Binance'}
+            <span> · 5 dk auto-refresh</span>
+            {lastUpdate && <span className="ml-1 opacity-60">· {new Date(lastUpdate).toLocaleTimeString('tr-TR')}</span>}
+            {stale && <span className="ml-2 text-amber-400">● önbellek</span>}
+          </>
+        }
+        actions={
+          <Button variant="ghost" size="sm" icon={RefreshCw} loading={loading} onClick={() => setRefreshTick(t => t + 1)}>Yenile</Button>
+        }
+      />
 
       {/* Global stats */}
       {global && (

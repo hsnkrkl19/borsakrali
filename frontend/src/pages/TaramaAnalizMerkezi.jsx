@@ -5,6 +5,7 @@ import {
   X, Activity, BarChart3, Award, Flame
 } from 'lucide-react'
 import axios from 'axios'
+import { Button } from '../components/ui'
 import {
   calculateEMA, calculateRSI, calculateMACD, calculateADX,
 } from '../services/technicalIndicators'
@@ -276,30 +277,13 @@ export default function TaramaAnalizMerkezi() {
 
   return (
     <div className="space-y-4 md:space-y-6">
-      {/* Header */}
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-xl md:text-2xl lg:text-3xl font-bold text-white flex items-center gap-3">
-            <Activity className="w-6 h-6 md:w-8 md:h-8 text-primary-500" />
-            Tarama Analiz Merkezi
-          </h1>
-          <p className="text-gray-400 text-xs md:text-sm mt-1">
-            Teknik analiz taramalarının performans istatistikleri. Sadece eğitim amaçlıdır.
-          </p>
-          <p className="text-gray-500 text-xs mt-1 flex items-center gap-2">
-            <Clock className="w-3 h-3" />
-            Son güncelleme: {lastUpdate?.toLocaleString('tr-TR')}
-          </p>
-        </div>
-
-        <button
-          onClick={handleRefresh}
-          disabled={refreshing}
-          className="flex items-center gap-2 bg-dark-800 border border-gold-500/30 text-gold-400 px-4 py-2 rounded-xl hover:bg-gold-500/10 transition-all disabled:opacity-50"
-        >
-          <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
-          Yenile
-        </button>
+      {/* Toolbar — başlık Tarayıcılar wrapper'ında */}
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <p className="text-xs text-gray-500 flex items-center gap-1.5">
+          <Clock className="w-3 h-3" />
+          Son güncelleme: {lastUpdate?.toLocaleString('tr-TR')}
+        </p>
+        <Button variant="ghost" size="sm" icon={RefreshCw} loading={refreshing} onClick={handleRefresh}>Yenile</Button>
       </div>
 
       {/* Ne Yapar? Açıklama — kapatılabilir, localStorage ile hatırlanır */}

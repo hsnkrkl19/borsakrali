@@ -1,5 +1,6 @@
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { ArrowLeft, CreditCard, Lock, ShieldCheck } from 'lucide-react'
+import { Button } from '../components/ui'
 
 export default function Odeme() {
   const navigate = useNavigate()
@@ -57,13 +58,7 @@ export default function Odeme() {
           </div>
         </div>
 
-        <button
-          onClick={() => navigate('/abonelik')}
-          className="btn-secondary w-full flex items-center justify-center gap-2 mt-6"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          Planlara Dön
-        </button>
+        <Button variant="ghost" icon={ArrowLeft} className="w-full mt-6" onClick={() => navigate('/abonelik')}>Planlara Dön</Button>
       </div>
     </div>
   )
