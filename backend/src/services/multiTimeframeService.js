@@ -32,8 +32,16 @@ const TOP_LIMIT = 10;
 const BATCH_SIZE = 5;
 const BATCH_PAUSE_MS = 250;
 
-const BINANCE_BASE = 'https://api.binance.com';
-const BINANCE_FAPI_BASE = 'https://fapi.binance.com';
+// Binance prod ortamında (Render ABD IP) HTTP 451 veriyor → Bybit v5 public
+// market data kullanılıyor (geo-engelsiz).
+const BYBIT_BASE = 'https://api.bybit.com';
+
+// TF interval kodu → Bybit v5 interval kodu
+const BYBIT_INTERVAL = {
+  '1m': '1', '3m': '3', '5m': '5', '15m': '15', '30m': '30',
+  '1h': '60', '2h': '120', '4h': '240', '6h': '360', '12h': '720',
+  '1d': 'D', '1w': 'W', '1M': 'M',
+};
 
 // TF → bir üst TF (macro context için)
 const HIGHER_TF_MAP = {
@@ -95,31 +103,31 @@ async function fetchKlines(symbol, interval, limit = 250) {
   const ttl = TF_CACHE_TTL[interval] || 10 * 60 * 1000;
   if (cached && now - cached.t < ttl) return cached.data;
 
-  // Önce SPOT, başarısız olursa USDT-M FUTURES (DEEP gibi futures-only coin'ler için)
-  const sources = [
-    `${BINANCE_BASE}/api/v3/klines`,
-    `${BINANCE_FAPI_BASE}/fapi/v1/klines`,
-  ];
+  const bi = BYBIT_INTERVAL[interval];
+  if (!bi) return null;
+  // Önce SPOT, başarısız/boş olursa LINEAR perpetual (futures-only coin'ler için)
   let symbolNotFound = false;
-  for (const url of sources) {
+  for (const category of ['spot', 'linear']) {
     try {
-      const res = await axios.get(url, {
-        params: { symbol: `${symbol}USDT`, interval, limit },
+      const res = await axios.get(`${BYBIT_BASE}/v5/market/kline`, {
+        params: { category, symbol: `${symbol}USDT`, interval: bi, limit: Math.min(limit, 1000) },
         timeout: 15000,
       });
-      const candles = (res.data || []).map(k => ({
-        time: Math.floor(k[0] / 1000),
-        open: +k[1], high: +k[2], low: +k[3], close: +k[4],
-        volume: +k[5],
-      }));
+      if (res.data?.retCode !== 0) { symbolNotFound = true; continue; }
+      // Bybit kline yeni→eski sıralı gelir → eski→yeni normalize
+      const candles = (res.data?.result?.list || [])
+        .map(k => ({
+          time: Math.floor(Number(k[0]) / 1000),
+          open: +k[1], high: +k[2], low: +k[3], close: +k[4],
+          volume: +k[5],
+        }))
+        .filter(c => Number.isFinite(c.close) && c.close > 0)
+        .sort((a, b) => a.time - b.time);
+      if (!candles.length) { symbolNotFound = true; continue; }
       klinesCache.set(cacheKey, { data: candles, t: now });
       return candles;
     } catch (e) {
-      if (e.response?.status === 400) {
-        symbolNotFound = true;
-        continue;
-      }
-      // Transient hata — fallback dene
+      // Transient hata — sonraki kategoriyi dene
     }
   }
   if (symbolNotFound) {

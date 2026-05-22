@@ -21,7 +21,8 @@ const axios = require('axios');
 const logger = require('../utils/logger');
 
 const DATA_DIR = path.join(__dirname, '..', 'data', 'paper-trading');
-const BINANCE_BASE = 'https://api.binance.com';
+// Binance prod ortamında (Render ABD IP) HTTP 451 veriyor → Bybit v5 public
+const BYBIT_BASE = 'https://api.bybit.com';
 
 const STARTING_BALANCE = 10000;  // $10,000 default başlangıç (USD)
 const PER_POSITION_USD = 1000;   // Her pozisyon $1,000 fixed (margin/spot ortak)
@@ -92,17 +93,17 @@ function save(userId) {
   }
 }
 
-// Binance current price (cache'li)
+// Bybit current price (cache'li)
 async function getCurrentPrice(symbol) {
   const now = Date.now();
   const cached = priceCache.get(symbol);
   if (cached && now - cached.t < PRICE_TTL_MS) return cached.p;
   try {
-    const r = await axios.get(`${BINANCE_BASE}/api/v3/ticker/price`, {
-      params: { symbol: `${symbol}USDT` },
+    const r = await axios.get(`${BYBIT_BASE}/v5/market/tickers`, {
+      params: { category: 'spot', symbol: `${symbol}USDT` },
       timeout: 8000,
     });
-    const p = parseFloat(r.data?.price);
+    const p = parseFloat(r.data?.result?.list?.[0]?.lastPrice);
     if (isFinite(p)) {
       priceCache.set(symbol, { p, t: now });
       return p;
