@@ -47,6 +47,7 @@ const financialsRouter = require('../routes/financials');
 const pushRoutes = require('./routes/push.routes');
 const adminRoutes = require('./routes/admin.routes');
 const tradingBotRoutes = require('./routes/tradingBot.routes');
+const tema34BotRoutes = require('./routes/tema34Bot.routes');
 const pushNotificationService = require('./services/pushNotificationService');
 const { allBistStocks, bist30Stocks, bist100Stocks, sectors } = require('./data/allBistStocks');
 
@@ -208,6 +209,7 @@ app.use('/api/financials', financialsRouter);
 app.use('/api/push', pushRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/trading-bot', tradingBotRoutes);
+app.use('/api/tema34-bot', tema34BotRoutes);
 
 // Tüm kullanicilara açik duyuru listesi (admin tarafindan gönderilen
 // broadcast bildirimlerinin geçmişi). Header bell + Duyurular paneli

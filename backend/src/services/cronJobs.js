@@ -15,6 +15,7 @@ const socketService = require('./socketService');
 const pushNotificationService = require('./pushNotificationService');
 const economicCalendarService = require('./economicCalendarService');
 const botEngine = require('./tradingBotV2/botEngine');
+const tema34Engine = require('./tema34Bot/tema34Engine');
 const logger = require('../utils/logger');
 
 // Türkiye saat dilimi — BIST takvimi
@@ -218,6 +219,34 @@ async function runBotTick() {
     return result;
   } catch (e) {
     logger.error(`[Bot] tick hata: ${e.message}`, e.stack);
+    return null;
+  }
+}
+
+// TEMA34 botu — BIST kapanışından sonra günlük tarama.
+// Tüm BIST'i tarar; günlük kapanışı TEMA34 üzerine çıkan hisseyi alır,
+// altına ineni satar. TR resmi tatil günlerinde sessiz (mum oluşmaz).
+async function runTema34Bot() {
+  try {
+    const dateKey = todayKeyTR();
+    if (TR_HOLIDAYS_2026.has(dateKey)) {
+      logger.info(`⏭️ TEMA34 bot: ${dateKey} resmi tatil — tarama atlandı`);
+      return null;
+    }
+    logger.info('⏰ TEMA34 bot günlük tarama başlatıldı');
+    const result = await tema34Engine.runDaily();
+    if (result?.skipped) {
+      logger.info(`🤖 TEMA34 bot — ${result.reason} (mum: ${result.candleDate})`);
+    } else if (result?.ok) {
+      logger.info(
+        `🤖 TEMA34 bot — taranan: ${result.scanned}, kesişim ↑${result.crossAbove}/↓${result.crossBelow}, alınan: ${result.opened}, satılan: ${result.closed}`
+      );
+    } else {
+      logger.error(`[TEMA34 bot] tarama başarısız: ${result?.error || 'bilinmeyen hata'}`);
+    }
+    return result;
+  } catch (e) {
+    logger.error(`[TEMA34 bot] hata: ${e.message}`, e.stack);
     return null;
   }
 }
@@ -590,6 +619,15 @@ class CronJobsService {
       { scheduled: false, ...TR_TZ }
     );
 
+    // 27. TEMA34 Bot — BIST kapanışından sonra günlük tarama. 18:30 TR, Pzt-Cuma.
+    //     Tüm BIST taranır: günlük kapanışı TEMA34 üzerine çıkan alınır, altına
+    //     inen satılır. Resmi tatil günlerinde fonksiyon kendi içinde atlatır.
+    const tema34BotJob = cron.schedule(
+      '30 18 * * 1-5',
+      () => runTema34Bot(),
+      { scheduled: false, ...TR_TZ }
+    );
+
     // Start jobs only during market hours (9 AM - 6 PM, Monday-Friday)
     const marketHoursJob = cron.schedule(
       '* 9-18 * * 1-5', // Mon-Fri, 9 AM - 6 PM
@@ -642,6 +680,7 @@ class CronJobsService {
       calendarWarningJob,
       confidenceUpdateJob,
       botTickJob,
+      tema34BotJob,
       marketHoursJob,
       afterHoursJob
     ];

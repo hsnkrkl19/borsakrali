@@ -1,185 +1,5 @@
 [
   {
-    "id": "528a28611008",
-    "createdAt": "2026-05-18T16:53:03.923Z",
-    "symbol": "GSDHO",
-    "name": "GSD Holding A.Ş.",
-    "strategy": "trend",
-    "status": "open",
-    "signalDate": "2026-05-17",
-    "signalPhase": "premarket",
-    "signalLogId": "5324cb7c1c85",
-    "direction": "long",
-    "originalEntry": 5.84,
-    "originalStop": 5.37,
-    "originalTarget": 6.62,
-    "triggerZone": null,
-    "entryDate": "2026-05-18T16:53:03.923Z",
-    "entryPrice": 5.8458,
-    "shares": 855.3149,
-    "positionSizeTL": 5000,
-    "commissionPaid": 10,
-    "currentStop": 5.37,
-    "currentTarget": 6.62,
-    "lastPrice": 5.8458,
-    "notes": [
-      {
-        "time": "2026-05-18T16:53:03.923Z",
-        "action": "signal",
-        "text": "TREND sinyali (skor 8). Giriş 5.84, SL 5.37, TP 6.62."
-      },
-      {
-        "time": "2026-05-18T16:53:03.923Z",
-        "action": "entry",
-        "text": "Market emirle 5.85 TL'den girildi (slip %0.10). 855.31 adet, komisyon 10.00 TL."
-      }
-    ]
-  },
-  {
-    "id": "0221d1cc6d35",
-    "createdAt": "2026-05-18T16:53:03.926Z",
-    "symbol": "ALGYO",
-    "name": "Alarko Gayrimenkul Yatırım Ortaklığı A.Ş.",
-    "strategy": "trend",
-    "status": "open",
-    "signalDate": "2026-05-17",
-    "signalPhase": "premarket",
-    "signalLogId": "d3fb02b8aed3",
-    "direction": "long",
-    "originalEntry": 8.15,
-    "originalStop": 7.39,
-    "originalTarget": 9.41,
-    "triggerZone": null,
-    "entryDate": "2026-05-18T16:53:03.925Z",
-    "entryPrice": 8.1581,
-    "shares": 582.1821,
-    "positionSizeTL": 4749.5,
-    "commissionPaid": 9.5,
-    "currentStop": 7.39,
-    "currentTarget": 9.41,
-    "lastPrice": 8.1581,
-    "notes": [
-      {
-        "time": "2026-05-18T16:53:03.925Z",
-        "action": "signal",
-        "text": "TREND sinyali (skor 7). Giriş 8.15, SL 7.39, TP 9.41."
-      },
-      {
-        "time": "2026-05-18T16:53:03.925Z",
-        "action": "entry",
-        "text": "Market emirle 8.16 TL'den girildi (slip %0.10). 582.18 adet, komisyon 9.50 TL."
-      }
-    ]
-  },
-  {
-    "id": "de61e6454715",
-    "createdAt": "2026-05-18T16:53:03.928Z",
-    "symbol": "HEKTS",
-    "name": "Hektaş Ticaret T.A.Ş.",
-    "strategy": "trend",
-    "status": "open",
-    "signalDate": "2026-05-17",
-    "signalPhase": "premarket",
-    "signalLogId": "2fb4173cc10d",
-    "direction": "long",
-    "originalEntry": 4.59,
-    "originalStop": 4.09,
-    "originalTarget": 5.42,
-    "triggerZone": null,
-    "entryDate": "2026-05-18T16:53:03.928Z",
-    "entryPrice": 4.5946,
-    "shares": 981.9244,
-    "positionSizeTL": 4511.55,
-    "commissionPaid": 9.02,
-    "currentStop": 4.09,
-    "currentTarget": 5.42,
-    "lastPrice": 4.5946,
-    "notes": [
-      {
-        "time": "2026-05-18T16:53:03.928Z",
-        "action": "signal",
-        "text": "TREND sinyali (skor 6). Giriş 4.59, SL 4.09, TP 5.42."
-      },
-      {
-        "time": "2026-05-18T16:53:03.928Z",
-        "action": "entry",
-        "text": "Market emirle 4.59 TL'den girildi (slip %0.10). 981.92 adet, komisyon 9.02 TL."
-      }
-    ]
-  },
-  {
-    "id": "f5f0907d550a",
-    "createdAt": "2026-05-18T16:53:03.930Z",
-    "symbol": "NETAS",
-    "name": "Netaş Telekomünikasyon A.Ş.",
-    "strategy": "trend",
-    "status": "open",
-    "signalDate": "2026-05-17",
-    "signalPhase": "premarket",
-    "signalLogId": "7d47499e04d9",
-    "direction": "long",
-    "originalEntry": 69.2,
-    "originalStop": 64.12,
-    "originalTarget": 77.66,
-    "triggerZone": null,
-    "entryDate": "2026-05-18T16:53:03.930Z",
-    "entryPrice": 69.2692,
-    "shares": 61.8676,
-    "positionSizeTL": 4285.52,
-    "commissionPaid": 8.57,
-    "currentStop": 64.12,
-    "currentTarget": 77.66,
-    "lastPrice": 69.2692,
-    "notes": [
-      {
-        "time": "2026-05-18T16:53:03.930Z",
-        "action": "signal",
-        "text": "TREND sinyali (skor 6). Giriş 69.20, SL 64.12, TP 77.66."
-      },
-      {
-        "time": "2026-05-18T16:53:03.930Z",
-        "action": "entry",
-        "text": "Market emirle 69.27 TL'den girildi (slip %0.10). 61.87 adet, komisyon 8.57 TL."
-      }
-    ]
-  },
-  {
-    "id": "fc3021ce17eb",
-    "createdAt": "2026-05-18T16:53:03.934Z",
-    "symbol": "SKBNK",
-    "name": "Şekerbank T.A.Ş.",
-    "strategy": "trend",
-    "status": "open",
-    "signalDate": "2026-05-17",
-    "signalPhase": "premarket",
-    "signalLogId": "5bb302b065b7",
-    "direction": "long",
-    "originalEntry": 14.73,
-    "originalStop": 13.87,
-    "originalTarget": 16.17,
-    "triggerZone": null,
-    "entryDate": "2026-05-18T16:53:03.934Z",
-    "entryPrice": 14.7447,
-    "shares": 276.0868,
-    "positionSizeTL": 4070.82,
-    "commissionPaid": 8.14,
-    "currentStop": 13.87,
-    "currentTarget": 16.17,
-    "lastPrice": 14.7447,
-    "notes": [
-      {
-        "time": "2026-05-18T16:53:03.934Z",
-        "action": "signal",
-        "text": "TREND sinyali (skor 6). Giriş 14.73, SL 13.87, TP 16.17."
-      },
-      {
-        "time": "2026-05-18T16:53:03.934Z",
-        "action": "entry",
-        "text": "Market emirle 14.74 TL'den girildi (slip %0.10). 276.09 adet, komisyon 8.14 TL."
-      }
-    ]
-  },
-  {
     "id": "d3cdf74cd6b5",
     "createdAt": "2026-05-18T16:53:03.937Z",
     "symbol": "TATGD",
@@ -201,7 +21,7 @@
     "commissionPaid": 7.73,
     "currentStop": 19.9,
     "currentTarget": 25.44,
-    "lastPrice": 22.002,
+    "lastPrice": 20.34,
     "notes": [
       {
         "time": "2026-05-18T16:53:03.937Z",
@@ -213,7 +33,8 @@
         "action": "entry",
         "text": "Market emirle 22.00 TL'den girildi (slip %0.10). 175.75 adet, komisyon 7.73 TL."
       }
-    ]
+    ],
+    "updatedAt": "2026-05-22T10:35:00.701Z"
   },
   {
     "id": "6d0d9b76e3d3",
@@ -237,7 +58,7 @@
     "commissionPaid": 7.35,
     "currentStop": 95.47,
     "currentTarget": 120.62,
-    "lastPrice": 105.0049,
+    "lastPrice": 111.2,
     "notes": [
       {
         "time": "2026-05-18T16:53:03.940Z",
@@ -249,7 +70,8 @@
         "action": "entry",
         "text": "Market emirle 105.00 TL'den girildi (slip %0.10). 34.98 adet, komisyon 7.35 TL."
       }
-    ]
+    ],
+    "updatedAt": "2026-05-22T10:35:00.989Z"
   },
   {
     "id": "89335133814f",
@@ -257,7 +79,7 @@
     "symbol": "AEFES",
     "name": "Anadolu Efes Biracılık ve Malt Sanayii A.Ş.",
     "strategy": "reversion",
-    "status": "pending",
+    "status": "open",
     "signalDate": "2026-05-17",
     "signalPhase": "premarket",
     "signalLogId": "5264cf9ad0b7",
@@ -280,40 +102,22 @@
         "time": "2026-05-18T16:53:03.942Z",
         "action": "pending",
         "text": "Pending: AEFES 18.90 TL zone'a değişi bekleniyor."
-      }
-    ]
-  },
-  {
-    "id": "f654dfdb8331",
-    "createdAt": "2026-05-18T16:53:03.946Z",
-    "symbol": "TSKB",
-    "name": "Türkiye Sınai Kalkınma Bankası A.Ş.",
-    "strategy": "reversion",
-    "status": "pending",
-    "signalDate": "2026-05-17",
-    "signalPhase": "premarket",
-    "signalLogId": "290b1d10fd13",
-    "direction": "long",
-    "originalEntry": 12.34,
-    "originalStop": 11.46,
-    "originalTarget": 14.1,
-    "triggerZone": {
-      "top": 12.34000015258789,
-      "bottom": 11.949999809265137
-    },
-    "plannedPositionSizeTL": 3489.12,
-    "notes": [
-      {
-        "time": "2026-05-18T16:53:03.945Z",
-        "action": "signal",
-        "text": "REVERSION sinyali (skor 7). Giriş 12.34, SL 11.46, TP 14.10."
       },
       {
-        "time": "2026-05-18T16:53:03.945Z",
-        "action": "pending",
-        "text": "Pending: TSKB 12.34 TL zone'a değişi bekleniyor."
+        "time": "2026-05-22T09:30:00.067Z",
+        "action": "trigger",
+        "text": "Zone'a değdi (fiyat 18.76). 18.78 TL'den fill, 185.80 adet, komisyon 6.98 TL."
       }
-    ]
+    ],
+    "entryDate": "2026-05-22T09:30:00.066Z",
+    "entryPrice": 18.7788,
+    "shares": 185.801,
+    "positionSizeTL": 3489.12,
+    "commissionPaid": 6.98,
+    "currentStop": 17.51,
+    "currentTarget": 21.68,
+    "lastPrice": 18.85,
+    "updatedAt": "2026-05-22T10:35:01.085Z"
   },
   {
     "id": "4b4a8eec1ec2",
@@ -321,7 +125,7 @@
     "symbol": "ZOREN",
     "name": "Zorlu Enerji Elektrik Üretim A.Ş.",
     "strategy": "reversion",
-    "status": "pending",
+    "status": "open",
     "signalDate": "2026-05-17",
     "signalPhase": "premarket",
     "signalLogId": "328b3e12d34b",
@@ -344,8 +148,22 @@
         "time": "2026-05-18T16:53:03.949Z",
         "action": "pending",
         "text": "Pending: ZOREN 3.12 TL zone'a değişi bekleniyor."
+      },
+      {
+        "time": "2026-05-22T09:30:00.073Z",
+        "action": "trigger",
+        "text": "Zone'a değdi (fiyat 2.95). 2.95 TL'den fill, 1181.59 adet, komisyon 6.98 TL."
       }
-    ]
+    ],
+    "entryDate": "2026-05-22T09:30:00.072Z",
+    "entryPrice": 2.9529,
+    "shares": 1181.591,
+    "positionSizeTL": 3489.12,
+    "commissionPaid": 6.98,
+    "currentStop": 2.91,
+    "currentTarget": 3.54,
+    "lastPrice": 2.97,
+    "updatedAt": "2026-05-22T10:35:01.201Z"
   },
   {
     "id": "1eb926c06071",
@@ -378,5 +196,51 @@
         "text": "Pending: MGROS 645.00 TL zone'a değişi bekleniyor."
       }
     ]
+  },
+  {
+    "id": "297c4c34559b",
+    "createdAt": "2026-05-22T10:15:06.232Z",
+    "symbol": "GUBRF",
+    "name": "Gübre Fabrikaları T.A.Ş.",
+    "strategy": "reversion",
+    "status": "open",
+    "signalDate": "2026-05-22",
+    "signalPhase": "intraday",
+    "signalLogId": "0efc1f8012d8",
+    "direction": "long",
+    "originalEntry": 532,
+    "originalStop": 490.07,
+    "originalTarget": 615.86,
+    "triggerZone": {
+      "top": 532,
+      "bottom": 528
+    },
+    "plannedPositionSizeTL": 4098.57,
+    "notes": [
+      {
+        "time": "2026-05-22T10:15:06.232Z",
+        "action": "signal",
+        "text": "REVERSION sinyali (skor 7). Giriş 532.00, SL 490.07, TP 615.86."
+      },
+      {
+        "time": "2026-05-22T10:15:06.232Z",
+        "action": "pending",
+        "text": "Pending: GUBRF 532.00 TL zone'a değişi bekleniyor."
+      },
+      {
+        "time": "2026-05-22T10:20:00.543Z",
+        "action": "trigger",
+        "text": "Zone'a değdi (fiyat 527.50). 528.03 TL'den fill, 7.76 adet, komisyon 8.20 TL."
+      }
+    ],
+    "entryDate": "2026-05-22T10:20:00.543Z",
+    "entryPrice": 528.0275,
+    "shares": 7.762,
+    "positionSizeTL": 4098.55,
+    "commissionPaid": 8.2,
+    "currentStop": 490.07,
+    "currentTarget": 615.86,
+    "lastPrice": 524,
+    "updatedAt": "2026-05-22T10:35:01.298Z"
   }
 ]

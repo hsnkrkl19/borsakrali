@@ -1,0 +1,5192 @@
+{
+  "date": "2026-05-22",
+  "revision": {
+    "phase": "revision",
+    "generatedAt": "2026-05-22T09:30:33.456Z",
+    "trend": {
+      "signals": [
+        {
+          "strategy": "trend",
+          "direction": "short",
+          "totalScore": 7,
+          "applicableMax": 10,
+          "ratio": 0.7,
+          "grade": "GUCLU",
+          "conditions": [
+            {
+              "id": "storyline_aligned",
+              "label": "Storyline yön uyumlu",
+              "group": "trend",
+              "why": "EMA20/50 ile belirlenen trend, sinyal yönüyle aynı.",
+              "met": true,
+              "applicable": true,
+              "required": true
+            },
+            {
+              "id": "price_vs_ema200",
+              "label": "EMA200 yön uyumlu",
+              "group": "trend",
+              "why": "Uzun vadeli ana trend filtresi (long ⇒ fiyat>EMA200, short ⇒ fiyat<EMA200).",
+              "met": true,
+              "applicable": true,
+              "required": false
+            },
+            {
+              "id": "ema_stack",
+              "label": "EMA dizilimi sıralı",
+              "group": "trend",
+              "why": "EMA20>EMA50>EMA200 (long) veya tersi (short).",
+              "met": false,
+              "applicable": true,
+              "required": false
+            },
+            {
+              "id": "rsi_momentum",
+              "label": "RSI momentum bandında",
+              "group": "ind",
+              "why": "Long için RSI 50-72 (sağlıklı yükseliş), short için 28-50.",
+              "met": true,
+              "applicable": true,
+              "required": false
+            },
+            {
+              "id": "macd_aligned_growing",
+              "label": "MACD yönü + büyüyor",
+              "group": "ind",
+              "why": "MACD histogram yönle aynı + son barda büyüyor (momentum güçleniyor).",
+              "met": true,
+              "applicable": true,
+              "required": false
+            },
+            {
+              "id": "volume_above_avg",
+              "label": "Hacim ortalama üstünde",
+              "group": "ind",
+              "why": "Son mum hacmi 20-bar SMA üstünde — katılım var.",
+              "met": true,
+              "applicable": true,
+              "required": false
+            },
+            {
+              "id": "adx_trending",
+              "label": "ADX trend modunda",
+              "group": "ind",
+              "why": "ADX ≥ 22 — fiyat yönlü hareket ediyor (yatay değil).",
+              "met": false,
+              "applicable": true,
+              "required": false
+            },
+            {
+              "id": "combo_hit",
+              "label": "Combo stratejisi tetik",
+              "group": "combo",
+              "why": "comboStrategyService'te en az bir Tier S/A combo aktif.",
+              "met": true,
+              "applicable": true,
+              "required": false
+            },
+            {
+              "id": "recent_breakout",
+              "label": "Son 5 barda kırılım",
+              "group": "pa",
+              "why": "Fiyat son 5 barın yüksek/düşük seviyesini kırdı (momentum başlangıcı).",
+              "met": true,
+              "applicable": true,
+              "required": false
+            },
+            {
+              "id": "news_supportive",
+              "label": "Haber yön destekliyor",
+              "group": "news",
+              "why": "Long için son 24s pozitif haber, short için negatif haber var.",
+              "met": false,
+              "applicable": true,
+              "required": false
+            }
+          ],
+          "entry": 37.12,
+          "stop": 38.86,
+          "target": 34.23,
+          "riskReward": 1.66,
+          "fillMode": "market",
+          "triggerZone": null,
+          "source": "combo",
+          "bestZone": null,
+          "harmonic": null,
+          "combo": {
+            "key": "cigDususu",
+            "name": "Çığ Düşüşü",
+            "side": "ayi",
+            "tier": "A",
+            "score": 66
+          },
+          "storyline": "bearish",
+          "indicators": {
+            "rsi": 29,
+            "macdHist": -0.502,
+            "adx": 2.4
+          },
+          "lastClose": 37.119998931884766,
+          "atr": 1.157142094203404,
+          "symbol": "ISMEN",
+          "name": "İş Yatırım Menkul Değerler A.Ş.",
+          "news": {
+            "positive24h": 0,
+            "negative24h": 0,
+            "latest": null
+          },
+          "historicalWinRate": null,
+          "confidence": "unknown",
+          "confidenceLabel": "Yeterli Veri Yok",
+          "sampleSize": 0,
+          "createdAt": "2026-05-22T09:30:33.456Z",
+          "phase": "revision"
+        },
+        {
+          "strategy": "trend",
+          "direction": "short",
+          "totalScore": 7,
+          "applicableMax": 10,
+          "ratio": 0.7,
+          "grade": "GUCLU",
+          "conditions": [
+            {
+              "id": "storyline_aligned",
+              "label": "Storyline yön uyumlu",
+              "group": "trend",
+              "why": "EMA20/50 ile belirlenen trend, sinyal yönüyle aynı.",
+              "met": true,
+              "applicable": true,
+              "required": true
+            },
+            {
+              "id": "price_vs_ema200",
+              "label": "EMA200 yön uyumlu",
+              "group": "trend",
+              "why": "Uzun vadeli ana trend filtresi (long ⇒ fiyat>EMA200, short ⇒ fiyat<EMA200).",
+              "met": true,
+              "applicable": true,
+              "required": false
+            },
+            {
+              "id": "ema_stack",
+              "label": "EMA dizilimi sıralı",
+              "group": "trend",
+              "why": "EMA20>EMA50>EMA200 (long) veya tersi (short).",
+              "met": true,
+              "applicable": true,
+              "required": false
+            },
+            {
+              "id": "rsi_momentum",
+              "label": "RSI momentum bandında",
+              "group": "ind",
+              "why": "Long için RSI 50-72 (sağlıklı yükseliş), short için 28-50.",
+              "met": true,
+              "applicable": true,
+              "required": false
+            },
+            {
+              "id": "macd_aligned_growing",
+              "label": "MACD yönü + büyüyor",
+              "group": "ind",
+              "why": "MACD histogram yönle aynı + son barda büyüyor (momentum güçleniyor).",
+              "met": true,
+              "applicable": true,
+              "required": false
+            },
+            {
+              "id": "volume_above_avg",
+              "label": "Hacim ortalama üstünde",
+              "group": "ind",
+              "why": "Son mum hacmi 20-bar SMA üstünde — katılım var.",
+              "met": true,
+              "applicable": true,
+              "required": false
+            },
+            {
+              "id": "adx_trending",
+              "label": "ADX trend modunda",
+              "group": "ind",
+              "why": "ADX ≥ 22 — fiyat yönlü hareket ediyor (yatay değil).",
+              "met": false,
+              "applicable": true,
+              "required": false
+            },
+            {
+              "id": "combo_hit",
+              "label": "Combo stratejisi tetik",
+              "group": "combo",
+              "why": "comboStrategyService'te en az bir Tier S/A combo aktif.",
+              "met": false,
+              "applicable": true,
+              "required": false
+            },
+            {
+              "id": "recent_breakout",
+              "label": "Son 5 barda kırılım",
+              "group": "pa",
+              "why": "Fiyat son 5 barın yüksek/düşük seviyesini kırdı (momentum başlangıcı).",
+              "met": true,
+              "applicable": true,
+              "required": false
+            },
+            {
+              "id": "news_supportive",
+              "label": "Haber yön destekliyor",
+              "group": "news",
+              "why": "Long için son 24s pozitif haber, short için negatif haber var.",
+              "met": false,
+              "applicable": true,
+              "required": false
+            }
+          ],
+          "entry": 11.17,
+          "stop": 11.71,
+          "target": 10.26,
+          "riskReward": 1.69,
+          "fillMode": "market",
+          "triggerZone": null,
+          "source": "combo",
+          "bestZone": null,
+          "harmonic": null,
+          "combo": null,
+          "storyline": "bearish",
+          "indicators": {
+            "rsi": 34,
+            "macdHist": -0.096,
+            "adx": 0.2
+          },
+          "lastClose": 11.170000076293945,
+          "atr": 0.36214303970336914,
+          "symbol": "TSKB",
+          "name": "Türkiye Sınai Kalkınma Bankası A.Ş.",
+          "news": {
+            "positive24h": 0,
+            "negative24h": 0,
+            "latest": null
+          },
+          "historicalWinRate": null,
+          "confidence": "unknown",
+          "confidenceLabel": "Yeterli Veri Yok",
+          "sampleSize": 0,
+          "createdAt": "2026-05-22T09:30:33.456Z",
+          "phase": "revision"
+        },
+        {
+          "strategy": "trend",
+          "direction": "short",
+          "totalScore": 6,
+          "applicableMax": 10,
+          "ratio": 0.6,
+          "grade": "GUCLU",
+          "conditions": [
+            {
+              "id": "storyline_aligned",
+              "label": "Storyline yön uyumlu",
+              "group": "trend",
+              "why": "EMA20/50 ile belirlenen trend, sinyal yönüyle aynı.",
+              "met": true,
+              "applicable": true,
+              "required": true
+            },
+            {
+              "id": "price_vs_ema200",
+              "label": "EMA200 yön uyumlu",
+              "group": "trend",
+              "why": "Uzun vadeli ana trend filtresi (long ⇒ fiyat>EMA200, short ⇒ fiyat<EMA200).",
+              "met": true,
+              "applicable": true,
+              "required": false
+            },
+            {
+              "id": "ema_stack",
+              "label": "EMA dizilimi sıralı",
+              "group": "trend",
+              "why": "EMA20>EMA50>EMA200 (long) veya tersi (short).",
+              "met": true,
+              "applicable": true,
+              "required": false
+            },
+            {
+              "id": "rsi_momentum",
+              "label": "RSI momentum bandında",
+              "group": "ind",
+              "why": "Long için RSI 50-72 (sağlıklı yükseliş), short için 28-50.",
+              "met": true,
+              "applicable": true,
+              "required": false
+            },
+            {
+              "id": "macd_aligned_growing",
+              "label": "MACD yönü + büyüyor",
+              "group": "ind",
+              "why": "MACD histogram yönle aynı + son barda büyüyor (momentum güçleniyor).",
+              "met": true,
+              "applicable": true,
+              "required": false
+            },
+            {
+              "id": "volume_above_avg",
+              "label": "Hacim ortalama üstünde",
+              "group": "ind",
+              "why": "Son mum hacmi 20-bar SMA üstünde — katılım var.",
+              "met": false,
+              "applicable": true,
+              "required": false
+            },
+            {
+              "id": "adx_trending",
+              "label": "ADX trend modunda",
+              "group": "ind",
+              "why": "ADX ≥ 22 — fiyat yönlü hareket ediyor (yatay değil).",
+              "met": false,
+              "applicable": true,
+              "required": false
+            },
+            {
+              "id": "combo_hit",
+              "label": "Combo stratejisi tetik",
+              "group": "combo",
+              "why": "comboStrategyService'te en az bir Tier S/A combo aktif.",
+              "met": false,
+              "applicable": true,
+              "required": false
+            },
+            {
+              "id": "recent_breakout",
+              "label": "Son 5 barda kırılım",
+              "group": "pa",
+              "why": "Fiyat son 5 barın yüksek/düşük seviyesini kırdı (momentum başlangıcı).",
+              "met": true,
+              "applicable": true,
+              "required": false
+            },
+            {
+              "id": "news_supportive",
+              "label": "Haber yön destekliyor",
+              "group": "news",
+              "why": "Long için son 24s pozitif haber, short için negatif haber var.",
+              "met": false,
+              "applicable": true,
+              "required": false
+            }
+          ],
+          "entry": 3.4,
+          "stop": 3.62,
+          "target": 3.04,
+          "riskReward": 1.64,
+          "fillMode": "market",
+          "triggerZone": null,
+          "source": "combo",
+          "bestZone": null,
+          "harmonic": null,
+          "combo": null,
+          "storyline": "bearish",
+          "indicators": {
+            "rsi": 34,
+            "macdHist": -0.032,
+            "adx": 3.2
+          },
+          "lastClose": 3.4000000953674316,
+          "atr": 0.14571435110909597,
+          "symbol": "SNGYO",
+          "name": "Sinpaş Gayrimenkul Yatırım Ortaklığı A.Ş.",
+          "news": {
+            "positive24h": 0,
+            "negative24h": 0,
+            "latest": null
+          },
+          "historicalWinRate": null,
+          "confidence": "unknown",
+          "confidenceLabel": "Yeterli Veri Yok",
+          "sampleSize": 0,
+          "createdAt": "2026-05-22T09:30:33.456Z",
+          "phase": "revision"
+        }
+      ],
+      "allSignals": [
+        {
+          "strategy": "trend",
+          "direction": "short",
+          "totalScore": 7,
+          "applicableMax": 10,
+          "ratio": 0.7,
+          "grade": "GUCLU",
+          "conditions": [
+            {
+              "id": "storyline_aligned",
+              "label": "Storyline yön uyumlu",
+              "group": "trend",
+              "why": "EMA20/50 ile belirlenen trend, sinyal yönüyle aynı.",
+              "met": true,
+              "applicable": true,
+              "required": true
+            },
+            {
+              "id": "price_vs_ema200",
+              "label": "EMA200 yön uyumlu",
+              "group": "trend",
+              "why": "Uzun vadeli ana trend filtresi (long ⇒ fiyat>EMA200, short ⇒ fiyat<EMA200).",
+              "met": true,
+              "applicable": true,
+              "required": false
+            },
+            {
+              "id": "ema_stack",
+              "label": "EMA dizilimi sıralı",
+              "group": "trend",
+              "why": "EMA20>EMA50>EMA200 (long) veya tersi (short).",
+              "met": false,
+              "applicable": true,
+              "required": false
+            },
+            {
+              "id": "rsi_momentum",
+              "label": "RSI momentum bandında",
+              "group": "ind",
+              "why": "Long için RSI 50-72 (sağlıklı yükseliş), short için 28-50.",
+              "met": true,
+              "applicable": true,
+              "required": false
+            },
+            {
+              "id": "macd_aligned_growing",
+              "label": "MACD yönü + büyüyor",
+              "group": "ind",
+              "why": "MACD histogram yönle aynı + son barda büyüyor (momentum güçleniyor).",
+              "met": true,
+              "applicable": true,
+              "required": false
+            },
+            {
+              "id": "volume_above_avg",
+              "label": "Hacim ortalama üstünde",
+              "group": "ind",
+              "why": "Son mum hacmi 20-bar SMA üstünde — katılım var.",
+              "met": true,
+              "applicable": true,
+              "required": false
+            },
+            {
+              "id": "adx_trending",
+              "label": "ADX trend modunda",
+              "group": "ind",
+              "why": "ADX ≥ 22 — fiyat yönlü hareket ediyor (yatay değil).",
+              "met": false,
+              "applicable": true,
+              "required": false
+            },
+            {
+              "id": "combo_hit",
+              "label": "Combo stratejisi tetik",
+              "group": "combo",
+              "why": "comboStrategyService'te en az bir Tier S/A combo aktif.",
+              "met": true,
+              "applicable": true,
+              "required": false
+            },
+            {
+              "id": "recent_breakout",
+              "label": "Son 5 barda kırılım",
+              "group": "pa",
+              "why": "Fiyat son 5 barın yüksek/düşük seviyesini kırdı (momentum başlangıcı).",
+              "met": true,
+              "applicable": true,
+              "required": false
+            },
+            {
+              "id": "news_supportive",
+              "label": "Haber yön destekliyor",
+              "group": "news",
+              "why": "Long için son 24s pozitif haber, short için negatif haber var.",
+              "met": false,
+              "applicable": true,
+              "required": false
+            }
+          ],
+          "entry": 37.12,
+          "stop": 38.86,
+          "target": 34.23,
+          "riskReward": 1.66,
+          "fillMode": "market",
+          "triggerZone": null,
+          "source": "combo",
+          "bestZone": null,
+          "harmonic": null,
+          "combo": {
+            "key": "cigDususu",
+            "name": "Çığ Düşüşü",
+            "side": "ayi",
+            "tier": "A",
+            "score": 66
+          },
+          "storyline": "bearish",
+          "indicators": {
+            "rsi": 29,
+            "macdHist": -0.502,
+            "adx": 2.4
+          },
+          "lastClose": 37.119998931884766,
+          "atr": 1.157142094203404,
+          "symbol": "ISMEN",
+          "name": "İş Yatırım Menkul Değerler A.Ş.",
+          "news": {
+            "positive24h": 0,
+            "negative24h": 0,
+            "latest": null
+          },
+          "historicalWinRate": null,
+          "confidence": "unknown",
+          "confidenceLabel": "Yeterli Veri Yok",
+          "sampleSize": 0,
+          "createdAt": "2026-05-22T09:30:33.456Z",
+          "phase": "revision"
+        },
+        {
+          "strategy": "trend",
+          "direction": "short",
+          "totalScore": 7,
+          "applicableMax": 10,
+          "ratio": 0.7,
+          "grade": "GUCLU",
+          "conditions": [
+            {
+              "id": "storyline_aligned",
+              "label": "Storyline yön uyumlu",
+              "group": "trend",
+              "why": "EMA20/50 ile belirlenen trend, sinyal yönüyle aynı.",
+              "met": true,
+              "applicable": true,
+              "required": true
+            },
+            {
+              "id": "price_vs_ema200",
+              "label": "EMA200 yön uyumlu",
+              "group": "trend",
+              "why": "Uzun vadeli ana trend filtresi (long ⇒ fiyat>EMA200, short ⇒ fiyat<EMA200).",
+              "met": true,
+              "applicable": true,
+              "required": false
+            },
+            {
+              "id": "ema_stack",
+              "label": "EMA dizilimi sıralı",
+              "group": "trend",
+              "why": "EMA20>EMA50>EMA200 (long) veya tersi (short).",
+              "met": true,
+              "applicable": true,
+              "required": false
+            },
+            {
+              "id": "rsi_momentum",
+              "label": "RSI momentum bandında",
+              "group": "ind",
+              "why": "Long için RSI 50-72 (sağlıklı yükseliş), short için 28-50.",
+              "met": true,
+              "applicable": true,
+              "required": false
+            },
+            {
+              "id": "macd_aligned_growing",
+              "label": "MACD yönü + büyüyor",
+              "group": "ind",
+              "why": "MACD histogram yönle aynı + son barda büyüyor (momentum güçleniyor).",
+              "met": true,
+              "applicable": true,
+              "required": false
+            },
+            {
+              "id": "volume_above_avg",
+              "label": "Hacim ortalama üstünde",
+              "group": "ind",
+              "why": "Son mum hacmi 20-bar SMA üstünde — katılım var.",
+              "met": true,
+              "applicable": true,
+              "required": false
+            },
+            {
+              "id": "adx_trending",
+              "label": "ADX trend modunda",
+              "group": "ind",
+              "why": "ADX ≥ 22 — fiyat yönlü hareket ediyor (yatay değil).",
+              "met": false,
+              "applicable": true,
+              "required": false
+            },
+            {
+              "id": "combo_hit",
+              "label": "Combo stratejisi tetik",
+              "group": "combo",
+              "why": "comboStrategyService'te en az bir Tier S/A combo aktif.",
+              "met": false,
+              "applicable": true,
+              "required": false
+            },
+            {
+              "id": "recent_breakout",
+              "label": "Son 5 barda kırılım",
+              "group": "pa",
+              "why": "Fiyat son 5 barın yüksek/düşük seviyesini kırdı (momentum başlangıcı).",
+              "met": true,
+              "applicable": true,
+              "required": false
+            },
+            {
+              "id": "news_supportive",
+              "label": "Haber yön destekliyor",
+              "group": "news",
+              "why": "Long için son 24s pozitif haber, short için negatif haber var.",
+              "met": false,
+              "applicable": true,
+              "required": false
+            }
+          ],
+          "entry": 11.17,
+          "stop": 11.71,
+          "target": 10.26,
+          "riskReward": 1.69,
+          "fillMode": "market",
+          "triggerZone": null,
+          "source": "combo",
+          "bestZone": null,
+          "harmonic": null,
+          "combo": null,
+          "storyline": "bearish",
+          "indicators": {
+            "rsi": 34,
+            "macdHist": -0.096,
+            "adx": 0.2
+          },
+          "lastClose": 11.170000076293945,
+          "atr": 0.36214303970336914,
+          "symbol": "TSKB",
+          "name": "Türkiye Sınai Kalkınma Bankası A.Ş.",
+          "news": {
+            "positive24h": 0,
+            "negative24h": 0,
+            "latest": null
+          },
+          "historicalWinRate": null,
+          "confidence": "unknown",
+          "confidenceLabel": "Yeterli Veri Yok",
+          "sampleSize": 0,
+          "createdAt": "2026-05-22T09:30:33.456Z",
+          "phase": "revision"
+        },
+        {
+          "strategy": "trend",
+          "direction": "short",
+          "totalScore": 6,
+          "applicableMax": 10,
+          "ratio": 0.6,
+          "grade": "GUCLU",
+          "conditions": [
+            {
+              "id": "storyline_aligned",
+              "label": "Storyline yön uyumlu",
+              "group": "trend",
+              "why": "EMA20/50 ile belirlenen trend, sinyal yönüyle aynı.",
+              "met": true,
+              "applicable": true,
+              "required": true
+            },
+            {
+              "id": "price_vs_ema200",
+              "label": "EMA200 yön uyumlu",
+              "group": "trend",
+              "why": "Uzun vadeli ana trend filtresi (long ⇒ fiyat>EMA200, short ⇒ fiyat<EMA200).",
+              "met": true,
+              "applicable": true,
+              "required": false
+            },
+            {
+              "id": "ema_stack",
+              "label": "EMA dizilimi sıralı",
+              "group": "trend",
+              "why": "EMA20>EMA50>EMA200 (long) veya tersi (short).",
+              "met": true,
+              "applicable": true,
+              "required": false
+            },
+            {
+              "id": "rsi_momentum",
+              "label": "RSI momentum bandında",
+              "group": "ind",
+              "why": "Long için RSI 50-72 (sağlıklı yükseliş), short için 28-50.",
+              "met": true,
+              "applicable": true,
+              "required": false
+            },
+            {
+              "id": "macd_aligned_growing",
+              "label": "MACD yönü + büyüyor",
+              "group": "ind",
+              "why": "MACD histogram yönle aynı + son barda büyüyor (momentum güçleniyor).",
+              "met": true,
+              "applicable": true,
+              "required": false
+            },
+            {
+              "id": "volume_above_avg",
+              "label": "Hacim ortalama üstünde",
+              "group": "ind",
+              "why": "Son mum hacmi 20-bar SMA üstünde — katılım var.",
+              "met": false,
+              "applicable": true,
+              "required": false
+            },
+            {
+              "id": "adx_trending",
+              "label": "ADX trend modunda",
+              "group": "ind",
+              "why": "ADX ≥ 22 — fiyat yönlü hareket ediyor (yatay değil).",
+              "met": false,
+              "applicable": true,
+              "required": false
+            },
+            {
+              "id": "combo_hit",
+              "label": "Combo stratejisi tetik",
+              "group": "combo",
+              "why": "comboStrategyService'te en az bir Tier S/A combo aktif.",
+              "met": false,
+              "applicable": true,
+              "required": false
+            },
+            {
+              "id": "recent_breakout",
+              "label": "Son 5 barda kırılım",
+              "group": "pa",
+              "why": "Fiyat son 5 barın yüksek/düşük seviyesini kırdı (momentum başlangıcı).",
+              "met": true,
+              "applicable": true,
+              "required": false
+            },
+            {
+              "id": "news_supportive",
+              "label": "Haber yön destekliyor",
+              "group": "news",
+              "why": "Long için son 24s pozitif haber, short için negatif haber var.",
+              "met": false,
+              "applicable": true,
+              "required": false
+            }
+          ],
+          "entry": 3.4,
+          "stop": 3.62,
+          "target": 3.04,
+          "riskReward": 1.64,
+          "fillMode": "market",
+          "triggerZone": null,
+          "source": "combo",
+          "bestZone": null,
+          "harmonic": null,
+          "combo": null,
+          "storyline": "bearish",
+          "indicators": {
+            "rsi": 34,
+            "macdHist": -0.032,
+            "adx": 3.2
+          },
+          "lastClose": 3.4000000953674316,
+          "atr": 0.14571435110909597,
+          "symbol": "SNGYO",
+          "name": "Sinpaş Gayrimenkul Yatırım Ortaklığı A.Ş.",
+          "news": {
+            "positive24h": 0,
+            "negative24h": 0,
+            "latest": null
+          },
+          "historicalWinRate": null,
+          "confidence": "unknown",
+          "confidenceLabel": "Yeterli Veri Yok",
+          "sampleSize": 0,
+          "createdAt": "2026-05-22T09:30:33.456Z",
+          "phase": "revision"
+        }
+      ]
+    },
+    "reversion": {
+      "signals": [
+        {
+          "strategy": "reversion",
+          "direction": "short",
+          "totalScore": 7,
+          "applicableMax": 10,
+          "ratio": 0.7,
+          "grade": "GUCLU",
+          "conditions": [
+            {
+              "id": "in_range_tight",
+              "label": "Fiyat zone'a yakın (≤%4)",
+              "group": "sust",
+              "why": "Fiyat entry seviyesine ≤%4 mesafede — pullback yakın, tetik olasılığı yüksek.",
+              "met": true,
+              "applicable": true,
+              "required": true
+            },
+            {
+              "id": "recent_pivot",
+              "label": "Pivot ≤30 gün",
+              "group": "sust",
+              "why": "Zone'un oluştuğu pivot taze — kurumsal hafıza canlı.",
+              "met": true,
+              "applicable": true,
+              "required": true
+            },
+            {
+              "id": "fresh_zone",
+              "label": "Taze zone",
+              "group": "pa",
+              "why": "Zone hiç test edilmedi — kurumsal emirler dolmadı.",
+              "met": false,
+              "applicable": true,
+              "required": false
+            },
+            {
+              "id": "gap_zone",
+              "label": "Gap zone",
+              "group": "pa",
+              "why": "HTF gap = LTF engulfing eşdeğeri — yüksek olasılıklı dönüş.",
+              "met": true,
+              "applicable": true,
+              "required": false
+            },
+            {
+              "id": "engulfing_at_zone",
+              "label": "Engulfing teyidi",
+              "group": "pa",
+              "why": "Zone yakınında bullish/bearish engulfing — kurumsal yutma.",
+              "met": true,
+              "applicable": true,
+              "required": false
+            },
+            {
+              "id": "liquidity_sweep",
+              "label": "Likidite süpürmesi",
+              "group": "pa",
+              "why": "Wick zone'u aştı, gövde döndü — küçük yatırımcı stop'ları temizlendi.",
+              "met": false,
+              "applicable": true,
+              "required": false
+            },
+            {
+              "id": "validated_zone",
+              "label": "Onaylı zone",
+              "group": "sust",
+              "why": "İlk dokunma 3 bar içinde gerçekleşti veya hiç test edilmedi.",
+              "met": true,
+              "applicable": true,
+              "required": false
+            },
+            {
+              "id": "storyline_not_opposite",
+              "label": "Storyline ters değil",
+              "group": "trend",
+              "why": "Long için storyline bearish DEĞİL, short için bullish DEĞİL.",
+              "met": false,
+              "applicable": true,
+              "required": false
+            },
+            {
+              "id": "rsi_extreme",
+              "label": "RSI uç bölgede",
+              "group": "ind",
+              "why": "Long support için RSI<45 (oversold), short resistance için RSI>55.",
+              "met": true,
+              "applicable": true,
+              "required": false
+            },
+            {
+              "id": "harmonic_match",
+              "label": "Harmonik patern uyumlu",
+              "group": "harm",
+              "why": "Aktif harmonik patern (Gartley/Bat/Crab) sinyalle aynı yönde.",
+              "met": true,
+              "applicable": true,
+              "required": false
+            }
+          ],
+          "entry": 49.36,
+          "stop": 57.65,
+          "target": 32.78,
+          "riskReward": 2,
+          "fillMode": "limit",
+          "triggerZone": {
+            "top": 51.650001525878906,
+            "bottom": 49.36000061035156
+          },
+          "source": "snr",
+          "bestZone": {
+            "id": "R_251",
+            "type": "resistance",
+            "top": 51.650001525878906,
+            "bottom": 49.36000061035156,
+            "pivotDate": "2026-05-21",
+            "daysAgo": 1,
+            "priceDistancePct": 0.08,
+            "score": 60,
+            "grade": "B",
+            "freshness": "tested",
+            "zoneType": "gap",
+            "validated": true
+          },
+          "harmonic": {
+            "pattern": "Shark",
+            "direction": "Bearish",
+            "completion": 71,
+            "detectedDate": "2026-04-20"
+          },
+          "combo": null,
+          "storyline": "bullish",
+          "indicators": {
+            "rsi": 58,
+            "macdHist": 0.102
+          },
+          "lastClose": 49.400001525878906,
+          "atr": 4.002142769949777,
+          "symbol": "ALFAS",
+          "name": "Alfa Solar Enerji Sanayi ve Ticaret A.Ş.",
+          "news": {
+            "positive24h": 0,
+            "negative24h": 0,
+            "latest": null
+          },
+          "historicalWinRate": null,
+          "confidence": "unknown",
+          "confidenceLabel": "Yeterli Veri Yok",
+          "sampleSize": 0,
+          "createdAt": "2026-05-22T09:30:33.456Z",
+          "phase": "revision"
+        },
+        {
+          "strategy": "reversion",
+          "direction": "long",
+          "totalScore": 7,
+          "applicableMax": 10,
+          "ratio": 0.7,
+          "grade": "GUCLU",
+          "conditions": [
+            {
+              "id": "in_range_tight",
+              "label": "Fiyat zone'a yakın (≤%4)",
+              "group": "sust",
+              "why": "Fiyat entry seviyesine ≤%4 mesafede — pullback yakın, tetik olasılığı yüksek.",
+              "met": true,
+              "applicable": true,
+              "required": true
+            },
+            {
+              "id": "recent_pivot",
+              "label": "Pivot ≤30 gün",
+              "group": "sust",
+              "why": "Zone'un oluştuğu pivot taze — kurumsal hafıza canlı.",
+              "met": true,
+              "applicable": true,
+              "required": true
+            },
+            {
+              "id": "fresh_zone",
+              "label": "Taze zone",
+              "group": "pa",
+              "why": "Zone hiç test edilmedi — kurumsal emirler dolmadı.",
+              "met": true,
+              "applicable": true,
+              "required": false
+            },
+            {
+              "id": "gap_zone",
+              "label": "Gap zone",
+              "group": "pa",
+              "why": "HTF gap = LTF engulfing eşdeğeri — yüksek olasılıklı dönüş.",
+              "met": true,
+              "applicable": true,
+              "required": false
+            },
+            {
+              "id": "engulfing_at_zone",
+              "label": "Engulfing teyidi",
+              "group": "pa",
+              "why": "Zone yakınında bullish/bearish engulfing — kurumsal yutma.",
+              "met": true,
+              "applicable": true,
+              "required": false
+            },
+            {
+              "id": "liquidity_sweep",
+              "label": "Likidite süpürmesi",
+              "group": "pa",
+              "why": "Wick zone'u aştı, gövde döndü — küçük yatırımcı stop'ları temizlendi.",
+              "met": false,
+              "applicable": true,
+              "required": false
+            },
+            {
+              "id": "validated_zone",
+              "label": "Onaylı zone",
+              "group": "sust",
+              "why": "İlk dokunma 3 bar içinde gerçekleşti veya hiç test edilmedi.",
+              "met": true,
+              "applicable": true,
+              "required": false
+            },
+            {
+              "id": "storyline_not_opposite",
+              "label": "Storyline ters değil",
+              "group": "trend",
+              "why": "Long için storyline bearish DEĞİL, short için bullish DEĞİL.",
+              "met": true,
+              "applicable": true,
+              "required": false
+            },
+            {
+              "id": "rsi_extreme",
+              "label": "RSI uç bölgede",
+              "group": "ind",
+              "why": "Long support için RSI<45 (oversold), short resistance için RSI>55.",
+              "met": false,
+              "applicable": true,
+              "required": false
+            },
+            {
+              "id": "harmonic_match",
+              "label": "Harmonik patern uyumlu",
+              "group": "harm",
+              "why": "Aktif harmonik patern (Gartley/Bat/Crab) sinyalle aynı yönde.",
+              "met": false,
+              "applicable": true,
+              "required": false
+            }
+          ],
+          "entry": 645,
+          "stop": 603.54,
+          "target": 727.92,
+          "riskReward": 2,
+          "fillMode": "limit",
+          "triggerZone": {
+            "top": 645,
+            "bottom": 640.5
+          },
+          "source": "snr",
+          "bestZone": {
+            "id": "S_240",
+            "type": "support",
+            "top": 645,
+            "bottom": 640.5,
+            "pivotDate": "2026-05-05",
+            "daysAgo": 17,
+            "priceDistancePct": 2.79,
+            "score": 85,
+            "grade": "A+",
+            "freshness": "fresh",
+            "zoneType": "gap",
+            "validated": true
+          },
+          "harmonic": null,
+          "combo": null,
+          "storyline": "neutral",
+          "indicators": {
+            "rsi": 50,
+            "macdHist": -2.853
+          },
+          "lastClose": 663.5,
+          "atr": 24.642857142857142,
+          "symbol": "MGROS",
+          "name": "Migros Ticaret A.Ş.",
+          "news": {
+            "positive24h": 0,
+            "negative24h": 0,
+            "latest": null
+          },
+          "historicalWinRate": null,
+          "confidence": "unknown",
+          "confidenceLabel": "Yeterli Veri Yok",
+          "sampleSize": 0,
+          "createdAt": "2026-05-22T09:30:33.456Z",
+          "phase": "revision"
+        }
+      ],
+      "allSignals": [
+        {
+          "strategy": "reversion",
+          "direction": "short",
+          "totalScore": 7,
+          "applicableMax": 10,
+          "ratio": 0.7,
+          "grade": "GUCLU",
+          "conditions": [
+            {
+              "id": "in_range_tight",
+              "label": "Fiyat zone'a yakın (≤%4)",
+              "group": "sust",
+              "why": "Fiyat entry seviyesine ≤%4 mesafede — pullback yakın, tetik olasılığı yüksek.",
+              "met": true,
+              "applicable": true,
+              "required": true
+            },
+            {
+              "id": "recent_pivot",
+              "label": "Pivot ≤30 gün",
+              "group": "sust",
+              "why": "Zone'un oluştuğu pivot taze — kurumsal hafıza canlı.",
+              "met": true,
+              "applicable": true,
+              "required": true
+            },
+            {
+              "id": "fresh_zone",
+              "label": "Taze zone",
+              "group": "pa",
+              "why": "Zone hiç test edilmedi — kurumsal emirler dolmadı.",
+              "met": false,
+              "applicable": true,
+              "required": false
+            },
+            {
+              "id": "gap_zone",
+              "label": "Gap zone",
+              "group": "pa",
+              "why": "HTF gap = LTF engulfing eşdeğeri — yüksek olasılıklı dönüş.",
+              "met": true,
+              "applicable": true,
+              "required": false
+            },
+            {
+              "id": "engulfing_at_zone",
+              "label": "Engulfing teyidi",
+              "group": "pa",
+              "why": "Zone yakınında bullish/bearish engulfing — kurumsal yutma.",
+              "met": true,
+              "applicable": true,
+              "required": false
+            },
+            {
+              "id": "liquidity_sweep",
+              "label": "Likidite süpürmesi",
+              "group": "pa",
+              "why": "Wick zone'u aştı, gövde döndü — küçük yatırımcı stop'ları temizlendi.",
+              "met": false,
+              "applicable": true,
+              "required": false
+            },
+            {
+              "id": "validated_zone",
+              "label": "Onaylı zone",
+              "group": "sust",
+              "why": "İlk dokunma 3 bar içinde gerçekleşti veya hiç test edilmedi.",
+              "met": true,
+              "applicable": true,
+              "required": false
+            },
+            {
+              "id": "storyline_not_opposite",
+              "label": "Storyline ters değil",
+              "group": "trend",
+              "why": "Long için storyline bearish DEĞİL, short için bullish DEĞİL.",
+              "met": false,
+              "applicable": true,
+              "required": false
+            },
+            {
+              "id": "rsi_extreme",
+              "label": "RSI uç bölgede",
+              "group": "ind",
+              "why": "Long support için RSI<45 (oversold), short resistance için RSI>55.",
+              "met": true,
+              "applicable": true,
+              "required": false
+            },
+            {
+              "id": "harmonic_match",
+              "label": "Harmonik patern uyumlu",
+              "group": "harm",
+              "why": "Aktif harmonik patern (Gartley/Bat/Crab) sinyalle aynı yönde.",
+              "met": true,
+              "applicable": true,
+              "required": false
+            }
+          ],
+          "entry": 49.36,
+          "stop": 57.65,
+          "target": 32.78,
+          "riskReward": 2,
+          "fillMode": "limit",
+          "triggerZone": {
+            "top": 51.650001525878906,
+            "bottom": 49.36000061035156
+          },
+          "source": "snr",
+          "bestZone": {
+            "id": "R_251",
+            "type": "resistance",
+            "top": 51.650001525878906,
+            "bottom": 49.36000061035156,
+            "pivotDate": "2026-05-21",
+            "daysAgo": 1,
+            "priceDistancePct": 0.08,
+            "score": 60,
+            "grade": "B",
+            "freshness": "tested",
+            "zoneType": "gap",
+            "validated": true
+          },
+          "harmonic": {
+            "pattern": "Shark",
+            "direction": "Bearish",
+            "completion": 71,
+            "detectedDate": "2026-04-20"
+          },
+          "combo": null,
+          "storyline": "bullish",
+          "indicators": {
+            "rsi": 58,
+            "macdHist": 0.102
+          },
+          "lastClose": 49.400001525878906,
+          "atr": 4.002142769949777,
+          "symbol": "ALFAS",
+          "name": "Alfa Solar Enerji Sanayi ve Ticaret A.Ş.",
+          "news": {
+            "positive24h": 0,
+            "negative24h": 0,
+            "latest": null
+          },
+          "historicalWinRate": null,
+          "confidence": "unknown",
+          "confidenceLabel": "Yeterli Veri Yok",
+          "sampleSize": 0,
+          "createdAt": "2026-05-22T09:30:33.456Z",
+          "phase": "revision"
+        },
+        {
+          "strategy": "reversion",
+          "direction": "long",
+          "totalScore": 7,
+          "applicableMax": 10,
+          "ratio": 0.7,
+          "grade": "GUCLU",
+          "conditions": [
+            {
+              "id": "in_range_tight",
+              "label": "Fiyat zone'a yakın (≤%4)",
+              "group": "sust",
+              "why": "Fiyat entry seviyesine ≤%4 mesafede — pullback yakın, tetik olasılığı yüksek.",
+              "met": true,
+              "applicable": true,
+              "required": true
+            },
+            {
+              "id": "recent_pivot",
+              "label": "Pivot ≤30 gün",
+              "group": "sust",
+              "why": "Zone'un oluştuğu pivot taze — kurumsal hafıza canlı.",
+              "met": true,
+              "applicable": true,
+              "required": true
+            },
+            {
+              "id": "fresh_zone",
+              "label": "Taze zone",
+              "group": "pa",
+              "why": "Zone hiç test edilmedi — kurumsal emirler dolmadı.",
+              "met": true,
+              "applicable": true,
+              "required": false
+            },
+            {
+              "id": "gap_zone",
+              "label": "Gap zone",
+              "group": "pa",
+              "why": "HTF gap = LTF engulfing eşdeğeri — yüksek olasılıklı dönüş.",
+              "met": true,
+              "applicable": true,
+              "required": false
+            },
+            {
+              "id": "engulfing_at_zone",
+              "label": "Engulfing teyidi",
+              "group": "pa",
+              "why": "Zone yakınında bullish/bearish engulfing — kurumsal yutma.",
+              "met": true,
+              "applicable": true,
+              "required": false
+            },
+            {
+              "id": "liquidity_sweep",
+              "label": "Likidite süpürmesi",
+              "group": "pa",
+              "why": "Wick zone'u aştı, gövde döndü — küçük yatırımcı stop'ları temizlendi.",
+              "met": false,
+              "applicable": true,
+              "required": false
+            },
+            {
+              "id": "validated_zone",
+              "label": "Onaylı zone",
+              "group": "sust",
+              "why": "İlk dokunma 3 bar içinde gerçekleşti veya hiç test edilmedi.",
+              "met": true,
+              "applicable": true,
+              "required": false
+            },
+            {
+              "id": "storyline_not_opposite",
+              "label": "Storyline ters değil",
+              "group": "trend",
+              "why": "Long için storyline bearish DEĞİL, short için bullish DEĞİL.",
+              "met": true,
+              "applicable": true,
+              "required": false
+            },
+            {
+              "id": "rsi_extreme",
+              "label": "RSI uç bölgede",
+              "group": "ind",
+              "why": "Long support için RSI<45 (oversold), short resistance için RSI>55.",
+              "met": false,
+              "applicable": true,
+              "required": false
+            },
+            {
+              "id": "harmonic_match",
+              "label": "Harmonik patern uyumlu",
+              "group": "harm",
+              "why": "Aktif harmonik patern (Gartley/Bat/Crab) sinyalle aynı yönde.",
+              "met": false,
+              "applicable": true,
+              "required": false
+            }
+          ],
+          "entry": 645,
+          "stop": 603.54,
+          "target": 727.92,
+          "riskReward": 2,
+          "fillMode": "limit",
+          "triggerZone": {
+            "top": 645,
+            "bottom": 640.5
+          },
+          "source": "snr",
+          "bestZone": {
+            "id": "S_240",
+            "type": "support",
+            "top": 645,
+            "bottom": 640.5,
+            "pivotDate": "2026-05-05",
+            "daysAgo": 17,
+            "priceDistancePct": 2.79,
+            "score": 85,
+            "grade": "A+",
+            "freshness": "fresh",
+            "zoneType": "gap",
+            "validated": true
+          },
+          "harmonic": null,
+          "combo": null,
+          "storyline": "neutral",
+          "indicators": {
+            "rsi": 50,
+            "macdHist": -2.853
+          },
+          "lastClose": 663.5,
+          "atr": 24.642857142857142,
+          "symbol": "MGROS",
+          "name": "Migros Ticaret A.Ş.",
+          "news": {
+            "positive24h": 0,
+            "negative24h": 0,
+            "latest": null
+          },
+          "historicalWinRate": null,
+          "confidence": "unknown",
+          "confidenceLabel": "Yeterli Veri Yok",
+          "sampleSize": 0,
+          "createdAt": "2026-05-22T09:30:33.456Z",
+          "phase": "revision"
+        }
+      ]
+    }
+  },
+  "intraday": [
+    {
+      "phase": "intraday",
+      "generatedAt": "2026-05-22T09:45:05.556Z",
+      "trend": {
+        "signals": [
+          {
+            "strategy": "trend",
+            "direction": "short",
+            "totalScore": 7,
+            "applicableMax": 10,
+            "ratio": 0.7,
+            "grade": "GUCLU",
+            "conditions": [
+              {
+                "id": "storyline_aligned",
+                "label": "Storyline yön uyumlu",
+                "group": "trend",
+                "why": "EMA20/50 ile belirlenen trend, sinyal yönüyle aynı.",
+                "met": true,
+                "applicable": true,
+                "required": true
+              },
+              {
+                "id": "price_vs_ema200",
+                "label": "EMA200 yön uyumlu",
+                "group": "trend",
+                "why": "Uzun vadeli ana trend filtresi (long ⇒ fiyat>EMA200, short ⇒ fiyat<EMA200).",
+                "met": true,
+                "applicable": true,
+                "required": false
+              },
+              {
+                "id": "ema_stack",
+                "label": "EMA dizilimi sıralı",
+                "group": "trend",
+                "why": "EMA20>EMA50>EMA200 (long) veya tersi (short).",
+                "met": true,
+                "applicable": true,
+                "required": false
+              },
+              {
+                "id": "rsi_momentum",
+                "label": "RSI momentum bandında",
+                "group": "ind",
+                "why": "Long için RSI 50-72 (sağlıklı yükseliş), short için 28-50.",
+                "met": true,
+                "applicable": true,
+                "required": false
+              },
+              {
+                "id": "macd_aligned_growing",
+                "label": "MACD yönü + büyüyor",
+                "group": "ind",
+                "why": "MACD histogram yönle aynı + son barda büyüyor (momentum güçleniyor).",
+                "met": true,
+                "applicable": true,
+                "required": false
+              },
+              {
+                "id": "volume_above_avg",
+                "label": "Hacim ortalama üstünde",
+                "group": "ind",
+                "why": "Son mum hacmi 20-bar SMA üstünde — katılım var.",
+                "met": true,
+                "applicable": true,
+                "required": false
+              },
+              {
+                "id": "adx_trending",
+                "label": "ADX trend modunda",
+                "group": "ind",
+                "why": "ADX ≥ 22 — fiyat yönlü hareket ediyor (yatay değil).",
+                "met": false,
+                "applicable": true,
+                "required": false
+              },
+              {
+                "id": "combo_hit",
+                "label": "Combo stratejisi tetik",
+                "group": "combo",
+                "why": "comboStrategyService'te en az bir Tier S/A combo aktif.",
+                "met": false,
+                "applicable": true,
+                "required": false
+              },
+              {
+                "id": "recent_breakout",
+                "label": "Son 5 barda kırılım",
+                "group": "pa",
+                "why": "Fiyat son 5 barın yüksek/düşük seviyesini kırdı (momentum başlangıcı).",
+                "met": true,
+                "applicable": true,
+                "required": false
+              },
+              {
+                "id": "news_supportive",
+                "label": "Haber yön destekliyor",
+                "group": "news",
+                "why": "Long için son 24s pozitif haber, short için negatif haber var.",
+                "met": false,
+                "applicable": true,
+                "required": false
+              }
+            ],
+            "entry": 11.19,
+            "stop": 11.73,
+            "target": 10.28,
+            "riskReward": 1.69,
+            "fillMode": "market",
+            "triggerZone": null,
+            "source": "combo",
+            "bestZone": null,
+            "harmonic": null,
+            "combo": null,
+            "storyline": "bearish",
+            "indicators": {
+              "rsi": 35,
+              "macdHist": -0.095,
+              "adx": 0.2
+            },
+            "lastClose": 11.1899995803833,
+            "atr": 0.36214303970336914,
+            "symbol": "TSKB",
+            "name": "Türkiye Sınai Kalkınma Bankası A.Ş.",
+            "news": {
+              "positive24h": 0,
+              "negative24h": 0,
+              "latest": null
+            },
+            "historicalWinRate": null,
+            "confidence": "unknown",
+            "confidenceLabel": "Yeterli Veri Yok",
+            "sampleSize": 0,
+            "createdAt": "2026-05-22T09:45:05.556Z",
+            "phase": "intraday"
+          }
+        ],
+        "allSignals": [
+          {
+            "strategy": "trend",
+            "direction": "short",
+            "totalScore": 7,
+            "applicableMax": 10,
+            "ratio": 0.7,
+            "grade": "GUCLU",
+            "conditions": [
+              {
+                "id": "storyline_aligned",
+                "label": "Storyline yön uyumlu",
+                "group": "trend",
+                "why": "EMA20/50 ile belirlenen trend, sinyal yönüyle aynı.",
+                "met": true,
+                "applicable": true,
+                "required": true
+              },
+              {
+                "id": "price_vs_ema200",
+                "label": "EMA200 yön uyumlu",
+                "group": "trend",
+                "why": "Uzun vadeli ana trend filtresi (long ⇒ fiyat>EMA200, short ⇒ fiyat<EMA200).",
+                "met": true,
+                "applicable": true,
+                "required": false
+              },
+              {
+                "id": "ema_stack",
+                "label": "EMA dizilimi sıralı",
+                "group": "trend",
+                "why": "EMA20>EMA50>EMA200 (long) veya tersi (short).",
+                "met": true,
+                "applicable": true,
+                "required": false
+              },
+              {
+                "id": "rsi_momentum",
+                "label": "RSI momentum bandında",
+                "group": "ind",
+                "why": "Long için RSI 50-72 (sağlıklı yükseliş), short için 28-50.",
+                "met": true,
+                "applicable": true,
+                "required": false
+              },
+              {
+                "id": "macd_aligned_growing",
+                "label": "MACD yönü + büyüyor",
+                "group": "ind",
+                "why": "MACD histogram yönle aynı + son barda büyüyor (momentum güçleniyor).",
+                "met": true,
+                "applicable": true,
+                "required": false
+              },
+              {
+                "id": "volume_above_avg",
+                "label": "Hacim ortalama üstünde",
+                "group": "ind",
+                "why": "Son mum hacmi 20-bar SMA üstünde — katılım var.",
+                "met": true,
+                "applicable": true,
+                "required": false
+              },
+              {
+                "id": "adx_trending",
+                "label": "ADX trend modunda",
+                "group": "ind",
+                "why": "ADX ≥ 22 — fiyat yönlü hareket ediyor (yatay değil).",
+                "met": false,
+                "applicable": true,
+                "required": false
+              },
+              {
+                "id": "combo_hit",
+                "label": "Combo stratejisi tetik",
+                "group": "combo",
+                "why": "comboStrategyService'te en az bir Tier S/A combo aktif.",
+                "met": false,
+                "applicable": true,
+                "required": false
+              },
+              {
+                "id": "recent_breakout",
+                "label": "Son 5 barda kırılım",
+                "group": "pa",
+                "why": "Fiyat son 5 barın yüksek/düşük seviyesini kırdı (momentum başlangıcı).",
+                "met": true,
+                "applicable": true,
+                "required": false
+              },
+              {
+                "id": "news_supportive",
+                "label": "Haber yön destekliyor",
+                "group": "news",
+                "why": "Long için son 24s pozitif haber, short için negatif haber var.",
+                "met": false,
+                "applicable": true,
+                "required": false
+              }
+            ],
+            "entry": 11.19,
+            "stop": 11.73,
+            "target": 10.28,
+            "riskReward": 1.69,
+            "fillMode": "market",
+            "triggerZone": null,
+            "source": "combo",
+            "bestZone": null,
+            "harmonic": null,
+            "combo": null,
+            "storyline": "bearish",
+            "indicators": {
+              "rsi": 35,
+              "macdHist": -0.095,
+              "adx": 0.2
+            },
+            "lastClose": 11.1899995803833,
+            "atr": 0.36214303970336914,
+            "symbol": "TSKB",
+            "name": "Türkiye Sınai Kalkınma Bankası A.Ş.",
+            "news": {
+              "positive24h": 0,
+              "negative24h": 0,
+              "latest": null
+            },
+            "historicalWinRate": null,
+            "confidence": "unknown",
+            "confidenceLabel": "Yeterli Veri Yok",
+            "sampleSize": 0,
+            "createdAt": "2026-05-22T09:45:05.556Z",
+            "phase": "intraday"
+          }
+        ],
+        "diff": [
+          {
+            "symbol": "TSKB",
+            "name": "Türkiye Sınai Kalkınma Bankası A.Ş.",
+            "status": "unchanged",
+            "detail": "Önemli değişiklik yok",
+            "scoreDelta": 0,
+            "entryDelta": 0.17905102954341606,
+            "prev": {
+              "strategy": "trend",
+              "direction": "short",
+              "totalScore": 7,
+              "applicableMax": 10,
+              "ratio": 0.7,
+              "grade": "GUCLU",
+              "conditions": [
+                {
+                  "id": "storyline_aligned",
+                  "label": "Storyline yön uyumlu",
+                  "group": "trend",
+                  "why": "EMA20/50 ile belirlenen trend, sinyal yönüyle aynı.",
+                  "met": true,
+                  "applicable": true,
+                  "required": true
+                },
+                {
+                  "id": "price_vs_ema200",
+                  "label": "EMA200 yön uyumlu",
+                  "group": "trend",
+                  "why": "Uzun vadeli ana trend filtresi (long ⇒ fiyat>EMA200, short ⇒ fiyat<EMA200).",
+                  "met": true,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "ema_stack",
+                  "label": "EMA dizilimi sıralı",
+                  "group": "trend",
+                  "why": "EMA20>EMA50>EMA200 (long) veya tersi (short).",
+                  "met": true,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "rsi_momentum",
+                  "label": "RSI momentum bandında",
+                  "group": "ind",
+                  "why": "Long için RSI 50-72 (sağlıklı yükseliş), short için 28-50.",
+                  "met": true,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "macd_aligned_growing",
+                  "label": "MACD yönü + büyüyor",
+                  "group": "ind",
+                  "why": "MACD histogram yönle aynı + son barda büyüyor (momentum güçleniyor).",
+                  "met": true,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "volume_above_avg",
+                  "label": "Hacim ortalama üstünde",
+                  "group": "ind",
+                  "why": "Son mum hacmi 20-bar SMA üstünde — katılım var.",
+                  "met": true,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "adx_trending",
+                  "label": "ADX trend modunda",
+                  "group": "ind",
+                  "why": "ADX ≥ 22 — fiyat yönlü hareket ediyor (yatay değil).",
+                  "met": false,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "combo_hit",
+                  "label": "Combo stratejisi tetik",
+                  "group": "combo",
+                  "why": "comboStrategyService'te en az bir Tier S/A combo aktif.",
+                  "met": false,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "recent_breakout",
+                  "label": "Son 5 barda kırılım",
+                  "group": "pa",
+                  "why": "Fiyat son 5 barın yüksek/düşük seviyesini kırdı (momentum başlangıcı).",
+                  "met": true,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "news_supportive",
+                  "label": "Haber yön destekliyor",
+                  "group": "news",
+                  "why": "Long için son 24s pozitif haber, short için negatif haber var.",
+                  "met": false,
+                  "applicable": true,
+                  "required": false
+                }
+              ],
+              "entry": 11.17,
+              "stop": 11.71,
+              "target": 10.26,
+              "riskReward": 1.69,
+              "fillMode": "market",
+              "triggerZone": null,
+              "source": "combo",
+              "bestZone": null,
+              "harmonic": null,
+              "combo": null,
+              "storyline": "bearish",
+              "indicators": {
+                "rsi": 34,
+                "macdHist": -0.096,
+                "adx": 0.2
+              },
+              "lastClose": 11.170000076293945,
+              "atr": 0.36214303970336914,
+              "symbol": "TSKB",
+              "name": "Türkiye Sınai Kalkınma Bankası A.Ş.",
+              "news": {
+                "positive24h": 0,
+                "negative24h": 0,
+                "latest": null
+              },
+              "historicalWinRate": null,
+              "confidence": "unknown",
+              "confidenceLabel": "Yeterli Veri Yok",
+              "sampleSize": 0,
+              "createdAt": "2026-05-22T09:30:33.456Z",
+              "phase": "revision"
+            }
+          },
+          {
+            "symbol": "ISMEN",
+            "name": "İş Yatırım Menkul Değerler A.Ş.",
+            "status": "dropped",
+            "detail": "Koşullar artık karşılanmıyor",
+            "prev": {
+              "strategy": "trend",
+              "direction": "short",
+              "totalScore": 7,
+              "applicableMax": 10,
+              "ratio": 0.7,
+              "grade": "GUCLU",
+              "conditions": [
+                {
+                  "id": "storyline_aligned",
+                  "label": "Storyline yön uyumlu",
+                  "group": "trend",
+                  "why": "EMA20/50 ile belirlenen trend, sinyal yönüyle aynı.",
+                  "met": true,
+                  "applicable": true,
+                  "required": true
+                },
+                {
+                  "id": "price_vs_ema200",
+                  "label": "EMA200 yön uyumlu",
+                  "group": "trend",
+                  "why": "Uzun vadeli ana trend filtresi (long ⇒ fiyat>EMA200, short ⇒ fiyat<EMA200).",
+                  "met": true,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "ema_stack",
+                  "label": "EMA dizilimi sıralı",
+                  "group": "trend",
+                  "why": "EMA20>EMA50>EMA200 (long) veya tersi (short).",
+                  "met": false,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "rsi_momentum",
+                  "label": "RSI momentum bandında",
+                  "group": "ind",
+                  "why": "Long için RSI 50-72 (sağlıklı yükseliş), short için 28-50.",
+                  "met": true,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "macd_aligned_growing",
+                  "label": "MACD yönü + büyüyor",
+                  "group": "ind",
+                  "why": "MACD histogram yönle aynı + son barda büyüyor (momentum güçleniyor).",
+                  "met": true,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "volume_above_avg",
+                  "label": "Hacim ortalama üstünde",
+                  "group": "ind",
+                  "why": "Son mum hacmi 20-bar SMA üstünde — katılım var.",
+                  "met": true,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "adx_trending",
+                  "label": "ADX trend modunda",
+                  "group": "ind",
+                  "why": "ADX ≥ 22 — fiyat yönlü hareket ediyor (yatay değil).",
+                  "met": false,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "combo_hit",
+                  "label": "Combo stratejisi tetik",
+                  "group": "combo",
+                  "why": "comboStrategyService'te en az bir Tier S/A combo aktif.",
+                  "met": true,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "recent_breakout",
+                  "label": "Son 5 barda kırılım",
+                  "group": "pa",
+                  "why": "Fiyat son 5 barın yüksek/düşük seviyesini kırdı (momentum başlangıcı).",
+                  "met": true,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "news_supportive",
+                  "label": "Haber yön destekliyor",
+                  "group": "news",
+                  "why": "Long için son 24s pozitif haber, short için negatif haber var.",
+                  "met": false,
+                  "applicable": true,
+                  "required": false
+                }
+              ],
+              "entry": 37.12,
+              "stop": 38.86,
+              "target": 34.23,
+              "riskReward": 1.66,
+              "fillMode": "market",
+              "triggerZone": null,
+              "source": "combo",
+              "bestZone": null,
+              "harmonic": null,
+              "combo": {
+                "key": "cigDususu",
+                "name": "Çığ Düşüşü",
+                "side": "ayi",
+                "tier": "A",
+                "score": 66
+              },
+              "storyline": "bearish",
+              "indicators": {
+                "rsi": 29,
+                "macdHist": -0.502,
+                "adx": 2.4
+              },
+              "lastClose": 37.119998931884766,
+              "atr": 1.157142094203404,
+              "symbol": "ISMEN",
+              "name": "İş Yatırım Menkul Değerler A.Ş.",
+              "news": {
+                "positive24h": 0,
+                "negative24h": 0,
+                "latest": null
+              },
+              "historicalWinRate": null,
+              "confidence": "unknown",
+              "confidenceLabel": "Yeterli Veri Yok",
+              "sampleSize": 0,
+              "createdAt": "2026-05-22T09:30:33.456Z",
+              "phase": "revision"
+            }
+          },
+          {
+            "symbol": "SNGYO",
+            "name": "Sinpaş Gayrimenkul Yatırım Ortaklığı A.Ş.",
+            "status": "dropped",
+            "detail": "Koşullar artık karşılanmıyor",
+            "prev": {
+              "strategy": "trend",
+              "direction": "short",
+              "totalScore": 6,
+              "applicableMax": 10,
+              "ratio": 0.6,
+              "grade": "GUCLU",
+              "conditions": [
+                {
+                  "id": "storyline_aligned",
+                  "label": "Storyline yön uyumlu",
+                  "group": "trend",
+                  "why": "EMA20/50 ile belirlenen trend, sinyal yönüyle aynı.",
+                  "met": true,
+                  "applicable": true,
+                  "required": true
+                },
+                {
+                  "id": "price_vs_ema200",
+                  "label": "EMA200 yön uyumlu",
+                  "group": "trend",
+                  "why": "Uzun vadeli ana trend filtresi (long ⇒ fiyat>EMA200, short ⇒ fiyat<EMA200).",
+                  "met": true,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "ema_stack",
+                  "label": "EMA dizilimi sıralı",
+                  "group": "trend",
+                  "why": "EMA20>EMA50>EMA200 (long) veya tersi (short).",
+                  "met": true,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "rsi_momentum",
+                  "label": "RSI momentum bandında",
+                  "group": "ind",
+                  "why": "Long için RSI 50-72 (sağlıklı yükseliş), short için 28-50.",
+                  "met": true,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "macd_aligned_growing",
+                  "label": "MACD yönü + büyüyor",
+                  "group": "ind",
+                  "why": "MACD histogram yönle aynı + son barda büyüyor (momentum güçleniyor).",
+                  "met": true,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "volume_above_avg",
+                  "label": "Hacim ortalama üstünde",
+                  "group": "ind",
+                  "why": "Son mum hacmi 20-bar SMA üstünde — katılım var.",
+                  "met": false,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "adx_trending",
+                  "label": "ADX trend modunda",
+                  "group": "ind",
+                  "why": "ADX ≥ 22 — fiyat yönlü hareket ediyor (yatay değil).",
+                  "met": false,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "combo_hit",
+                  "label": "Combo stratejisi tetik",
+                  "group": "combo",
+                  "why": "comboStrategyService'te en az bir Tier S/A combo aktif.",
+                  "met": false,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "recent_breakout",
+                  "label": "Son 5 barda kırılım",
+                  "group": "pa",
+                  "why": "Fiyat son 5 barın yüksek/düşük seviyesini kırdı (momentum başlangıcı).",
+                  "met": true,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "news_supportive",
+                  "label": "Haber yön destekliyor",
+                  "group": "news",
+                  "why": "Long için son 24s pozitif haber, short için negatif haber var.",
+                  "met": false,
+                  "applicable": true,
+                  "required": false
+                }
+              ],
+              "entry": 3.4,
+              "stop": 3.62,
+              "target": 3.04,
+              "riskReward": 1.64,
+              "fillMode": "market",
+              "triggerZone": null,
+              "source": "combo",
+              "bestZone": null,
+              "harmonic": null,
+              "combo": null,
+              "storyline": "bearish",
+              "indicators": {
+                "rsi": 34,
+                "macdHist": -0.032,
+                "adx": 3.2
+              },
+              "lastClose": 3.4000000953674316,
+              "atr": 0.14571435110909597,
+              "symbol": "SNGYO",
+              "name": "Sinpaş Gayrimenkul Yatırım Ortaklığı A.Ş.",
+              "news": {
+                "positive24h": 0,
+                "negative24h": 0,
+                "latest": null
+              },
+              "historicalWinRate": null,
+              "confidence": "unknown",
+              "confidenceLabel": "Yeterli Veri Yok",
+              "sampleSize": 0,
+              "createdAt": "2026-05-22T09:30:33.456Z",
+              "phase": "revision"
+            }
+          }
+        ]
+      },
+      "reversion": {
+        "signals": [
+          {
+            "strategy": "reversion",
+            "direction": "short",
+            "totalScore": 7,
+            "applicableMax": 10,
+            "ratio": 0.7,
+            "grade": "GUCLU",
+            "conditions": [
+              {
+                "id": "in_range_tight",
+                "label": "Fiyat zone'a yakın (≤%4)",
+                "group": "sust",
+                "why": "Fiyat entry seviyesine ≤%4 mesafede — pullback yakın, tetik olasılığı yüksek.",
+                "met": true,
+                "applicable": true,
+                "required": true
+              },
+              {
+                "id": "recent_pivot",
+                "label": "Pivot ≤30 gün",
+                "group": "sust",
+                "why": "Zone'un oluştuğu pivot taze — kurumsal hafıza canlı.",
+                "met": true,
+                "applicable": true,
+                "required": true
+              },
+              {
+                "id": "fresh_zone",
+                "label": "Taze zone",
+                "group": "pa",
+                "why": "Zone hiç test edilmedi — kurumsal emirler dolmadı.",
+                "met": false,
+                "applicable": true,
+                "required": false
+              },
+              {
+                "id": "gap_zone",
+                "label": "Gap zone",
+                "group": "pa",
+                "why": "HTF gap = LTF engulfing eşdeğeri — yüksek olasılıklı dönüş.",
+                "met": true,
+                "applicable": true,
+                "required": false
+              },
+              {
+                "id": "engulfing_at_zone",
+                "label": "Engulfing teyidi",
+                "group": "pa",
+                "why": "Zone yakınında bullish/bearish engulfing — kurumsal yutma.",
+                "met": true,
+                "applicable": true,
+                "required": false
+              },
+              {
+                "id": "liquidity_sweep",
+                "label": "Likidite süpürmesi",
+                "group": "pa",
+                "why": "Wick zone'u aştı, gövde döndü — küçük yatırımcı stop'ları temizlendi.",
+                "met": false,
+                "applicable": true,
+                "required": false
+              },
+              {
+                "id": "validated_zone",
+                "label": "Onaylı zone",
+                "group": "sust",
+                "why": "İlk dokunma 3 bar içinde gerçekleşti veya hiç test edilmedi.",
+                "met": true,
+                "applicable": true,
+                "required": false
+              },
+              {
+                "id": "storyline_not_opposite",
+                "label": "Storyline ters değil",
+                "group": "trend",
+                "why": "Long için storyline bearish DEĞİL, short için bullish DEĞİL.",
+                "met": false,
+                "applicable": true,
+                "required": false
+              },
+              {
+                "id": "rsi_extreme",
+                "label": "RSI uç bölgede",
+                "group": "ind",
+                "why": "Long support için RSI<45 (oversold), short resistance için RSI>55.",
+                "met": true,
+                "applicable": true,
+                "required": false
+              },
+              {
+                "id": "harmonic_match",
+                "label": "Harmonik patern uyumlu",
+                "group": "harm",
+                "why": "Aktif harmonik patern (Gartley/Bat/Crab) sinyalle aynı yönde.",
+                "met": true,
+                "applicable": true,
+                "required": false
+              }
+            ],
+            "entry": 49.36,
+            "stop": 57.66,
+            "target": 32.76,
+            "riskReward": 2,
+            "fillMode": "limit",
+            "triggerZone": {
+              "top": 51.650001525878906,
+              "bottom": 49.36000061035156
+            },
+            "source": "snr",
+            "bestZone": {
+              "id": "R_251",
+              "type": "resistance",
+              "top": 51.650001525878906,
+              "bottom": 49.36000061035156,
+              "pivotDate": "2026-05-21",
+              "daysAgo": 1,
+              "priceDistancePct": 0.48,
+              "score": 60,
+              "grade": "B",
+              "freshness": "tested",
+              "zoneType": "gap",
+              "validated": true
+            },
+            "harmonic": {
+              "pattern": "Shark",
+              "direction": "Bearish",
+              "completion": 71,
+              "detectedDate": "2026-04-20"
+            },
+            "combo": null,
+            "storyline": "bullish",
+            "indicators": {
+              "rsi": 58,
+              "macdHist": 0.115
+            },
+            "lastClose": 49.599998474121094,
+            "atr": 4.00499997820173,
+            "symbol": "ALFAS",
+            "name": "Alfa Solar Enerji Sanayi ve Ticaret A.Ş.",
+            "news": {
+              "positive24h": 0,
+              "negative24h": 0,
+              "latest": null
+            },
+            "historicalWinRate": null,
+            "confidence": "unknown",
+            "confidenceLabel": "Yeterli Veri Yok",
+            "sampleSize": 0,
+            "createdAt": "2026-05-22T09:45:05.556Z",
+            "phase": "intraday"
+          },
+          {
+            "strategy": "reversion",
+            "direction": "long",
+            "totalScore": 7,
+            "applicableMax": 10,
+            "ratio": 0.7,
+            "grade": "GUCLU",
+            "conditions": [
+              {
+                "id": "in_range_tight",
+                "label": "Fiyat zone'a yakın (≤%4)",
+                "group": "sust",
+                "why": "Fiyat entry seviyesine ≤%4 mesafede — pullback yakın, tetik olasılığı yüksek.",
+                "met": true,
+                "applicable": true,
+                "required": true
+              },
+              {
+                "id": "recent_pivot",
+                "label": "Pivot ≤30 gün",
+                "group": "sust",
+                "why": "Zone'un oluştuğu pivot taze — kurumsal hafıza canlı.",
+                "met": true,
+                "applicable": true,
+                "required": true
+              },
+              {
+                "id": "fresh_zone",
+                "label": "Taze zone",
+                "group": "pa",
+                "why": "Zone hiç test edilmedi — kurumsal emirler dolmadı.",
+                "met": true,
+                "applicable": true,
+                "required": false
+              },
+              {
+                "id": "gap_zone",
+                "label": "Gap zone",
+                "group": "pa",
+                "why": "HTF gap = LTF engulfing eşdeğeri — yüksek olasılıklı dönüş.",
+                "met": true,
+                "applicable": true,
+                "required": false
+              },
+              {
+                "id": "engulfing_at_zone",
+                "label": "Engulfing teyidi",
+                "group": "pa",
+                "why": "Zone yakınında bullish/bearish engulfing — kurumsal yutma.",
+                "met": true,
+                "applicable": true,
+                "required": false
+              },
+              {
+                "id": "liquidity_sweep",
+                "label": "Likidite süpürmesi",
+                "group": "pa",
+                "why": "Wick zone'u aştı, gövde döndü — küçük yatırımcı stop'ları temizlendi.",
+                "met": false,
+                "applicable": true,
+                "required": false
+              },
+              {
+                "id": "validated_zone",
+                "label": "Onaylı zone",
+                "group": "sust",
+                "why": "İlk dokunma 3 bar içinde gerçekleşti veya hiç test edilmedi.",
+                "met": true,
+                "applicable": true,
+                "required": false
+              },
+              {
+                "id": "storyline_not_opposite",
+                "label": "Storyline ters değil",
+                "group": "trend",
+                "why": "Long için storyline bearish DEĞİL, short için bullish DEĞİL.",
+                "met": true,
+                "applicable": true,
+                "required": false
+              },
+              {
+                "id": "rsi_extreme",
+                "label": "RSI uç bölgede",
+                "group": "ind",
+                "why": "Long support için RSI<45 (oversold), short resistance için RSI>55.",
+                "met": false,
+                "applicable": true,
+                "required": false
+              },
+              {
+                "id": "harmonic_match",
+                "label": "Harmonik patern uyumlu",
+                "group": "harm",
+                "why": "Aktif harmonik patern (Gartley/Bat/Crab) sinyalle aynı yönde.",
+                "met": false,
+                "applicable": true,
+                "required": false
+              }
+            ],
+            "entry": 645,
+            "stop": 603.54,
+            "target": 727.92,
+            "riskReward": 2,
+            "fillMode": "limit",
+            "triggerZone": {
+              "top": 645,
+              "bottom": 640.5
+            },
+            "source": "snr",
+            "bestZone": {
+              "id": "S_240",
+              "type": "support",
+              "top": 645,
+              "bottom": 640.5,
+              "pivotDate": "2026-05-05",
+              "daysAgo": 17,
+              "priceDistancePct": 3.01,
+              "score": 85,
+              "grade": "A+",
+              "freshness": "fresh",
+              "zoneType": "gap",
+              "validated": true
+            },
+            "harmonic": null,
+            "combo": null,
+            "storyline": "neutral",
+            "indicators": {
+              "rsi": 51,
+              "macdHist": -2.758
+            },
+            "lastClose": 665,
+            "atr": 24.642857142857142,
+            "symbol": "MGROS",
+            "name": "Migros Ticaret A.Ş.",
+            "news": {
+              "positive24h": 0,
+              "negative24h": 0,
+              "latest": null
+            },
+            "historicalWinRate": null,
+            "confidence": "unknown",
+            "confidenceLabel": "Yeterli Veri Yok",
+            "sampleSize": 0,
+            "createdAt": "2026-05-22T09:45:05.556Z",
+            "phase": "intraday"
+          }
+        ],
+        "allSignals": [
+          {
+            "strategy": "reversion",
+            "direction": "short",
+            "totalScore": 7,
+            "applicableMax": 10,
+            "ratio": 0.7,
+            "grade": "GUCLU",
+            "conditions": [
+              {
+                "id": "in_range_tight",
+                "label": "Fiyat zone'a yakın (≤%4)",
+                "group": "sust",
+                "why": "Fiyat entry seviyesine ≤%4 mesafede — pullback yakın, tetik olasılığı yüksek.",
+                "met": true,
+                "applicable": true,
+                "required": true
+              },
+              {
+                "id": "recent_pivot",
+                "label": "Pivot ≤30 gün",
+                "group": "sust",
+                "why": "Zone'un oluştuğu pivot taze — kurumsal hafıza canlı.",
+                "met": true,
+                "applicable": true,
+                "required": true
+              },
+              {
+                "id": "fresh_zone",
+                "label": "Taze zone",
+                "group": "pa",
+                "why": "Zone hiç test edilmedi — kurumsal emirler dolmadı.",
+                "met": false,
+                "applicable": true,
+                "required": false
+              },
+              {
+                "id": "gap_zone",
+                "label": "Gap zone",
+                "group": "pa",
+                "why": "HTF gap = LTF engulfing eşdeğeri — yüksek olasılıklı dönüş.",
+                "met": true,
+                "applicable": true,
+                "required": false
+              },
+              {
+                "id": "engulfing_at_zone",
+                "label": "Engulfing teyidi",
+                "group": "pa",
+                "why": "Zone yakınında bullish/bearish engulfing — kurumsal yutma.",
+                "met": true,
+                "applicable": true,
+                "required": false
+              },
+              {
+                "id": "liquidity_sweep",
+                "label": "Likidite süpürmesi",
+                "group": "pa",
+                "why": "Wick zone'u aştı, gövde döndü — küçük yatırımcı stop'ları temizlendi.",
+                "met": false,
+                "applicable": true,
+                "required": false
+              },
+              {
+                "id": "validated_zone",
+                "label": "Onaylı zone",
+                "group": "sust",
+                "why": "İlk dokunma 3 bar içinde gerçekleşti veya hiç test edilmedi.",
+                "met": true,
+                "applicable": true,
+                "required": false
+              },
+              {
+                "id": "storyline_not_opposite",
+                "label": "Storyline ters değil",
+                "group": "trend",
+                "why": "Long için storyline bearish DEĞİL, short için bullish DEĞİL.",
+                "met": false,
+                "applicable": true,
+                "required": false
+              },
+              {
+                "id": "rsi_extreme",
+                "label": "RSI uç bölgede",
+                "group": "ind",
+                "why": "Long support için RSI<45 (oversold), short resistance için RSI>55.",
+                "met": true,
+                "applicable": true,
+                "required": false
+              },
+              {
+                "id": "harmonic_match",
+                "label": "Harmonik patern uyumlu",
+                "group": "harm",
+                "why": "Aktif harmonik patern (Gartley/Bat/Crab) sinyalle aynı yönde.",
+                "met": true,
+                "applicable": true,
+                "required": false
+              }
+            ],
+            "entry": 49.36,
+            "stop": 57.66,
+            "target": 32.76,
+            "riskReward": 2,
+            "fillMode": "limit",
+            "triggerZone": {
+              "top": 51.650001525878906,
+              "bottom": 49.36000061035156
+            },
+            "source": "snr",
+            "bestZone": {
+              "id": "R_251",
+              "type": "resistance",
+              "top": 51.650001525878906,
+              "bottom": 49.36000061035156,
+              "pivotDate": "2026-05-21",
+              "daysAgo": 1,
+              "priceDistancePct": 0.48,
+              "score": 60,
+              "grade": "B",
+              "freshness": "tested",
+              "zoneType": "gap",
+              "validated": true
+            },
+            "harmonic": {
+              "pattern": "Shark",
+              "direction": "Bearish",
+              "completion": 71,
+              "detectedDate": "2026-04-20"
+            },
+            "combo": null,
+            "storyline": "bullish",
+            "indicators": {
+              "rsi": 58,
+              "macdHist": 0.115
+            },
+            "lastClose": 49.599998474121094,
+            "atr": 4.00499997820173,
+            "symbol": "ALFAS",
+            "name": "Alfa Solar Enerji Sanayi ve Ticaret A.Ş.",
+            "news": {
+              "positive24h": 0,
+              "negative24h": 0,
+              "latest": null
+            },
+            "historicalWinRate": null,
+            "confidence": "unknown",
+            "confidenceLabel": "Yeterli Veri Yok",
+            "sampleSize": 0,
+            "createdAt": "2026-05-22T09:45:05.556Z",
+            "phase": "intraday"
+          },
+          {
+            "strategy": "reversion",
+            "direction": "long",
+            "totalScore": 7,
+            "applicableMax": 10,
+            "ratio": 0.7,
+            "grade": "GUCLU",
+            "conditions": [
+              {
+                "id": "in_range_tight",
+                "label": "Fiyat zone'a yakın (≤%4)",
+                "group": "sust",
+                "why": "Fiyat entry seviyesine ≤%4 mesafede — pullback yakın, tetik olasılığı yüksek.",
+                "met": true,
+                "applicable": true,
+                "required": true
+              },
+              {
+                "id": "recent_pivot",
+                "label": "Pivot ≤30 gün",
+                "group": "sust",
+                "why": "Zone'un oluştuğu pivot taze — kurumsal hafıza canlı.",
+                "met": true,
+                "applicable": true,
+                "required": true
+              },
+              {
+                "id": "fresh_zone",
+                "label": "Taze zone",
+                "group": "pa",
+                "why": "Zone hiç test edilmedi — kurumsal emirler dolmadı.",
+                "met": true,
+                "applicable": true,
+                "required": false
+              },
+              {
+                "id": "gap_zone",
+                "label": "Gap zone",
+                "group": "pa",
+                "why": "HTF gap = LTF engulfing eşdeğeri — yüksek olasılıklı dönüş.",
+                "met": true,
+                "applicable": true,
+                "required": false
+              },
+              {
+                "id": "engulfing_at_zone",
+                "label": "Engulfing teyidi",
+                "group": "pa",
+                "why": "Zone yakınında bullish/bearish engulfing — kurumsal yutma.",
+                "met": true,
+                "applicable": true,
+                "required": false
+              },
+              {
+                "id": "liquidity_sweep",
+                "label": "Likidite süpürmesi",
+                "group": "pa",
+                "why": "Wick zone'u aştı, gövde döndü — küçük yatırımcı stop'ları temizlendi.",
+                "met": false,
+                "applicable": true,
+                "required": false
+              },
+              {
+                "id": "validated_zone",
+                "label": "Onaylı zone",
+                "group": "sust",
+                "why": "İlk dokunma 3 bar içinde gerçekleşti veya hiç test edilmedi.",
+                "met": true,
+                "applicable": true,
+                "required": false
+              },
+              {
+                "id": "storyline_not_opposite",
+                "label": "Storyline ters değil",
+                "group": "trend",
+                "why": "Long için storyline bearish DEĞİL, short için bullish DEĞİL.",
+                "met": true,
+                "applicable": true,
+                "required": false
+              },
+              {
+                "id": "rsi_extreme",
+                "label": "RSI uç bölgede",
+                "group": "ind",
+                "why": "Long support için RSI<45 (oversold), short resistance için RSI>55.",
+                "met": false,
+                "applicable": true,
+                "required": false
+              },
+              {
+                "id": "harmonic_match",
+                "label": "Harmonik patern uyumlu",
+                "group": "harm",
+                "why": "Aktif harmonik patern (Gartley/Bat/Crab) sinyalle aynı yönde.",
+                "met": false,
+                "applicable": true,
+                "required": false
+              }
+            ],
+            "entry": 645,
+            "stop": 603.54,
+            "target": 727.92,
+            "riskReward": 2,
+            "fillMode": "limit",
+            "triggerZone": {
+              "top": 645,
+              "bottom": 640.5
+            },
+            "source": "snr",
+            "bestZone": {
+              "id": "S_240",
+              "type": "support",
+              "top": 645,
+              "bottom": 640.5,
+              "pivotDate": "2026-05-05",
+              "daysAgo": 17,
+              "priceDistancePct": 3.01,
+              "score": 85,
+              "grade": "A+",
+              "freshness": "fresh",
+              "zoneType": "gap",
+              "validated": true
+            },
+            "harmonic": null,
+            "combo": null,
+            "storyline": "neutral",
+            "indicators": {
+              "rsi": 51,
+              "macdHist": -2.758
+            },
+            "lastClose": 665,
+            "atr": 24.642857142857142,
+            "symbol": "MGROS",
+            "name": "Migros Ticaret A.Ş.",
+            "news": {
+              "positive24h": 0,
+              "negative24h": 0,
+              "latest": null
+            },
+            "historicalWinRate": null,
+            "confidence": "unknown",
+            "confidenceLabel": "Yeterli Veri Yok",
+            "sampleSize": 0,
+            "createdAt": "2026-05-22T09:45:05.556Z",
+            "phase": "intraday"
+          }
+        ],
+        "diff": [
+          {
+            "symbol": "ALFAS",
+            "name": "Alfa Solar Enerji Sanayi ve Ticaret A.Ş.",
+            "status": "unchanged",
+            "detail": "Önemli değişiklik yok",
+            "scoreDelta": 0,
+            "entryDelta": 0,
+            "prev": {
+              "strategy": "reversion",
+              "direction": "short",
+              "totalScore": 7,
+              "applicableMax": 10,
+              "ratio": 0.7,
+              "grade": "GUCLU",
+              "conditions": [
+                {
+                  "id": "in_range_tight",
+                  "label": "Fiyat zone'a yakın (≤%4)",
+                  "group": "sust",
+                  "why": "Fiyat entry seviyesine ≤%4 mesafede — pullback yakın, tetik olasılığı yüksek.",
+                  "met": true,
+                  "applicable": true,
+                  "required": true
+                },
+                {
+                  "id": "recent_pivot",
+                  "label": "Pivot ≤30 gün",
+                  "group": "sust",
+                  "why": "Zone'un oluştuğu pivot taze — kurumsal hafıza canlı.",
+                  "met": true,
+                  "applicable": true,
+                  "required": true
+                },
+                {
+                  "id": "fresh_zone",
+                  "label": "Taze zone",
+                  "group": "pa",
+                  "why": "Zone hiç test edilmedi — kurumsal emirler dolmadı.",
+                  "met": false,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "gap_zone",
+                  "label": "Gap zone",
+                  "group": "pa",
+                  "why": "HTF gap = LTF engulfing eşdeğeri — yüksek olasılıklı dönüş.",
+                  "met": true,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "engulfing_at_zone",
+                  "label": "Engulfing teyidi",
+                  "group": "pa",
+                  "why": "Zone yakınında bullish/bearish engulfing — kurumsal yutma.",
+                  "met": true,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "liquidity_sweep",
+                  "label": "Likidite süpürmesi",
+                  "group": "pa",
+                  "why": "Wick zone'u aştı, gövde döndü — küçük yatırımcı stop'ları temizlendi.",
+                  "met": false,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "validated_zone",
+                  "label": "Onaylı zone",
+                  "group": "sust",
+                  "why": "İlk dokunma 3 bar içinde gerçekleşti veya hiç test edilmedi.",
+                  "met": true,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "storyline_not_opposite",
+                  "label": "Storyline ters değil",
+                  "group": "trend",
+                  "why": "Long için storyline bearish DEĞİL, short için bullish DEĞİL.",
+                  "met": false,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "rsi_extreme",
+                  "label": "RSI uç bölgede",
+                  "group": "ind",
+                  "why": "Long support için RSI<45 (oversold), short resistance için RSI>55.",
+                  "met": true,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "harmonic_match",
+                  "label": "Harmonik patern uyumlu",
+                  "group": "harm",
+                  "why": "Aktif harmonik patern (Gartley/Bat/Crab) sinyalle aynı yönde.",
+                  "met": true,
+                  "applicable": true,
+                  "required": false
+                }
+              ],
+              "entry": 49.36,
+              "stop": 57.65,
+              "target": 32.78,
+              "riskReward": 2,
+              "fillMode": "limit",
+              "triggerZone": {
+                "top": 51.650001525878906,
+                "bottom": 49.36000061035156
+              },
+              "source": "snr",
+              "bestZone": {
+                "id": "R_251",
+                "type": "resistance",
+                "top": 51.650001525878906,
+                "bottom": 49.36000061035156,
+                "pivotDate": "2026-05-21",
+                "daysAgo": 1,
+                "priceDistancePct": 0.08,
+                "score": 60,
+                "grade": "B",
+                "freshness": "tested",
+                "zoneType": "gap",
+                "validated": true
+              },
+              "harmonic": {
+                "pattern": "Shark",
+                "direction": "Bearish",
+                "completion": 71,
+                "detectedDate": "2026-04-20"
+              },
+              "combo": null,
+              "storyline": "bullish",
+              "indicators": {
+                "rsi": 58,
+                "macdHist": 0.102
+              },
+              "lastClose": 49.400001525878906,
+              "atr": 4.002142769949777,
+              "symbol": "ALFAS",
+              "name": "Alfa Solar Enerji Sanayi ve Ticaret A.Ş.",
+              "news": {
+                "positive24h": 0,
+                "negative24h": 0,
+                "latest": null
+              },
+              "historicalWinRate": null,
+              "confidence": "unknown",
+              "confidenceLabel": "Yeterli Veri Yok",
+              "sampleSize": 0,
+              "createdAt": "2026-05-22T09:30:33.456Z",
+              "phase": "revision"
+            }
+          },
+          {
+            "symbol": "MGROS",
+            "name": "Migros Ticaret A.Ş.",
+            "status": "unchanged",
+            "detail": "Önemli değişiklik yok",
+            "scoreDelta": 0,
+            "entryDelta": 0,
+            "prev": {
+              "strategy": "reversion",
+              "direction": "long",
+              "totalScore": 7,
+              "applicableMax": 10,
+              "ratio": 0.7,
+              "grade": "GUCLU",
+              "conditions": [
+                {
+                  "id": "in_range_tight",
+                  "label": "Fiyat zone'a yakın (≤%4)",
+                  "group": "sust",
+                  "why": "Fiyat entry seviyesine ≤%4 mesafede — pullback yakın, tetik olasılığı yüksek.",
+                  "met": true,
+                  "applicable": true,
+                  "required": true
+                },
+                {
+                  "id": "recent_pivot",
+                  "label": "Pivot ≤30 gün",
+                  "group": "sust",
+                  "why": "Zone'un oluştuğu pivot taze — kurumsal hafıza canlı.",
+                  "met": true,
+                  "applicable": true,
+                  "required": true
+                },
+                {
+                  "id": "fresh_zone",
+                  "label": "Taze zone",
+                  "group": "pa",
+                  "why": "Zone hiç test edilmedi — kurumsal emirler dolmadı.",
+                  "met": true,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "gap_zone",
+                  "label": "Gap zone",
+                  "group": "pa",
+                  "why": "HTF gap = LTF engulfing eşdeğeri — yüksek olasılıklı dönüş.",
+                  "met": true,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "engulfing_at_zone",
+                  "label": "Engulfing teyidi",
+                  "group": "pa",
+                  "why": "Zone yakınında bullish/bearish engulfing — kurumsal yutma.",
+                  "met": true,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "liquidity_sweep",
+                  "label": "Likidite süpürmesi",
+                  "group": "pa",
+                  "why": "Wick zone'u aştı, gövde döndü — küçük yatırımcı stop'ları temizlendi.",
+                  "met": false,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "validated_zone",
+                  "label": "Onaylı zone",
+                  "group": "sust",
+                  "why": "İlk dokunma 3 bar içinde gerçekleşti veya hiç test edilmedi.",
+                  "met": true,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "storyline_not_opposite",
+                  "label": "Storyline ters değil",
+                  "group": "trend",
+                  "why": "Long için storyline bearish DEĞİL, short için bullish DEĞİL.",
+                  "met": true,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "rsi_extreme",
+                  "label": "RSI uç bölgede",
+                  "group": "ind",
+                  "why": "Long support için RSI<45 (oversold), short resistance için RSI>55.",
+                  "met": false,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "harmonic_match",
+                  "label": "Harmonik patern uyumlu",
+                  "group": "harm",
+                  "why": "Aktif harmonik patern (Gartley/Bat/Crab) sinyalle aynı yönde.",
+                  "met": false,
+                  "applicable": true,
+                  "required": false
+                }
+              ],
+              "entry": 645,
+              "stop": 603.54,
+              "target": 727.92,
+              "riskReward": 2,
+              "fillMode": "limit",
+              "triggerZone": {
+                "top": 645,
+                "bottom": 640.5
+              },
+              "source": "snr",
+              "bestZone": {
+                "id": "S_240",
+                "type": "support",
+                "top": 645,
+                "bottom": 640.5,
+                "pivotDate": "2026-05-05",
+                "daysAgo": 17,
+                "priceDistancePct": 2.79,
+                "score": 85,
+                "grade": "A+",
+                "freshness": "fresh",
+                "zoneType": "gap",
+                "validated": true
+              },
+              "harmonic": null,
+              "combo": null,
+              "storyline": "neutral",
+              "indicators": {
+                "rsi": 50,
+                "macdHist": -2.853
+              },
+              "lastClose": 663.5,
+              "atr": 24.642857142857142,
+              "symbol": "MGROS",
+              "name": "Migros Ticaret A.Ş.",
+              "news": {
+                "positive24h": 0,
+                "negative24h": 0,
+                "latest": null
+              },
+              "historicalWinRate": null,
+              "confidence": "unknown",
+              "confidenceLabel": "Yeterli Veri Yok",
+              "sampleSize": 0,
+              "createdAt": "2026-05-22T09:30:33.456Z",
+              "phase": "revision"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "phase": "intraday",
+      "generatedAt": "2026-05-22T10:15:06.225Z",
+      "trend": {
+        "signals": [
+          {
+            "strategy": "trend",
+            "direction": "short",
+            "totalScore": 7,
+            "applicableMax": 10,
+            "ratio": 0.7,
+            "grade": "GUCLU",
+            "conditions": [
+              {
+                "id": "storyline_aligned",
+                "label": "Storyline yön uyumlu",
+                "group": "trend",
+                "why": "EMA20/50 ile belirlenen trend, sinyal yönüyle aynı.",
+                "met": true,
+                "applicable": true,
+                "required": true
+              },
+              {
+                "id": "price_vs_ema200",
+                "label": "EMA200 yön uyumlu",
+                "group": "trend",
+                "why": "Uzun vadeli ana trend filtresi (long ⇒ fiyat>EMA200, short ⇒ fiyat<EMA200).",
+                "met": true,
+                "applicable": true,
+                "required": false
+              },
+              {
+                "id": "ema_stack",
+                "label": "EMA dizilimi sıralı",
+                "group": "trend",
+                "why": "EMA20>EMA50>EMA200 (long) veya tersi (short).",
+                "met": true,
+                "applicable": true,
+                "required": false
+              },
+              {
+                "id": "rsi_momentum",
+                "label": "RSI momentum bandında",
+                "group": "ind",
+                "why": "Long için RSI 50-72 (sağlıklı yükseliş), short için 28-50.",
+                "met": true,
+                "applicable": true,
+                "required": false
+              },
+              {
+                "id": "macd_aligned_growing",
+                "label": "MACD yönü + büyüyor",
+                "group": "ind",
+                "why": "MACD histogram yönle aynı + son barda büyüyor (momentum güçleniyor).",
+                "met": true,
+                "applicable": true,
+                "required": false
+              },
+              {
+                "id": "volume_above_avg",
+                "label": "Hacim ortalama üstünde",
+                "group": "ind",
+                "why": "Son mum hacmi 20-bar SMA üstünde — katılım var.",
+                "met": true,
+                "applicable": true,
+                "required": false
+              },
+              {
+                "id": "adx_trending",
+                "label": "ADX trend modunda",
+                "group": "ind",
+                "why": "ADX ≥ 22 — fiyat yönlü hareket ediyor (yatay değil).",
+                "met": false,
+                "applicable": true,
+                "required": false
+              },
+              {
+                "id": "combo_hit",
+                "label": "Combo stratejisi tetik",
+                "group": "combo",
+                "why": "comboStrategyService'te en az bir Tier S/A combo aktif.",
+                "met": false,
+                "applicable": true,
+                "required": false
+              },
+              {
+                "id": "recent_breakout",
+                "label": "Son 5 barda kırılım",
+                "group": "pa",
+                "why": "Fiyat son 5 barın yüksek/düşük seviyesini kırdı (momentum başlangıcı).",
+                "met": true,
+                "applicable": true,
+                "required": false
+              },
+              {
+                "id": "news_supportive",
+                "label": "Haber yön destekliyor",
+                "group": "news",
+                "why": "Long için son 24s pozitif haber, short için negatif haber var.",
+                "met": false,
+                "applicable": true,
+                "required": false
+              }
+            ],
+            "entry": 11.23,
+            "stop": 11.77,
+            "target": 10.32,
+            "riskReward": 1.69,
+            "fillMode": "market",
+            "triggerZone": null,
+            "source": "combo",
+            "bestZone": null,
+            "harmonic": null,
+            "combo": null,
+            "storyline": "bearish",
+            "indicators": {
+              "rsi": 35,
+              "macdHist": -0.092,
+              "adx": 0.2
+            },
+            "lastClose": 11.229999542236328,
+            "atr": 0.36214303970336914,
+            "symbol": "TSKB",
+            "name": "Türkiye Sınai Kalkınma Bankası A.Ş.",
+            "news": {
+              "positive24h": 0,
+              "negative24h": 0,
+              "latest": null
+            },
+            "historicalWinRate": null,
+            "confidence": "unknown",
+            "confidenceLabel": "Yeterli Veri Yok",
+            "sampleSize": 0,
+            "createdAt": "2026-05-22T10:15:06.225Z",
+            "phase": "intraday"
+          },
+          {
+            "strategy": "trend",
+            "direction": "short",
+            "totalScore": 6,
+            "applicableMax": 10,
+            "ratio": 0.6,
+            "grade": "GUCLU",
+            "conditions": [
+              {
+                "id": "storyline_aligned",
+                "label": "Storyline yön uyumlu",
+                "group": "trend",
+                "why": "EMA20/50 ile belirlenen trend, sinyal yönüyle aynı.",
+                "met": true,
+                "applicable": true,
+                "required": true
+              },
+              {
+                "id": "price_vs_ema200",
+                "label": "EMA200 yön uyumlu",
+                "group": "trend",
+                "why": "Uzun vadeli ana trend filtresi (long ⇒ fiyat>EMA200, short ⇒ fiyat<EMA200).",
+                "met": true,
+                "applicable": true,
+                "required": false
+              },
+              {
+                "id": "ema_stack",
+                "label": "EMA dizilimi sıralı",
+                "group": "trend",
+                "why": "EMA20>EMA50>EMA200 (long) veya tersi (short).",
+                "met": true,
+                "applicable": true,
+                "required": false
+              },
+              {
+                "id": "rsi_momentum",
+                "label": "RSI momentum bandında",
+                "group": "ind",
+                "why": "Long için RSI 50-72 (sağlıklı yükseliş), short için 28-50.",
+                "met": true,
+                "applicable": true,
+                "required": false
+              },
+              {
+                "id": "macd_aligned_growing",
+                "label": "MACD yönü + büyüyor",
+                "group": "ind",
+                "why": "MACD histogram yönle aynı + son barda büyüyor (momentum güçleniyor).",
+                "met": true,
+                "applicable": true,
+                "required": false
+              },
+              {
+                "id": "volume_above_avg",
+                "label": "Hacim ortalama üstünde",
+                "group": "ind",
+                "why": "Son mum hacmi 20-bar SMA üstünde — katılım var.",
+                "met": true,
+                "applicable": true,
+                "required": false
+              },
+              {
+                "id": "adx_trending",
+                "label": "ADX trend modunda",
+                "group": "ind",
+                "why": "ADX ≥ 22 — fiyat yönlü hareket ediyor (yatay değil).",
+                "met": false,
+                "applicable": true,
+                "required": false
+              },
+              {
+                "id": "combo_hit",
+                "label": "Combo stratejisi tetik",
+                "group": "combo",
+                "why": "comboStrategyService'te en az bir Tier S/A combo aktif.",
+                "met": false,
+                "applicable": true,
+                "required": false
+              },
+              {
+                "id": "recent_breakout",
+                "label": "Son 5 barda kırılım",
+                "group": "pa",
+                "why": "Fiyat son 5 barın yüksek/düşük seviyesini kırdı (momentum başlangıcı).",
+                "met": false,
+                "applicable": true,
+                "required": false
+              },
+              {
+                "id": "news_supportive",
+                "label": "Haber yön destekliyor",
+                "group": "news",
+                "why": "Long için son 24s pozitif haber, short için negatif haber var.",
+                "met": false,
+                "applicable": true,
+                "required": false
+              }
+            ],
+            "entry": 3.45,
+            "stop": 3.67,
+            "target": 3.08,
+            "riskReward": 1.68,
+            "fillMode": "market",
+            "triggerZone": null,
+            "source": "combo",
+            "bestZone": null,
+            "harmonic": null,
+            "combo": null,
+            "storyline": "bearish",
+            "indicators": {
+              "rsi": 36,
+              "macdHist": -0.029,
+              "adx": 3.2
+            },
+            "lastClose": 3.450000047683716,
+            "atr": 0.14642863614218576,
+            "symbol": "SNGYO",
+            "name": "Sinpaş Gayrimenkul Yatırım Ortaklığı A.Ş.",
+            "news": {
+              "positive24h": 0,
+              "negative24h": 0,
+              "latest": null
+            },
+            "historicalWinRate": null,
+            "confidence": "unknown",
+            "confidenceLabel": "Yeterli Veri Yok",
+            "sampleSize": 0,
+            "createdAt": "2026-05-22T10:15:06.225Z",
+            "phase": "intraday"
+          }
+        ],
+        "allSignals": [
+          {
+            "strategy": "trend",
+            "direction": "short",
+            "totalScore": 7,
+            "applicableMax": 10,
+            "ratio": 0.7,
+            "grade": "GUCLU",
+            "conditions": [
+              {
+                "id": "storyline_aligned",
+                "label": "Storyline yön uyumlu",
+                "group": "trend",
+                "why": "EMA20/50 ile belirlenen trend, sinyal yönüyle aynı.",
+                "met": true,
+                "applicable": true,
+                "required": true
+              },
+              {
+                "id": "price_vs_ema200",
+                "label": "EMA200 yön uyumlu",
+                "group": "trend",
+                "why": "Uzun vadeli ana trend filtresi (long ⇒ fiyat>EMA200, short ⇒ fiyat<EMA200).",
+                "met": true,
+                "applicable": true,
+                "required": false
+              },
+              {
+                "id": "ema_stack",
+                "label": "EMA dizilimi sıralı",
+                "group": "trend",
+                "why": "EMA20>EMA50>EMA200 (long) veya tersi (short).",
+                "met": true,
+                "applicable": true,
+                "required": false
+              },
+              {
+                "id": "rsi_momentum",
+                "label": "RSI momentum bandında",
+                "group": "ind",
+                "why": "Long için RSI 50-72 (sağlıklı yükseliş), short için 28-50.",
+                "met": true,
+                "applicable": true,
+                "required": false
+              },
+              {
+                "id": "macd_aligned_growing",
+                "label": "MACD yönü + büyüyor",
+                "group": "ind",
+                "why": "MACD histogram yönle aynı + son barda büyüyor (momentum güçleniyor).",
+                "met": true,
+                "applicable": true,
+                "required": false
+              },
+              {
+                "id": "volume_above_avg",
+                "label": "Hacim ortalama üstünde",
+                "group": "ind",
+                "why": "Son mum hacmi 20-bar SMA üstünde — katılım var.",
+                "met": true,
+                "applicable": true,
+                "required": false
+              },
+              {
+                "id": "adx_trending",
+                "label": "ADX trend modunda",
+                "group": "ind",
+                "why": "ADX ≥ 22 — fiyat yönlü hareket ediyor (yatay değil).",
+                "met": false,
+                "applicable": true,
+                "required": false
+              },
+              {
+                "id": "combo_hit",
+                "label": "Combo stratejisi tetik",
+                "group": "combo",
+                "why": "comboStrategyService'te en az bir Tier S/A combo aktif.",
+                "met": false,
+                "applicable": true,
+                "required": false
+              },
+              {
+                "id": "recent_breakout",
+                "label": "Son 5 barda kırılım",
+                "group": "pa",
+                "why": "Fiyat son 5 barın yüksek/düşük seviyesini kırdı (momentum başlangıcı).",
+                "met": true,
+                "applicable": true,
+                "required": false
+              },
+              {
+                "id": "news_supportive",
+                "label": "Haber yön destekliyor",
+                "group": "news",
+                "why": "Long için son 24s pozitif haber, short için negatif haber var.",
+                "met": false,
+                "applicable": true,
+                "required": false
+              }
+            ],
+            "entry": 11.23,
+            "stop": 11.77,
+            "target": 10.32,
+            "riskReward": 1.69,
+            "fillMode": "market",
+            "triggerZone": null,
+            "source": "combo",
+            "bestZone": null,
+            "harmonic": null,
+            "combo": null,
+            "storyline": "bearish",
+            "indicators": {
+              "rsi": 35,
+              "macdHist": -0.092,
+              "adx": 0.2
+            },
+            "lastClose": 11.229999542236328,
+            "atr": 0.36214303970336914,
+            "symbol": "TSKB",
+            "name": "Türkiye Sınai Kalkınma Bankası A.Ş.",
+            "news": {
+              "positive24h": 0,
+              "negative24h": 0,
+              "latest": null
+            },
+            "historicalWinRate": null,
+            "confidence": "unknown",
+            "confidenceLabel": "Yeterli Veri Yok",
+            "sampleSize": 0,
+            "createdAt": "2026-05-22T10:15:06.225Z",
+            "phase": "intraday"
+          },
+          {
+            "strategy": "trend",
+            "direction": "short",
+            "totalScore": 6,
+            "applicableMax": 10,
+            "ratio": 0.6,
+            "grade": "GUCLU",
+            "conditions": [
+              {
+                "id": "storyline_aligned",
+                "label": "Storyline yön uyumlu",
+                "group": "trend",
+                "why": "EMA20/50 ile belirlenen trend, sinyal yönüyle aynı.",
+                "met": true,
+                "applicable": true,
+                "required": true
+              },
+              {
+                "id": "price_vs_ema200",
+                "label": "EMA200 yön uyumlu",
+                "group": "trend",
+                "why": "Uzun vadeli ana trend filtresi (long ⇒ fiyat>EMA200, short ⇒ fiyat<EMA200).",
+                "met": true,
+                "applicable": true,
+                "required": false
+              },
+              {
+                "id": "ema_stack",
+                "label": "EMA dizilimi sıralı",
+                "group": "trend",
+                "why": "EMA20>EMA50>EMA200 (long) veya tersi (short).",
+                "met": true,
+                "applicable": true,
+                "required": false
+              },
+              {
+                "id": "rsi_momentum",
+                "label": "RSI momentum bandında",
+                "group": "ind",
+                "why": "Long için RSI 50-72 (sağlıklı yükseliş), short için 28-50.",
+                "met": true,
+                "applicable": true,
+                "required": false
+              },
+              {
+                "id": "macd_aligned_growing",
+                "label": "MACD yönü + büyüyor",
+                "group": "ind",
+                "why": "MACD histogram yönle aynı + son barda büyüyor (momentum güçleniyor).",
+                "met": true,
+                "applicable": true,
+                "required": false
+              },
+              {
+                "id": "volume_above_avg",
+                "label": "Hacim ortalama üstünde",
+                "group": "ind",
+                "why": "Son mum hacmi 20-bar SMA üstünde — katılım var.",
+                "met": true,
+                "applicable": true,
+                "required": false
+              },
+              {
+                "id": "adx_trending",
+                "label": "ADX trend modunda",
+                "group": "ind",
+                "why": "ADX ≥ 22 — fiyat yönlü hareket ediyor (yatay değil).",
+                "met": false,
+                "applicable": true,
+                "required": false
+              },
+              {
+                "id": "combo_hit",
+                "label": "Combo stratejisi tetik",
+                "group": "combo",
+                "why": "comboStrategyService'te en az bir Tier S/A combo aktif.",
+                "met": false,
+                "applicable": true,
+                "required": false
+              },
+              {
+                "id": "recent_breakout",
+                "label": "Son 5 barda kırılım",
+                "group": "pa",
+                "why": "Fiyat son 5 barın yüksek/düşük seviyesini kırdı (momentum başlangıcı).",
+                "met": false,
+                "applicable": true,
+                "required": false
+              },
+              {
+                "id": "news_supportive",
+                "label": "Haber yön destekliyor",
+                "group": "news",
+                "why": "Long için son 24s pozitif haber, short için negatif haber var.",
+                "met": false,
+                "applicable": true,
+                "required": false
+              }
+            ],
+            "entry": 3.45,
+            "stop": 3.67,
+            "target": 3.08,
+            "riskReward": 1.68,
+            "fillMode": "market",
+            "triggerZone": null,
+            "source": "combo",
+            "bestZone": null,
+            "harmonic": null,
+            "combo": null,
+            "storyline": "bearish",
+            "indicators": {
+              "rsi": 36,
+              "macdHist": -0.029,
+              "adx": 3.2
+            },
+            "lastClose": 3.450000047683716,
+            "atr": 0.14642863614218576,
+            "symbol": "SNGYO",
+            "name": "Sinpaş Gayrimenkul Yatırım Ortaklığı A.Ş.",
+            "news": {
+              "positive24h": 0,
+              "negative24h": 0,
+              "latest": null
+            },
+            "historicalWinRate": null,
+            "confidence": "unknown",
+            "confidenceLabel": "Yeterli Veri Yok",
+            "sampleSize": 0,
+            "createdAt": "2026-05-22T10:15:06.225Z",
+            "phase": "intraday"
+          }
+        ],
+        "diff": [
+          {
+            "symbol": "TSKB",
+            "name": "Türkiye Sınai Kalkınma Bankası A.Ş.",
+            "status": "unchanged",
+            "detail": "Önemli değişiklik yok",
+            "scoreDelta": 0,
+            "entryDelta": 0.5371530886302641,
+            "prev": {
+              "strategy": "trend",
+              "direction": "short",
+              "totalScore": 7,
+              "applicableMax": 10,
+              "ratio": 0.7,
+              "grade": "GUCLU",
+              "conditions": [
+                {
+                  "id": "storyline_aligned",
+                  "label": "Storyline yön uyumlu",
+                  "group": "trend",
+                  "why": "EMA20/50 ile belirlenen trend, sinyal yönüyle aynı.",
+                  "met": true,
+                  "applicable": true,
+                  "required": true
+                },
+                {
+                  "id": "price_vs_ema200",
+                  "label": "EMA200 yön uyumlu",
+                  "group": "trend",
+                  "why": "Uzun vadeli ana trend filtresi (long ⇒ fiyat>EMA200, short ⇒ fiyat<EMA200).",
+                  "met": true,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "ema_stack",
+                  "label": "EMA dizilimi sıralı",
+                  "group": "trend",
+                  "why": "EMA20>EMA50>EMA200 (long) veya tersi (short).",
+                  "met": true,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "rsi_momentum",
+                  "label": "RSI momentum bandında",
+                  "group": "ind",
+                  "why": "Long için RSI 50-72 (sağlıklı yükseliş), short için 28-50.",
+                  "met": true,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "macd_aligned_growing",
+                  "label": "MACD yönü + büyüyor",
+                  "group": "ind",
+                  "why": "MACD histogram yönle aynı + son barda büyüyor (momentum güçleniyor).",
+                  "met": true,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "volume_above_avg",
+                  "label": "Hacim ortalama üstünde",
+                  "group": "ind",
+                  "why": "Son mum hacmi 20-bar SMA üstünde — katılım var.",
+                  "met": true,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "adx_trending",
+                  "label": "ADX trend modunda",
+                  "group": "ind",
+                  "why": "ADX ≥ 22 — fiyat yönlü hareket ediyor (yatay değil).",
+                  "met": false,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "combo_hit",
+                  "label": "Combo stratejisi tetik",
+                  "group": "combo",
+                  "why": "comboStrategyService'te en az bir Tier S/A combo aktif.",
+                  "met": false,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "recent_breakout",
+                  "label": "Son 5 barda kırılım",
+                  "group": "pa",
+                  "why": "Fiyat son 5 barın yüksek/düşük seviyesini kırdı (momentum başlangıcı).",
+                  "met": true,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "news_supportive",
+                  "label": "Haber yön destekliyor",
+                  "group": "news",
+                  "why": "Long için son 24s pozitif haber, short için negatif haber var.",
+                  "met": false,
+                  "applicable": true,
+                  "required": false
+                }
+              ],
+              "entry": 11.17,
+              "stop": 11.71,
+              "target": 10.26,
+              "riskReward": 1.69,
+              "fillMode": "market",
+              "triggerZone": null,
+              "source": "combo",
+              "bestZone": null,
+              "harmonic": null,
+              "combo": null,
+              "storyline": "bearish",
+              "indicators": {
+                "rsi": 34,
+                "macdHist": -0.096,
+                "adx": 0.2
+              },
+              "lastClose": 11.170000076293945,
+              "atr": 0.36214303970336914,
+              "symbol": "TSKB",
+              "name": "Türkiye Sınai Kalkınma Bankası A.Ş.",
+              "news": {
+                "positive24h": 0,
+                "negative24h": 0,
+                "latest": null
+              },
+              "historicalWinRate": null,
+              "confidence": "unknown",
+              "confidenceLabel": "Yeterli Veri Yok",
+              "sampleSize": 0,
+              "createdAt": "2026-05-22T09:30:33.456Z",
+              "phase": "revision"
+            }
+          },
+          {
+            "symbol": "SNGYO",
+            "name": "Sinpaş Gayrimenkul Yatırım Ortaklığı A.Ş.",
+            "status": "unchanged",
+            "detail": "Önemli değişiklik yok",
+            "scoreDelta": 0,
+            "entryDelta": 1.4705882352941255,
+            "prev": {
+              "strategy": "trend",
+              "direction": "short",
+              "totalScore": 6,
+              "applicableMax": 10,
+              "ratio": 0.6,
+              "grade": "GUCLU",
+              "conditions": [
+                {
+                  "id": "storyline_aligned",
+                  "label": "Storyline yön uyumlu",
+                  "group": "trend",
+                  "why": "EMA20/50 ile belirlenen trend, sinyal yönüyle aynı.",
+                  "met": true,
+                  "applicable": true,
+                  "required": true
+                },
+                {
+                  "id": "price_vs_ema200",
+                  "label": "EMA200 yön uyumlu",
+                  "group": "trend",
+                  "why": "Uzun vadeli ana trend filtresi (long ⇒ fiyat>EMA200, short ⇒ fiyat<EMA200).",
+                  "met": true,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "ema_stack",
+                  "label": "EMA dizilimi sıralı",
+                  "group": "trend",
+                  "why": "EMA20>EMA50>EMA200 (long) veya tersi (short).",
+                  "met": true,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "rsi_momentum",
+                  "label": "RSI momentum bandında",
+                  "group": "ind",
+                  "why": "Long için RSI 50-72 (sağlıklı yükseliş), short için 28-50.",
+                  "met": true,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "macd_aligned_growing",
+                  "label": "MACD yönü + büyüyor",
+                  "group": "ind",
+                  "why": "MACD histogram yönle aynı + son barda büyüyor (momentum güçleniyor).",
+                  "met": true,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "volume_above_avg",
+                  "label": "Hacim ortalama üstünde",
+                  "group": "ind",
+                  "why": "Son mum hacmi 20-bar SMA üstünde — katılım var.",
+                  "met": false,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "adx_trending",
+                  "label": "ADX trend modunda",
+                  "group": "ind",
+                  "why": "ADX ≥ 22 — fiyat yönlü hareket ediyor (yatay değil).",
+                  "met": false,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "combo_hit",
+                  "label": "Combo stratejisi tetik",
+                  "group": "combo",
+                  "why": "comboStrategyService'te en az bir Tier S/A combo aktif.",
+                  "met": false,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "recent_breakout",
+                  "label": "Son 5 barda kırılım",
+                  "group": "pa",
+                  "why": "Fiyat son 5 barın yüksek/düşük seviyesini kırdı (momentum başlangıcı).",
+                  "met": true,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "news_supportive",
+                  "label": "Haber yön destekliyor",
+                  "group": "news",
+                  "why": "Long için son 24s pozitif haber, short için negatif haber var.",
+                  "met": false,
+                  "applicable": true,
+                  "required": false
+                }
+              ],
+              "entry": 3.4,
+              "stop": 3.62,
+              "target": 3.04,
+              "riskReward": 1.64,
+              "fillMode": "market",
+              "triggerZone": null,
+              "source": "combo",
+              "bestZone": null,
+              "harmonic": null,
+              "combo": null,
+              "storyline": "bearish",
+              "indicators": {
+                "rsi": 34,
+                "macdHist": -0.032,
+                "adx": 3.2
+              },
+              "lastClose": 3.4000000953674316,
+              "atr": 0.14571435110909597,
+              "symbol": "SNGYO",
+              "name": "Sinpaş Gayrimenkul Yatırım Ortaklığı A.Ş.",
+              "news": {
+                "positive24h": 0,
+                "negative24h": 0,
+                "latest": null
+              },
+              "historicalWinRate": null,
+              "confidence": "unknown",
+              "confidenceLabel": "Yeterli Veri Yok",
+              "sampleSize": 0,
+              "createdAt": "2026-05-22T09:30:33.456Z",
+              "phase": "revision"
+            }
+          },
+          {
+            "symbol": "ISMEN",
+            "name": "İş Yatırım Menkul Değerler A.Ş.",
+            "status": "dropped",
+            "detail": "Koşullar artık karşılanmıyor",
+            "prev": {
+              "strategy": "trend",
+              "direction": "short",
+              "totalScore": 7,
+              "applicableMax": 10,
+              "ratio": 0.7,
+              "grade": "GUCLU",
+              "conditions": [
+                {
+                  "id": "storyline_aligned",
+                  "label": "Storyline yön uyumlu",
+                  "group": "trend",
+                  "why": "EMA20/50 ile belirlenen trend, sinyal yönüyle aynı.",
+                  "met": true,
+                  "applicable": true,
+                  "required": true
+                },
+                {
+                  "id": "price_vs_ema200",
+                  "label": "EMA200 yön uyumlu",
+                  "group": "trend",
+                  "why": "Uzun vadeli ana trend filtresi (long ⇒ fiyat>EMA200, short ⇒ fiyat<EMA200).",
+                  "met": true,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "ema_stack",
+                  "label": "EMA dizilimi sıralı",
+                  "group": "trend",
+                  "why": "EMA20>EMA50>EMA200 (long) veya tersi (short).",
+                  "met": false,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "rsi_momentum",
+                  "label": "RSI momentum bandında",
+                  "group": "ind",
+                  "why": "Long için RSI 50-72 (sağlıklı yükseliş), short için 28-50.",
+                  "met": true,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "macd_aligned_growing",
+                  "label": "MACD yönü + büyüyor",
+                  "group": "ind",
+                  "why": "MACD histogram yönle aynı + son barda büyüyor (momentum güçleniyor).",
+                  "met": true,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "volume_above_avg",
+                  "label": "Hacim ortalama üstünde",
+                  "group": "ind",
+                  "why": "Son mum hacmi 20-bar SMA üstünde — katılım var.",
+                  "met": true,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "adx_trending",
+                  "label": "ADX trend modunda",
+                  "group": "ind",
+                  "why": "ADX ≥ 22 — fiyat yönlü hareket ediyor (yatay değil).",
+                  "met": false,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "combo_hit",
+                  "label": "Combo stratejisi tetik",
+                  "group": "combo",
+                  "why": "comboStrategyService'te en az bir Tier S/A combo aktif.",
+                  "met": true,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "recent_breakout",
+                  "label": "Son 5 barda kırılım",
+                  "group": "pa",
+                  "why": "Fiyat son 5 barın yüksek/düşük seviyesini kırdı (momentum başlangıcı).",
+                  "met": true,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "news_supportive",
+                  "label": "Haber yön destekliyor",
+                  "group": "news",
+                  "why": "Long için son 24s pozitif haber, short için negatif haber var.",
+                  "met": false,
+                  "applicable": true,
+                  "required": false
+                }
+              ],
+              "entry": 37.12,
+              "stop": 38.86,
+              "target": 34.23,
+              "riskReward": 1.66,
+              "fillMode": "market",
+              "triggerZone": null,
+              "source": "combo",
+              "bestZone": null,
+              "harmonic": null,
+              "combo": {
+                "key": "cigDususu",
+                "name": "Çığ Düşüşü",
+                "side": "ayi",
+                "tier": "A",
+                "score": 66
+              },
+              "storyline": "bearish",
+              "indicators": {
+                "rsi": 29,
+                "macdHist": -0.502,
+                "adx": 2.4
+              },
+              "lastClose": 37.119998931884766,
+              "atr": 1.157142094203404,
+              "symbol": "ISMEN",
+              "name": "İş Yatırım Menkul Değerler A.Ş.",
+              "news": {
+                "positive24h": 0,
+                "negative24h": 0,
+                "latest": null
+              },
+              "historicalWinRate": null,
+              "confidence": "unknown",
+              "confidenceLabel": "Yeterli Veri Yok",
+              "sampleSize": 0,
+              "createdAt": "2026-05-22T09:30:33.456Z",
+              "phase": "revision"
+            }
+          }
+        ]
+      },
+      "reversion": {
+        "signals": [
+          {
+            "strategy": "reversion",
+            "direction": "long",
+            "totalScore": 7,
+            "applicableMax": 10,
+            "ratio": 0.7,
+            "grade": "GUCLU",
+            "conditions": [
+              {
+                "id": "in_range_tight",
+                "label": "Fiyat zone'a yakın (≤%4)",
+                "group": "sust",
+                "why": "Fiyat entry seviyesine ≤%4 mesafede — pullback yakın, tetik olasılığı yüksek.",
+                "met": true,
+                "applicable": true,
+                "required": true
+              },
+              {
+                "id": "recent_pivot",
+                "label": "Pivot ≤30 gün",
+                "group": "sust",
+                "why": "Zone'un oluştuğu pivot taze — kurumsal hafıza canlı.",
+                "met": true,
+                "applicable": true,
+                "required": true
+              },
+              {
+                "id": "fresh_zone",
+                "label": "Taze zone",
+                "group": "pa",
+                "why": "Zone hiç test edilmedi — kurumsal emirler dolmadı.",
+                "met": false,
+                "applicable": true,
+                "required": false
+              },
+              {
+                "id": "gap_zone",
+                "label": "Gap zone",
+                "group": "pa",
+                "why": "HTF gap = LTF engulfing eşdeğeri — yüksek olasılıklı dönüş.",
+                "met": true,
+                "applicable": true,
+                "required": false
+              },
+              {
+                "id": "engulfing_at_zone",
+                "label": "Engulfing teyidi",
+                "group": "pa",
+                "why": "Zone yakınında bullish/bearish engulfing — kurumsal yutma.",
+                "met": false,
+                "applicable": true,
+                "required": false
+              },
+              {
+                "id": "liquidity_sweep",
+                "label": "Likidite süpürmesi",
+                "group": "pa",
+                "why": "Wick zone'u aştı, gövde döndü — küçük yatırımcı stop'ları temizlendi.",
+                "met": true,
+                "applicable": true,
+                "required": false
+              },
+              {
+                "id": "validated_zone",
+                "label": "Onaylı zone",
+                "group": "sust",
+                "why": "İlk dokunma 3 bar içinde gerçekleşti veya hiç test edilmedi.",
+                "met": true,
+                "applicable": true,
+                "required": false
+              },
+              {
+                "id": "storyline_not_opposite",
+                "label": "Storyline ters değil",
+                "group": "trend",
+                "why": "Long için storyline bearish DEĞİL, short için bullish DEĞİL.",
+                "met": true,
+                "applicable": true,
+                "required": false
+              },
+              {
+                "id": "rsi_extreme",
+                "label": "RSI uç bölgede",
+                "group": "ind",
+                "why": "Long support için RSI<45 (oversold), short resistance için RSI>55.",
+                "met": true,
+                "applicable": true,
+                "required": false
+              },
+              {
+                "id": "harmonic_match",
+                "label": "Harmonik patern uyumlu",
+                "group": "harm",
+                "why": "Aktif harmonik patern (Gartley/Bat/Crab) sinyalle aynı yönde.",
+                "met": false,
+                "applicable": true,
+                "required": false
+              }
+            ],
+            "entry": 532,
+            "stop": 490.07,
+            "target": 615.86,
+            "riskReward": 2,
+            "fillMode": "limit",
+            "triggerZone": {
+              "top": 532,
+              "bottom": 528
+            },
+            "source": "snr",
+            "bestZone": {
+              "id": "S_238",
+              "type": "support",
+              "top": 532,
+              "bottom": 528,
+              "pivotDate": "2026-04-30",
+              "daysAgo": 22,
+              "priceDistancePct": 0.66,
+              "score": 60,
+              "grade": "B",
+              "freshness": "used",
+              "zoneType": "gap",
+              "validated": true
+            },
+            "harmonic": null,
+            "combo": null,
+            "storyline": "neutral",
+            "indicators": {
+              "rsi": 43,
+              "macdHist": -8.225
+            },
+            "lastClose": 528.5,
+            "atr": 25.285714285714285,
+            "symbol": "GUBRF",
+            "name": "Gübre Fabrikaları T.A.Ş.",
+            "news": {
+              "positive24h": 0,
+              "negative24h": 0,
+              "latest": null
+            },
+            "historicalWinRate": null,
+            "confidence": "unknown",
+            "confidenceLabel": "Yeterli Veri Yok",
+            "sampleSize": 0,
+            "createdAt": "2026-05-22T10:15:06.225Z",
+            "phase": "intraday"
+          },
+          {
+            "strategy": "reversion",
+            "direction": "short",
+            "totalScore": 7,
+            "applicableMax": 10,
+            "ratio": 0.7,
+            "grade": "GUCLU",
+            "conditions": [
+              {
+                "id": "in_range_tight",
+                "label": "Fiyat zone'a yakın (≤%4)",
+                "group": "sust",
+                "why": "Fiyat entry seviyesine ≤%4 mesafede — pullback yakın, tetik olasılığı yüksek.",
+                "met": true,
+                "applicable": true,
+                "required": true
+              },
+              {
+                "id": "recent_pivot",
+                "label": "Pivot ≤30 gün",
+                "group": "sust",
+                "why": "Zone'un oluştuğu pivot taze — kurumsal hafıza canlı.",
+                "met": true,
+                "applicable": true,
+                "required": true
+              },
+              {
+                "id": "fresh_zone",
+                "label": "Taze zone",
+                "group": "pa",
+                "why": "Zone hiç test edilmedi — kurumsal emirler dolmadı.",
+                "met": false,
+                "applicable": true,
+                "required": false
+              },
+              {
+                "id": "gap_zone",
+                "label": "Gap zone",
+                "group": "pa",
+                "why": "HTF gap = LTF engulfing eşdeğeri — yüksek olasılıklı dönüş.",
+                "met": true,
+                "applicable": true,
+                "required": false
+              },
+              {
+                "id": "engulfing_at_zone",
+                "label": "Engulfing teyidi",
+                "group": "pa",
+                "why": "Zone yakınında bullish/bearish engulfing — kurumsal yutma.",
+                "met": true,
+                "applicable": true,
+                "required": false
+              },
+              {
+                "id": "liquidity_sweep",
+                "label": "Likidite süpürmesi",
+                "group": "pa",
+                "why": "Wick zone'u aştı, gövde döndü — küçük yatırımcı stop'ları temizlendi.",
+                "met": false,
+                "applicable": true,
+                "required": false
+              },
+              {
+                "id": "validated_zone",
+                "label": "Onaylı zone",
+                "group": "sust",
+                "why": "İlk dokunma 3 bar içinde gerçekleşti veya hiç test edilmedi.",
+                "met": true,
+                "applicable": true,
+                "required": false
+              },
+              {
+                "id": "storyline_not_opposite",
+                "label": "Storyline ters değil",
+                "group": "trend",
+                "why": "Long için storyline bearish DEĞİL, short için bullish DEĞİL.",
+                "met": false,
+                "applicable": true,
+                "required": false
+              },
+              {
+                "id": "rsi_extreme",
+                "label": "RSI uç bölgede",
+                "group": "ind",
+                "why": "Long support için RSI<45 (oversold), short resistance için RSI>55.",
+                "met": true,
+                "applicable": true,
+                "required": false
+              },
+              {
+                "id": "harmonic_match",
+                "label": "Harmonik patern uyumlu",
+                "group": "harm",
+                "why": "Aktif harmonik patern (Gartley/Bat/Crab) sinyalle aynı yönde.",
+                "met": true,
+                "applicable": true,
+                "required": false
+              }
+            ],
+            "entry": 49.36,
+            "stop": 57.7,
+            "target": 32.68,
+            "riskReward": 2,
+            "fillMode": "limit",
+            "triggerZone": {
+              "top": 51.650001525878906,
+              "bottom": 49.36000061035156
+            },
+            "source": "snr",
+            "bestZone": {
+              "id": "R_251",
+              "type": "resistance",
+              "top": 51.650001525878906,
+              "bottom": 49.36000061035156,
+              "pivotDate": "2026-05-21",
+              "daysAgo": 1,
+              "priceDistancePct": 1.16,
+              "score": 60,
+              "grade": "B",
+              "freshness": "tested",
+              "zoneType": "gap",
+              "validated": true
+            },
+            "harmonic": {
+              "pattern": "Shark",
+              "direction": "Bearish",
+              "completion": 71,
+              "detectedDate": "2026-04-20"
+            },
+            "combo": null,
+            "storyline": "bullish",
+            "indicators": {
+              "rsi": 59,
+              "macdHist": 0.137
+            },
+            "lastClose": 49.939998626708984,
+            "atr": 4.03071403503418,
+            "symbol": "ALFAS",
+            "name": "Alfa Solar Enerji Sanayi ve Ticaret A.Ş.",
+            "news": {
+              "positive24h": 0,
+              "negative24h": 0,
+              "latest": null
+            },
+            "historicalWinRate": null,
+            "confidence": "unknown",
+            "confidenceLabel": "Yeterli Veri Yok",
+            "sampleSize": 0,
+            "createdAt": "2026-05-22T10:15:06.225Z",
+            "phase": "intraday"
+          },
+          {
+            "strategy": "reversion",
+            "direction": "long",
+            "totalScore": 7,
+            "applicableMax": 10,
+            "ratio": 0.7,
+            "grade": "GUCLU",
+            "conditions": [
+              {
+                "id": "in_range_tight",
+                "label": "Fiyat zone'a yakın (≤%4)",
+                "group": "sust",
+                "why": "Fiyat entry seviyesine ≤%4 mesafede — pullback yakın, tetik olasılığı yüksek.",
+                "met": true,
+                "applicable": true,
+                "required": true
+              },
+              {
+                "id": "recent_pivot",
+                "label": "Pivot ≤30 gün",
+                "group": "sust",
+                "why": "Zone'un oluştuğu pivot taze — kurumsal hafıza canlı.",
+                "met": true,
+                "applicable": true,
+                "required": true
+              },
+              {
+                "id": "fresh_zone",
+                "label": "Taze zone",
+                "group": "pa",
+                "why": "Zone hiç test edilmedi — kurumsal emirler dolmadı.",
+                "met": true,
+                "applicable": true,
+                "required": false
+              },
+              {
+                "id": "gap_zone",
+                "label": "Gap zone",
+                "group": "pa",
+                "why": "HTF gap = LTF engulfing eşdeğeri — yüksek olasılıklı dönüş.",
+                "met": true,
+                "applicable": true,
+                "required": false
+              },
+              {
+                "id": "engulfing_at_zone",
+                "label": "Engulfing teyidi",
+                "group": "pa",
+                "why": "Zone yakınında bullish/bearish engulfing — kurumsal yutma.",
+                "met": true,
+                "applicable": true,
+                "required": false
+              },
+              {
+                "id": "liquidity_sweep",
+                "label": "Likidite süpürmesi",
+                "group": "pa",
+                "why": "Wick zone'u aştı, gövde döndü — küçük yatırımcı stop'ları temizlendi.",
+                "met": false,
+                "applicable": true,
+                "required": false
+              },
+              {
+                "id": "validated_zone",
+                "label": "Onaylı zone",
+                "group": "sust",
+                "why": "İlk dokunma 3 bar içinde gerçekleşti veya hiç test edilmedi.",
+                "met": true,
+                "applicable": true,
+                "required": false
+              },
+              {
+                "id": "storyline_not_opposite",
+                "label": "Storyline ters değil",
+                "group": "trend",
+                "why": "Long için storyline bearish DEĞİL, short için bullish DEĞİL.",
+                "met": true,
+                "applicable": true,
+                "required": false
+              },
+              {
+                "id": "rsi_extreme",
+                "label": "RSI uç bölgede",
+                "group": "ind",
+                "why": "Long support için RSI<45 (oversold), short resistance için RSI>55.",
+                "met": false,
+                "applicable": true,
+                "required": false
+              },
+              {
+                "id": "harmonic_match",
+                "label": "Harmonik patern uyumlu",
+                "group": "harm",
+                "why": "Aktif harmonik patern (Gartley/Bat/Crab) sinyalle aynı yönde.",
+                "met": false,
+                "applicable": true,
+                "required": false
+              }
+            ],
+            "entry": 645,
+            "stop": 603.48,
+            "target": 728.04,
+            "riskReward": 2,
+            "fillMode": "limit",
+            "triggerZone": {
+              "top": 645,
+              "bottom": 640.5
+            },
+            "source": "snr",
+            "bestZone": {
+              "id": "S_240",
+              "type": "support",
+              "top": 645,
+              "bottom": 640.5,
+              "pivotDate": "2026-05-05",
+              "daysAgo": 17,
+              "priceDistancePct": 3.3,
+              "score": 85,
+              "grade": "A+",
+              "freshness": "fresh",
+              "zoneType": "gap",
+              "validated": true
+            },
+            "harmonic": null,
+            "combo": null,
+            "storyline": "neutral",
+            "indicators": {
+              "rsi": 51,
+              "macdHist": -2.63
+            },
+            "lastClose": 667,
+            "atr": 24.678571428571427,
+            "symbol": "MGROS",
+            "name": "Migros Ticaret A.Ş.",
+            "news": {
+              "positive24h": 0,
+              "negative24h": 0,
+              "latest": null
+            },
+            "historicalWinRate": null,
+            "confidence": "unknown",
+            "confidenceLabel": "Yeterli Veri Yok",
+            "sampleSize": 0,
+            "createdAt": "2026-05-22T10:15:06.225Z",
+            "phase": "intraday"
+          }
+        ],
+        "allSignals": [
+          {
+            "strategy": "reversion",
+            "direction": "long",
+            "totalScore": 7,
+            "applicableMax": 10,
+            "ratio": 0.7,
+            "grade": "GUCLU",
+            "conditions": [
+              {
+                "id": "in_range_tight",
+                "label": "Fiyat zone'a yakın (≤%4)",
+                "group": "sust",
+                "why": "Fiyat entry seviyesine ≤%4 mesafede — pullback yakın, tetik olasılığı yüksek.",
+                "met": true,
+                "applicable": true,
+                "required": true
+              },
+              {
+                "id": "recent_pivot",
+                "label": "Pivot ≤30 gün",
+                "group": "sust",
+                "why": "Zone'un oluştuğu pivot taze — kurumsal hafıza canlı.",
+                "met": true,
+                "applicable": true,
+                "required": true
+              },
+              {
+                "id": "fresh_zone",
+                "label": "Taze zone",
+                "group": "pa",
+                "why": "Zone hiç test edilmedi — kurumsal emirler dolmadı.",
+                "met": false,
+                "applicable": true,
+                "required": false
+              },
+              {
+                "id": "gap_zone",
+                "label": "Gap zone",
+                "group": "pa",
+                "why": "HTF gap = LTF engulfing eşdeğeri — yüksek olasılıklı dönüş.",
+                "met": true,
+                "applicable": true,
+                "required": false
+              },
+              {
+                "id": "engulfing_at_zone",
+                "label": "Engulfing teyidi",
+                "group": "pa",
+                "why": "Zone yakınında bullish/bearish engulfing — kurumsal yutma.",
+                "met": false,
+                "applicable": true,
+                "required": false
+              },
+              {
+                "id": "liquidity_sweep",
+                "label": "Likidite süpürmesi",
+                "group": "pa",
+                "why": "Wick zone'u aştı, gövde döndü — küçük yatırımcı stop'ları temizlendi.",
+                "met": true,
+                "applicable": true,
+                "required": false
+              },
+              {
+                "id": "validated_zone",
+                "label": "Onaylı zone",
+                "group": "sust",
+                "why": "İlk dokunma 3 bar içinde gerçekleşti veya hiç test edilmedi.",
+                "met": true,
+                "applicable": true,
+                "required": false
+              },
+              {
+                "id": "storyline_not_opposite",
+                "label": "Storyline ters değil",
+                "group": "trend",
+                "why": "Long için storyline bearish DEĞİL, short için bullish DEĞİL.",
+                "met": true,
+                "applicable": true,
+                "required": false
+              },
+              {
+                "id": "rsi_extreme",
+                "label": "RSI uç bölgede",
+                "group": "ind",
+                "why": "Long support için RSI<45 (oversold), short resistance için RSI>55.",
+                "met": true,
+                "applicable": true,
+                "required": false
+              },
+              {
+                "id": "harmonic_match",
+                "label": "Harmonik patern uyumlu",
+                "group": "harm",
+                "why": "Aktif harmonik patern (Gartley/Bat/Crab) sinyalle aynı yönde.",
+                "met": false,
+                "applicable": true,
+                "required": false
+              }
+            ],
+            "entry": 532,
+            "stop": 490.07,
+            "target": 615.86,
+            "riskReward": 2,
+            "fillMode": "limit",
+            "triggerZone": {
+              "top": 532,
+              "bottom": 528
+            },
+            "source": "snr",
+            "bestZone": {
+              "id": "S_238",
+              "type": "support",
+              "top": 532,
+              "bottom": 528,
+              "pivotDate": "2026-04-30",
+              "daysAgo": 22,
+              "priceDistancePct": 0.66,
+              "score": 60,
+              "grade": "B",
+              "freshness": "used",
+              "zoneType": "gap",
+              "validated": true
+            },
+            "harmonic": null,
+            "combo": null,
+            "storyline": "neutral",
+            "indicators": {
+              "rsi": 43,
+              "macdHist": -8.225
+            },
+            "lastClose": 528.5,
+            "atr": 25.285714285714285,
+            "symbol": "GUBRF",
+            "name": "Gübre Fabrikaları T.A.Ş.",
+            "news": {
+              "positive24h": 0,
+              "negative24h": 0,
+              "latest": null
+            },
+            "historicalWinRate": null,
+            "confidence": "unknown",
+            "confidenceLabel": "Yeterli Veri Yok",
+            "sampleSize": 0,
+            "createdAt": "2026-05-22T10:15:06.225Z",
+            "phase": "intraday"
+          },
+          {
+            "strategy": "reversion",
+            "direction": "short",
+            "totalScore": 7,
+            "applicableMax": 10,
+            "ratio": 0.7,
+            "grade": "GUCLU",
+            "conditions": [
+              {
+                "id": "in_range_tight",
+                "label": "Fiyat zone'a yakın (≤%4)",
+                "group": "sust",
+                "why": "Fiyat entry seviyesine ≤%4 mesafede — pullback yakın, tetik olasılığı yüksek.",
+                "met": true,
+                "applicable": true,
+                "required": true
+              },
+              {
+                "id": "recent_pivot",
+                "label": "Pivot ≤30 gün",
+                "group": "sust",
+                "why": "Zone'un oluştuğu pivot taze — kurumsal hafıza canlı.",
+                "met": true,
+                "applicable": true,
+                "required": true
+              },
+              {
+                "id": "fresh_zone",
+                "label": "Taze zone",
+                "group": "pa",
+                "why": "Zone hiç test edilmedi — kurumsal emirler dolmadı.",
+                "met": false,
+                "applicable": true,
+                "required": false
+              },
+              {
+                "id": "gap_zone",
+                "label": "Gap zone",
+                "group": "pa",
+                "why": "HTF gap = LTF engulfing eşdeğeri — yüksek olasılıklı dönüş.",
+                "met": true,
+                "applicable": true,
+                "required": false
+              },
+              {
+                "id": "engulfing_at_zone",
+                "label": "Engulfing teyidi",
+                "group": "pa",
+                "why": "Zone yakınında bullish/bearish engulfing — kurumsal yutma.",
+                "met": true,
+                "applicable": true,
+                "required": false
+              },
+              {
+                "id": "liquidity_sweep",
+                "label": "Likidite süpürmesi",
+                "group": "pa",
+                "why": "Wick zone'u aştı, gövde döndü — küçük yatırımcı stop'ları temizlendi.",
+                "met": false,
+                "applicable": true,
+                "required": false
+              },
+              {
+                "id": "validated_zone",
+                "label": "Onaylı zone",
+                "group": "sust",
+                "why": "İlk dokunma 3 bar içinde gerçekleşti veya hiç test edilmedi.",
+                "met": true,
+                "applicable": true,
+                "required": false
+              },
+              {
+                "id": "storyline_not_opposite",
+                "label": "Storyline ters değil",
+                "group": "trend",
+                "why": "Long için storyline bearish DEĞİL, short için bullish DEĞİL.",
+                "met": false,
+                "applicable": true,
+                "required": false
+              },
+              {
+                "id": "rsi_extreme",
+                "label": "RSI uç bölgede",
+                "group": "ind",
+                "why": "Long support için RSI<45 (oversold), short resistance için RSI>55.",
+                "met": true,
+                "applicable": true,
+                "required": false
+              },
+              {
+                "id": "harmonic_match",
+                "label": "Harmonik patern uyumlu",
+                "group": "harm",
+                "why": "Aktif harmonik patern (Gartley/Bat/Crab) sinyalle aynı yönde.",
+                "met": true,
+                "applicable": true,
+                "required": false
+              }
+            ],
+            "entry": 49.36,
+            "stop": 57.7,
+            "target": 32.68,
+            "riskReward": 2,
+            "fillMode": "limit",
+            "triggerZone": {
+              "top": 51.650001525878906,
+              "bottom": 49.36000061035156
+            },
+            "source": "snr",
+            "bestZone": {
+              "id": "R_251",
+              "type": "resistance",
+              "top": 51.650001525878906,
+              "bottom": 49.36000061035156,
+              "pivotDate": "2026-05-21",
+              "daysAgo": 1,
+              "priceDistancePct": 1.16,
+              "score": 60,
+              "grade": "B",
+              "freshness": "tested",
+              "zoneType": "gap",
+              "validated": true
+            },
+            "harmonic": {
+              "pattern": "Shark",
+              "direction": "Bearish",
+              "completion": 71,
+              "detectedDate": "2026-04-20"
+            },
+            "combo": null,
+            "storyline": "bullish",
+            "indicators": {
+              "rsi": 59,
+              "macdHist": 0.137
+            },
+            "lastClose": 49.939998626708984,
+            "atr": 4.03071403503418,
+            "symbol": "ALFAS",
+            "name": "Alfa Solar Enerji Sanayi ve Ticaret A.Ş.",
+            "news": {
+              "positive24h": 0,
+              "negative24h": 0,
+              "latest": null
+            },
+            "historicalWinRate": null,
+            "confidence": "unknown",
+            "confidenceLabel": "Yeterli Veri Yok",
+            "sampleSize": 0,
+            "createdAt": "2026-05-22T10:15:06.225Z",
+            "phase": "intraday"
+          },
+          {
+            "strategy": "reversion",
+            "direction": "long",
+            "totalScore": 7,
+            "applicableMax": 10,
+            "ratio": 0.7,
+            "grade": "GUCLU",
+            "conditions": [
+              {
+                "id": "in_range_tight",
+                "label": "Fiyat zone'a yakın (≤%4)",
+                "group": "sust",
+                "why": "Fiyat entry seviyesine ≤%4 mesafede — pullback yakın, tetik olasılığı yüksek.",
+                "met": true,
+                "applicable": true,
+                "required": true
+              },
+              {
+                "id": "recent_pivot",
+                "label": "Pivot ≤30 gün",
+                "group": "sust",
+                "why": "Zone'un oluştuğu pivot taze — kurumsal hafıza canlı.",
+                "met": true,
+                "applicable": true,
+                "required": true
+              },
+              {
+                "id": "fresh_zone",
+                "label": "Taze zone",
+                "group": "pa",
+                "why": "Zone hiç test edilmedi — kurumsal emirler dolmadı.",
+                "met": true,
+                "applicable": true,
+                "required": false
+              },
+              {
+                "id": "gap_zone",
+                "label": "Gap zone",
+                "group": "pa",
+                "why": "HTF gap = LTF engulfing eşdeğeri — yüksek olasılıklı dönüş.",
+                "met": true,
+                "applicable": true,
+                "required": false
+              },
+              {
+                "id": "engulfing_at_zone",
+                "label": "Engulfing teyidi",
+                "group": "pa",
+                "why": "Zone yakınında bullish/bearish engulfing — kurumsal yutma.",
+                "met": true,
+                "applicable": true,
+                "required": false
+              },
+              {
+                "id": "liquidity_sweep",
+                "label": "Likidite süpürmesi",
+                "group": "pa",
+                "why": "Wick zone'u aştı, gövde döndü — küçük yatırımcı stop'ları temizlendi.",
+                "met": false,
+                "applicable": true,
+                "required": false
+              },
+              {
+                "id": "validated_zone",
+                "label": "Onaylı zone",
+                "group": "sust",
+                "why": "İlk dokunma 3 bar içinde gerçekleşti veya hiç test edilmedi.",
+                "met": true,
+                "applicable": true,
+                "required": false
+              },
+              {
+                "id": "storyline_not_opposite",
+                "label": "Storyline ters değil",
+                "group": "trend",
+                "why": "Long için storyline bearish DEĞİL, short için bullish DEĞİL.",
+                "met": true,
+                "applicable": true,
+                "required": false
+              },
+              {
+                "id": "rsi_extreme",
+                "label": "RSI uç bölgede",
+                "group": "ind",
+                "why": "Long support için RSI<45 (oversold), short resistance için RSI>55.",
+                "met": false,
+                "applicable": true,
+                "required": false
+              },
+              {
+                "id": "harmonic_match",
+                "label": "Harmonik patern uyumlu",
+                "group": "harm",
+                "why": "Aktif harmonik patern (Gartley/Bat/Crab) sinyalle aynı yönde.",
+                "met": false,
+                "applicable": true,
+                "required": false
+              }
+            ],
+            "entry": 645,
+            "stop": 603.48,
+            "target": 728.04,
+            "riskReward": 2,
+            "fillMode": "limit",
+            "triggerZone": {
+              "top": 645,
+              "bottom": 640.5
+            },
+            "source": "snr",
+            "bestZone": {
+              "id": "S_240",
+              "type": "support",
+              "top": 645,
+              "bottom": 640.5,
+              "pivotDate": "2026-05-05",
+              "daysAgo": 17,
+              "priceDistancePct": 3.3,
+              "score": 85,
+              "grade": "A+",
+              "freshness": "fresh",
+              "zoneType": "gap",
+              "validated": true
+            },
+            "harmonic": null,
+            "combo": null,
+            "storyline": "neutral",
+            "indicators": {
+              "rsi": 51,
+              "macdHist": -2.63
+            },
+            "lastClose": 667,
+            "atr": 24.678571428571427,
+            "symbol": "MGROS",
+            "name": "Migros Ticaret A.Ş.",
+            "news": {
+              "positive24h": 0,
+              "negative24h": 0,
+              "latest": null
+            },
+            "historicalWinRate": null,
+            "confidence": "unknown",
+            "confidenceLabel": "Yeterli Veri Yok",
+            "sampleSize": 0,
+            "createdAt": "2026-05-22T10:15:06.225Z",
+            "phase": "intraday"
+          }
+        ],
+        "diff": [
+          {
+            "symbol": "GUBRF",
+            "name": "Gübre Fabrikaları T.A.Ş.",
+            "status": "new",
+            "detail": "Borsa açıldıktan sonra koşullar oluştu",
+            "prev": null
+          },
+          {
+            "symbol": "ALFAS",
+            "name": "Alfa Solar Enerji Sanayi ve Ticaret A.Ş.",
+            "status": "unchanged",
+            "detail": "Önemli değişiklik yok",
+            "scoreDelta": 0,
+            "entryDelta": 0,
+            "prev": {
+              "strategy": "reversion",
+              "direction": "short",
+              "totalScore": 7,
+              "applicableMax": 10,
+              "ratio": 0.7,
+              "grade": "GUCLU",
+              "conditions": [
+                {
+                  "id": "in_range_tight",
+                  "label": "Fiyat zone'a yakın (≤%4)",
+                  "group": "sust",
+                  "why": "Fiyat entry seviyesine ≤%4 mesafede — pullback yakın, tetik olasılığı yüksek.",
+                  "met": true,
+                  "applicable": true,
+                  "required": true
+                },
+                {
+                  "id": "recent_pivot",
+                  "label": "Pivot ≤30 gün",
+                  "group": "sust",
+                  "why": "Zone'un oluştuğu pivot taze — kurumsal hafıza canlı.",
+                  "met": true,
+                  "applicable": true,
+                  "required": true
+                },
+                {
+                  "id": "fresh_zone",
+                  "label": "Taze zone",
+                  "group": "pa",
+                  "why": "Zone hiç test edilmedi — kurumsal emirler dolmadı.",
+                  "met": false,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "gap_zone",
+                  "label": "Gap zone",
+                  "group": "pa",
+                  "why": "HTF gap = LTF engulfing eşdeğeri — yüksek olasılıklı dönüş.",
+                  "met": true,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "engulfing_at_zone",
+                  "label": "Engulfing teyidi",
+                  "group": "pa",
+                  "why": "Zone yakınında bullish/bearish engulfing — kurumsal yutma.",
+                  "met": true,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "liquidity_sweep",
+                  "label": "Likidite süpürmesi",
+                  "group": "pa",
+                  "why": "Wick zone'u aştı, gövde döndü — küçük yatırımcı stop'ları temizlendi.",
+                  "met": false,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "validated_zone",
+                  "label": "Onaylı zone",
+                  "group": "sust",
+                  "why": "İlk dokunma 3 bar içinde gerçekleşti veya hiç test edilmedi.",
+                  "met": true,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "storyline_not_opposite",
+                  "label": "Storyline ters değil",
+                  "group": "trend",
+                  "why": "Long için storyline bearish DEĞİL, short için bullish DEĞİL.",
+                  "met": false,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "rsi_extreme",
+                  "label": "RSI uç bölgede",
+                  "group": "ind",
+                  "why": "Long support için RSI<45 (oversold), short resistance için RSI>55.",
+                  "met": true,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "harmonic_match",
+                  "label": "Harmonik patern uyumlu",
+                  "group": "harm",
+                  "why": "Aktif harmonik patern (Gartley/Bat/Crab) sinyalle aynı yönde.",
+                  "met": true,
+                  "applicable": true,
+                  "required": false
+                }
+              ],
+              "entry": 49.36,
+              "stop": 57.65,
+              "target": 32.78,
+              "riskReward": 2,
+              "fillMode": "limit",
+              "triggerZone": {
+                "top": 51.650001525878906,
+                "bottom": 49.36000061035156
+              },
+              "source": "snr",
+              "bestZone": {
+                "id": "R_251",
+                "type": "resistance",
+                "top": 51.650001525878906,
+                "bottom": 49.36000061035156,
+                "pivotDate": "2026-05-21",
+                "daysAgo": 1,
+                "priceDistancePct": 0.08,
+                "score": 60,
+                "grade": "B",
+                "freshness": "tested",
+                "zoneType": "gap",
+                "validated": true
+              },
+              "harmonic": {
+                "pattern": "Shark",
+                "direction": "Bearish",
+                "completion": 71,
+                "detectedDate": "2026-04-20"
+              },
+              "combo": null,
+              "storyline": "bullish",
+              "indicators": {
+                "rsi": 58,
+                "macdHist": 0.102
+              },
+              "lastClose": 49.400001525878906,
+              "atr": 4.002142769949777,
+              "symbol": "ALFAS",
+              "name": "Alfa Solar Enerji Sanayi ve Ticaret A.Ş.",
+              "news": {
+                "positive24h": 0,
+                "negative24h": 0,
+                "latest": null
+              },
+              "historicalWinRate": null,
+              "confidence": "unknown",
+              "confidenceLabel": "Yeterli Veri Yok",
+              "sampleSize": 0,
+              "createdAt": "2026-05-22T09:30:33.456Z",
+              "phase": "revision"
+            }
+          },
+          {
+            "symbol": "MGROS",
+            "name": "Migros Ticaret A.Ş.",
+            "status": "unchanged",
+            "detail": "Önemli değişiklik yok",
+            "scoreDelta": 0,
+            "entryDelta": 0,
+            "prev": {
+              "strategy": "reversion",
+              "direction": "long",
+              "totalScore": 7,
+              "applicableMax": 10,
+              "ratio": 0.7,
+              "grade": "GUCLU",
+              "conditions": [
+                {
+                  "id": "in_range_tight",
+                  "label": "Fiyat zone'a yakın (≤%4)",
+                  "group": "sust",
+                  "why": "Fiyat entry seviyesine ≤%4 mesafede — pullback yakın, tetik olasılığı yüksek.",
+                  "met": true,
+                  "applicable": true,
+                  "required": true
+                },
+                {
+                  "id": "recent_pivot",
+                  "label": "Pivot ≤30 gün",
+                  "group": "sust",
+                  "why": "Zone'un oluştuğu pivot taze — kurumsal hafıza canlı.",
+                  "met": true,
+                  "applicable": true,
+                  "required": true
+                },
+                {
+                  "id": "fresh_zone",
+                  "label": "Taze zone",
+                  "group": "pa",
+                  "why": "Zone hiç test edilmedi — kurumsal emirler dolmadı.",
+                  "met": true,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "gap_zone",
+                  "label": "Gap zone",
+                  "group": "pa",
+                  "why": "HTF gap = LTF engulfing eşdeğeri — yüksek olasılıklı dönüş.",
+                  "met": true,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "engulfing_at_zone",
+                  "label": "Engulfing teyidi",
+                  "group": "pa",
+                  "why": "Zone yakınında bullish/bearish engulfing — kurumsal yutma.",
+                  "met": true,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "liquidity_sweep",
+                  "label": "Likidite süpürmesi",
+                  "group": "pa",
+                  "why": "Wick zone'u aştı, gövde döndü — küçük yatırımcı stop'ları temizlendi.",
+                  "met": false,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "validated_zone",
+                  "label": "Onaylı zone",
+                  "group": "sust",
+                  "why": "İlk dokunma 3 bar içinde gerçekleşti veya hiç test edilmedi.",
+                  "met": true,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "storyline_not_opposite",
+                  "label": "Storyline ters değil",
+                  "group": "trend",
+                  "why": "Long için storyline bearish DEĞİL, short için bullish DEĞİL.",
+                  "met": true,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "rsi_extreme",
+                  "label": "RSI uç bölgede",
+                  "group": "ind",
+                  "why": "Long support için RSI<45 (oversold), short resistance için RSI>55.",
+                  "met": false,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "harmonic_match",
+                  "label": "Harmonik patern uyumlu",
+                  "group": "harm",
+                  "why": "Aktif harmonik patern (Gartley/Bat/Crab) sinyalle aynı yönde.",
+                  "met": false,
+                  "applicable": true,
+                  "required": false
+                }
+              ],
+              "entry": 645,
+              "stop": 603.54,
+              "target": 727.92,
+              "riskReward": 2,
+              "fillMode": "limit",
+              "triggerZone": {
+                "top": 645,
+                "bottom": 640.5
+              },
+              "source": "snr",
+              "bestZone": {
+                "id": "S_240",
+                "type": "support",
+                "top": 645,
+                "bottom": 640.5,
+                "pivotDate": "2026-05-05",
+                "daysAgo": 17,
+                "priceDistancePct": 2.79,
+                "score": 85,
+                "grade": "A+",
+                "freshness": "fresh",
+                "zoneType": "gap",
+                "validated": true
+              },
+              "harmonic": null,
+              "combo": null,
+              "storyline": "neutral",
+              "indicators": {
+                "rsi": 50,
+                "macdHist": -2.853
+              },
+              "lastClose": 663.5,
+              "atr": 24.642857142857142,
+              "symbol": "MGROS",
+              "name": "Migros Ticaret A.Ş.",
+              "news": {
+                "positive24h": 0,
+                "negative24h": 0,
+                "latest": null
+              },
+              "historicalWinRate": null,
+              "confidence": "unknown",
+              "confidenceLabel": "Yeterli Veri Yok",
+              "sampleSize": 0,
+              "createdAt": "2026-05-22T09:30:33.456Z",
+              "phase": "revision"
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

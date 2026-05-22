@@ -30,6 +30,7 @@ backend/src/data/users.enc
 backend/src/data/users.json
 backend/src/data/account-deletion-requests.json
 backend/src/data/push-devices.json
+backend/src/data/tema34-bot/
 backend/.x-cookies.json
 backend/.x-mentions-store.json
 frontend/android/app/google-services.json

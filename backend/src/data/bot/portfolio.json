@@ -1,14 +1,19 @@
 {
   "capital": 100000,
-  "cash": 69782.3,
-  "equity": 100000,
-  "totalRealizedPnL": 0,
-  "totalRealizedPnLPct": 0,
-  "openCount": 7,
+  "cash": 77864.75,
+  "equity": 96408.33,
+  "totalRealizedPnL": -3481.22,
+  "totalRealizedPnLPct": -3.48,
+  "openCount": 5,
   "winCount": 0,
-  "lossCount": 0,
+  "lossCount": 6,
   "winRate": 0,
   "startedAt": "2026-05-18T16:52:32.849Z",
   "resetAt": null,
-  "equityHistory": []
+  "equityHistory": [
+    {
+      "date": "2026-05-22",
+      "equity": 96408.33
+    }
+  ]
 }
