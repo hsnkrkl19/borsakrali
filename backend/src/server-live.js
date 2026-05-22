@@ -3489,7 +3489,7 @@ app.post('/api/market/crypto/mtf/backtest-and-feed', async (req, res) => {
 // Credentials: backend/.env içinde X_AUTH_TOKEN + X_CT0 (önerilen) veya X_USERNAME + X_PASSWORD
 const xMentionService = require('./services/xMentionService');
 
-// Server boot'tan sonra background warmer başlat (BIST30 + Top10 kripto, 35dk döngü)
+// Server boot'tan sonra background warmer başlat — tüm BIST hisseleri + tüm kripto, sürekli rolling tarama
 xMentionService.startWarmer();
 
 // Servis durumu — admin/debug için

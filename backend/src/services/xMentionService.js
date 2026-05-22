@@ -41,11 +41,11 @@ const SEARCH_INTERVAL_MIN_MS    = 12 * 1000;            // sorgular arası min 1
 const SEARCH_INTERVAL_MAX_MS    = 22 * 1000;            // max 22 sn (jitter — sabit interval botluk gibi durur)
 const BATCH_REST_AFTER_N        = 20;                   // 20 sorgu sonrası
 const BATCH_REST_MS             = 3 * 60 * 1000;        //   3 dk mola
-const DAILY_SEARCH_CAP          = 1000;                 // takvim gününde max sorgu
+const DAILY_SEARCH_CAP          = 4000;                 // takvim gününde max sorgu — güvenli tempo doğal ~3300/gün üretir; bu yalnızca kaçak-koruma tavanı
 const RATE_LIMIT_BACKOFF_MS     = 30 * 60 * 1000;       // rate-limit hatasında 30 dk dur
 const QUEUE_REENQUEUE_MS        = 60 * 60 * 1000;       // 1 saatte bir queue'yu tazele
-const TODAY_REFRESH_MS          = 2 * 60 * 60 * 1000;   // bugünkü günü 2 saatte 1 yenile
-const HISTORICAL_MAX_AGE_MS     = 36 * 60 * 60 * 1000;  // geçmiş gün dosyalanmışsa 36 saat dokunma
+const TODAY_REFRESH_MS          = 6 * 60 * 60 * 1000;   // bugünkü günü 6 saatte 1 yenile — 549 sembollük evren güvenli tempoda ancak bu sıklıkta tam dönülür
+const HISTORICAL_MAX_AGE_MS     = 6 * 24 * 60 * 60 * 1000; // geçmiş gün dosyalanmışsa 6 gün dokunma — tüm evrende re-fetch yükü kapasiteyi aşmasın
 const STORE_SAVE_INTERVAL_MS    = 60 * 1000;            // dirty store her 60 sn diske
 
 // Frontend cache TTL'leri (store hep güncel; bunlar sadece view rebuild)
@@ -597,15 +597,18 @@ function scanMentions(scope = 'bist100') {
     const tweets = getAllTweetsForSymbol(it.symbol);
     if (tweets.length === 0) {
       pending.push(it.symbol);
-      enqueueSymbolBackfill(it, isCrypto, /*highPriority*/ false);
+      enqueueSymbolBackfill(it, isCrypto, /*highPriority*/ false, /*deferSort*/ true);
       continue;
     }
     enriched.push(buildSummaryFromTweets(it, tweets, isCrypto));
   }
 
-  // Auto-enqueue yapıldıysa drainer'ı tetikle (ilk kez bu scope istendi)
-  if (pending.length > 0 && !drainerRunning && Date.now() >= store.meta.backoffUntil) {
-    runDrainer().catch(err => console.warn('[XMentions] Drainer trigger error:', err.message));
+  // Auto-enqueue yapıldıysa kuyruğu tek sefer sırala + drainer'ı tetikle
+  if (pending.length > 0) {
+    jobQueue.sort((a, b) => b.priority - a.priority);
+    if (!drainerRunning && Date.now() >= store.meta.backoffUntil) {
+      runDrainer().catch(err => console.warn('[XMentions] Drainer trigger error:', err.message));
+    }
   }
 
   const totalItems = items.length;
@@ -751,7 +754,8 @@ function needsFetch(symbol, dateStr) {
 }
 
 // Backoff + günlük cap altında kuyruk birikebilir; sınırsız büyümeyi engelle.
-const MAX_QUEUE_SIZE = 2000;
+// Tüm evren (~549 sembol × 7 gün ≈ 3850 job) rahat sığsın diye geniş tutuldu.
+const MAX_QUEUE_SIZE = 8000;
 let queueOverflowLogged = false;
 
 function enqueueIfNeeded(item, isCrypto, dateStr, priority = 0) {
@@ -781,7 +785,7 @@ function enqueueIfNeeded(item, isCrypto, dateStr, priority = 0) {
   return true;
 }
 
-function enqueueSymbolBackfill(item, isCrypto, highPriority = false) {
+function enqueueSymbolBackfill(item, isCrypto, highPriority = false, deferSort = false) {
   const today = new Date();
   let added = 0;
   for (let d = 0; d < HISTORY_DAYS; d++) {
@@ -792,21 +796,26 @@ function enqueueSymbolBackfill(item, isCrypto, highPriority = false) {
     const prio = (d === 0 ? 3 : d === 1 ? 2 : 1) + (highPriority ? 5 : 0);
     if (enqueueIfNeeded(item, isCrypto, dateStr, prio)) added++;
   }
-  jobQueue.sort((a, b) => b.priority - a.priority);
+  // deferSort: 500+ sembollük toplu çağrılarda her sembolde sort etmek event-loop'u
+  // bloklar — çağıran taraf döngü bitince tek sefer sıralar.
+  if (!deferSort) jobQueue.sort((a, b) => b.priority - a.priority);
   return added;
 }
 
 function enqueueWarmerCycle() {
+  // Tüm evren: 510 BIST hissesi + tüm kripto. Alt-küme yok — her sembol
+  // sürekli rolling olarak taranır (öncelik sırası: bugün > dün > geçmiş).
   const universe = [
-    ...bist30Stocks.map(s => ({ item: s, isCrypto: false })),
-    ...TOP30_CRYPTOS.map(c => ({ item: c, isCrypto: true })),
+    ...allBistStocks.map(s => ({ item: s, isCrypto: false })),
+    ...CRYPTO_UNIVERSE.map(c => ({ item: c, isCrypto: true })),
   ];
   let added = 0;
   for (const u of universe) {
-    added += enqueueSymbolBackfill(u.item, u.isCrypto, false);
+    added += enqueueSymbolBackfill(u.item, u.isCrypto, false, /*deferSort*/ true);
   }
   if (added > 0) {
-    console.log(`[XMentions] Kuyruğa ${added} yeni gün-job eklendi (toplam: ${jobQueue.length})`);
+    jobQueue.sort((a, b) => b.priority - a.priority);
+    console.log(`[XMentions] Kuyruğa ${added} yeni gün-job eklendi (toplam: ${jobQueue.length}, evren: ${universe.length} sembol)`);
   }
 }
 

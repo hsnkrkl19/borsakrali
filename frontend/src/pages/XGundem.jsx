@@ -19,12 +19,12 @@ const SCOPES_BY_TYPE = {
   crypto: [
     { id: 'crypto_top10', label: 'Top 10' },
     { id: 'crypto',       label: 'Top 30' },
-    { id: 'crypto_all',   label: 'Tümü (75+)' },
+    { id: 'crypto_all',   label: 'Tümü' },
   ],
 }
 
-// Warmer'ın canlı tuttuğu evrenler — UI'da default seçim bunlar
-const DEFAULT_SCOPE = { stock: 'bist30', crypto: 'crypto' }
+// Warmer artık tüm evreni sürekli canlı tutuyor — default seçim de tam liste
+const DEFAULT_SCOPE = { stock: 'all', crypto: 'crypto_all' }
 
 const TABS = [
   { id: 'top',      label: 'En Çok Konuşulanlar', icon: Flame },
