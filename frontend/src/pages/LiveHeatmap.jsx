@@ -402,7 +402,7 @@ export default function LiveHeatmap() {
 
       {/* Footer */}
       <div className="mt-8 text-center text-gray-500 text-sm">
-        <p>Tüm hakları saklıdır. Borsa Krali</p>
+        <p>Tüm hakları saklıdır. Borsa Kralı</p>
         <p className="mt-1">Yatırım tavsiyesi ve öneri niteliği taşımaz. Yalnızca eğitim amaçlıdır.</p>
       </div>
     </div>

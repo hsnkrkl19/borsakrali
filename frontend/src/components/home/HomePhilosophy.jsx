@@ -72,7 +72,7 @@ export default function HomePhilosophy() {
           Felsefemiz
         </h2>
         <p className="text-sm sm:text-base" style={{ color: 'var(--text-muted)' }}>
-          Borsa Krali, sana hangi hisseyi alacağını söyleyen bir oracle değil.
+          Borsa Kralı, sana hangi hisseyi alacağını söyleyen bir oracle değil.
           Verinin ne anlattığını <em style={{ color: 'var(--gold-400)', fontStyle: 'normal' }}>okumayı öğreten</em> bir kaynak.
         </p>
       </div>

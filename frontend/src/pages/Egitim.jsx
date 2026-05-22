@@ -8,9 +8,8 @@
 import { useState, useMemo, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { Search, X, ArrowRight, BookOpen } from 'lucide-react'
-import BrandMark from '../components/BrandMark'
-import HelpBubble from '../components/HelpBubble'
 import { LEARN_CATEGORIES, LEARN_CARDS } from '../data/learnCards'
+import { Button, Card, PageHeader, EmptyState } from '../components/ui'
 
 // Eski uzun makaleler — "Detaylı oku" hedefi olarak kalır.
 const DETAILED_ARTICLES = [
@@ -40,24 +39,17 @@ function CardModal({ card, onClose }) {
       style={{ background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(4px)' }}
       onClick={onClose}
     >
-      <div
-        className="w-full max-w-md rounded-2xl border p-5 sm:p-6 space-y-4"
-        style={{ background: 'var(--bg-card)', borderColor: 'var(--border-gold)' }}
+      <Card
+        tone="gold"
+        padding="lg"
+        className="w-full max-w-md space-y-4"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-start justify-between gap-3">
-          <h2 className="text-lg sm:text-xl font-bold" style={{ color: 'var(--text-primary)' }}>
+          <h2 className="text-lg font-bold sm:text-xl" style={{ color: 'var(--text-primary)' }}>
             {card.title}
           </h2>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Kapat"
-            className="p-1.5 rounded-lg"
-            style={{ color: 'var(--text-faint)' }}
-          >
-            <X className="w-4 h-4" />
-          </button>
+          <Button variant="subtle" size="sm" icon={X} aria-label="Kapat" onClick={onClose} />
         </div>
 
         <p className="text-sm leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
@@ -65,7 +57,7 @@ function CardModal({ card, onClose }) {
         </p>
 
         {card.example && (
-          <p className="text-[13px] leading-relaxed rounded-lg p-3"
+          <p className="rounded-lg p-3 text-[13px] leading-relaxed"
             style={{ background: 'rgba(0, 201, 138, 0.07)', color: 'var(--text-secondary)' }}>
             <span className="font-semibold" style={{ color: 'var(--jade)' }}>Örnek: </span>
             {card.example.replace(/^Örnek:\s*/, '')}
@@ -73,7 +65,7 @@ function CardModal({ card, onClose }) {
         )}
 
         {card.warning && (
-          <p className="text-[13px] leading-relaxed rounded-lg p-3"
+          <p className="rounded-lg p-3 text-[13px] leading-relaxed"
             style={{ background: 'rgba(212, 175, 55, 0.07)', color: 'var(--text-secondary)' }}>
             <span className="font-semibold" style={{ color: 'var(--gold-400)' }}>Dikkat: </span>
             {card.warning.replace(/^Dikkat:\s*/, '')}
@@ -81,16 +73,11 @@ function CardModal({ card, onClose }) {
         )}
 
         {card.detailHref && (
-          <Link
-            to={card.detailHref}
-            onClick={onClose}
-            className="inline-flex items-center gap-1.5 text-[13px] font-semibold"
-            style={{ color: 'var(--gold-400)' }}
-          >
-            Detaylı oku <ArrowRight className="w-4 h-4" />
-          </Link>
+          <Button as={Link} to={card.detailHref} onClick={onClose} variant="outline" size="sm" iconRight={ArrowRight}>
+            Detaylı oku
+          </Button>
         )}
-      </div>
+      </Card>
     </div>
   )
 }
@@ -110,140 +97,106 @@ export default function Egitim() {
   }, [query])
 
   return (
-    <div className="min-h-screen px-4 py-8" style={{ background: 'var(--bg-canvas)' }}>
-      <div className="mx-auto max-w-5xl space-y-6">
-        {/* Header */}
-        <div className="flex items-center justify-between gap-4 flex-wrap">
-          <Link to="/" className="inline-flex items-center gap-3 text-sm" style={{ color: 'var(--gold-400)' }}>
-            <BrandMark size="sm" />
-            Borsa Krali
-          </Link>
-          <div className="flex flex-wrap gap-4 text-sm">
-            <Link to="/hakkimizda" style={{ color: 'var(--text-faint)' }}>Hakkımızda</Link>
-            <Link to="/iletisim" style={{ color: 'var(--text-faint)' }}>İletişim</Link>
-            <Link to="/privacy-policy" style={{ color: 'var(--text-faint)' }}>Gizlilik</Link>
-          </div>
-        </div>
+    <div className="mx-auto max-w-5xl space-y-6">
+      <PageHeader
+        icon={BookOpen}
+        title="Öğren"
+        description="Her kart 30 saniyede okunur. Bir konuyu derinlemesine öğrenmek istersen 'Detaylı oku' linkini kullan."
+      />
 
-        {/* Başlık + yardım */}
-        <header className="space-y-2">
-          <h1
-            className="text-2xl sm:text-3xl font-bold tracking-tight flex items-center"
-            style={{ color: 'var(--text-primary)' }}
-          >
-            Öğren
-            <HelpBubble text="Anlamadığın bir şey varsa burada açıklama bulursun." />
-          </h1>
-          <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
-            Her kart 30 saniyede okunur. Bir konuyu derinlemesine öğrenmek istersen "Detaylı oku" linkini kullan.
-          </p>
-        </header>
-
-        {/* Arama */}
-        <div className="relative">
-          <Search
-            className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4"
-            style={{ color: 'var(--text-faint)' }}
-          />
-          <input
-            type="search"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Ne öğrenmek istiyorsun? (örn. AL, risk, bot)"
-            className="w-full rounded-xl pl-10 pr-3 py-2.5 text-sm"
-            style={{
-              background: 'var(--bg-card)',
-              border: '1px solid var(--border-main)',
-              color: 'var(--text-primary)',
-            }}
-          />
-        </div>
-
-        {/* Kategori grupları */}
-        {LEARN_CATEGORIES.map((cat) => {
-          const list = filtered.filter((c) => c.category === cat.id)
-          if (list.length === 0) return null
-          return (
-            <section key={cat.id} className="space-y-3">
-              <h2
-                className="text-[11px] uppercase tracking-[0.18em] font-bold"
-                style={{ color: 'var(--gold-400)' }}
-              >
-                {cat.label}
-              </h2>
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2.5">
-                {list.map((card) => (
-                  <button
-                    key={card.id}
-                    type="button"
-                    onClick={() => setActiveCard(card)}
-                    className="text-left rounded-xl p-3 transition-colors hover:scale-[1.02]"
-                    style={{
-                      background: 'var(--bg-card)',
-                      border: '1px solid var(--border-main)',
-                      minHeight: 88,
-                    }}
-                  >
-                    <p
-                      className="text-[13.5px] font-semibold leading-snug"
-                      style={{ color: 'var(--text-primary)' }}
-                    >
-                      {card.title}
-                    </p>
-                  </button>
-                ))}
-              </div>
-            </section>
-          )
-        })}
-
-        {filtered.length === 0 && (
-          <div
-            className="rounded-xl border p-6 text-center text-sm"
-            style={{
-              background: 'var(--bg-card)',
-              borderColor: 'var(--border-main)',
-              color: 'var(--text-secondary)',
-            }}
-          >
-            "{query}" için kart bulunamadı. Aşağıdaki detaylı makalelerde olabilir.
-          </div>
-        )}
-
-        {/* Detaylı makaleler */}
-        <section className="space-y-3 pt-6">
-          <h2
-            className="text-[11px] uppercase tracking-[0.18em] font-bold flex items-center gap-2"
-            style={{ color: 'var(--text-faint)' }}
-          >
-            <BookOpen className="w-3.5 h-3.5" />
-            Detaylı Rehberler
-          </h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-            {DETAILED_ARTICLES.map((a) => (
-              <Link
-                key={a.slug}
-                to={`/egitim/${a.slug}`}
-                className="flex items-center justify-between rounded-xl px-3 py-2.5 text-sm"
-                style={{
-                  background: 'var(--bg-card)',
-                  border: '1px solid var(--border-main)',
-                  color: 'var(--text-primary)',
-                }}
-              >
-                <span>{a.title}</span>
-                <span className="flex items-center gap-1.5 text-[11px]" style={{ color: 'var(--text-faint)' }}>
-                  {a.readingTime} <ArrowRight className="w-3.5 h-3.5" />
-                </span>
-              </Link>
-            ))}
-          </div>
-        </section>
-
-        <p className="text-[11px] text-center pt-4" style={{ color: 'var(--text-faint)' }}>
-          Bu sayfa yatırım tavsiyesi değildir; tamamen bilgilendirme amaçlıdır.
-        </p>
+      {/* Arama */}
+      <div className="relative">
+        <Search
+          className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2"
+          style={{ color: 'var(--text-faint)' }}
+          aria-hidden="true"
+        />
+        <input
+          type="search"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          aria-label="Konu ara"
+          placeholder="Ne öğrenmek istiyorsun? (örn. AL, risk, bot)"
+          className="w-full rounded-xl py-2.5 pl-10 pr-3 text-sm"
+          style={{
+            background: 'var(--bg-card)',
+            border: '1px solid var(--border-main)',
+            color: 'var(--text-primary)',
+          }}
+        />
       </div>
+
+      {/* Kategori grupları */}
+      {LEARN_CATEGORIES.map((cat) => {
+        const list = filtered.filter((c) => c.category === cat.id)
+        if (list.length === 0) return null
+        return (
+          <section key={cat.id} className="space-y-3">
+            <h2 className="text-[11px] font-bold uppercase tracking-[0.18em]" style={{ color: 'var(--gold-400)' }}>
+              {cat.label}
+            </h2>
+            <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-4">
+              {list.map((card) => (
+                <Card
+                  key={card.id}
+                  as="button"
+                  type="button"
+                  interactive
+                  padding="sm"
+                  onClick={() => setActiveCard(card)}
+                  className="text-left"
+                  style={{ minHeight: 88 }}
+                >
+                  <p className="text-[13.5px] font-semibold leading-snug" style={{ color: 'var(--text-primary)' }}>
+                    {card.title}
+                  </p>
+                </Card>
+              ))}
+            </div>
+          </section>
+        )
+      })}
+
+      {filtered.length === 0 && (
+        <Card padding="none">
+          <EmptyState
+            icon={Search}
+            compact
+            title={`"${query}" için kart bulunamadı`}
+            description="Aşağıdaki detaylı makalelerde olabilir."
+          />
+        </Card>
+      )}
+
+      {/* Detaylı makaleler */}
+      <section className="space-y-3 pt-6">
+        <h2 className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.18em]" style={{ color: 'var(--text-faint)' }}>
+          <BookOpen className="h-3.5 w-3.5" />
+          Detaylı Rehberler
+        </h2>
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+          {DETAILED_ARTICLES.map((a) => (
+            <Card
+              key={a.slug}
+              as={Link}
+              to={`/egitim/${a.slug}`}
+              interactive
+              padding="none"
+              className="flex items-center justify-between px-3.5 py-3 text-sm"
+              style={{ color: 'var(--text-primary)' }}
+            >
+              <span className="font-medium">{a.title}</span>
+              <span className="flex items-center gap-1.5 text-[11px]" style={{ color: 'var(--text-faint)' }}>
+                {a.readingTime} <ArrowRight className="h-3.5 w-3.5" />
+              </span>
+            </Card>
+          ))}
+        </div>
+      </section>
+
+      <p className="pt-4 text-center text-[11px]" style={{ color: 'var(--text-faint)' }}>
+        Bu sayfa yatırım tavsiyesi değildir; tamamen bilgilendirme amaçlıdır.
+      </p>
 
       <CardModal card={activeCard} onClose={() => setActiveCard(null)} />
     </div>

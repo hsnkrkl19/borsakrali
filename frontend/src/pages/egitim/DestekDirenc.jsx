@@ -1,30 +1,20 @@
 import { Link } from 'react-router-dom'
 import { Target, ArrowLeft, ArrowRight, Lightbulb, AlertTriangle } from 'lucide-react'
-import BrandMark from '../../components/BrandMark'
 
 export default function DestekDirenc() {
   return (
-    <div className="min-h-screen bg-dark-950 px-4 py-10">
+    <div>
       <div className="mx-auto max-w-4xl">
-        <div className="mb-8 flex items-center justify-between gap-4">
-          <Link to="/" className="inline-flex items-center gap-3 text-sm text-gold-400 hover:text-gold-300">
-            <BrandMark size="sm" />
-            Borsa Krali
-          </Link>
-          <div className="flex flex-wrap gap-4 text-sm">
-            <Link to="/egitim" className="text-gray-400 hover:text-white">Egitim</Link>
-            <Link to="/hakkimizda" className="text-gray-400 hover:text-white">Hakkimizda</Link>
-            <Link to="/iletisim" className="text-gray-400 hover:text-white">Iletisim</Link>
-          </div>
-        </div>
-
-        <div className="rounded-3xl border border-gold-500/20 bg-surface-100 p-6 md:p-8 shadow-premium">
+        <div
+          className="rounded-3xl p-5 sm:p-7 md:p-8"
+          style={{ background: 'var(--bg-card)', border: '1px solid var(--border-gold)', boxShadow: 'var(--shadow-lg)' }}
+        >
           <nav aria-label="breadcrumb" className="mb-4 text-xs text-gray-500">
-            <Link to="/" className="hover:text-gold-400">Borsa Krali</Link>
+            <Link to="/" className="hover:text-gold-400">Borsa Kralı</Link>
             <span className="mx-2 text-gray-600">/</span>
-            <Link to="/egitim" className="hover:text-gold-400">Egitim</Link>
+            <Link to="/egitim" className="hover:text-gold-400">Eğitim</Link>
             <span className="mx-2 text-gray-600">/</span>
-            <span className="text-gray-300">Destek ve Direnc</span>
+            <span className="text-gray-300">Destek ve Direnç</span>
           </nav>
 
           <div className="mb-8 space-y-3">
@@ -37,163 +27,163 @@ export default function DestekDirenc() {
               </span>
             </div>
             <h1 className="text-3xl font-bold text-white md:text-4xl">
-              Destek ve Direnc Seviyeleri Nasil Cizilir?
+              Destek ve Direnç Seviyeleri Nasıl Çizilir?
             </h1>
-            <p className="text-sm text-gray-500">10 Mayis 2026 — yaklasik 9 dakika okuma</p>
+            <p className="text-sm text-gray-500">10 Mayıs 2026 — yaklaşık 9 dakika okuma</p>
           </div>
 
           <article className="space-y-6 text-sm leading-7 text-gray-300 md:text-base md:leading-8">
             <p>
-              Destek ve direnc, teknik analizin en eski ve hala en degerli kavramlaridir. Onlarca indikator
-              gelmis ve gitmistir; ancak destek-direnc kavrami yatirimcilarin grafige bakar bakmaz dusundugu
-              ilk kavram olmaya devam eder. Bu yazida yatay destek-direnc cizimini, trend cizgilerini, pivot
-              noktalarini, Fibonacci geri cekilmesini, psikolojik seviyeleri ve sahte kirilim tuzaklarini
-              detayli ele alacagiz.
+              Destek ve direnç, teknik analizin en eski ve hala en değerli kavramlarıdır. Onlarca indikatör
+              gelmiş ve gitmiştir; ancak destek-direnç kavramı yatırımcıların grafiğe bakar bakmaz düşündüğü
+              ilk kavram olmaya devam eder. Bu yazıda yatay destek-direnç çizimini, trend çizgilerini, pivot
+              noktalarını, Fibonacci geri çekilmesini, psikolojik seviyeleri ve sahte kırılım tuzaklarını
+              detaylı ele alacağız.
             </p>
 
             <section>
-              <h2 className="mb-3 text-xl font-semibold text-white">Destek ve Direnc Nedir?</h2>
+              <h2 className="mb-3 text-xl font-semibold text-white">Destek ve Direnç Nedir?</h2>
               <p>
-                Destek, fiyatin asagi yonlu hareketinde alici talebinin yogunlastigi ve dususun yavasladigi
-                seviyedir. Direnc ise yukari yonlu hareketinde satici baskisinin arttigi ve yukselislerin
-                kesildigi seviyedir. Bu seviyeler birer cizgi degil, aslinda ufak bir aralik (zone)
-                seklindedir.
+                Destek, fiyatın aşağı yönlü hareketinde alıcı talebinin yoğunlaştığı ve düşüşün yavaşladığı
+                seviyedir. Direnç ise yukarı yönlü hareketinde satıcı baskısının arttığı ve yükselişlerin
+                kesildiği seviyedir. Bu seviyeler birer çizgi değil, aslında ufak bir aralık (zone)
+                şeklindedir.
               </p>
               <p className="mt-3">
-                Onemli bir kural: bir destek kirildiginda direnc, bir direnc kirildiginda ise destek haline
-                gelir. Bu rol degisikligi (role reversal), profesyonellerin grafik okumalarinda en cok
-                kullandigi prensiptir.
+                Önemli bir kural: bir destek kırıldığında direnç, bir direnç kırıldığında ise destek haline
+                gelir. Bu rol değişikliği (role reversal), profesyonellerin grafik okumalarında en çok
+                kullandığı prensiptir.
               </p>
             </section>
 
             <section>
-              <h2 className="mb-3 text-xl font-semibold text-white">Yatay Destek-Direnc Cizimi</h2>
+              <h2 className="mb-3 text-xl font-semibold text-white">Yatay Destek-Direnç Çizimi</h2>
               <p>
-                En basit cizim yontemidir. Gecmis grafikte fiyatin birden cok kez tepki verdigi seviyeler
-                isaretlenir. Iki onemli kural vardir:
+                En basit çizim yöntemidir. Geçmiş grafikte fiyatın birden çok kez tepki verdiği seviyeler
+                işaretlenir. İki önemli kural vardır:
               </p>
               <ul className="mt-3 list-disc space-y-2 pl-6">
-                <li>Bir seviyenin destek/direnc sayilmasi icin en az iki dokunus istenir; uc dokunus daha guclu sayilir.</li>
-                <li>Cok eski ve uzun zaman test edilmemis seviyeler, geceren tasimaz; yakin gecmisteki seviyeler daha onceliklidir.</li>
+                <li>Bir seviyenin destek/direnç sayılması için en az iki dokunuş istenir; üç dokunuş daha güçlü sayılır.</li>
+                <li>Çok eski ve uzun zaman test edilmemiş seviyeler, geçerlen taşımaz; yakın geçmişdeki seviyeler daha önceliklidir.</li>
               </ul>
               <p className="mt-3">
-                Pratik ornek: THYAO hissesi 250 TL seviyesini gecmis 6 ay icinde uc kez test edip her seferinde
-                yukari donduyse, 250 TL onemli bir destek olarak kabul edilir. Bu seviye kirildiginda fiyatin
-                bir alt destek seviyesine kadar dusmesi muhtemeldir.
+                Pratik örnek: THYAO hissesi 250 TL seviyesini geçmiş 6 ay içinde üç kez test edip her seferinde
+                yukarı döndüyse, 250 TL önemli bir destek olarak kabul edilir. Bu seviye kırıldığında fiyatın
+                bir alt destek seviyesine kadar düşmesi muhtemeldir.
               </p>
 
               <div className="mt-4 rounded-xl border border-yellow-500/20 bg-yellow-500/5 p-4">
                 <h4 className="mb-1 flex items-center gap-2 font-semibold text-yellow-200">
                   <Lightbulb className="h-4 w-4" />
-                  Ipucu
+                  İpucu
                 </h4>
                 <p className="text-sm leading-6">
-                  Destek-direnc seviyelerini gunluk grafikte cizmeden once haftalik grafige goz atin. Haftalik
-                  grafikteki seviyeler, gunluk grafiktekilerden cok daha guclu reaksiyon uretir.
+                  Destek-direnç seviyelerini günlük grafikte çizmeden önce haftalık grafiğe göz atın. Haftalık
+                  grafikteki seviyeler, günlük grafiktekilerden çok daha güçlü reaksiyon üretir.
                 </p>
               </div>
             </section>
 
             <section>
-              <h2 className="mb-3 text-xl font-semibold text-white">Trend Cizgileri</h2>
+              <h2 className="mb-3 text-xl font-semibold text-white">Trend Çizgileri</h2>
               <p>
-                Yukselen trende dokunan dipler bir trend destegi cizgisi cizer; dusen trende dokunan tepeler
-                trend direnci cizgisi olusturur. Cizimde dokunma sayisi onemlidir: tek dokunusla cizgi
-                gecerli sayilmaz. En az iki dokunus gerekli, ucuncu dokunusla cizgi resmen gecerli olur.
+                Yükselen trende dokunan dipler bir trend desteği çizgisi çizer; düşen trende dokunan tepeler
+                trend direnci çizgisi oluşturur. Çizimde dokunma sayısı önemlidir: tek dokunuşla çizgi
+                geçerli sayılmaz. En az iki dokunuş gerekli, üçüncü dokunuşla çizgi resmen geçerli olur.
               </p>
               <p className="mt-3">
-                Trend cizgisinin acisi da onemlidir. Cok dik bir trend (ornegin 60 derece uzerinde) genelde
-                surdurulemez ve hizla bozulur. 30-45 derece arasi acilarla yukselen trendler, en saglikli ve
-                uzun omurlu olanlardir.
+                Trend çizgisinin açısı da önemlidir. Çok dik bir trend (örneğin 60 derece üzerinde) genelde
+                sürdürülemez ve hızla bozulur. 30-45 derece arası açılarla yükselen trendler, en sağlıklı ve
+                uzun ömürlü olanlardır.
               </p>
             </section>
 
             <section>
-              <h2 className="mb-3 text-xl font-semibold text-white">Pivot Noktalari</h2>
+              <h2 className="mb-3 text-xl font-semibold text-white">Pivot Noktaları</h2>
               <p>
-                Pivot noktalari, bir onceki gunun yuksek, dusuk ve kapanis fiyatlarini kullanarak gun ici
-                destek-direnc seviyelerini hesaplayan formul tabanli bir yontemdir. Klasik pivot noktasi
-                formulu su sekildedir:
+                Pivot noktaları, bir önceki günün yüksek, düşük ve kapanış fiyatlarını kullanarak gün içi
+                destek-direnç seviyelerini hesaplayan formül tabanlı bir yöntemdir. Klasik pivot noktası
+                formülü şu şekildedir:
               </p>
               <pre className="mt-3 overflow-x-auto rounded-xl border border-white/5 bg-dark-900/60 p-4 text-xs leading-6 text-gold-200 md:text-sm">
-{`Pivot (P) = (Onceki Gun Yuksek + Dusuk + Kapanis) / 3
+{`Pivot (P) = (Önceki Gün Yüksek + Düşük + Kapanış) / 3
 
-Direncler:
-R1 = (2 * P) - Onceki Gun Dusuk
-R2 = P + (Onceki Gun Yuksek - Dusuk)
-R3 = R1 + (Onceki Gun Yuksek - Dusuk)
+Dirençler:
+R1 = (2 * P) - Önceki Gün Düşük
+R2 = P + (Önceki Gün Yüksek - Düşük)
+R3 = R1 + (Önceki Gün Yüksek - Düşük)
 
 Destekler:
-S1 = (2 * P) - Onceki Gun Yuksek
-S2 = P - (Onceki Gun Yuksek - Dusuk)
-S3 = S1 - (Onceki Gun Yuksek - Dusuk)`}
+S1 = (2 * P) - Önceki Gün Yüksek
+S2 = P - (Önceki Gün Yüksek - Düşük)
+S3 = S1 - (Önceki Gün Yüksek - Düşük)`}
               </pre>
               <p className="mt-3">
-                Pivot noktalari ozellikle gun ici (intraday) islem yapan yatirimcilar tarafindan kullanilir.
-                Fiyat pivot noktasi uzerindeyse gunun genel havasi pozitif, altindaysa negatif olarak okunur.
+                Pivot noktaları özellikle gün içi (intraday) işlem yapan yatırımcılar tarafından kullanılır.
+                Fiyat pivot noktası üzerindeyse günün genel havası pozitif, altındaysa negatif olarak okunur.
               </p>
             </section>
 
             <section>
-              <h2 className="mb-3 text-xl font-semibold text-white">Fibonacci Geri Cekilmesi</h2>
+              <h2 className="mb-3 text-xl font-semibold text-white">Fibonacci Geri Çekilmesi</h2>
               <p>
-                Fibonacci sayilarindan turetilen oranlar (%23.6, %38.2, %50, %61.8, %78.6) yukselen veya
-                dusen bir hareketin geri cekilmesi sirasinda destek-direnc bolgeleri olarak kullanilir. Cizmek
-                icin son anlamli dipten son anlamli tepeye Fibonacci aracini cekmeniz yeterlidir.
+                Fibonacci sayılarından türetilen oranlar (%23.6, %38.2, %50, %61.8, %78.6) yükselen veya
+                düşen bir hareketin geri çekilmesi sırasında destek-direnç bölgeleri olarak kullanılır. Çizmek
+                için son anlamlı dipten son anlamlı tepeye Fibonacci aracını çekmeniz yeterlidir.
               </p>
               <p className="mt-3">
-                En cok izlenen seviyeler %38.2, %50 ve %61.8'dir. Saglikli bir yukselen trendde fiyatin %50
-                geri cekilme seviyesinde alici bulmasi beklenir. %61.8'in altina sarkan duzeltmeler trendin
-                bozulmaya basladigina isaret edebilir.
+                En çok izlenen seviyeler %38.2, %50 ve %61.8'dir. Sağlıklı bir yükselen trendde fiyatın %50
+                geri çekilme seviyesinde alıcı bulması beklenir. %61.8'in altına sarkan düzeltmeler trendin
+                bozulmaya başladığına işaret edebilir.
               </p>
               <p className="mt-3">
-                Pratik ornek: AKBNK hissesi 30 TL'den 50 TL'ye yukseldi. Geri cekilmede %38.2 seviyesi 42.4
-                TL, %50 seviyesi 40 TL, %61.8 seviyesi 37.6 TL olur. Bu uc seviye, kisa vadeli alim icin
-                potansiyel tepki bolgeleridir.
+                Pratik örnek: AKBNK hissesi 30 TL'den 50 TL'ye yükseldi. Geri çekilmede %38.2 seviyesi 42.4
+                TL, %50 seviyesi 40 TL, %61.8 seviyesi 37.6 TL olur. Bu üç seviye, kısa vadeli alım için
+                potansiyel tepki bölgeleridir.
               </p>
             </section>
 
             <section>
               <h2 className="mb-3 text-xl font-semibold text-white">Psikolojik Seviyeler</h2>
               <p>
-                Yuvarlak rakamlar (50, 100, 200, 500 gibi) kalabaligin gozune carptigi icin dogal birer
-                destek-direnc bolgesidir. BIST 100 endeksi 10.000 puan seviyesi yillarca onemli bir psikolojik
-                esik olmustur. Hisse senedi bazinda da 100 TL seviyesi yatirimcilar icin "psikolojik" bir
-                noktadir.
+                Yuvarlak rakamlar (50, 100, 200, 500 gibi) kalabalığın gözüne çarptığı için doğal birer
+                destek-direnç bölgesidir. BIST 100 endeksi 10.000 puan seviyesi yıllarca önemli bir psikolojik
+                eşik olmuştur. Hisse senedi bazında da 100 TL seviyesi yatırımcılar için "psikolojik" bir
+                noktadır.
               </p>
               <p className="mt-3">
-                Ozellikle bireysel yatirimcilarin yogun oldugu hisselerde bu psikolojik seviyeler, teknik
-                seviyelerden bile daha guclu reaksiyon urettigi gozlemlenir.
+                Özellikle bireysel yatırımcıların yoğun olduğu hisselerde bu psikolojik seviyeler, teknik
+                seviyelerden bile daha güçlü reaksiyon ürettiği gözlemlenir.
               </p>
             </section>
 
             <section>
-              <h2 className="mb-3 text-xl font-semibold text-white">Kirilim ve Sahte Kirilim</h2>
+              <h2 className="mb-3 text-xl font-semibold text-white">Kırılım ve Sahte Kırılım</h2>
               <p>
-                Kirilim, fiyatin destek veya direnc seviyesini guclu bir hareketle gecmesidir. Saglikli
-                kirilim icin uc sart aranir:
+                Kırılım, fiyatın destek veya direnç seviyesini güçlü bir hareketle geçmesidir. Sağlıklı
+                kırılım için üç şart aranır:
               </p>
               <ul className="mt-3 list-disc space-y-2 pl-6">
-                <li><strong className="text-white">Kapanis teyidi:</strong> Sadece gun ici degil, kapanisla seviye asilmali.</li>
-                <li><strong className="text-white">Hacim teyidi:</strong> Kirilim gunu hacmi 20 gun ortalamasinin uzerinde olmali.</li>
-                <li><strong className="text-white">Geri test (retest):</strong> Kirildiktan sonra fiyatin kirilan seviyeye geri donmesi ve oradan tepki vermesi en saglikli teyiddir.</li>
+                <li><strong className="text-white">Kapanış teyidi:</strong> Sadece gün içi değil, kapanışla seviye aşılmalı.</li>
+                <li><strong className="text-white">Hacim teyidi:</strong> Kırılım günü hacmi 20 gün ortalamasının üzerinde olmalı.</li>
+                <li><strong className="text-white">Geri test (retest):</strong> Kırıldıktan sonra fiyatın kırılan seviyeye geri dönmesi ve oradan tepki vermesi en sağlıklı teyiddir.</li>
               </ul>
               <p className="mt-3">
-                Sahte kirilim (fakeout), bu sartlar olusmadan yapilan kirilimdir. Ozellikle dusuk hacimli
-                kirilimlar genelde sahtedir ve yatirimciyi tuzaga dusurmek icin kullanilan klasik bir
-                manipulasyon orneklerinden biridir. Stop seviyesi yatirimcinin tam istemedigi yerde
-                tetiklenir, sonra fiyat geri doner.
+                Sahte kırılım (fakeout), bu şartlar oluşmadan yapılan kırılımdır. Özellikle düşük hacimli
+                kırılımlar genelde sahtedir ve yatırımcıyı tuzağa düşürmek için kullanılan klasik bir
+                manipülasyon örneklerinden biridir. Stop seviyesi yatırımcının tam istemediği yerde
+                tetiklenir, sonra fiyat geri döner.
               </p>
 
               <div className="mt-4 rounded-xl border border-rose-500/20 bg-rose-500/5 p-4">
                 <h4 className="mb-1 flex items-center gap-2 font-semibold text-rose-200">
                   <AlertTriangle className="h-4 w-4" />
-                  Onemli Not
+                  Önemli Not
                 </h4>
                 <p className="text-sm leading-6">
-                  Kapanis gerceklesmeden kirilima inanmayin. Gun ici 1-2 saatlik bir asma, ozellikle dusuk
-                  hacimle gerceklesiyorsa cogunlukla geri donus icindir. Saglam yatirimcilar gun ici fiyat
-                  hareketine degil, kapanisa bakar.
+                  Kapanış gerçekleşmeden kırılıma inanmayın. Gün içi 1-2 saatlik bir aşma, özellikle düşük
+                  hacimle gerçekleşiyorsa çoğunlukla geri dönüş içindir. Sağlam yatırımcılar gün içi fiyat
+                  hareketine değil, kapanışa bakar.
                 </p>
               </div>
             </section>
@@ -201,162 +191,162 @@ S3 = S1 - (Onceki Gun Yuksek - Dusuk)`}
             <section>
               <h2 className="mb-3 text-xl font-semibold text-white">Hacim Profili (Volume Profile)</h2>
               <p>
-                Hacim profili, fiyat eksenine gore (yatay degil dikey hacim cubuklari) hangi fiyat
-                seviyelerinde ne kadar islem gerceklestigini gosterir. Yuksek hacimli fiyat noktalari (HVN —
-                High Volume Node) dogal destek-direnc bolgesidir; cunku bu seviyelerde cok sayida yatirimci
-                pozisyon almistir ve fiyat tekrar ziyaret ettiginde hareketli reaksiyon olusur.
+                Hacim profili, fiyat eksenine göre (yatay değil dikey hacim çubukları) hangi fiyat
+                seviyelerinde ne kadar işlem gerçekleştiğini gösterir. Yüksek hacimli fiyat noktaları (HVN —
+                High Volume Node) doğal destek-direnç bölgesidir; çünkü bu seviyelerde çok sayıda yatırımcı
+                pozisyon almıştır ve fiyat tekrar ziyaret ettiğinde hareketli reaksiyon oluşur.
               </p>
               <p className="mt-3">
-                Dusuk hacimli bolgeler (LVN — Low Volume Node) ise tersi bicimde calisir; fiyat bu bolgelerden
-                hizla gecme egilimindedir. Hacim profili ozellikle gunluk ve haftalik grafikte etkili sonuc
-                verir. Ornegin THYAO hissesinde son 3 ayin hacim profilini ekleyince, 220 TL ve 245 TL gibi
-                belirgin yogunluk noktalari ortaya cikabilir; bunlar manuel cizdiginiz seviyelerle ortustugu
-                taktirde guven artar.
+                Düşük hacimli bölgeler (LVN — Low Volume Node) ise tersi biçimde çalışır; fiyat bu bölgelerden
+                hızla geçme eğilimindedir. Hacim profili özellikle günlük ve haftalık grafikte etkili sonuç
+                verir. Örneğin THYAO hissesinde son 3 ayın hacim profilini ekleyince, 220 TL ve 245 TL gibi
+                belirgin yoğunluk noktaları ortaya çıkabilir; bunlar manuel çizdiğiniz seviyelerle örtüştüğü
+                taktirde güven artar.
               </p>
             </section>
 
             <section>
-              <h2 className="mb-3 text-xl font-semibold text-white">VWAP — Hacim Agirlikli Ortalama Fiyat</h2>
+              <h2 className="mb-3 text-xl font-semibold text-white">VWAP — Hacim Ağırlıklı Ortalama Fiyat</h2>
               <p>
-                VWAP (Volume Weighted Average Price), gun ici islemlerde fiyat ile hacmin carpiminin toplaminin
-                toplam hacme bolunmesi ile bulunur. Buyuk kurumsal yatirimcilar islemlerini VWAP cizgisine
-                yakin gerceklestirmeye calisir; cunku bu seviye gun icindeki "ortalama islem fiyati"dir.
+                VWAP (Volume Weighted Average Price), gün içi işlemlerde fiyat ile hacmin çarpımının toplamının
+                toplam hacme bölünmesi ile bulunur. Büyük kurumsal yatırımcılar işlemlerini VWAP çizgisine
+                yakın gerçekleştirmeye çalışır; çünkü bu seviye gün içindeki "ortalama işlem fiyatı"dır.
               </p>
               <p className="mt-3">
-                Pratik kullanim: bir hisse VWAP cizgisinin uzerinde seyrediyorsa, gun ici alici hakimiyetinden
-                soz edilir. VWAP, gun icinde dinamik bir destek-direnc gibi davranir. Ozellikle BIST 30
-                hisselerinde gun ici islem yapanlar tarafindan yogun bicimde takip edilir.
+                Pratik kullanım: bir hisse VWAP çizgisinin üzerinde seyrediyorsa, gün içi alıcı hakimiyetinden
+                söz edilir. VWAP, gün içinde dinamik bir destek-direnç gibi davranır. Özellikle BIST 30
+                hisselerinde gün içi işlem yapanlar tarafından yoğun biçimde takip edilir.
               </p>
             </section>
 
             <section>
-              <h2 className="mb-3 text-xl font-semibold text-white">Coklu Zaman Dilimi Analizi</h2>
+              <h2 className="mb-3 text-xl font-semibold text-white">Çoklu Zaman Dilimi Analizi</h2>
               <p>
-                Etkili destek-direnc analizi, en az iki zaman dilimini birlikte degerlendirmeyi gerektirir.
-                Standart yaklasim:
+                Etkili destek-direnç analizi, en az iki zaman dilimini birlikte değerlendirmeyi gerektirir.
+                Standart yaklaşım:
               </p>
               <ul className="mt-3 list-disc space-y-2 pl-6">
-                <li><strong className="text-white">Aylik grafik:</strong> Yapisal ana destek-direnc.</li>
-                <li><strong className="text-white">Haftalik grafik:</strong> Orta vadeli yon ve seviyeler.</li>
-                <li><strong className="text-white">Gunluk grafik:</strong> Giris-cikis kararlari.</li>
+                <li><strong className="text-white">Aylık grafik:</strong> Yapısal ana destek-direnç.</li>
+                <li><strong className="text-white">Haftalık grafik:</strong> Orta vadeli yön ve seviyeler.</li>
+                <li><strong className="text-white">Günlük grafik:</strong> Giriş-çıkış kararları.</li>
                 <li><strong className="text-white">4 saat / 1 saat:</strong> Hassas zamanlama.</li>
               </ul>
               <p className="mt-3">
-                Onemli olan, alt zaman dilimindeki kararlarinizin ust zaman dilimindeki yapiyla celismemesi.
-                Aylik grafikte dusen trendde olan bir hisse icin gunluk grafikte agresif alim sinyali
+                Önemli olan, alt zaman dilimindeki kararlarınızın üst zaman dilimindeki yapıyla çelişmemesi.
+                Aylık grafikte düşen trendde olan bir hisse için günlük grafikte agresif alım sinyali
                 aramak; istisnai durumlar haricinde verimsizdir.
               </p>
             </section>
 
             <section>
-              <h2 className="mb-3 text-xl font-semibold text-white">Hareketli Ortalama Destek-Direnc</h2>
+              <h2 className="mb-3 text-xl font-semibold text-white">Hareketli Ortalama Destek-Direnç</h2>
               <p>
-                Yatay seviyelerin disinda, hareketli ortalamalar (ozellikle 50 ve 200 EMA) dinamik destek ve
-                direnc gorevi gorur. Yukselen trendde fiyat 50 EMA'ya cekilip oradan tepki vermeyi tercih
-                eder; dusen trendde fiyat 50 EMA'ya yukselip oradan satis goruntulu reaksiyon verir.
+                Yatay seviyelerin dışında, hareketli ortalamalar (özellikle 50 ve 200 EMA) dinamik destek ve
+                direnç görevi görür. Yükselen trendde fiyat 50 EMA'ya çekilip oradan tepki vermeyi tercih
+                eder; düşen trendde fiyat 50 EMA'ya yükselip oradan satış görünümlü reaksiyon verir.
               </p>
               <p className="mt-3">
-                200 EMA, ozellikle uzun vadeli yatirimcilar icin temel referans cizgisidir. 200 EMA'nin
-                uzerinde isleyen bir hisse "uzun donemde alici hakim", altinda olan ise "uzun donemde satici
-                hakim" olarak yorumlanir. Bu cizgiyi geri kazanmak veya kaybetmek; cogunlukla buyuk pozisyon
-                degisikliklerine yol acar.
+                200 EMA, özellikle uzun vadeli yatırımcılar için temel referans çizgisidir. 200 EMA'nın
+                üzerinde işleyen bir hisse "uzun dönemde alıcı hakim", altında olan ise "uzun dönemde satıcı
+                hakim" olarak yorumlanır. Bu çizgiyi geri kazanmak veya kaybetmek; çoğunlukla büyük pozisyon
+                değişikliklerine yol açar.
               </p>
               <p className="mt-3">
-                Pratik ornek: AKBNK 200 EMA cizgisinin uzerinde aylar boyunca seyrederken, fiyat bu cizgiye
-                cekildiginde alici talebinin geldigi gozlemlenir. Ancak bir gun bu cizgi gunluk kapanis ile
-                kirilirsa; orta vadeli yatirimcilar icin bu kritik bir uyari sinyalidir.
+                Pratik örnek: AKBNK 200 EMA çizgisinin üzerinde aylar boyunca seyrederken, fiyat bu çizgiye
+                çekildiğinde alıcı talebinin geldiği gözlemlenir. Ancak bir gün bu çizgi günlük kapanış ile
+                kırılırsa; orta vadeli yatırımcılar için bu kritik bir uyarı sinyalidir.
               </p>
             </section>
 
             <section>
-              <h2 className="mb-3 text-xl font-semibold text-white">Dilim Bazli Destek-Direnc</h2>
+              <h2 className="mb-3 text-xl font-semibold text-white">Dilim Bazlı Destek-Direnç</h2>
               <p>
-                Bazi yatirimcilar onemli yuzde dilimlerini destek-direnc olarak kullanir. Bu yaklasimda
-                bir hissenin yillik en yuksek ve en dusuk seviyesi alinarak %25, %50, %75 noktalari
-                isaretlenir. %50 cizgisi (yillik orta nokta) ozellikle psikolojik etki yaratir; bir hisse
-                yillik aralikinin ust yarisina geciyorsa pozitif sentiment kuvvetli, alt yarisina dusuyorsa
-                zayiflama belirginlesir.
+                Bazı yatırımcılar önemli yüzde dilimlerini destek-direnç olarak kullanır. Bu yaklaşımda
+                bir hissenin yıllık en yüksek ve en düşük seviyesi alınarak %25, %50, %75 noktaları
+                işaretlenir. %50 çizgisi (yıllık orta nokta) özellikle psikolojik etki yaratır; bir hisse
+                yıllık aralığının üst yarısına geçiyorsa pozitif sentiment kuvvetli, alt yarısına düşüyorsa
+                zayıflama belirginleşir.
               </p>
               <p className="mt-3">
-                Bu yaklasim Borsa Krali'ndaki 52 haftalik en yuksek/dusuk gostergeleriyle entegredir; tek
-                bakista bir hissenin yil boyunca neredeyizini gormek icin pratik bir referans saglar.
+                Bu yaklaşım Borsa Kralı'ndaki 52 haftalık en yüksek/düşük göstergeleriyle entegredir; tek
+                bakışta bir hissenin yıl boyunca neredeyizini görmek için pratik bir referans sağlar.
               </p>
             </section>
 
             <section>
-              <h2 className="mb-3 text-xl font-semibold text-white">Order Block ve Likidite Bolgeleri</h2>
+              <h2 className="mb-3 text-xl font-semibold text-white">Order Block ve Likidite Bölgeleri</h2>
               <p>
-                Modern teknik analizde "order block" ve "likidite havuzu" kavramlari ozellikle kurumsal
-                takipci yatirimcilar arasinda yayilmistir. Order block; buyuk emirlerin gerceklesmis oldugu
-                ve sonrasinda hizli hareket olusan mum bolgeleridir. Likidite havuzu ise stop emirlerinin
-                yogunlastigi alanlardir.
+                Modern teknik analizde "order block" ve "likidite havuzu" kavramları özellikle kurumsal
+                takipçi yatırımcılar arasında yayılmıştır. Order block; büyük emirlerin gerçekleşmiş olduğu
+                ve sonrasında hızlı hareket oluşan mum bölgeleridir. Likidite havuzu ise stop emirlerinin
+                yoğunlaştığı alanlardır.
               </p>
               <p className="mt-3">
-                Pratik anlami soyledir: bir hissenin onceki onemli dipinin hemen altinda yogun stop emri
-                vardir. Manipulatif hareketlerde fiyat o seviyenin biraz altina inip stoplari toplar, sonra
-                hizla yukari doner. Bu nedenle stop emirlerini onceki dibin tam altina degil; biraz uzaginda
-                yerlestirmek pratik bir savunma yontemidir.
+                Pratik anlamı şöyledir: bir hissenin önceki önemli dibinin hemen altında yoğun stop emri
+                vardır. Manipülatif hareketlerde fiyat o seviyenin biraz altına inip stopları toplar, sonra
+                hızla yukarı döner. Bu nedenle stop emirlerini önceki dibin tam altına değil; biraz uzağında
+                yerleştirmek pratik bir savunma yöntemidir.
               </p>
             </section>
 
             <section>
-              <h2 className="mb-3 text-xl font-semibold text-white">Pratik Cizim Adimlari</h2>
+              <h2 className="mb-3 text-xl font-semibold text-white">Pratik Çizim Adımları</h2>
               <ol className="mt-2 list-decimal space-y-2 pl-6">
-                <li>Haftalik grafikte ana destek-direnc bolgelerini cizin.</li>
-                <li>Gunluk grafige inip ara seviyeleri ekleyin.</li>
-                <li>Trend cizgilerini ekleyin (yukselen veya dusen).</li>
-                <li>Son anlamli hareketin Fibonacci'sini cizin.</li>
-                <li>Yuvarlak psikolojik seviyeleri isaretleyin.</li>
-                <li>Pivot noktalarini gunluk olarak kontrol edin (ozellikle gun ici islemlerde).</li>
+                <li>Haftalık grafikte ana destek-direnç bölgelerini çizin.</li>
+                <li>Günlük grafiğe inip ara seviyeleri ekleyin.</li>
+                <li>Trend çizgilerini ekleyin (yükselen veya düşen).</li>
+                <li>Son anlamlı hareketin Fibonacci'sini çizin.</li>
+                <li>Yuvarlak psikolojik seviyeleri işaretleyin.</li>
+                <li>Pivot noktalarını günlük olarak kontrol edin (özellikle gün içi işlemlerde).</li>
               </ol>
               <p className="mt-3">
-                Borsa Krali platformunda Malaysian SNR sayfasi, vucut bazli (body-based) destek-direnc
-                bolgelerini otomatik olarak hesaplar. Manuel cizimi guclendirmek icin{' '}
+                Borsa Kralı platformunda Malaysian SNR sayfası, vucut bazlı (body-based) destek-direnç
+                bölgelerini otomatik olarak hesaplar. Manuel çizimi güçlendirmek için{' '}
                 <Link to="/egitim/temel-gostergeler" className="text-gold-400 underline-offset-2 hover:underline">
                   EMA, MACD, RSI
                 </Link>{' '}
-                yazimizdaki indikatorlerle teyit etmenizi, baslangic teorisi icin{' '}
+                yazımızdaki indikatörlerle teyit etmenizi, başlangıç teorisi için{' '}
                 <Link to="/egitim/teknik-analiz-giris" className="text-gold-400 underline-offset-2 hover:underline">
-                  Teknik Analize Giris
+                  Teknik Analize Giriş
                 </Link>{' '}
-                yazimiza geri donmenizi oneririz.
+                yazımıza geri dönmenizi öneririz.
               </p>
             </section>
 
             <section className="rounded-2xl border border-white/5 bg-dark-900/40 p-5">
-              <h2 className="mb-3 text-lg font-semibold text-white">Bu makaleyle alakali</h2>
+              <h2 className="mb-3 text-lg font-semibold text-white">Bu makaleyle alakalı</h2>
               <ul className="space-y-2 text-sm">
                 <li>
                   <Link to="/egitim/teknik-analiz-giris" className="inline-flex items-center gap-2 text-gold-400 hover:text-gold-300">
-                    Teknik Analize Giris: Sifirdan Baslayanlar Icin Kilavuz <ArrowRight className="h-3.5 w-3.5" />
+                    Teknik Analize Giriş: Sıfırdan Başlayanlar İçin Kılavuz <ArrowRight className="h-3.5 w-3.5" />
                   </Link>
                 </li>
                 <li>
                   <Link to="/egitim/temel-gostergeler" className="inline-flex items-center gap-2 text-gold-400 hover:text-gold-300">
-                    EMA, MACD, RSI: 3 Temel Gosterge ve Yorumu <ArrowRight className="h-3.5 w-3.5" />
+                    EMA, MACD, RSI: 3 Temel Gösterge ve Yorumu <ArrowRight className="h-3.5 w-3.5" />
                   </Link>
                 </li>
                 <li>
                   <Link to="/egitim/yatirim-stratejisi" className="inline-flex items-center gap-2 text-gold-400 hover:text-gold-300">
-                    Yatirim Stratejisi Olusturma: 5 Adim <ArrowRight className="h-3.5 w-3.5" />
+                    Yatırım Stratejisi Oluşturma: 5 Adım <ArrowRight className="h-3.5 w-3.5" />
                   </Link>
                 </li>
               </ul>
             </section>
 
             <p className="border-t border-white/5 pt-4 text-xs text-gray-500">
-              Bu icerik yatirim tavsiyesi degildir. Yalnizca egitim ve bilgilendirme amaciyla hazirlanmistir.
-              Yatirim kararlariniz icin kendi arastirmanizi yapmaniz ve gerekirse profesyonel destek almaniz
-              onerilir.
+              Bu içerik yatırım tavsiyesi değildir. Yalnızca eğitim ve bilgilendirme amaçlıyla hazırlanmıştır.
+              Yatırım kararlarınız için kendi araştırmanızı yapmanız ve gerekirse profesyonel destek almanız
+              önerilir.
             </p>
           </article>
 
           <div className="mt-8 flex items-center justify-between border-t border-white/5 pt-4 text-sm">
             <Link to="/egitim/bilanco-okuma" className="inline-flex items-center gap-2 text-gold-400 hover:text-gold-300">
-              <ArrowLeft className="h-4 w-4" /> Onceki: Bilanco Okuma
+              <ArrowLeft className="h-4 w-4" /> Önceki: Bilanço Okuma
             </Link>
             <Link to="/egitim/yatirim-stratejisi" className="inline-flex items-center gap-2 text-gold-400 hover:text-gold-300">
-              Sonraki: Yatirim Stratejisi <ArrowRight className="h-4 w-4" />
+              Sonraki: Yatırım Stratejisi <ArrowRight className="h-4 w-4" />
             </Link>
           </div>
         </div>

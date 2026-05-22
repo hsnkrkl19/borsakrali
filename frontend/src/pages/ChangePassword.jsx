@@ -7,13 +7,13 @@ import {
   Eye,
   EyeOff,
   KeyRound,
-  Loader,
   ShieldCheck,
 } from 'lucide-react'
 import PasswordChecklist from '../components/PasswordChecklist'
 import { changePassword } from '../services/auth'
 import { useAuthStore } from '../store/authStore'
 import { isPasswordValid } from '../utils/passwordPolicy'
+import { Button } from '../components/ui'
 
 export default function ChangePassword() {
   const { user, token, login } = useAuthStore()
@@ -79,14 +79,14 @@ export default function ChangePassword() {
       )
 
       login(result.user, result.token)
-      setSuccess(result.message || 'Sifreniz basariyla degistirildi')
+      setSuccess(result.message || 'Şifreniz başarıyla değiştirildi')
       setForm({
         currentPassword: '',
         newPassword: '',
         confirmPassword: '',
       })
     } catch (err) {
-      setError(err.message || 'Sifre degistirme islemi basarisiz')
+      setError(err.message || 'Şifre değiştirme işlemi başarısız')
     } finally {
       setLoading(false)
     }
@@ -99,12 +99,12 @@ export default function ChangePassword() {
           <div className="space-y-2">
             <div className="inline-flex items-center gap-2 rounded-full border border-gold-500/20 bg-gold-500/10 px-3 py-1 text-xs text-gold-300">
               <ShieldCheck className="h-4 w-4" />
-              Guvenlik merkezi
+              Güvenlik merkezi
             </div>
-            <h1 className="text-2xl font-bold text-white">Sifre Degistir</h1>
+            <h1 className="text-2xl font-bold text-white">Şifre Değiştir</h1>
             <p className="max-w-xl text-sm text-gray-400">
               Hesabınızın güvenliğini korumak için mevcut şifrenizi doğrulayıp yeni şifre belirleyin.
-              Sifre degistiginde eski oturumlar otomatik olarak gecersiz olur.
+              Şifre değiştiğinde eski oturumlar otomatik olarak geçersiz olur.
             </p>
           </div>
 
@@ -178,23 +178,9 @@ export default function ChangePassword() {
               }
             />
 
-            <button
-              type="submit"
-              disabled={loading || !canSubmit}
-              className="flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-gold-500 to-gold-600 px-4 py-3.5 font-semibold text-dark-950 shadow-glow-gold transition-all hover:from-gold-400 hover:to-gold-500 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {loading ? (
-                <>
-                  <Loader className="h-4 w-4 animate-spin" />
-                  Guncelleniyor...
-                </>
-              ) : (
-                <>
-                  Sifreyi Guncelle
-                  <ArrowRight className="h-4 w-4" />
-                </>
-              )}
-            </button>
+            <Button type="submit" variant="gold" size="lg" block loading={loading} iconRight={ArrowRight} disabled={!canSubmit}>
+              {loading ? 'Güncelleniyor…' : 'Şifreyi Güncelle'}
+            </Button>
           </form>
         </div>
 
@@ -205,8 +191,8 @@ export default function ChangePassword() {
                 <KeyRound className="h-5 w-5 text-gold-300" />
               </div>
               <div>
-                <h2 className="font-semibold text-white">Guvenlik Notlari</h2>
-                <p className="text-xs text-gray-500">Canli kullanim icin onerilen adimlar</p>
+                <h2 className="font-semibold text-white">Güvenlik Notları</h2>
+                <p className="text-xs text-gray-500">Canlı kullanım için önerilen adımlar</p>
               </div>
             </div>
 
@@ -215,22 +201,22 @@ export default function ChangePassword() {
                 Aynı şifreyi farklı platformlarda tekrar kullanmayın.
               </div>
               <div className="rounded-2xl border border-dark-700 bg-dark-800/80 p-3">
-                Sifre degistiginde diger cihazlardaki onceki oturumlar otomatik olarak kapanir.
+                Şifre değiştiğinde diğer cihazlardaki önceki oturumlar otomatik olarak kapanır.
               </div>
               <div className="rounded-2xl border border-dark-700 bg-dark-800/80 p-3">
-                Ortak cihaz kullaniyorsaniz islemden sonra cikis yapmaniz tavsiye edilir.
+                Ortak cihaz kullanıyorsanız işlemden sonra çıkış yapmanız tavsiye edilir.
               </div>
             </div>
           </div>
 
           <div className="rounded-3xl border border-gold-500/20 bg-surface-100 p-5">
-            <h2 className="font-semibold text-white">Hizli erisim</h2>
+            <h2 className="font-semibold text-white">Hızlı erişim</h2>
             <div className="mt-4 space-y-3">
               <Link
                 to="/ayarlar"
                 className="flex items-center justify-between rounded-2xl border border-gold-500/10 bg-dark-900/60 px-4 py-3 text-sm text-gray-300 transition-colors hover:border-gold-500/30 hover:text-white"
               >
-                Ayarlar sayfasina don
+                Ayarlar sayfasına dön
                 <ArrowRight className="h-4 w-4 text-gold-300" />
               </Link>
               <Link
@@ -269,11 +255,8 @@ function PasswordField({
           onChange={(event) => onChange(event.target.value)}
           placeholder={placeholder}
           autoComplete={autoComplete}
-          className={`w-full rounded-2xl border bg-dark-900/70 px-4 py-3 pr-12 text-gray-100 placeholder:text-gray-500 focus:outline-none focus:ring-1 ${
-            invalid
-              ? 'border-red-500/40 focus:border-red-500 focus:ring-red-500'
-              : 'border-gold-500/20 focus:border-gold-500 focus:ring-gold-500'
-          }`}
+          className="input-premium pr-12"
+          style={invalid ? { borderColor: 'var(--ember)' } : undefined}
           required
         />
         <button

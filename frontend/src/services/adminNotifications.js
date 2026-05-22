@@ -7,14 +7,14 @@ function unwrap(promise) {
   return promise.then((r) => {
     const data = r.data || {}
     if (data.success === false) {
-      throw new Error(data.error || data.message || 'Islem basarisiz')
+      throw new Error(data.error || data.message || 'İşlem başarısız')
     }
     return data
   }).catch((err) => {
     // axios hata yapısı → mevcut çağrılar Error.message bekliyor
     if (err?.response) {
       const data = err.response.data || {}
-      throw new Error(data.error || data.message || 'Islem basarisiz')
+      throw new Error(data.error || data.message || 'İşlem başarısız')
     }
     throw err
   })

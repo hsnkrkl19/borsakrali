@@ -252,7 +252,7 @@ export default function TeknikNotlar() {
       <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-xl p-4">
         <p className="text-xs text-gray-400 text-center">
           <strong className="text-yellow-500">ÖNEMLİ:</strong> Bu teknik analizler yapay zeka tarafından otomatik olarak üretilmektedir.
-          Eğitim amaçlıdır ve yatırım tavsiyesi niteliği taşımaz. Borsa Krali
+          Eğitim amaçlıdır ve yatırım tavsiyesi niteliği taşımaz. Borsa Kralı
         </p>
       </div>
     </div>

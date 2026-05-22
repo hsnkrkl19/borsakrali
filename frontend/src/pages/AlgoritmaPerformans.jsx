@@ -43,13 +43,13 @@ const METRIC_TIPS = {
     title: 'Başarı Oranı',
     description: 'Sinyal üretildikten sonra hedef yönde hareket eden işlemlerin yüzdesidir. %50 üzeri olumlu kabul edilir, ancak ortalama getiri de önemlidir.',
     formula: 'Başarı Oranı = (Pozitif Sonuçlanan / Toplam Sinyal) × 100\n\nÖnemli Not: %60 başarı oranı ile %3 kayıp,\n%40 başarı oranı ile %8 kazanç → İkincisi daha karlı!',
-    source: 'Strateji backtest — Borsa Krali'
+    source: 'Strateji backtest — Borsa Kralı'
   },
   avgReturn: {
     title: 'Ortalama Getiri',
     description: 'Strateji tarafından üretilen tüm sinyallerin ortalama fiyat değişimini gösterir. Pozitif değer ortalamada kazandırdığını gösterir.',
     formula: 'AvgReturn = Σ(Sinyal Getirisi) / Sinyal Sayısı\nGetiri = (ExitFiyatı - EntryFiyatı) / EntryFiyatı × 100\n\nBeklenen Değer = Başarı% × AvgWin - (1-Başarı%) × AvgLoss',
-    source: 'Borsa Krali backtest motoru'
+    source: 'Borsa Kralı backtest motoru'
   },
 }
 
@@ -121,7 +121,7 @@ export default function AlgoritmaPerformans() {
 
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-white flex items-center gap-2">Algoritma Performans <InfoTooltip size="lg" title="Algoritma Performans Takibi" description="Teknik analiz stratejilerinin geçmiş sinyal başarı oranlarını ve ortalama getirilerini gösterir. Her strateji gerçek fiyat hareketleriyle kıyaslanarak değerlendirilir." formula="Başarı Oranı = Pozitif Kapanan / Toplam Sinyal × 100\nOrtalama Getiri = Σ(Sinyal Getirisi) / Sinyal Sayısı\n\nDeğerlendirme: >60% başarı + >%2 ort. getiri = Güçlü strateji" source="Borsa Krali — Backtest Motoru" /></h1>
+          <h1 className="text-2xl font-bold text-white flex items-center gap-2">Algoritma Performans <InfoTooltip size="lg" title="Algoritma Performans Takibi" description="Teknik analiz stratejilerinin geçmiş sinyal başarı oranlarını ve ortalama getirilerini gösterir. Her strateji gerçek fiyat hareketleriyle kıyaslanarak değerlendirilir." formula="Başarı Oranı = Pozitif Kapanan / Toplam Sinyal × 100\nOrtalama Getiri = Σ(Sinyal Getirisi) / Sinyal Sayısı\n\nDeğerlendirme: >60% başarı + >%2 ort. getiri = Güçlü strateji" source="Borsa Kralı — Backtest Motoru" /></h1>
           <p className="text-gray-400 text-sm mt-1">Teknik analiz taramalarının performans takibi</p>
         </div>
         <button

@@ -27,14 +27,14 @@ export default function AccountDeletion() {
 
       const data = await response.json()
       if (!response.ok || !data.success) {
-        throw new Error(data.error || 'Talep gonderilemedi')
+        throw new Error(data.error || 'Talep gönderilemedi')
       }
 
       setMessage(data.message || 'Talebiniz alındı')
       setEmail('')
       setNote('')
     } catch (err) {
-      setError(err.message || 'Talep gonderilemedi')
+      setError(err.message || 'Talep gönderilemedi')
     } finally {
       setLoading(false)
     }
@@ -46,27 +46,27 @@ export default function AccountDeletion() {
         <div className="mb-8 flex items-center justify-between gap-4">
           <Link to="/login" className="inline-flex items-center gap-3 text-sm text-gold-400 hover:text-gold-300">
             <BrandMark size="sm" />
-            Borsa Krali
+            Borsa Kralı
           </Link>
           <div className="flex flex-wrap gap-4 text-sm">
-            <Link to="/hakkimizda" className="text-gray-400 hover:text-white">Hakkimizda</Link>
-            <Link to="/iletisim" className="text-gray-400 hover:text-white">Iletisim</Link>
+            <Link to="/hakkimizda" className="text-gray-400 hover:text-white">Hakkımızda</Link>
+            <Link to="/iletisim" className="text-gray-400 hover:text-white">İletişim</Link>
             <Link to="/privacy-policy" className="text-gray-400 hover:text-white">Gizlilik</Link>
-            <Link to="/terms-of-use" className="text-gray-400 hover:text-white">Kullanim Kosullari</Link>
+            <Link to="/terms-of-use" className="text-gray-400 hover:text-white">Kullanım Koşulları</Link>
           </div>
         </div>
 
         <div className="rounded-3xl border border-gold-500/20 bg-surface-100 p-6 md:p-8 shadow-premium">
           <p className="text-sm font-medium text-gold-400">Hesap Silme</p>
-          <h1 className="mt-3 text-3xl font-bold text-white">Veri silme talebi olustur</h1>
+          <h1 className="mt-3 text-3xl font-bold text-white">Veri silme talebi oluştur</h1>
           <p className="mt-3 text-sm leading-6 text-gray-400">
             Uygulama içinde giriş yapabilen kullanıcılar, Ayarlar ekranından hesaplarını doğrudan silebilir.
-            Uygulamaya erisemiyorsaniz asagidaki form ile hesap silme talebi iletebilirsiniz.
+            Uygulamaya erişemiyorsanız aşağıdaki form ile hesap silme talebi iletebilirsiniz.
           </p>
 
           <form onSubmit={handleSubmit} className="mt-8 space-y-4">
             <div>
-              <label className="mb-2 block text-sm text-gray-300">Hesap e-postasi</label>
+              <label className="mb-2 block text-sm text-gray-300">Hesap e-postası</label>
               <input
                 type="email"
                 required
@@ -105,7 +105,7 @@ export default function AccountDeletion() {
               disabled={loading}
               className="w-full rounded-2xl bg-gradient-to-r from-gold-500 to-gold-600 px-4 py-3 font-semibold text-dark-950 transition hover:from-gold-400 hover:to-gold-500 disabled:opacity-60"
             >
-              {loading ? 'Gonderiliyor...' : 'Hesap silme talebini gonder'}
+              {loading ? 'Gönderiliyor...' : 'Hesap silme talebini gönder'}
             </button>
           </form>
 
@@ -114,7 +114,7 @@ export default function AccountDeletion() {
             <p className="mt-2 text-sm leading-6 text-gray-300">
               Hesap silme işlemi tamamlandığında kimlik doğrulama ve hesap kayıtları sistemden kaldırılır.
               Güvenlik, dolandırıcılık önleme veya hukuki yükümlülük sebebiyle tutulması gereken sınırlı kayıtlar
-              gerekli sure boyunca saklanabilir.
+              gerekli süre boyunca saklanabilir.
             </p>
           </div>
         </div>

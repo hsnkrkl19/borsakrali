@@ -78,7 +78,7 @@ export default function FinancialTabs({ selectedSymbol }) {
             <div className="bg-surface-100 rounded-xl p-4 border border-gold-500/20">
                 <div className="flex flex-col md:flex-row items-center justify-between gap-4 text-sm text-gray-400">
                     <div>
-                        <p><strong className="text-gold-400">Platform:</strong> Borsa Krali</p>
+                        <p><strong className="text-gold-400">Platform:</strong> Borsa Kralı</p>
                         <p><strong className="text-gold-400">Tarih:</strong> 02 Şubat 2026</p>
                     </div>
                     <div className="flex items-center gap-4">

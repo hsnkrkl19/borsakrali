@@ -1,30 +1,20 @@
 import { Link } from 'react-router-dom'
 import { Zap, ArrowLeft, ArrowRight, Lightbulb, AlertTriangle } from 'lucide-react'
-import BrandMark from '../../components/BrandMark'
 
 export default function YatirimStratejisi() {
   return (
-    <div className="min-h-screen bg-dark-950 px-4 py-10">
+    <div>
       <div className="mx-auto max-w-4xl">
-        <div className="mb-8 flex items-center justify-between gap-4">
-          <Link to="/" className="inline-flex items-center gap-3 text-sm text-gold-400 hover:text-gold-300">
-            <BrandMark size="sm" />
-            Borsa Krali
-          </Link>
-          <div className="flex flex-wrap gap-4 text-sm">
-            <Link to="/egitim" className="text-gray-400 hover:text-white">Egitim</Link>
-            <Link to="/hakkimizda" className="text-gray-400 hover:text-white">Hakkimizda</Link>
-            <Link to="/iletisim" className="text-gray-400 hover:text-white">Iletisim</Link>
-          </div>
-        </div>
-
-        <div className="rounded-3xl border border-gold-500/20 bg-surface-100 p-6 md:p-8 shadow-premium">
+        <div
+          className="rounded-3xl p-5 sm:p-7 md:p-8"
+          style={{ background: 'var(--bg-card)', border: '1px solid var(--border-gold)', boxShadow: 'var(--shadow-lg)' }}
+        >
           <nav aria-label="breadcrumb" className="mb-4 text-xs text-gray-500">
-            <Link to="/" className="hover:text-gold-400">Borsa Krali</Link>
+            <Link to="/" className="hover:text-gold-400">Borsa Kralı</Link>
             <span className="mx-2 text-gray-600">/</span>
-            <Link to="/egitim" className="hover:text-gold-400">Egitim</Link>
+            <Link to="/egitim" className="hover:text-gold-400">Eğitim</Link>
             <span className="mx-2 text-gray-600">/</span>
-            <span className="text-gray-300">Yatirim Stratejisi</span>
+            <span className="text-gray-300">Yatırım Stratejisi</span>
           </nav>
 
           <div className="mb-8 space-y-3">
@@ -37,324 +27,324 @@ export default function YatirimStratejisi() {
               </span>
             </div>
             <h1 className="text-3xl font-bold text-white md:text-4xl">
-              Yatirim Stratejisi Olusturma: 5 Adim
+              Yatırım Stratejisi Oluşturma: 5 Adım
             </h1>
-            <p className="text-sm text-gray-500">10 Mayis 2026 — yaklasik 10 dakika okuma</p>
+            <p className="text-sm text-gray-500">10 Mayıs 2026 — yaklaşık 10 dakika okuma</p>
           </div>
 
           <article className="space-y-6 text-sm leading-7 text-gray-300 md:text-base md:leading-8">
             <p>
-              Iyi yatirimcilarin sirri tek bir hisseyi dogru zamanda almak degildir; tutarli bir stratejiyi
-              uzun yillar boyunca disiplinle uygulamaktir. Strateji, kararlarinizin onceden belirlenmis
-              kurallar icinde alinmasini saglar; boylece duygulariniz piyasa ile birlikte calkalanmaz. Bu
-              yazida yatirim stratejisini saglam temellere oturtmak icin uygulayabileceginiz 5 adimi adim
-              adim ele alacagiz.
+              İyi yatırımcıların sırrı tek bir hisseyi doğru zamanda almak değildir; tutarlı bir stratejiyi
+              uzun yıllar boyunca disiplinle uygulamaktır. Strateji, kararlarınızın önceden belirlenmiş
+              kurallar içinde alınmasını sağlar; böylece duygularınız piyasa ile birlikte çalkalanmaz. Bu
+              yazıda yatırım stratejisini sağlam temellere oturtmak için uygulayabileceğiniz 5 adımı adım
+              adım ele alacağız.
             </p>
 
             <section>
-              <h2 className="mb-3 text-xl font-semibold text-white">Strateji Neden Onemlidir?</h2>
+              <h2 className="mb-3 text-xl font-semibold text-white">Strateji Neden Önemlidir?</h2>
               <p>
-                Strateji olmadan yapilan yatirim, kuralsiz bir oyun gibidir. Birinin onerisi, sosyal medyada
-                gordugunuz bir yorum, bir mum formasyonu — her seyin tetikleyici olabildigi bir ortamda kalan
-                yatirimci, kazandiginda da kaybettiginde de neden bu sonucla karsilastigini bilemez. Strateji
-                bir kuralin uzun vadeli uygulanmasidir; istikrarli sonuc icin sart kosul.
+                Strateji olmadan yapılan yatırım, kuralsız bir oyun gibidir. Birinin önerisi, sosyal medyada
+                gördüğünüz bir yorum, bir mum formasyonu — her şeyin tetikleyici olabildiği bir ortamda kalan
+                yatırımcı, kazandığında da kaybettiğinde de neden bu sonuçla karşılaştığını bilemez. Strateji
+                bir kuralın uzun vadeli uygulanmasıdır; istikrarlı sonuç için şart koşul.
               </p>
               <p className="mt-3">
-                Asagidaki 5 adim, bireysel yatirimcinin kendi stratejisini olustururken cevap vermesi gereken
-                temel sorular etrafinda kurulmustur. Hicbir adimi atlamayin; tum sorulara yazili cevap
-                vermek, stratejinizi sade ve uygulanabilir kilar.
+                Aşağıdaki 5 adım, bireysel yatırımcının kendi stratejisini oluştururken cevap vermesi gereken
+                temel sorular etrafında kurulmuştur. Hiçbir adımı atlamayın; tüm sorulara yazılı cevap
+                vermek, stratejinizi sade ve uygulanabilir kılar.
               </p>
             </section>
 
             <section>
-              <h2 className="mb-3 text-xl font-semibold text-white">1. Adim: Yatirim Hedefini Belirleyin</h2>
+              <h2 className="mb-3 text-xl font-semibold text-white">1. Adım: Yatırım Hedefini Belirleyin</h2>
               <p>
-                Yatirimin neden yaptiginizi yazili olarak ifade etmek temel atim asamasidir. Hedefler net,
-                olculebilir ve zamana bagli olmalidir.
+                Yatırımın neden yaptığınızı yazılı olarak ifade etmek temel atım aşamasıdır. Hedefler net,
+                ölçülebilir ve zamana bağlı olmalıdır.
               </p>
               <ul className="mt-3 list-disc space-y-2 pl-6">
-                <li><strong className="text-white">Kisa vade (1 yil ve alti):</strong> Acil ihtiyaclar icin biriktirilen para borsada tutulmamalidir; volatilite yuzdunden riskli olabilir.</li>
-                <li><strong className="text-white">Orta vade (1-5 yil):</strong> Ev pesinati, egitim gibi belirli hedefler. Risk biraz daha alinabilir.</li>
-                <li><strong className="text-white">Uzun vade (5+ yil):</strong> Emeklilik, cocugun gelecegi gibi hedefler. Volatiliteye en cok dayanikli olunabilen vade.</li>
+                <li><strong className="text-white">Kısa vade (1 yıl ve altı):</strong> Acil ihtiyaçlar için biriktirilen para borsada tutulmamalıdır; volatilite yüzünden riskli olabilir.</li>
+                <li><strong className="text-white">Orta vade (1-5 yıl):</strong> Ev peşinatı, eğitim gibi belirli hedefler. Risk biraz daha alınabilir.</li>
+                <li><strong className="text-white">Uzun vade (5+ yıl):</strong> Emeklilik, çocuğun geleceği gibi hedefler. Volatiliteye en çok dayanıklı olunabilen vade.</li>
               </ul>
               <p className="mt-3">
-                Yatirim hedefiniz "X yil icinde Y kazanmak" formunda yazili olmali. Hedef nominal mi reel mi
-                oldugu da belirtilmeli; ozellikle yuksek enflasyon donemlerinde nominal getiri aldatici
+                Yatırım hedefiniz "X yıl içinde Y kazanmak" formunda yazılı olmalı. Hedef nominal mi reel mi
+                olduğu da belirtilmeli; özellikle yüksek enflasyon dönemlerinde nominal getiri aldatıcı
                 olabilir.
               </p>
             </section>
 
             <section>
-              <h2 className="mb-3 text-xl font-semibold text-white">2. Adim: Risk Profilini Anlayin</h2>
+              <h2 className="mb-3 text-xl font-semibold text-white">2. Adım: Risk Profilini Anlayın</h2>
               <p>
-                Risk profili, kayba dayanma kapasitenizdir. Iki boyutu vardir: psikolojik tahammul ve finansal
-                tahammul.
+                Risk profili, kayba dayanma kapasitenizdir. İki boyutu vardır: psikolojik tahammül ve finansal
+                tahammül.
               </p>
               <ul className="mt-3 list-disc space-y-2 pl-6">
-                <li><strong className="text-white">Psikolojik:</strong> Portfoyunuzun %30 dustugunu gordugunuzde uykunuz kacar mi? Eger evet ise, daha dusuk volatiliteli portfoye yonelmelisiniz.</li>
-                <li><strong className="text-white">Finansal:</strong> Aniden nakde ihtiyaciniz olursa, portfoyu zararla satmak zorunda kalir misiniz? Acil fonunuz var mi?</li>
+                <li><strong className="text-white">Psikolojik:</strong> Portföyünüzün %30 düştüğünü gördüğünüzde uykunuz kaçar mı? Eğer evet ise, daha düşük volatiliteli portföye yönelmelisiniz.</li>
+                <li><strong className="text-white">Finansal:</strong> Aniden nakde ihtiyacınız olursa, portföyü zararla satmak zorunda kalır mısınız? Acil fonunuz var mı?</li>
               </ul>
               <p className="mt-3">
-                Risk profilinizi belirlemek icin "kaybetmeye dayanabilecegim maksimum yuzde" sorusuna durust
-                bir cevap verin. Bu yuzde, portfoy yuksek riskli varliklara ne kadar agirlik vereceginizi
+                Risk profilinizi belirlemek için "kaybetmeye dayanabileceiğm maksimum yüzde" sorusuna dürüst
+                bir cevap verin. Bu yüzde, portföy yüksek riskli varlıklara ne kadar ağırlık vereceğinizi
                 belirler.
               </p>
 
               <div className="mt-4 rounded-xl border border-yellow-500/20 bg-yellow-500/5 p-4">
                 <h4 className="mb-1 flex items-center gap-2 font-semibold text-yellow-200">
                   <Lightbulb className="h-4 w-4" />
-                  Ipucu
+                  İpucu
                 </h4>
                 <p className="text-sm leading-6">
-                  Risk algisi piyasa kosullariyla degisir. Yukselen piyasada herkes "ben yuksek risk
-                  alabilirim" der. Asil test, dusen piyasada yapilir. Stratejinizi yukseliste degil, dusus
-                  doneminin sertliginde test edin.
+                  Risk algısı piyasa koşullarıyla değişir. Yükselen piyasada herkes "ben yüksek risk
+                  alabilirim" der. Asıl test, düşen piyasada yapılır. Stratejinizi yükselişte değil, düşüş
+                  döneminin sertliğinde test edin.
                 </p>
               </div>
             </section>
 
             <section>
-              <h2 className="mb-3 text-xl font-semibold text-white">3. Adim: Varlik Dagilimini Yapin</h2>
+              <h2 className="mb-3 text-xl font-semibold text-white">3. Adım: Varlık Dağılımını Yapın</h2>
               <p>
-                Varlik dagilimi (asset allocation), portfoyu farkli varlik siniflari arasinda paylastirmaktir.
-                Akademik calismalar, uzun donem getirinin %80'inden fazlasinin varlik dagiliminin sonucu
-                oldugunu gosterir; tek tek hisse secimi geri kalan kucuk bir paydir.
+                Varlık dağılımı (asset allocation), portföyü farklı varlık sınıfları arasında paylaştırmaktır.
+                Akademik çalışmalar, uzun dönem getirinin %80'inden fazlasının varlık dağılımının sonucu
+                olduğunu gösterir; tek tek hisse seçimi geri kalan küçük bir paydır.
               </p>
-              <p className="mt-3">Tipik varlik siniflari:</p>
+              <p className="mt-3">Tipik varlık sınıfları:</p>
               <ul className="mt-3 list-disc space-y-2 pl-6">
-                <li><strong className="text-white">Hisse senetleri:</strong> Borsa Istanbul, yabanci borsalar.</li>
-                <li><strong className="text-white">Tahvil ve sabit getirili enstrumanlar:</strong> Devlet tahvilleri, ozel sektor tahvilleri.</li>
-                <li><strong className="text-white">Altin ve kiymetli madenler:</strong> Enflasyona karsi koruma.</li>
-                <li><strong className="text-white">Doviz:</strong> Kur riskine karsi denge unsuru.</li>
-                <li><strong className="text-white">Nakit:</strong> Firsatlari yakalamak icin saklanan likidite.</li>
-                <li><strong className="text-white">Gayrimenkul ve alternatif yatirimlar.</strong></li>
+                <li><strong className="text-white">Hisse senetleri:</strong> Borsa İstanbul, yabancı borsalar.</li>
+                <li><strong className="text-white">Tahvil ve sabit getirili enstrümanlar:</strong> Devlet tahvilleri, özel sektör tahvilleri.</li>
+                <li><strong className="text-white">Altın ve kıymetli madenler:</strong> Enflasyona karşı koruma.</li>
+                <li><strong className="text-white">Döviz:</strong> Kur riskine karşı denge unsuru.</li>
+                <li><strong className="text-white">Nakit:</strong> Fırsatları yakalamak için saklanan likidite.</li>
+                <li><strong className="text-white">Gayrimenkul ve alternatif yatırımlar.</strong></li>
               </ul>
               <p className="mt-3">
-                Klasik kural: yas / 100 oraninda tahvil, geri kalan kismi hisse. 30 yasinda biri portfoyunun
-                %70'ini hisseye, %30'unu tahvile koyabilir. Bu kural Turkiye'nin enflasyon ortami icin yetersiz
-                olabilir; doviz ve altin agirligi mutlaka eklenmeli.
+                Klasik kural: yaş / 100 oranında tahvil, geri kalan kısmı hisse. 30 yaşında biri portföyünün
+                %70'ini hisseye, %30'unu tahvile koyabilir. Bu kural Türkiye'nin enflasyon ortamı için yetersiz
+                olabilir; döviz ve altın ağırlığı mutlaka eklenmelidir.
               </p>
             </section>
 
             <section>
-              <h2 className="mb-3 text-xl font-semibold text-white">4. Adim: Hisse Secim Kriterlerini Tanimlayin</h2>
+              <h2 className="mb-3 text-xl font-semibold text-white">4. Adım: Hisse Seçim Kriterlerini Tanımlayın</h2>
               <p>
-                Borsa Istanbul'da 500'e yakin sirket islem gorur. Hangisini almak gerektigini belirleyen,
-                onceden tanimlanmis kriterlerdir.
+                Borsa İstanbul'da 500'e yakın şirket işlem görür. Hangisini almak gerektiğini belirleyen,
+                önceden tanımlanmış kriterlerdir.
               </p>
 
               <h3 className="mb-2 mt-4 text-lg font-semibold text-gold-200">Temel Kriterler</h3>
               <ul className="mt-2 list-disc space-y-1.5 pl-6">
-                <li>F/K orani sektor ortalamasinin altinda olsun (degerli).</li>
-                <li>PD/DD 1'in altinda veya yakin olsun.</li>
-                <li>3 yillik ortalama ozkaynak karliligi (ROE) %15 uzerinde olsun.</li>
-                <li>Net borc/FAVOK orani 3'un altinda olsun.</li>
-                <li>Son 3 yilda her donem kar etmis olsun.</li>
+                <li>F/K oranı sektör ortalamasının altında olsun (değerli).</li>
+                <li>PD/DD 1'in altında veya yakın olsun.</li>
+                <li>3 yıllık ortalama özkaynak kârlılığı (ROE) %15 üzerinde olsun.</li>
+                <li>Net borç/FAVOK oranı 3'ün altında olsun.</li>
+                <li>Son 3 yılda her dönem kâr etmiş olsun.</li>
               </ul>
 
               <h3 className="mb-2 mt-4 text-lg font-semibold text-gold-200">Teknik Kriterler</h3>
               <ul className="mt-2 list-disc space-y-1.5 pl-6">
-                <li>Fiyat 200 EMA uzerinde olsun (uzun donem trend yukari).</li>
-                <li>RSI 40-60 araliginda olsun (asiri alim degil, momentum saglikli).</li>
-                <li>Hacim son 30 gun ortalamasinin uzerinde olsun.</li>
-                <li>Onemli direnci kirmis veya destekten tepki vermis olsun.</li>
+                <li>Fiyat 200 EMA üzerinde olsun (uzun dönem trend yukarı).</li>
+                <li>RSI 40-60 aralığında olsun (aşırı alım değil, momentum sağlıklı).</li>
+                <li>Hacim son 30 gün ortalamasının üzerinde olsun.</li>
+                <li>Önemli direnci kırmış veya destekten tepki vermiş olsun.</li>
               </ul>
 
               <p className="mt-3">
-                Kriterleriniz sade olmali; her bir kriterin nedenini bilmelisiniz. 20 farkli kriter koymak
-                yerine 5-6 ana kriter ile filtrelemek daha uygulanabilirdir. Borsa Krali platformundaki
-                Tarama Analiz Merkezi tam bu amacla, kendi kriterlerinizi BIST hisseleri uzerinde
-                taratmaniza imkan verir.
+                Kriterleriniz sade olmalı; her bir kriterin nedenini bilmelisiniz. 20 farklı kriter koymak
+                yerine 5-6 ana kriter ile filtrelemek daha uygulanabilirdir. Borsa Kralı platformundaki
+                Tarama Analiz Merkezi tam bu amaçla, kendi kriterlerinizi BIST hisseleri üzerinde
+                taratmanıza imkân verir.
               </p>
             </section>
 
             <section>
-              <h2 className="mb-3 text-xl font-semibold text-white">5. Adim: Pozisyon Yonetimi ve Risk Sinirlari</h2>
+              <h2 className="mb-3 text-xl font-semibold text-white">5. Adım: Pozisyon Yönetimi ve Risk Sınırları</h2>
               <p>
-                Bir hisseye girdigimizde "ne kadar?" sorusunun cevabini onceden vermis olmaliyiz. Pozisyon
-                buyuklugu, kayba dayanma kapasitesi ile ilgilidir.
+                Bir hisseye girdiğimizde "ne kadar?" sorusunun cevabını önceden vermiş olmalıyız. Pozisyon
+                büyüklüğü, kayba dayanma kapasitesi ile ilgilidir.
               </p>
               <ul className="mt-3 list-disc space-y-2 pl-6">
                 <li>
-                  <strong className="text-white">Tek pozisyonda risk:</strong> Toplam portfoyun %1-2'sinden
-                  fazlasini tek bir islemde kaybetmemek. Bu kural profesyonel yatirimcilarin disiplin
-                  yontemidir.
+                  <strong className="text-white">Tek pozisyonda risk:</strong> Toplam portföyün %1-2'sinden
+                  fazlasını tek bir işlemde kaybetmemek. Bu kural profesyonel yatırımcıların disiplin
+                  yöntemidir.
                 </li>
                 <li>
-                  <strong className="text-white">Stop seviyesi:</strong> Alim oncesinde nerede zarar
-                  durduracagini belirlemek. Stop, teknik bir seviye uzerinde olmali — onceki destegin altinda
+                  <strong className="text-white">Stop seviyesi:</strong> Alım öncesinde nerede zarar
+                  durduracağını belirlemek. Stop, teknik bir seviye üzerinde olmalı — önceki desteğin altında
                   bir nokta gibi.
                 </li>
                 <li>
-                  <strong className="text-white">Hedef kar (take profit):</strong> Risk-odul orani 1:2 veya
-                  daha iyi olmali. Yani 100 TL risk ediyorsaniz, kar hedefi 200 TL olmali.
+                  <strong className="text-white">Hedef kâr (take profit):</strong> Risk-ödül oranı 1:2 veya
+                  daha iyi olmalı. Yani 100 TL risk ediyorsanız, kâr hedefi 200 TL olmalı.
                 </li>
                 <li>
-                  <strong className="text-white">Maksimum portfoy ekspozuru:</strong> Tek bir sektore portfoyun
-                  %30'undan fazlasini ayirmamak. Cesitlilik tek baska sigortadir.
+                  <strong className="text-white">Maksimum portföy ekspozuru:</strong> Tek bir sektöre portföyün
+                  %30'undan fazlasını ayırmamak. Çeşitlilik tek başına sigortadır.
                 </li>
               </ul>
 
               <div className="mt-4 rounded-xl border border-rose-500/20 bg-rose-500/5 p-4">
                 <h4 className="mb-1 flex items-center gap-2 font-semibold text-rose-200">
                   <AlertTriangle className="h-4 w-4" />
-                  Onemli Not
+                  Önemli Not
                 </h4>
                 <p className="text-sm leading-6">
-                  Stop seviyenizi piyasa size onu test ettirdiginde tasimayin. Stopu yukari almak basarinin
-                  bir parcasidir, asagi indirmek ise psikolojik bir tuzaktir. "Biraz daha bekleyim" cumlesi,
-                  cogu yatirimciyi buyuk kayiplara ugratmistir.
+                  Stop seviyenizi piyasa size onu test ettirdiğinde taşımayın. Stopu yukarı almak başarının
+                  bir parçasıdır, aşağı indirmek ise psikolojik bir tuzaktır. "Biraz daha bekleyim" cümlesi,
+                  çoğu yatırımcıyı büyük kayıplara uğratmıştır.
                 </p>
               </div>
             </section>
 
             <section>
-              <h2 className="mb-3 text-xl font-semibold text-white">Periyodik Yatirim (Cost Averaging)</h2>
+              <h2 className="mb-3 text-xl font-semibold text-white">Periyodik Yatırım (Cost Averaging)</h2>
               <p>
-                Borsada en sik karsilasilan psikolojik tuzak "doru yer" arayisidir. Hicbir yatirimci dipte alip
-                tepede satamaz. Bu sorunu cozmek icin gelistirilmis yontem periyodik yatirim, namidiger Dollar
+                Borsada en sık karşılaşılan psikolojik tuzak "doğru yer" arayışıdır. Hiçbir yatırımcı dipte alıp
+                tepede satamaz. Bu sorunu çözmek için geliştirilmiş yöntem periyodik yatırım, namıdiğer Dollar
                 Cost Averaging (DCA)'dir.
               </p>
               <p className="mt-3">
-                DCA'da yatirimci, fiyat ne olursa olsun belirli araliklarla (her ay maas gunu gibi) sabit bir
-                tutar yatirim yapar. Boylece dustugunde daha cok lot, ciktiginda daha az lot alinir; ortalama
-                maliyet otomatik olarak optimize olur. Ozellikle uzun donem hedefli yatirimcilar icin DCA;
-                duygusal hatalari minimize eden, en pratik yontemlerden biridir.
+                DCA'da yatırımcı, fiyat ne olursa olsun belirli aralıklarla (her ay maaş günü gibi) sabit bir
+                tutar yatırım yapar. Böylece düştüğünde daha çok lot, çıktığında daha az lot alınır; ortalama
+                maliyet otomatik olarak optimize olur. Özellikle uzun dönem hedefli yatırımcılar için DCA;
+                duygusal hataları minimize eden, en pratik yöntemlerden biridir.
               </p>
               <p className="mt-3">
-                Pratik ornek: Her ay 5.000 TL ile XU100 ETF satin almak. 12 ay boyunca uygulandiginda yil
-                sonunda hangi ay daha avantajli oldu sorusu anlamsizlasir; cunku yatirimci hem dususleri hem
-                yukselisleri otomatik olarak ortalamis olur.
+                Pratik örnek: Her ay 5.000 TL ile XU100 ETF satın almak. 12 ay boyunca uygulandığında yıl
+                sonunda hangi ay daha avantajlı oldu sorusu anlamsızlaşır; çünkü yatırımcı hem düşüşleri hem
+                yükselişleri otomatik olarak ortalalamış olur.
               </p>
             </section>
 
             <section>
-              <h2 className="mb-3 text-xl font-semibold text-white">Rebalancing — Portfoy Yeniden Dengeleme</h2>
+              <h2 className="mb-3 text-xl font-semibold text-white">Rebalancing — Portföy Yeniden Dengeleme</h2>
               <p>
-                Varlik dagilim hedeflerinizi belirledikten sonra (ornegin %60 hisse, %30 tahvil, %10 altin),
-                piyasa hareketleri bu oranlari zaman icinde bozar. Hisse senetleri %30 yukselip; tahvil ve
-                altin sabit kalsa, dagilim %66 hisseye kayar. Risk profilinizden disari cikmamak icin
-                periyodik olarak yeniden dengeleme yapmaniz onerilir.
+                Varlık dağılım hedeflerinizi belirledikten sonra (örneğin %60 hisse, %30 tahvil, %10 altın),
+                piyasa hareketleri bu oranları zaman içinde bozar. Hisse senetleri %30 yükselip; tahvil ve
+                altın sabit kalsa, dağılım %66 hisseye kayar. Risk profilinizden dışarı çıkmamak için
+                periyodik olarak yeniden dengeleme yapmanız önerilir.
               </p>
               <p className="mt-3">
-                Yaygin yontemler: takvim bazli (yilda 1-2 kez) veya esik bazli (hedef oranin %5 uzerinde
-                sapma olduktan sonra). Rebalancing, "yuksekken sat — duskunken al" prensibinin disiplinli
-                uygulanmasidir; uzun donem getiriyi destekleyen, akademik olarak da kanitlanmis bir
-                yaklasimdir.
+                Yaygın yöntemler: takvim bazlı (yılda 1-2 kez) veya eşik bazlı (hedef oranın %5 üzerinde
+                sapma olduktan sonra). Rebalancing, "yüksekken sat — düşükteyken al" prensibinin disiplinli
+                uygulanmasıdır; uzun dönem getiriyi destekleyen, akademik olarak da kanıtlanmış bir
+                yaklaşımdır.
               </p>
             </section>
 
             <section>
               <h2 className="mb-3 text-xl font-semibold text-white">Stratejiyi Test Etme</h2>
               <p>
-                Strateji yazilmadan once kagit uzerinde ya da bir backtest aracinda gecmise dogru test
+                Strateji yazılmadan önce kağıt üzerinde ya da bir backtest aracında geçmişe doğru test
                 edilmelidir. Test ederken dikkat edilecekler:
               </p>
               <ul className="mt-3 list-disc space-y-2 pl-6">
-                <li>Sadece basarili ornekleri secmek (cherry picking) yapilmamali; tum sinyaller dahil edilmeli.</li>
-                <li>Komisyon ve vergi maliyetleri hesaba katilmali.</li>
-                <li>En az 2-3 yillik veri uzerinde test edilmeli; tek bir yil yaniltici olabilir.</li>
-                <li>Maksimum dususe (drawdown) bakilmali; %30 dususu olan strateji cok yatirimciya gore tasinmaz.</li>
+                <li>Sadece başarılı örnekleri seçmek (cherry picking) yapılmamalı; tüm sinyaller dahil edilmelidir.</li>
+                <li>Komisyon ve vergi maliyetleri hesaba katılmalıdır.</li>
+                <li>En az 2-3 yıllık veri üzerinde test edilmeli; tek bir yıl yanıltıcı olabilir.</li>
+                <li>Maksimum düşüşe (drawdown) bakılmalı; %30 düşüşü olan strateji çok yatırımcıya göre taşınmazdır.</li>
               </ul>
             </section>
 
             <section>
-              <h2 className="mb-3 text-xl font-semibold text-white">Vergi ve Maliyet Yonetimi</h2>
+              <h2 className="mb-3 text-xl font-semibold text-white">Vergi ve Maliyet Yönetimi</h2>
               <p>
-                Stratejinin gozardi edilen kismi maliyetlerdir. Komisyon, BSMV, varsa stopaj ve fon ucretleri
-                bir yatirimcinin getirisini yillik bazda %1-3 azaltabilir. Uzun vadede bu kayip; bilesik
-                getirinin sihirli yaninin tersine donmesi anlamina gelir.
+                Stratejinin gözardı edilen kısmı maliyetlerdir. Komisyon, BSMV, varsa stopaj ve fon ücretleri
+                bir yatırımcının getirisini yıllık bazda %1-3 azaltabilir. Uzun vadede bu kayıp; bileşik
+                getirinin sihirli yanının tersine dönmesi anlamına gelir.
               </p>
               <ul className="mt-3 list-disc space-y-2 pl-6">
                 <li>
-                  <strong className="text-white">Komisyon:</strong> Aracilik kurumlarinin orani %0.05-%0.2
-                  arasinda degisir. Cok sik islem (day trading) yapan biri yillik komisyon icin yuksek bir
-                  butce ayirir.
+                  <strong className="text-white">Komisyon:</strong> Aracılık kurumlarının oranı %0.05-%0.2
+                  arasında değişir. Çok sık işlem (day trading) yapan biri yıllık komisyon için yüksek bir
+                  bütçe ayırır.
                 </li>
                 <li>
-                  <strong className="text-white">Stopaj:</strong> Hisse senedi kazanclari kisa vadede %0
-                  stopaj uygulamasina tabidir; ancak fon kazanclari farkli oranlarla vergilenebilir. Vergi
-                  rehberini her yil takip etmek onemlidir.
+                  <strong className="text-white">Stopaj:</strong> Hisse senedi kazançları kısa vadede %0
+                  stopaj uygulamasına tabidir; ancak fon kazançları farklı oranlarla vergilendirilebilir. Vergi
+                  rehberini her yıl takip etmek önemlidir.
                 </li>
                 <li>
-                  <strong className="text-white">Fon ucretleri:</strong> Yatirim fonlari ve ETF'ler yillik
-                  yonetim ucreti alir. Pasif takip eden ETF'ler (XU100 ETF gibi) cogunlukla %0.5 alti orandadir;
-                  aktif fonlar %1.5-2 araliginda olabilir.
+                  <strong className="text-white">Fon ücretleri:</strong> Yatırım fonları ve ETF'ler yıllık
+                  yönetim ücreti alır. Pasif takip eden ETF'ler (XU100 ETF gibi) çoğunlukla %0.5 altı orandadır;
+                  aktif fonlar %1.5-2 aralığında olabilir.
                 </li>
               </ul>
               <p className="mt-3">
-                Maliyet bilinci, getirinin korunmasinin saglamayolundur. Stratejinizdeki islem sikligini
-                gozetip, yillik komisyon yukunu hesaplamak buyuk fark yaratir. Ozellikle uzun vadeli
-                stratejilerde, yillik portfoy donus orani (turnover) %30'u gecmemelidir.
+                Maliyet bilinci, getirinin korunmasının sağlama yolundadır. Stratejinizdeki işlem sıklığını
+                gözetip, yıllık komisyon yükünü hesaplamak büyük fark yaratır. Özellikle uzun vadeli
+                stratejilerde, yıllık portföy dönüş oranı (turnover) %30'u geçmemelidir.
               </p>
             </section>
 
             <section>
-              <h2 className="mb-3 text-xl font-semibold text-white">Yaygin Hatalar</h2>
+              <h2 className="mb-3 text-xl font-semibold text-white">Yaygın Hatalar</h2>
               <ul className="mt-3 list-disc space-y-2 pl-6">
-                <li>Strateji yazmadan islem girmek.</li>
-                <li>Kazaninca buyuk kayiplara dayanma kabiliyetini abartmak.</li>
-                <li>Sosyal medya yorumlarina gore stratejiyi gun icinde degistirmek.</li>
-                <li>Kaybeden bir hisseye orta almak ("zarari ortalama" tuzagi).</li>
-                <li>Tum portfoyu tek bir hisseye yatirmak.</li>
-                <li>Yuksek kaldirac kullanmak.</li>
+                <li>Strateji yazmadan işlem girmek.</li>
+                <li>Kazanınca büyük kayıplara dayanma kabiliyetini abartmak.</li>
+                <li>Sosyal medya yorumlarına göre stratejiyi gün içinde değiştirmek.</li>
+                <li>Kaybeden bir hisseye orta almak ("zararı ortalama" tuzağı).</li>
+                <li>Tüm portföyü tek bir hisseye yatırmak.</li>
+                <li>Yüksek kaldıraç kullanmak.</li>
               </ul>
               <p className="mt-3">
-                Stratejinizi belirledikten sonra her ay sonu kisa bir gozden gecirme yapin. Stratejinin
-                kendisini degil, ona uyup uymadiginizi gozlemleyin. Kuralinizin yanlis oldugunu degil,
-                disiplin eksikliginizi gormek; yatirimcilik yolunda en degerli icgorulerden biridir.
+                Stratejinizi belirledikten sonra her ay sonu kısa bir gözden geçirme yapın. Stratejinin
+                kendisini değil, ona uyup uymadığınızı gözlemleyin. Kuralınızın yanlış olduğunu değil,
+                disiplin eksikliğinizi görmek; yatırımcılık yolunda en değerli içgörülerden biridir.
               </p>
               <p className="mt-3">
-                Stratejiyi destekleyen okumalar icin{' '}
+                Stratejiyi destekleyen okumalar için{' '}
                 <Link to="/egitim/bilanco-okuma" className="text-gold-400 underline-offset-2 hover:underline">
-                  Bilanco Okuma Kilavuzu
+                  Bilanço Okuma Kılavuzu
                 </Link>{' '}
                 ve{' '}
                 <Link to="/egitim/temel-gostergeler" className="text-gold-400 underline-offset-2 hover:underline">
                   EMA, MACD, RSI
                 </Link>{' '}
-                yazilarimizi inceleyebilirsiniz. Teknik filtreyi olustururken{' '}
+                yazılarımızı inceleyebilirsiniz. Teknik filtreyi oluştururken{' '}
                 <Link to="/egitim/destek-direnc" className="text-gold-400 underline-offset-2 hover:underline">
-                  Destek ve Direnc
+                  Destek ve Direnç
                 </Link>{' '}
-                yazimizdaki kavramlari kullanabilirsiniz.
+                yazımızdaki kavramları kullanabilirsiniz.
               </p>
             </section>
 
             <section className="rounded-2xl border border-white/5 bg-dark-900/40 p-5">
-              <h2 className="mb-3 text-lg font-semibold text-white">Bu makaleyle alakali</h2>
+              <h2 className="mb-3 text-lg font-semibold text-white">Bu makaleyle alakalı</h2>
               <ul className="space-y-2 text-sm">
                 <li>
                   <Link to="/egitim/bilanco-okuma" className="inline-flex items-center gap-2 text-gold-400 hover:text-gold-300">
-                    Bilanco Okuma Kilavuzu: Aktif, Pasif, Ozkaynak <ArrowRight className="h-3.5 w-3.5" />
+                    Bilanço Okuma Kılavuzu: Aktif, Pasif, Özkaynak <ArrowRight className="h-3.5 w-3.5" />
                   </Link>
                 </li>
                 <li>
                   <Link to="/egitim/temel-gostergeler" className="inline-flex items-center gap-2 text-gold-400 hover:text-gold-300">
-                    EMA, MACD, RSI: 3 Temel Gosterge ve Yorumu <ArrowRight className="h-3.5 w-3.5" />
+                    EMA, MACD, RSI: 3 Temel Gösterge ve Yorumu <ArrowRight className="h-3.5 w-3.5" />
                   </Link>
                 </li>
                 <li>
                   <Link to="/egitim/destek-direnc" className="inline-flex items-center gap-2 text-gold-400 hover:text-gold-300">
-                    Destek ve Direnc Seviyeleri Nasil Cizilir? <ArrowRight className="h-3.5 w-3.5" />
+                    Destek ve Direnç Seviyeleri Nasıl Çizilir? <ArrowRight className="h-3.5 w-3.5" />
                   </Link>
                 </li>
               </ul>
             </section>
 
             <p className="border-t border-white/5 pt-4 text-xs text-gray-500">
-              Bu icerik yatirim tavsiyesi degildir. Yalnizca egitim ve bilgilendirme amaciyla hazirlanmistir.
-              Yatirim kararlariniz icin kendi arastirmanizi yapmaniz ve gerekirse profesyonel destek almaniz
-              onerilir.
+              Bu içerik yatırım tavsiyesi değildir. Yalnızca eğitim ve bilgilendirme amacıyla hazırlanmıştır.
+              Yatırım kararlarınız için kendi araştırmanızı yapmanız ve gerekirse profesyonel destek almanız
+              önerilir.
             </p>
           </article>
 
           <div className="mt-8 flex items-center justify-between border-t border-white/5 pt-4 text-sm">
             <Link to="/egitim/destek-direnc" className="inline-flex items-center gap-2 text-gold-400 hover:text-gold-300">
-              <ArrowLeft className="h-4 w-4" /> Onceki: Destek ve Direnc
+              <ArrowLeft className="h-4 w-4" /> Önceki: Destek ve Direnç
             </Link>
             <Link to="/egitim" className="inline-flex items-center gap-2 text-gold-400 hover:text-gold-300">
-              Tum makaleler <ArrowRight className="h-4 w-4" />
+              Tüm makaleler <ArrowRight className="h-4 w-4" />
             </Link>
           </div>
         </div>

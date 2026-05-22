@@ -8,8 +8,8 @@ const TIMEFRAMES = [
   { label: '5dk', period: '1d', interval: '5m', key: '5m' },
   { label: '30dk', period: '5d', interval: '30m', key: '30m' },
   { label: '1sa', period: '7d', interval: '60m', key: '1h' },
-  { label: 'Gunluk', period: '3mo', interval: '1d', key: '1d' },
-  { label: 'Haftalik', period: '1y', interval: '1wk', key: '1wk' },
+  { label: 'Günlük', period: '3mo', interval: '1d', key: '1d' },
+  { label: 'Haftalık', period: '1y', interval: '1wk', key: '1wk' },
 ]
 
 function getAssetQuery(assetType) {
@@ -373,15 +373,15 @@ export default function StockChart({ symbol, assetType = 'stock', height = 520 }
       {stockData && (
         <div className={`${palette.footerClass} px-3 py-2 border-t grid grid-cols-2 sm:grid-cols-5 gap-2 text-xs`}>
           <div>
-            <span className="text-gray-500 block">Acilis</span>
+            <span className="text-gray-500 block">Açılış</span>
             <p className="text-white font-medium">{formatAssetPrice(stockData.open, assetType)}</p>
           </div>
           <div>
-            <span className="text-gray-500 block">En Yuksek</span>
+            <span className="text-gray-500 block">En Yüksek</span>
             <p className="text-green-400 font-medium">{formatAssetPrice(stockData.high ?? stockData.dayHigh, assetType)}</p>
           </div>
           <div>
-            <span className="text-gray-500 block">En Dusuk</span>
+            <span className="text-gray-500 block">En Düşük</span>
             <p className="text-red-400 font-medium">{formatAssetPrice(stockData.low ?? stockData.dayLow, assetType)}</p>
           </div>
           <div>
@@ -389,7 +389,7 @@ export default function StockChart({ symbol, assetType = 'stock', height = 520 }
             <p className="text-white font-medium">{stockData.volume?.toLocaleString('tr-TR')}</p>
           </div>
           <div>
-            <span className="text-gray-500 block">Onceki</span>
+            <span className="text-gray-500 block">Önceki</span>
             <p className="text-white font-medium">{formatAssetPrice(stockData.previousClose, assetType)}</p>
           </div>
         </div>

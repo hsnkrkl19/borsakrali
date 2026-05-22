@@ -2,12 +2,12 @@ import { Link } from 'react-router-dom'
 import BrandMark from '../components/BrandMark'
 
 const rules = [
-  'Uygulama yalnizca egitim, analiz ve bilgi amaciyla sunulur; yatirim tavsiyesi degildir.',
-  'Kullanici; hukuka aykiri, tehditkar, hakaret iceren, spam veya manipule edici icerik paylasamaz.',
-  'Yorum, not veya istek panellerine girilen icerikler denetlenebilir, kaldirilabilir veya arsivlenebilir.',
-  'Hesap guvenligi kullanicinin sorumlulugundadir. Sifre ve giris bilgileri ucuncu kisilerle paylasilmamalidir.',
-  'Uygulama ici finansal veriler ucuncu taraf kaynaklardan gelir; gecikme, eksiklik veya hata olabilir.',
-  'Kurallara aykiri kullanim durumunda hesap kisitlanabilir veya sonlandirilabilir.'
+  'Uygulama yalnızca eğitim, analiz ve bilgi amacıyla sunulur; yatırım tavsiyesi değildir.',
+  'Kullanıcı; hukuka aykırı, tehditkar, hakaret içeren, spam veya manipüle edici içerik paylaşamaz.',
+  'Yorum, not veya istek panellerine girilen içerikler denetlenebilir, kaldırılabilir veya arşivlenebilir.',
+  'Hesap güvenliği kullanıcının sorumluluğundadır. Şifre ve giriş bilgileri üçüncü kişilerle paylaşılmamalıdır.',
+  'Uygulama içi finansal veriler üçüncü taraf kaynaklardan gelir; gecikme, eksiklik veya hata olabilir.',
+  'Kurallara aykırı kullanım durumunda hesap kısıtlanabilir veya sonlandırılabilir.'
 ]
 
 export default function TermsOfUse() {
@@ -17,22 +17,22 @@ export default function TermsOfUse() {
         <div className="mb-8 flex items-center justify-between gap-4">
           <Link to="/login" className="inline-flex items-center gap-3 text-sm text-gold-400 hover:text-gold-300">
             <BrandMark size="sm" />
-            Borsa Krali
+            Borsa Kralı
           </Link>
           <div className="flex flex-wrap gap-4 text-sm">
-            <Link to="/hakkimizda" className="text-gray-400 hover:text-white">Hakkimizda</Link>
-            <Link to="/iletisim" className="text-gray-400 hover:text-white">Iletisim</Link>
+            <Link to="/hakkimizda" className="text-gray-400 hover:text-white">Hakkımızda</Link>
+            <Link to="/iletisim" className="text-gray-400 hover:text-white">İletişim</Link>
             <Link to="/privacy-policy" className="text-gray-400 hover:text-white">Gizlilik</Link>
             <Link to="/account-deletion" className="text-gray-400 hover:text-white">Hesap Silme</Link>
           </div>
         </div>
 
         <div className="rounded-3xl border border-gold-500/20 bg-surface-100 p-6 md:p-8 shadow-premium">
-          <p className="text-sm font-medium text-gold-400">Kullanim Kosullari</p>
-          <h1 className="mt-3 text-3xl font-bold text-white">Borsa Krali Hizmet Kurallari</h1>
+          <p className="text-sm font-medium text-gold-400">Kullanım Koşulları</p>
+          <h1 className="mt-3 text-3xl font-bold text-white">Borsa Kralı Hizmet Kuralları</h1>
           <p className="mt-3 max-w-3xl text-sm leading-6 text-gray-400">
-            Bu kosullar, uygulamayi kullanan tum kullanicilar icin gecerli genel kurallari aciklar.
-            Uygulamayi kullanmaya devam ederek bu kosullari kabul etmis sayilirsiniz.
+            Bu koşullar, uygulamayı kullanan tüm kullanıcılar için geçerli genel kuralları açıklar.
+            Uygulamayı kullanmaya devam ederek bu koşulları kabul etmiş sayılırsınız.
           </p>
 
           <div className="mt-8 space-y-4">
@@ -48,13 +48,13 @@ export default function TermsOfUse() {
 
           <div className="mt-8 rounded-2xl border border-yellow-500/20 bg-yellow-500/10 p-5">
             <p className="text-sm leading-6 text-yellow-100">
-              Google Play incelemeleri icin onemli not: Uygulama kullanicilarin paylastigi icerikleri denetleme,
-              kaldirma ve destek sureciyle yonetme hakkini sakli tutar. Ihlal bildirimleri icin destek@borsakrali.com
-              adresi kullanilabilir.
+              Google Play incelemeleri için önemli not: Uygulama kullanıcıların paylaştığı içerikleri denetleme,
+              kaldırma ve destek süreciyle yönetme hakkını saklı tutar. İhlal bildirimleri için destek@borsakrali.com
+              adresi kullanılabilir.
             </p>
           </div>
 
-          <p className="mt-8 text-xs text-gray-500">Son guncelleme: 31 Mart 2026</p>
+          <p className="mt-8 text-xs text-gray-500">Son güncelleme: 31 Mart 2026</p>
         </div>
       </div>
     </div>

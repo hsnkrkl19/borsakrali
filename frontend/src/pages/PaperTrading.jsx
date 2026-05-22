@@ -20,6 +20,7 @@ import {
   X, RotateCcw, ExternalLink, AlertTriangle, Sparkles, Activity, Coins, Layers,
 } from 'lucide-react'
 import api from '../services/api'
+import { Button, Card, EmptyState } from '../components/ui'
 
 function formatUsd(v, digits = 2) {
   if (v == null) return '—'
@@ -134,40 +135,21 @@ export default function PaperTrading() {
 
   return (
     <div className="space-y-4">
-      {/* Header */}
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <div>
-          <h1 className="text-xl md:text-2xl font-bold text-white flex items-center gap-2">
-            <Wallet className="w-6 h-6 text-gold-400" />
-            Paper Trading
-            <span className="text-[10px] px-2 py-0.5 rounded-full bg-gold-400/20 text-gold-400 border border-gold-400/30">
-              Dummy Portfolio
-            </span>
-          </h1>
-          <p className="text-xs text-gray-400 mt-1">
-            Gerçek para riski yok — MTF sinyallerini kağıt üzerinde test et.
-            Mark-to-market PnL canlı (20sn refresh).
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={handleRefresh}
-            disabled={refreshing}
-            className="btn-secondary text-xs px-3 py-1.5 flex items-center gap-1 disabled:opacity-50"
-          >
-            <RefreshCw className={`w-3 h-3 ${refreshing ? 'animate-spin' : ''}`} />
-            Yenile
-          </button>
-          <button
-            onClick={handleReset}
-            disabled={resetting}
-            className="text-xs px-3 py-1.5 rounded-lg bg-rose-500/10 text-rose-300 border border-rose-500/30 hover:bg-rose-500/20 flex items-center gap-1 disabled:opacity-50"
-            title="Portfolio'yu sıfırla — başlangıç bakiyesine dön"
-          >
-            <RotateCcw className="w-3 h-3" />
-            Sıfırla
-          </button>
-        </div>
+      {/* Aksiyon çubuğu — sayfa başlığı Botlar wrapper'ında */}
+      <div className="flex flex-wrap items-center justify-end gap-2">
+        <Button variant="ghost" size="sm" icon={RefreshCw} loading={refreshing} onClick={handleRefresh}>
+          Yenile
+        </Button>
+        <Button
+          variant="danger"
+          size="sm"
+          icon={RotateCcw}
+          loading={resetting}
+          onClick={handleReset}
+          title="Portfolio'yu sıfırla — başlangıç bakiyesine dön"
+        >
+          Sıfırla
+        </Button>
       </div>
 
       {/* Üst stats kartları */}
@@ -298,17 +280,18 @@ function TabBtn({ active, onClick, icon: Icon, count, children }) {
 function OpenPositionsTab({ positions, onClose, closingPosId, navigate }) {
   if (positions.length === 0) {
     return (
-      <div className="card p-8 text-center">
-        <Activity className="w-8 h-8 text-gray-500 mx-auto mb-2" />
-        <p className="text-sm text-gray-400">Henüz açık pozisyon yok.</p>
-        <button
-          onClick={() => navigate('/gunluk-tespitler?tab=mtf')}
-          className="btn-primary text-xs mt-3 inline-flex items-center gap-1.5"
-        >
-          <Layers className="w-3 h-3" />
-          MTF Tarayıcı'ya Git
-        </button>
-      </div>
+      <Card padding="none">
+        <EmptyState
+          icon={Activity}
+          title="Henüz açık pozisyon yok"
+          description="MTF tarayıcıdan bir sinyal seçip kağıt üzerinde pozisyon açabilirsin."
+          action={
+            <Button variant="gold" size="sm" icon={Layers} onClick={() => navigate('/gunluk-tespitler?tab=mtf')}>
+              MTF Tarayıcı&apos;ya Git
+            </Button>
+          }
+        />
+      </Card>
     )
   }
   return (
@@ -415,14 +398,9 @@ function PositionCard({ pos, onClose, closing }) {
             <ExternalLink className="w-2.5 h-2.5" />
             Binance
           </a>
-          <button
-            onClick={() => onClose(pos.id)}
-            disabled={closing}
-            className="text-[10px] px-2.5 py-1 rounded-lg bg-rose-500/15 text-rose-300 border border-rose-500/30 hover:bg-rose-500/25 inline-flex items-center gap-1 disabled:opacity-50"
-          >
-            {closing ? <RefreshCw className="w-2.5 h-2.5 animate-spin" /> : <X className="w-2.5 h-2.5" />}
-            {closing ? 'Kapanıyor...' : 'Kapat'}
-          </button>
+          <Button variant="danger" size="sm" icon={X} loading={closing} onClick={() => onClose(pos.id)}>
+            {closing ? 'Kapanıyor…' : 'Kapat'}
+          </Button>
         </div>
       </div>
     </div>
@@ -433,10 +411,9 @@ function PositionCard({ pos, onClose, closing }) {
 function HistoryTab({ history }) {
   if (history.length === 0) {
     return (
-      <div className="card p-8 text-center">
-        <History className="w-8 h-8 text-gray-500 mx-auto mb-2" />
-        <p className="text-sm text-gray-400">Henüz kapanmış pozisyon yok.</p>
-      </div>
+      <Card padding="none">
+        <EmptyState icon={History} title="Henüz kapanmış pozisyon yok" />
+      </Card>
     )
   }
   return (
@@ -503,10 +480,9 @@ function HistoryTab({ history }) {
 function LeaderboardTab({ leaderboard }) {
   if (leaderboard.length === 0) {
     return (
-      <div className="card p-8 text-center">
-        <Trophy className="w-8 h-8 text-gray-500 mx-auto mb-2" />
-        <p className="text-sm text-gray-400">Henüz sıralanmış kullanıcı yok.</p>
-      </div>
+      <Card padding="none">
+        <EmptyState icon={Trophy} title="Henüz sıralanmış kullanıcı yok" />
+      </Card>
     )
   }
   return (

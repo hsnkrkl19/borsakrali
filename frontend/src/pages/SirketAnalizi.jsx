@@ -7,6 +7,7 @@ import KAPAnalitik from './KAPAnalitik'
 import HisseAISkor from './HisseAISkor'
 import DCFDegerleme from './DCFDegerleme'
 import ScrollableTabBar from '../components/ScrollableTabBar'
+import { Button, Badge, PageHeader } from '../components/ui'
 
 const TABS = [
   { id: 'temel-ai',  label: 'Temel Analiz AI', icon: Brain,      component: TemelAnalizAI,     desc: 'Yapay zekâ destekli temel analiz' },
@@ -39,48 +40,37 @@ export default function SirketAnalizi() {
 
   return (
     <div className="space-y-4">
-      <div className="card !p-0 border-amber-500/30 relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-br from-amber-500/[0.10] to-transparent pointer-events-none" />
-        <div className="relative flex items-center gap-3 p-4 sm:p-5">
-          <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center shadow-lg shadow-amber-500/30">
-            <Building2 className="w-5 h-5 text-slate-950" />
-          </div>
-          <div className="min-w-0">
-            <h1 className="text-xl sm:text-2xl font-bold tracking-tight" style={{ color: 'var(--text-primary)' }}>Şirket Analizi</h1>
-            <p className="text-xs sm:text-sm" style={{ color: 'var(--text-muted)' }}>Temel, mali ve KAP verileri tek panelde</p>
-          </div>
-        </div>
-      </div>
+      <PageHeader
+        icon={Building2}
+        title="Şirket Analizi"
+        description="Temel, mali ve KAP verileri tek panelde"
+      />
 
       <ScrollableTabBar
         activeKey={active}
         className="bg-dark-900/60 border border-dark-700 rounded-2xl p-1.5 gap-1"
       >
         {TABS.map(t => {
-          const Icon = t.icon
           const isActive = active === t.id
           return (
-            <button
+            <Button
               key={t.id}
               data-tab-key={t.id}
+              variant={isActive ? 'gold' : 'subtle'}
+              size="sm"
+              icon={t.icon}
               onClick={() => setTab(t.id)}
-              className={`relative flex-shrink-0 flex items-center gap-2 px-3 sm:px-4 py-2.5 rounded-xl text-xs sm:text-sm font-semibold whitespace-nowrap transition-all
-                ${isActive
-                  ? 'bg-gradient-to-r from-amber-500 to-amber-600 text-dark-950 shadow-lg shadow-amber-500/25'
-                  : 'text-gray-400 hover:text-white hover:bg-dark-800'
-                }`}
+              aria-pressed={isActive}
+              className="flex-shrink-0"
             >
-              <Icon className="w-4 h-4" />
               {t.label}
-              {t.isNew && !isActive && (
-                <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-amber-500/30 text-amber-200 border border-amber-500/40">YENİ</span>
-              )}
-            </button>
+              {t.isNew && !isActive && <Badge tone="gold">Yeni</Badge>}
+            </Button>
           )
         })}
       </ScrollableTabBar>
 
-      <div className="text-xs text-gray-500 px-1">
+      <div className="px-1 text-xs" style={{ color: 'var(--text-faint)' }}>
         {TABS.find(t => t.id === active)?.desc}
       </div>
 

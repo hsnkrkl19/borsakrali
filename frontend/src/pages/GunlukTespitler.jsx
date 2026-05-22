@@ -15,6 +15,7 @@ import MTFSinyalleri from '../components/MTFSinyalleri'
 import BacktestPanel from '../components/BacktestPanel'
 import LikidasyonHaritasi from '../components/LikidasyonHaritasi'
 import ScrollableTabBar from '../components/ScrollableTabBar'
+import { Button, Badge } from '../components/ui'
 import AkilliSuzgec from '../components/AkilliSuzgec'
 import CanliAlarmlar from '../components/CanliAlarmlar'
 import DetayliAnaliz from '../components/DetayliAnaliz'
@@ -374,20 +375,8 @@ export default function GunlukTespitler() {
         </div>
       )}
 
-      {/* Page Header */}
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-xl md:text-2xl font-bold text-white flex items-center gap-2">
-            Günlük Tespitler
-            {unreadCount > 0 && (
-              <span className="bg-red-500 text-white text-xs px-2 py-1 rounded-full animate-pulse">
-                {unreadCount} Yeni
-              </span>
-            )}
-          </h1>
-          <p className="text-gray-400 text-xs md:text-sm mt-1">Yapay zeka destekli teknik analiz tarama sistemi</p>
-        </div>
-
+      {/* Aksiyon çubuğu — sayfa başlığı Fırsatlar wrapper'ında */}
+      <div className="flex flex-wrap items-center justify-end gap-2">
         <div className="flex items-center gap-2">
           {/* Canlı durum noktası — kompakt visual indicator (hep görünür) */}
           <span
@@ -399,14 +388,9 @@ export default function GunlukTespitler() {
           </span>
 
           {/* Tara butonu — primary action */}
-          <button
-            onClick={checkSignals}
-            disabled={checking}
-            className="flex items-center gap-1.5 px-3 md:px-4 py-2 bg-primary-600 hover:bg-primary-700 disabled:bg-dark-700 text-white rounded-lg transition-colors"
-          >
-            <RefreshCw className={`w-4 h-4 ${checking ? 'animate-spin' : ''}`} />
-            <span className="text-xs md:text-sm font-medium">Tara</span>
-          </button>
+          <Button variant="gold" size="sm" icon={RefreshCw} loading={checking} onClick={checkSignals}>
+            Tara
+          </Button>
 
           {/* Kebab menüsü — Telegram durumu, Ses, Sinyal Rehberi */}
           <div ref={headerMenuRef} className="relative">
@@ -553,27 +537,25 @@ export default function GunlukTespitler() {
           className="bg-dark-900/60 border border-dark-700 rounded-2xl p-1 md:p-1.5 gap-1"
         >
           {activeSubList.map((sub) => (
-            <button
+            <Button
               key={sub.id}
               data-tab-key={sub.id}
+              variant={activeSubTab === sub.id ? 'gold' : 'subtle'}
+              size="sm"
+              icon={sub.icon}
               onClick={() => setActiveSubTab(sub.id)}
-              className={`flex-shrink-0 flex items-center gap-1.5 md:gap-2 px-2.5 md:px-3.5 py-1.5 md:py-2 rounded-xl text-[12px] md:text-sm font-semibold whitespace-nowrap transition-all ${activeSubTab === sub.id
-                ? 'bg-gradient-to-r from-amber-500 to-amber-600 text-dark-950 shadow-lg shadow-amber-500/25'
-                : 'text-gray-400 hover:text-white hover:bg-dark-800'
-                }`}
+              aria-pressed={activeSubTab === sub.id}
+              className="flex-shrink-0"
             >
-              <sub.icon className="w-3.5 h-3.5 md:w-4 md:h-4 flex-shrink-0" />
               <span className="md:hidden">{sub.shortLabel || sub.label}</span>
               <span className="hidden md:inline">{sub.label}</span>
-              {sub.isNew && activeSubTab !== sub.id && (
-                <span className="text-[8px] md:text-[9px] font-bold px-1 py-0.5 rounded bg-amber-500/30 text-amber-200 border border-amber-500/40 leading-none">YENİ</span>
-              )}
+              {sub.isNew && activeSubTab !== sub.id && <Badge tone="gold">Yeni</Badge>}
               {sub.badge > 0 && (
-                <span className="bg-red-500 text-white text-[10px] md:text-xs min-w-[16px] md:min-w-[18px] h-4 md:h-[18px] px-1 rounded-full flex items-center justify-center leading-none">
+                <span className="flex h-4 min-w-[16px] items-center justify-center rounded-full bg-red-500 px-1 text-[10px] leading-none text-white">
                   {sub.badge}
                 </span>
               )}
-            </button>
+            </Button>
           ))}
         </ScrollableTabBar>
       )}
@@ -627,7 +609,7 @@ export default function GunlukTespitler() {
             <h4 className="text-sm font-semibold text-warning-500 mb-1">ÖNEMLİ YASAL UYARI</h4>
             <p className="text-xs text-gray-400">
               Bu platform yalnızca teknik analiz eğitim amaçlıdır. Burada yer alan tüm içerikler, algoritmik taramalar ve teknik analizler hiçbir şekilde yatırım tavsiyesi niteliği taşımamaktadır.
-              Borsa Krali
+              Borsa Kralı
             </p>
           </div>
         </div>

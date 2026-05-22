@@ -327,7 +327,7 @@ const SECTIONS = [
         path: '/hakkimizda',
         label: 'Hakkımızda',
         icon: Info,
-        description: 'Borsa Krali ekibi, vizyon ve platform hikayesi.',
+        description: 'Borsa Kralı ekibi, vizyon ve platform hikayesi.',
         usage: 'Platform arkasında kim olduğunu öğrenmek için.',
         keywords: ['hakkımızda', 'ekip', 'about'],
       },
@@ -489,7 +489,7 @@ export default function SiteHaritasi() {
           <div className="flex-1 min-w-0">
             <h1 className="text-2xl sm:text-3xl font-bold text-white">Site Haritası</h1>
             <p className="text-sm text-amber-100/80 mt-1">
-              Borsa Krali platformundaki tüm sayfalar ve ne işe yaradıkları. Bir karta veya
+              Borsa Kralı platformundaki tüm sayfalar ve ne işe yaradıkları. Bir karta veya
               alt-sekmeye tıklayarak doğrudan o noktaya gidin.
             </p>
             <div className="flex flex-wrap gap-2 mt-3 text-[11px]">

@@ -181,18 +181,25 @@ export default function Layout({ children }) {
           )}
 
           {!isMobile && (
-            <footer className="bg-dark-900 border-t border-gold-500/10 px-6 py-4">
-              <div className="flex flex-col items-center gap-2 text-center">
-                <p className="text-sm text-gray-500">
-                  Tum haklari saklidir. Yatirim tavsiyesi degildir. Yalnizca egitim amaclidir.
+            <footer
+              className="px-6 py-5"
+              style={{ background: 'var(--bg-card)', borderTop: '1px solid var(--border-main)' }}
+            >
+              <div className="mx-auto flex max-w-5xl flex-col items-center gap-2.5 text-center">
+                <p className="text-[13px]" style={{ color: 'var(--text-faint)' }}>
+                  Tüm hakları saklıdır. Yatırım tavsiyesi değildir. Yalnızca eğitim amaçlıdır.
                 </p>
-                <div className="flex flex-wrap items-center justify-center gap-4 text-xs text-gray-400">
-                  <Link to="/hakkimizda" className="hover:text-white">Hakkimizda</Link>
-                  <Link to="/iletisim" className="hover:text-white">Iletisim</Link>
-                  <Link to="/egitim" className="hover:text-white">Egitim</Link>
-                  <Link to="/privacy-policy" className="hover:text-white">Gizlilik Politikasi</Link>
-                  <Link to="/terms-of-use" className="hover:text-white">Kullanim Kosullari</Link>
-                  <Link to="/account-deletion" className="hover:text-white">Hesap Silme</Link>
+                <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-1.5 text-[12px] font-medium">
+                  {[
+                    { to: '/hakkimizda', label: 'Hakkımızda' },
+                    { to: '/iletisim', label: 'İletişim' },
+                    { to: '/ogren', label: 'Eğitim' },
+                    { to: '/privacy-policy', label: 'Gizlilik Politikası' },
+                    { to: '/terms-of-use', label: 'Kullanım Koşulları' },
+                    { to: '/account-deletion', label: 'Hesap Silme' },
+                  ].map((l) => (
+                    <Link key={l.to} to={l.to} className="bk-link">{l.label}</Link>
+                  ))}
                 </div>
               </div>
             </footer>

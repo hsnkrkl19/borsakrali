@@ -3,6 +3,7 @@ import { useSearchParams, useNavigate } from 'react-router-dom'
 import { Search, Activity, TrendingUp, TrendingDown, ArrowUp, ArrowDown, Minus, AlertCircle, Clock, ChevronLeft, ChevronRight, CandlestickChart, BarChart2 } from 'lucide-react'
 import StockChart from '../components/charts/StockChart'
 import InfoTooltip from '../components/InfoTooltip'
+import { Button, Card, EmptyState, PageHeader } from '../components/ui'
 import { getStoredTheme, getTradingViewTheme } from '../utils/theme'
 
 // TradingView embed hook — kripto grafik için
@@ -75,63 +76,63 @@ const CRYPTO_QUICK = ['BTC', 'ETH', 'BNB', 'SOL', 'XRP', 'ADA', 'AVAX', 'DOGE', 
 const TIPS = {
   rsi: {
     title: 'RSI — Göreceli Güç Endeksi',
-    description: '0-100 arasinda ölçülen momentum göstergesi. 70 üzeri asiri alim (düzeltme riski), 30 alti asiri satim (toparlanma firsati). En yaygin kullanilan teknik göstergelerden biridir.',
-    formula: 'RS = AvgGain / AvgLoss\nRSI = 100 - 100/(1 + RS)\n\nWilder Smoothing (standart):\nAvgGain = (öncekiAvgGain × 13 + günlük kazanc) / 14\nAvgLoss = (öncekiAvgLoss × 13 + günlük kayip) / 14\n\nPeriyot: 14 gün (standart)',
+    description: '0-100 arasında ölçülen momentum göstergesi. 70 üzeri aşırı alım (düzeltme riski), 30 altı aşırı satım (toparlanma fırsatı). En yaygın kullanılan teknik göstergelerden biridir.',
+    formula: 'RS = AvgGain / AvgLoss\nRSI = 100 - 100/(1 + RS)\n\nWilder Smoothing (standart):\nAvgGain = (öncekiAvgGain × 13 + günlük kazanç) / 14\nAvgLoss = (öncekiAvgLoss × 13 + günlük kayıp) / 14\n\nPeriyot: 14 gün (standart)',
     source: 'J. Welles Wilder — "New Concepts in Technical Trading Systems" (1978)'
   },
   macd: {
-    title: 'MACD — Hareketli Ortalama Yakinlasma/Iraksamasi',
-    description: 'Trend ve momentum göstergesi. EMA12 ile EMA26 arasindaki farki ve bu farkin 9 günlük EMA\'sini (signal line) karsilastirir. MACD signal\'i geçerse alis, altina duserse satis sinyali.',
-    formula: 'EMA12: k = 2/13\nEMA26: k = 2/27\nMACD = EMA12 - EMA26\n\nSignal = EMA9(MACD): k = 2/10\nHistogram = MACD - Signal\n\nAlis: MACD > Signal (yukari kesisim)\nSatis: MACD < Signal (asagi kesisim)',
+    title: 'MACD — Hareketli Ortalama Yakınlaşma/Iraksaması',
+    description: 'Trend ve momentum göstergesi. EMA12 ile EMA26 arasındaki farkı ve bu farkın 9 günlük EMA\'sını (signal line) karşılaştırır. MACD signal\'ı geçerse alış, altına düşerse satış sinyali.',
+    formula: 'EMA12: k = 2/13\nEMA26: k = 2/27\nMACD = EMA12 - EMA26\n\nSignal = EMA9(MACD): k = 2/10\nHistogram = MACD - Signal\n\nAlış: MACD > Signal (yukarı kesişim)\nSatış: MACD < Signal (aşağı kesişim)',
     source: 'Gerald Appel — 1970\'ler'
   },
   bollinger: {
-    title: 'Bollinger Bantlari',
-    description: 'Fiyatin istatistiksel olarak "normal" araligini gösterir. Fiyat üst banda yaklasirsak asiri alim, alt banda yaklasirsak asiri satim bölgesindedir. Bant daralmas kirilim öncesi sessizligi gösterebilir.',
-    formula: 'SMA20 = son 20 günün ortalamasi\nStdDev = kök((Toplam(fiyat - SMA)^2) / 19)\n\nÜst Bant = SMA20 + 2 × StdDev\nOrta Bant = SMA20\nAlt Bant = SMA20 - 2 × StdDev\n\nFiyatin %95\'i bantlar arasinda kalir',
+    title: 'Bollinger Bantları',
+    description: 'Fiyatın istatistiksel olarak "normal" aralığını gösterir. Fiyat üst banda yaklaşırsak aşırı alım, alt banda yaklaşırsak aşırı satım bölgesindedir. Bant daralması kırılım öncesi sessizliği gösterebilir.',
+    formula: 'SMA20 = son 20 günün ortalaması\nStdDev = kök((Toplam(fiyat - SMA)^2) / 19)\n\nÜst Bant = SMA20 + 2 × StdDev\nOrta Bant = SMA20\nAlt Bant = SMA20 - 2 × StdDev\n\nFiyatın %95\'i bantlar arasında kalır',
     source: 'John Bollinger — 1980\'ler'
   },
   ema: {
     title: 'EMA — Üstel Hareketli Ortalama',
-    description: 'Son fiyatlara daha fazla agirlik veren hareketli ortalama. Fiyat EMA üzerindeyse yükselis egilimi, altindaysa düsüs egilimi. Fiyatin EMA\'yi kesmesi trend degisim sinyali olabilir.',
-    formula: 'k = 2 / (periyot + 1)\nEMA = Fiyat × k + öncekiEMA × (1 - k)\n\nIlk EMA = son n günün SMA\'si\n\nEMA5 > EMA9 > EMA21 = Güçlü yükselis\nEMA21 > EMA50 > EMA200 = Uzun vadeli yükselis',
+    description: 'Son fiyatlara daha fazla ağırlık veren hareketli ortalama. Fiyat EMA üzerindeyse yükseliş eğilimi, altındaysa düşüş eğilimi. Fiyatın EMA\'yı kesmesi trend değişim sinyali olabilir.',
+    formula: 'k = 2 / (periyot + 1)\nEMA = Fiyat × k + öncekiEMA × (1 - k)\n\nİlk EMA = son n günün SMA\'sı\n\nEMA5 > EMA9 > EMA21 = Güçlü yükseliş\nEMA21 > EMA50 > EMA200 = Uzun vadeli yükseliş',
     source: 'Standart teknik analiz formülü'
   },
   fibonacci: {
-    title: 'Fibonacci Geri Cekilme Seviyeleri',
-    description: 'Fibonacci dizisinin oranlarindan türetilen destek/direnc seviyeleri. Trendin doruk ve dip noktalari arasindaki mesafeye uygulanir. %61.8 "Altin Oran" olarak en kritik seviyedir.',
-    formula: 'Swing Yüksek (H) ve Swing Düsük (L) alinir:\n%0    = H\n%23.6 = H - (H-L) × 0.236\n%38.2 = H - (H-L) × 0.382\n%50   = H - (H-L) × 0.500\n%61.8 = H - (H-L) × 0.618  (Altin Oran)\n%78.6 = H - (H-L) × 0.786\n%100  = L',
-    source: 'Leonardo Fibonacci (1175-1250) — Doganin matematik dizisi'
+    title: 'Fibonacci Geri Çekilme Seviyeleri',
+    description: 'Fibonacci dizisinin oranlarından türetilen destek/direnç seviyeleri. Trendin doruk ve dip noktaları arasındaki mesafeye uygulanır. %61.8 "Altın Oran" olarak en kritik seviyedir.',
+    formula: 'Swing Yüksek (H) ve Swing Düşük (L) alınır:\n%0    = H\n%23.6 = H - (H-L) × 0.236\n%38.2 = H - (H-L) × 0.382\n%50   = H - (H-L) × 0.500\n%61.8 = H - (H-L) × 0.618  (Altın Oran)\n%78.6 = H - (H-L) × 0.786\n%100  = L',
+    source: 'Leonardo Fibonacci (1175-1250) — Doğanın matematik dizisi'
   },
   fibonacci618: {
-    title: '%61.8 — Altin Oran',
-    description: 'Fibonacci dizisinde ardisik iki sayi orani (örn. 89/144 = 0.618). Dogada, sanatta ve finansta evrensel denge noktasi olarak kabul edilir. Teknik analizde en güçlü geri cekilme seviyesidir.',
-    formula: 'Altin Oran = 1 / phi = 1 / 1.618 ≈ 0.618\nphi = (1 + kök5) / 2 ≈ 1.618\n\nFibonacci: 1, 1, 2, 3, 5, 8, 13, 21...\n89/144 = 0.618 (yaklasik)',
-    source: 'Leonardo Fibonacci / Altin Oran — Evrensel matematik'
+    title: '%61.8 — Altın Oran',
+    description: 'Fibonacci dizisinde ardışık iki sayı oranı (örn. 89/144 = 0.618). Doğada, sanatta ve finansta evrensel denge noktası olarak kabul edilir. Teknik analizde en güçlü geri çekilme seviyesidir.',
+    formula: 'Altın Oran = 1 / phi = 1 / 1.618 ≈ 0.618\nphi = (1 + kök5) / 2 ≈ 1.618\n\nFibonacci: 1, 1, 2, 3, 5, 8, 13, 21...\n89/144 = 0.618 (yaklaşık)',
+    source: 'Leonardo Fibonacci / Altın Oran — Evrensel matematik'
   },
   volatility: {
-    title: 'Volatilite (Fiyat Oynakligi)',
-    description: 'Hissenin fiyat degiskenliginin yüzdesidir. Yüksek volatilite hem yüksek risk hem de yüksek firsat anlamina gelir. Günlük/haftalik kapanislarin standart sapmasindan hesaplanir.',
-    formula: 'Günlük getiri = (Kapanis - ÖncekiKapanis) / ÖncekiKapanis\nVolatilite = StdDev(son 20 günlük getiri) × kök(252) × 100\n(Yillikastirilmis yüzde)',
-    source: 'Standart finansal volatilite hesabi'
+    title: 'Volatilite (Fiyat Oynaklığı)',
+    description: 'Hissenin fiyat değişkenliğinin yüzdesidir. Yüksek volatilite hem yüksek risk hem de yüksek fırsat anlamına gelir. Günlük/haftalık kapanışların standart sapmasından hesaplanır.',
+    formula: 'Günlük getiri = (Kapanış - ÖncekiKapanış) / ÖncekiKapanış\nVolatilite = StdDev(son 20 günlük getiri) × kök(252) × 100\n(Yıllıklaştırılmış yüzde)',
+    source: 'Standart finansal volatilite hesabı'
   },
   signals: {
     title: 'Teknik Sinyaller',
-    description: 'Birden fazla göstergeyi birlestirerek genel alim/satim sinyali üretir. Her gösterge bagimsiz degerlendirilerek özetlenir.',
-    formula: 'RSI < 30 -> Asiri Satim (Alis)\nRSI > 70 -> Asiri Alim (Satis)\nMACD > Signal -> Alis\nMACD < Signal -> Satis\nFiyat > EMA20 -> Yukselis\nFiyat < EMA20 -> Dusus',
+    description: 'Birden fazla göstergeyi birleştirerek genel alım/satım sinyali üretir. Her gösterge bağımsız değerlendirilerek özetlenir.',
+    formula: 'RSI < 30 -> Aşırı Satım (Alış)\nRSI > 70 -> Aşırı Alım (Satış)\nMACD > Signal -> Alış\nMACD < Signal -> Satış\nFiyat > EMA20 -> Yükseliş\nFiyat < EMA20 -> Düşüş',
     source: 'Standart teknik analiz sinyal kurallar'
   },
   support: {
     title: 'Destek Seviyesi',
-    description: 'Fiyatin dususunu engelleyecegi, alim ilgisinin artmasinin beklenildigi seviyedir. Bu seviyenin altina kalinli geçis negatif sinyal verir.',
-    formula: 'Fibonacci %38.2 veya %50 seviyesi\nveya son swing düsügü\n\nDestek = H - (H-L) × 0.382\n(H = dönem yüksegi, L = dönem düsügü)',
-    source: 'Fibonacci destek/direnc — teknik analiz'
+    description: 'Fiyatın düşüşünü engelleyeceği, alım ilgisinin artmasının beklenildiği seviyedir. Bu seviyenin altına kalınlı geçiş negatif sinyal verir.',
+    formula: 'Fibonacci %38.2 veya %50 seviyesi\nveya son swing düşüğü\n\nDestek = H - (H-L) × 0.382\n(H = dönem yükseği, L = dönem düşüğü)',
+    source: 'Fibonacci destek/direnç — teknik analiz'
   },
   resistance: {
-    title: 'Direnc Seviyesi',
-    description: 'Fiyatin yükselis momentumunu kaybedebilecegi, satim ilgisinin artmasinin beklenildigi seviyedir. Bu seviyenin üzerine kalinli geçis pozitif sinyal verir.',
-    formula: 'Fibonacci %61.8 veya %78.6 seviyesi\nveya son swing yüksegi\n\nDirenc = H - (H-L) × 0.618\n(H = dönem yüksegi, L = dönem düsügü)',
-    source: 'Fibonacci destek/direnc — teknik analiz'
+    title: 'Direnç Seviyesi',
+    description: 'Fiyatın yükseliş momentumunu kaybedebileceği, satım ilgisinin artmasının beklenildiği seviyedir. Bu seviyenin üzerine kalınlı geçiş pozitif sinyal verir.',
+    formula: 'Fibonacci %61.8 veya %78.6 seviyesi\nveya son swing yükseği\n\nDirenç = H - (H-L) × 0.618\n(H = dönem yükseği, L = dönem düşüğü)',
+    source: 'Fibonacci destek/direnç — teknik analiz'
   },
 }
 
@@ -501,7 +502,7 @@ export default function TeknikAnalizAI() {
     // Sektorleri yukle
     fetch('/api/market/sectors')
       .then(res => {
-        if (!res.ok) throw new Error('Sektorler yuklenemedi')
+        if (!res.ok) throw new Error('Sektörler yüklenemedi')
         return res.json()
       })
       .then(data => setSectors(data.sectors || []))
@@ -554,8 +555,8 @@ export default function TeknikAnalizAI() {
       const typeParam = type === 'crypto' ? '?type=crypto' : ''
       const response = await fetch(`/api/analysis/technical/${sym}${typeParam}`)
       if (!response.ok) {
-        if (response.status === 404) throw new Error(`"${sym}" bulunamadi.`)
-        throw new Error('Analiz sirasinda bir hata olustu.')
+        if (response.status === 404) throw new Error(`"${sym}" bulunamadı.`)
+        throw new Error('Analiz sırasında bir hata oluştu.')
       }
       const data = await response.json()
       if (!data || !data.symbol) throw new Error('Veri alinamadi.')
@@ -606,25 +607,28 @@ export default function TeknikAnalizAI() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-white">Teknik Analiz AI</h1>
-        <p className="text-gray-400 mt-1">RSI, MACD, Bollinger ve EMA göstergeleri ile analiz</p>
-      </div>
+      <PageHeader
+        icon={Activity}
+        title="Teknik Analiz AI"
+        description="RSI, MACD, Bollinger ve EMA göstergeleri ile analiz"
+      />
 
       {/* Varlık Tipi Toggle */}
       <div className="flex flex-wrap gap-2">
-        <button
+        <Button
+          variant={assetType === 'stock' ? 'gold' : 'ghost'}
           onClick={() => { setAssetType('stock'); setAnalysis(null); setError(null) }}
-          className={`flex items-center gap-2 px-4 py-2 rounded-xl font-medium text-sm transition-all ${assetType === 'stock' ? 'bg-gold-500 text-dark-950' : 'bg-dark-800 text-gray-400 hover:text-white'}`}
+          aria-pressed={assetType === 'stock'}
         >
           📈 BIST Hisseleri
-        </button>
-        <button
+        </Button>
+        <Button
+          variant={assetType === 'crypto' ? 'gold' : 'ghost'}
           onClick={() => { setAssetType('crypto'); setAnalysis(null); setError(null); setSelectedSector('') }}
-          className={`flex items-center gap-2 px-4 py-2 rounded-xl font-medium text-sm transition-all ${assetType === 'crypto' ? 'bg-orange-500 text-white' : 'bg-dark-800 text-gray-400 hover:text-white'}`}
+          aria-pressed={assetType === 'crypto'}
         >
           🪙 Kripto Paralar
-        </button>
+        </Button>
       </div>
 
       {/* Arama */}
@@ -644,9 +648,9 @@ export default function TeknikAnalizAI() {
               className="input w-full pl-10"
             />
           </div>
-          <button onClick={() => handleAnalyze()} disabled={loading} className={`btn-primary ${assetType === 'crypto' ? 'bg-orange-600 hover:bg-orange-500' : ''}`}>
-            {loading ? '...' : 'Ara'}
-          </button>
+          <Button variant="gold" loading={loading} onClick={() => handleAnalyze()}>
+            Ara
+          </Button>
         </div>
       </div>
 
@@ -739,13 +743,14 @@ export default function TeknikAnalizAI() {
           <h3 className="font-semibold text-white mb-4">🪙 Popüler Kriptolar</h3>
           <div className="flex flex-wrap gap-1.5">
             {CRYPTO_QUICK.map(s => (
-              <button
+              <Button
                 key={s}
+                variant="ghost"
+                size="sm"
                 onClick={() => { setSymbol(s); handleAnalyze(s, 'crypto'); }}
-                className="px-2.5 py-1.5 bg-orange-500/10 border border-orange-500/20 hover:bg-orange-500/20 text-xs text-orange-300 rounded-lg transition-colors font-medium"
               >
                 {s}
-              </button>
+              </Button>
             ))}
           </div>
         </div>
@@ -757,13 +762,14 @@ export default function TeknikAnalizAI() {
           <h3 className="font-semibold text-white mb-4">Popüler Hisseler</h3>
           <div className="flex flex-wrap gap-2">
             {['THYAO', 'GARAN', 'AKBNK', 'ASELS', 'EREGL', 'SISE', 'KCHOL', 'TUPRS'].map((sym) => (
-              <button
+              <Button
                 key={sym}
+                variant="ghost"
+                size="sm"
                 onClick={() => { setSymbol(sym); handleAnalyze(sym, 'stock'); }}
-                className="px-3 py-1.5 bg-dark-800 hover:bg-primary-600 text-gray-300 hover:text-white rounded-lg text-sm transition-colors"
               >
                 {sym}
-              </button>
+              </Button>
             ))}
           </div>
         </div>
@@ -1022,13 +1028,13 @@ export default function TeknikAnalizAI() {
 
       {/* Başlangıç durumu */}
       {!analysis && !loading && (
-        <div className="card text-center py-16">
-          <Activity className="w-16 h-16 text-gray-600 mx-auto mb-4" />
-          <h3 className="text-xl font-semibold text-white mb-2">Teknik Analiz Başlatın</h3>
-          <p className="text-gray-400 max-w-md mx-auto">
-            Yukarıdaki arama kutusuna hisse kodunu girerek veya popüler hisselerden birine tıklayarak teknik analiz görüntüleyebilirsiniz.
-          </p>
-        </div>
+        <Card padding="none">
+          <EmptyState
+            icon={Activity}
+            title="Teknik Analiz Başlatın"
+            description="Yukarıdaki arama kutusuna hisse kodunu girerek veya popüler hisselerden birine tıklayarak teknik analiz görüntüleyebilirsiniz."
+          />
+        </Card>
       )}
     </div>
   )

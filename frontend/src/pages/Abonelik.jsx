@@ -95,7 +95,7 @@ export default function Abonelik() {
           <Crown className="w-4 h-4 text-gold-400" />
           <span className="text-sm text-gold-400 font-medium">Abonelik Planları</span>
         </div>
-        <h1 className="text-2xl font-bold text-white mb-2">Borsa Krali'yi Açın</h1>
+        <h1 className="text-2xl font-bold text-white mb-2">Borsa Kralı'yı Açın</h1>
         <p className="text-gray-400 text-sm">Profesyonel borsa analizi için en uygun planı seçin</p>
       </div>
 

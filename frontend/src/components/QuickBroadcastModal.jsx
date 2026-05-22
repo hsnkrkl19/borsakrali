@@ -4,7 +4,7 @@ import { useAuthStore } from '../store/authStore'
 import { sendBroadcastNotification } from '../services/adminNotifications'
 
 const TEMPLATES = [
-  { label: 'Güncelleme yolda', title: 'Yeni güncelleme yolda', body: 'Borsa Krali için yeni özellikler hazırlanıyor. Yakında uygulamayı güncellemeyi unutmayın.', path: '/site-haritasi' },
+  { label: 'Güncelleme yolda', title: 'Yeni güncelleme yolda', body: 'Borsa Kralı için yeni özellikler hazırlanıyor. Yakında uygulamayı güncellemeyi unutmayın.', path: '/site-haritasi' },
   { label: 'Yeni sinyal',     title: 'Yeni günlük sinyaller hazır', body: 'Algoritma yeni AL/SAT fırsatları tespit etti. Sinyal listesini hemen kontrol edin.',                  path: '/gunluk-tespitler' },
   { label: 'Pro Analiz',       title: 'Pro analizler güncellendi',    body: 'Bugün için Pro Analiz raporları yayınlandı. Premium üyeliğinizle erişebilirsiniz.',                  path: '/pro-analiz' },
   { label: 'Pazar haberi',     title: 'Önemli pazar gelişmesi',       body: 'BIST için takip etmeniz gereken bir gelişme yaşandı. Detaylar için Ekonomik Takvim sayfasına bakın.', path: '/ekonomik-takvim' },

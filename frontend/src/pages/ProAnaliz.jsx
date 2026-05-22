@@ -3,9 +3,10 @@ import { useSearchParams } from 'react-router-dom'
 import {
   Search, Gem, TrendingUp, TrendingDown, Minus, Activity,
   BarChart3, AlertTriangle, CheckCircle, XCircle, Info,
-  Zap, RefreshCw, ChevronRight, Target, Clock, Globe
+  Zap, RefreshCw, ChevronRight, Target, Globe
 } from 'lucide-react'
 import { createChart } from 'lightweight-charts'
+import { Button, Card, EmptyState, PageHeader } from '../components/ui'
 import { getApiBase } from '../config'
 import { useFeatureGate } from '../hooks/useFeatureGate'
 import UsageLimitModal from '../components/UsageLimitModal'
@@ -346,15 +347,11 @@ export default function ProAnaliz() {
   return (
     <div className="space-y-4 pb-8">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-black text-white flex items-center gap-2">
-            <Gem className="w-7 h-7 text-gold-400" />
-            Pro Analiz
-          </h1>
-          <p className="text-gray-400 text-sm mt-1">Profesyonel teknik analiz, formasyon tespiti, piyasa taraması ve kripto analizi</p>
-        </div>
-      </div>
+      <PageHeader
+        icon={Gem}
+        title="Pro Analiz"
+        description="Profesyonel teknik analiz, formasyon tespiti, piyasa taraması ve kripto analizi"
+      />
 
       {/* Tabs */}
       <div className="overflow-x-auto">
@@ -364,11 +361,16 @@ export default function ProAnaliz() {
             { id: 'tarama', label: 'Piyasa Tarama', icon: Target },
             { id: 'kripto', label: 'Kripto', icon: Globe },
           ].map(tab => (
-            <button key={tab.id} onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center gap-2 whitespace-nowrap px-4 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === tab.id ? 'bg-gold-500 text-dark-950' : 'text-gray-400 hover:text-white'}`}>
-              <tab.icon className="w-4 h-4" />
+            <Button
+              key={tab.id}
+              variant={activeTab === tab.id ? 'gold' : 'subtle'}
+              size="sm"
+              icon={tab.icon}
+              onClick={() => setActiveTab(tab.id)}
+              aria-pressed={activeTab === tab.id}
+            >
               {tab.label}
-            </button>
+            </Button>
           ))}
         </div>
       </div>
@@ -400,18 +402,26 @@ export default function ProAnaliz() {
                 <option value="6mo">6 Ay</option>
                 <option value="1y">1 Yıl</option>
               </select>
-              <button onClick={() => gate(() => handleAnalyze())} disabled={loading || !symbol}
-                className="btn-primary px-6 flex items-center gap-2">
-                {loading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />}
-                {loading ? 'Analiz Ediliyor...' : 'Analiz Et'}
-              </button>
+              <Button
+                variant="gold"
+                icon={Zap}
+                loading={loading}
+                disabled={!symbol}
+                onClick={() => gate(() => handleAnalyze())}
+              >
+                {loading ? 'Analiz Ediliyor…' : 'Analiz Et'}
+              </Button>
             </div>
             <div className="flex flex-wrap gap-2">
               {QUICK_PICKS.map(s => (
-                <button key={s} onClick={() => { setSymbol(s); handleAnalyze(s, period) }}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-all ${symbol === s ? 'bg-gold-500/20 text-gold-400 border-gold-500/40' : 'bg-dark-700 text-gray-400 border-dark-600 hover:border-gold-500/30 hover:text-white'}`}>
+                <Button
+                  key={s}
+                  variant={symbol === s ? 'outline' : 'ghost'}
+                  size="sm"
+                  onClick={() => { setSymbol(s); handleAnalyze(s, period) }}
+                >
                   {s}
-                </button>
+                </Button>
               ))}
             </div>
             <p className="text-xs text-gray-500">Bu analizler eğitim amaçlıdır, yatırım tavsiyesi değildir.</p>
@@ -610,11 +620,13 @@ export default function ProAnaliz() {
 
           {/* Empty state */}
           {!analysis && !loading && !error && (
-            <div className="card text-center py-16">
-              <Gem className="w-14 h-14 text-gold-400/30 mx-auto mb-4" />
-              <h3 className="text-xl font-semibold text-white mb-2">Pro Analiz Başlatın</h3>
-              <p className="text-gray-400 max-w-md mx-auto text-sm">Hisse kodunu girerek formasyon tespiti, Fibonacci analizi, puanlama motoru ve Türkçe otomatik yorum içeren tam analizi başlatın.</p>
-            </div>
+            <Card padding="none">
+              <EmptyState
+                icon={Gem}
+                title="Pro Analiz Başlatın"
+                description="Hisse kodunu girerek formasyon tespiti, Fibonacci analizi, puanlama motoru ve Türkçe otomatik yorum içeren tam analizi başlatın."
+              />
+            </Card>
           )}
         </div>
       )}
@@ -628,11 +640,15 @@ export default function ProAnaliz() {
                 <h3 className="font-semibold text-white">BIST 100 Piyasa Tarayıcı</h3>
                 <p className="text-gray-400 text-xs mt-1">RSI, MACD, Fibonacci, Hacim ve Golden Cross sinyalleri için 100 hisse taranıyor</p>
               </div>
-              <button onClick={handleScan} disabled={scanLoading}
-                className="btn-primary px-6 flex items-center gap-2 flex-shrink-0 ml-auto">
-                {scanLoading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Target className="w-4 h-4" />}
-                {scanLoading ? 'Taranıyor...' : 'BIST 100 Tara'}
-              </button>
+              <Button
+                variant="gold"
+                icon={Target}
+                loading={scanLoading}
+                onClick={handleScan}
+                className="ml-auto flex-shrink-0"
+              >
+                {scanLoading ? 'Taranıyor…' : 'BIST 100 Tara'}
+              </Button>
             </div>
             {scanLoading && (
               <div className="mt-4 bg-dark-800 rounded-xl p-4">
@@ -726,11 +742,13 @@ export default function ProAnaliz() {
           )}
 
           {!scanner && !scanLoading && (
-            <div className="card text-center py-16">
-              <Target className="w-14 h-14 text-gray-600 mx-auto mb-4" />
-              <h3 className="text-xl font-semibold text-white mb-2">Piyasa Taramasını Başlatın</h3>
-              <p className="text-gray-400 text-sm max-w-md mx-auto">BIST 100 hisselerini RSI, MACD, Fibonacci ve hacim sinyalleri için otomatik tarar.</p>
-            </div>
+            <Card padding="none">
+              <EmptyState
+                icon={Target}
+                title="Piyasa Taramasını Başlatın"
+                description="BIST 100 hisselerini RSI, MACD, Fibonacci ve hacim sinyalleri için otomatik tarar."
+              />
+            </Card>
           )}
         </div>
       )}
@@ -871,11 +889,13 @@ export default function ProAnaliz() {
           )}
 
           {!analysis?.isCrypto && !loading && (
-            <div className="card text-center py-16">
-              <Globe className="w-14 h-14 text-gray-600 mx-auto mb-4" />
-              <h3 className="text-xl font-semibold text-white mb-2">Kripto Para Seçin</h3>
-              <p className="text-gray-400 text-sm">Yukarıdaki 20 kripto paradan birini seçerek teknik analiz başlatın.</p>
-            </div>
+            <Card padding="none">
+              <EmptyState
+                icon={Globe}
+                title="Kripto Para Seçin"
+                description="Yukarıdaki 20 kripto paradan birini seçerek teknik analiz başlatın."
+              />
+            </Card>
           )}
         </div>
       )}

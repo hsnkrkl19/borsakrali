@@ -4,7 +4,7 @@ import BrandMark from '../components/BrandMark'
 const sections = [
   {
     title: 'Toplanan Veriler',
-    body: 'Borsa Krali, hesap oluşturma ve giriş işlemleri için ad, soyad, e-posta adresi, telefon numarası ve şifre bilgilerini toplar. Uygulama içindeki notlar, yorumlar, istekler ve kullanıcının gönderdiği diğer metinler de ilgili özelliği çalıştırmak için işlenebilir.'
+    body: 'Borsa Kralı, hesap oluşturma ve giriş işlemleri için ad, soyad, e-posta adresi, telefon numarası ve şifre bilgilerini toplar. Uygulama içindeki notlar, yorumlar, istekler ve kullanıcının gönderdiği diğer metinler de ilgili özelliği çalıştırmak için işlenebilir.'
   },
   {
     title: 'Kullanım Amaçları',
@@ -39,7 +39,7 @@ export default function PrivacyPolicy() {
         <div className="mb-8 flex items-center justify-between gap-4">
           <Link to="/login" className="inline-flex items-center gap-3 text-sm text-gold-400 hover:text-gold-300">
             <BrandMark size="sm" />
-            Borsa Krali
+            Borsa Kralı
           </Link>
           <div className="flex flex-wrap gap-4 text-sm">
             <Link to="/hakkimizda" className="text-gray-400 hover:text-white">Hakkımızda</Link>
@@ -52,7 +52,7 @@ export default function PrivacyPolicy() {
         <div className="rounded-3xl border border-gold-500/20 bg-surface-100 p-6 md:p-8 shadow-premium">
           <div className="mb-8 space-y-3">
             <p className="text-sm font-medium text-gold-400">Gizlilik Politikası</p>
-            <h1 className="text-3xl font-bold text-white">Borsa Krali Kullanıcı Verileri</h1>
+            <h1 className="text-3xl font-bold text-white">Borsa Kralı Kullanıcı Verileri</h1>
             <p className="max-w-3xl text-sm leading-6 text-gray-400">
               Bu metin, Google Play store listelemesi ve uygulama içi bilgilendirme için hazırlanmıştır.
               Hukuki gereklilikleriniz için bir hukuk danışmanıyla son kontrol yapmanız önerilir.

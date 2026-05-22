@@ -2,7 +2,7 @@ import { useSearchParams } from 'react-router-dom'
 import { Search, Sparkles } from 'lucide-react'
 import Tarayicilar from './Tarayicilar'
 import GunlukTespitler from './GunlukTespitler'
-import HelpBubble from '../components/HelpBubble'
+import { Button, PageHeader } from '../components/ui'
 
 // /firsatlar yeni route; eski /tarayicilar ve /gunluk-tespitler URL'leri
 // App.jsx REDIRECT_MAP üzerinden buraya yönlenir. Sayfa iki üst sekme barındırır:
@@ -35,29 +35,27 @@ export default function Firsatlar() {
   }
 
   return (
-    <div className="space-y-3">
-      <h1 className="text-xl sm:text-2xl font-bold tracking-tight flex items-center" style={{ color: 'var(--text-primary)' }}>
-        {activeMeta.label}
-        <HelpBubble text={activeMeta.help} />
-      </h1>
+    <div className="space-y-4">
+      <PageHeader
+        icon={activeMeta.icon}
+        eyebrow="Fırsatlar"
+        title={activeMeta.label}
+        description={activeMeta.help}
+      />
       <div className="flex flex-wrap gap-1.5">
         {SECTIONS.map((s) => {
-          const Icon = s.icon
           const active = activeSection === s.id
           return (
-            <button
+            <Button
               key={s.id}
+              variant={active ? 'outline' : 'ghost'}
+              size="sm"
+              icon={s.icon}
               onClick={() => switchSection(s.id)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12.5px] font-semibold transition-all"
-              style={{
-                background: active ? 'rgba(212, 175, 55, 0.12)' : 'var(--bg-card)',
-                border: `1px solid ${active ? 'var(--border-gold)' : 'var(--border-main)'}`,
-                color: active ? 'var(--gold-400)' : 'var(--text-secondary)',
-              }}
+              aria-pressed={active}
             >
-              <Icon className="w-3.5 h-3.5" />
               {s.label}
-            </button>
+            </Button>
           )
         })}
       </div>

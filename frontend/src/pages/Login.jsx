@@ -9,6 +9,7 @@ import {
 import { loginWithPassword } from '../services/auth'
 import BrandMark from '../components/BrandMark'
 import GoogleSignInButton from '../components/GoogleSignInButton'
+import { Button } from '../components/ui'
 import { getApiBase } from '../config'
 import { getStoredTheme } from '../utils/theme'
 
@@ -445,17 +446,18 @@ export default function Login() {
             </div>
           </label>
 
-          <button
+          <Button
             type="submit"
-            disabled={loading || !email.trim() || !password}
-            className="btn-gold w-full text-[13.5px] py-3 mt-1.5"
+            variant="gold"
+            size="lg"
+            block
+            loading={loading}
+            iconRight={ArrowRight}
+            disabled={!email.trim() || !password}
+            className="mt-1.5"
           >
-            {loading ? (
-              <><Loader className="w-4 h-4 animate-spin" /> Giriş yapılıyor…</>
-            ) : (
-              <>Krallığa Gir <ArrowRight className="w-4 h-4" /></>
-            )}
-          </button>
+            {loading ? 'Giriş yapılıyor…' : 'Krallığa Gir'}
+          </Button>
         </form>
 
         {/* Divider */}

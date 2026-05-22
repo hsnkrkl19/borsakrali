@@ -301,7 +301,7 @@ export default function SignalGuide({ open, onClose }) {
           className="px-4 py-2.5 flex items-center justify-between text-[11px] flex-shrink-0"
           style={{ borderTop: '1px solid var(--border-main)', color: 'var(--text-faint)' }}
         >
-          <span>Veri: Yahoo Finance · Borsa Krali algoritması</span>
+          <span>Veri: Yahoo Finance · Borsa Kralı algoritması</span>
           <button
             onClick={onClose}
             className="font-semibold flex items-center gap-1.5 hover:opacity-80"

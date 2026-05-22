@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
-  Mail, MessageSquare, Send, CheckCircle2, AlertCircle,
+  Mail, MessageSquare, CheckCircle2, AlertCircle,
   Globe, Clock, Info, Bug, FileText, ShieldAlert,
   Twitter, Instagram, Youtube, Linkedin,
   ChevronDown, ChevronUp,
@@ -9,6 +9,7 @@ import {
   Calendar, Hourglass
 } from 'lucide-react'
 import BrandMark from '../components/BrandMark'
+import { Button } from '../components/ui'
 
 const SUPPORT_EMAIL = 'info@borsakrali.com'
 const SECONDARY_EMAIL = 'hsnkrkl19@gmail.com'
@@ -42,7 +43,7 @@ const FAQ_CATEGORIES = [
     items: [
       {
         q: 'Hesap açmak ücretsiz mi?',
-        a: "Evet, Borsa Krali'nda temel hesap açmak tamamen ücretsizdir. Ücretsiz üyelik ile günlük sınırlı sayıda tarama yapabilir, dashboard özetini görebilir ve temel piyasa verilerine erişebilirsiniz. İleri seviye sinyaller, sınırsız tarama ve premium modülleri kullanmak isterseniz abonelik planlarımızı inceleyebilirsiniz. Kayıt için sadece geçerli bir e-posta adresi yeterlidir; kredi kartı istemiyoruz."
+        a: "Evet, Borsa Kralı'nda temel hesap açmak tamamen ücretsizdir. Ücretsiz üyelik ile günlük sınırlı sayıda tarama yapabilir, dashboard özetini görebilir ve temel piyasa verilerine erişebilirsiniz. İleri seviye sinyaller, sınırsız tarama ve premium modülleri kullanmak isterseniz abonelik planlarımızı inceleyebilirsiniz. Kayıt için sadece geçerli bir e-posta adresi yeterlidir; kredi kartı istemiyoruz."
       },
       {
         q: 'Şifremi unuttum, ne yapmalıyım?',
@@ -121,7 +122,7 @@ const FAQ_CATEGORIES = [
       },
       {
         q: 'Bildirim gelmiyor, nasıl çözerim?',
-        a: "Mobilde bildirim almak için önce cihaz ayarlarından Borsa Krali uygulamasına bildirim izni verildiğinden emin olun. Web tarayıcısında ise adres çubuğu solundaki kilit ikonundan bildirim iznini 'İzin Ver' yapın. Hesap ayarlarınızdan bildirim tercihlerinizi (günlük sinyal, fiyat alarmı, haber) ayrı ayrı açabilirsiniz. iOS Safari şu an web push'u tam desteklemediğinden uygulamayı indirmenizi öneririz."
+        a: "Mobilde bildirim almak için önce cihaz ayarlarından Borsa Kralı uygulamasına bildirim izni verildiğinden emin olun. Web tarayıcısında ise adres çubuğu solundaki kilit ikonundan bildirim iznini 'İzin Ver' yapın. Hesap ayarlarınızdan bildirim tercihlerinizi (günlük sinyal, fiyat alarmı, haber) ayrı ayrı açabilirsiniz. iOS Safari şu an web push'u tam desteklemediğinden uygulamayı indirmenizi öneririz."
       },
       {
         q: 'Push bildirimi nasıl aktif edilir?',
@@ -215,7 +216,7 @@ export default function Iletisim() {
         <div className="mb-8 flex items-center justify-between gap-4">
           <Link to="/" className="inline-flex items-center gap-3 text-sm text-gold-400 hover:text-gold-300">
             <BrandMark size="sm" />
-            Borsa Krali
+            Borsa Kralı
           </Link>
           <div className="flex flex-wrap gap-4 text-sm">
             <Link to="/hakkimizda" className="text-gray-400 hover:text-white">Hakkımızda</Link>
@@ -275,7 +276,7 @@ export default function Iletisim() {
                   type="text"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  className="w-full rounded-2xl border border-gold-500/20 bg-dark-900/40 px-4 py-3 text-white outline-none transition focus:border-gold-500"
+                  className="input-premium"
                   placeholder="Adınız Soyadınız"
                   required
                 />
@@ -286,7 +287,7 @@ export default function Iletisim() {
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="w-full rounded-2xl border border-gold-500/20 bg-dark-900/40 px-4 py-3 text-white outline-none transition focus:border-gold-500"
+                  className="input-premium"
                   placeholder="ornek@mail.com"
                   required
                 />
@@ -298,7 +299,7 @@ export default function Iletisim() {
               <select
                 value={subject}
                 onChange={(e) => setSubject(e.target.value)}
-                className="w-full rounded-2xl border border-gold-500/20 bg-dark-900/40 px-4 py-3 text-white outline-none transition focus:border-gold-500"
+                className="input-premium"
               >
                 <option>Genel</option>
                 <option>Hata Bildirimi</option>
@@ -315,7 +316,7 @@ export default function Iletisim() {
                 rows={6}
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
-                className="w-full rounded-2xl border border-gold-500/20 bg-dark-900/40 px-4 py-3 text-white outline-none transition focus:border-gold-500"
+                className="input-premium"
                 placeholder="Bize iletmek istediğiniz konuyu kısa ve açık şekilde yazın..."
                 required
               />
@@ -335,21 +336,16 @@ export default function Iletisim() {
               </div>
             )}
 
-            <button
+            <Button
               type="submit"
-              disabled={status === 'sending'}
-              className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-gold-500 to-gold-600 px-4 py-3 font-semibold text-dark-950 transition hover:from-gold-400 hover:to-gold-500 disabled:opacity-60"
+              variant="gold"
+              size="lg"
+              block
+              loading={status === 'sending'}
+              icon={MessageSquare}
             >
-              {status === 'sending' ? (
-                <>
-                  <Send className="h-4 w-4 animate-pulse" /> Gönderiliyor...
-                </>
-              ) : (
-                <>
-                  <MessageSquare className="h-4 w-4" /> Mesaj Gönder
-                </>
-              )}
-            </button>
+              {status === 'sending' ? 'Gönderiliyor…' : 'Mesaj Gönder'}
+            </Button>
 
             <p className="text-center text-xs text-gray-500">
               Form gönderildiğinde varsayılan e-posta uygulamanız açılır. Sorun yaşarsanız doğrudan{' '}
@@ -512,7 +508,7 @@ export default function Iletisim() {
               <Building2 className="mt-0.5 h-5 w-5 flex-shrink-0 text-gold-400" />
               <div>
                 <h3 className="mb-1 text-sm font-semibold text-white">Marka</h3>
-                <p className="text-sm leading-6 text-gray-300">Borsa Krali</p>
+                <p className="text-sm leading-6 text-gray-300">Borsa Kralı</p>
               </div>
             </div>
             <div className="flex items-start gap-3 rounded-2xl border border-gold-500/20 bg-dark-900/40 p-5">

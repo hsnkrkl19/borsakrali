@@ -6,7 +6,6 @@ import {
   Check,
   Eye,
   EyeOff,
-  Loader,
   Lock,
   Mail,
   Phone,
@@ -21,6 +20,7 @@ import GoogleSignInButton from '../components/GoogleSignInButton'
 import { loginWithPassword, registerWithPassword } from '../services/auth'
 import { useAuthStore } from '../store/authStore'
 import { isPasswordValid } from '../utils/passwordPolicy'
+import { Button } from '../components/ui'
 
 function formatPhone(digits) {
   if (digits.length <= 3) return digits
@@ -310,23 +310,9 @@ export default function Register() {
                   </label>
                 </div>
 
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-gold-500 to-gold-600 px-4 py-3.5 font-semibold text-dark-950 shadow-glow-gold transition-all hover:from-gold-400 hover:to-gold-500 disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  {loading ? (
-                    <>
-                      <Loader className="h-4 w-4 animate-spin" />
-                      Hesap oluşturuluyor...
-                    </>
-                  ) : (
-                    <>
-                      Kayıt ol
-                      <ArrowRight className="h-4 w-4" />
-                    </>
-                  )}
-                </button>
+                <Button type="submit" variant="gold" size="lg" block loading={loading} iconRight={ArrowRight}>
+                  {loading ? 'Hesap oluşturuluyor…' : 'Kayıt ol'}
+                </Button>
               </form>
 
               {/* Divider + Google */}
@@ -408,11 +394,11 @@ function InputField({
           onChange={(event) => onChange(event.target.value)}
           placeholder={placeholder}
           autoComplete={autoComplete}
-          className="w-full rounded-2xl border border-gold-500/20 bg-dark-900/70 py-3 pl-11 pr-4 text-gray-100 placeholder:text-gray-500 focus:border-gold-500 focus:outline-none focus:ring-1 focus:ring-gold-500"
+          className="input-premium pl-11"
           required
         />
       </div>
-      {helperText ? <p className="mt-2 text-xs text-gray-500">{helperText}</p> : null}
+      {helperText ? <p className="mt-2 text-xs" style={{ color: 'var(--text-faint)' }}>{helperText}</p> : null}
     </div>
   )
 }
@@ -439,11 +425,8 @@ function PasswordField({
           onChange={(event) => onChange(event.target.value)}
           placeholder={placeholder}
           autoComplete={autoComplete}
-          className={`w-full rounded-2xl border bg-dark-900/70 py-3 pl-11 pr-12 text-gray-100 placeholder:text-gray-500 focus:outline-none focus:ring-1 ${
-            invalid
-              ? 'border-red-500/40 focus:border-red-500 focus:ring-red-500'
-              : 'border-gold-500/20 focus:border-gold-500 focus:ring-gold-500'
-          }`}
+          className="input-premium pl-11 pr-12"
+          style={invalid ? { borderColor: 'var(--ember)' } : undefined}
           required
         />
         <button

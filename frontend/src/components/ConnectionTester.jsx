@@ -74,7 +74,7 @@ export default function ConnectionTester() {
 
   const copyDiag = () => {
     const lines = [
-      `=== Borsa Krali Tanı Bilgisi ===`,
+      `=== Borsa Kralı Tanı Bilgisi ===`,
       `Time: ${new Date().toISOString()}`,
       `API Base: ${info.apiBase}`,
       `Origin: ${info.origin}`,

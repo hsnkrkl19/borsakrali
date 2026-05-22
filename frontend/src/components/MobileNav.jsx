@@ -37,7 +37,7 @@ const mainNavItemsAll = [
 const mainNavItemsPublic = [
   { path: '/',                label: 'Ana Sayfa',       icon: LayoutDashboard, isPublic: true },
   { path: '/sinyaller',       label: 'Sinyaller',       icon: Crosshair,       isPublic: true },
-  { path: '/egitim',          label: 'Egitim',          icon: BookOpen,        isPublic: true },
+  { path: '/egitim',          label: 'Eğitim',          icon: BookOpen,        isPublic: true },
   { path: '/ekonomik-takvim', label: 'Eko. Takvim',     icon: Calendar,        isPublic: true },
 ]
 
@@ -168,7 +168,7 @@ export default function MobileNav() {
 
             {!isAuthenticated && (
               <div className="mx-4 mt-4 p-4 bg-gradient-to-r from-gold-500/15 to-amber-500/10 border border-gold-500/30 rounded-2xl">
-                <p className="font-semibold text-white text-sm">Borsa Krali Premium</p>
+                <p className="font-semibold text-white text-sm">Borsa Kralı Premium</p>
                 <p className="text-xs text-gray-300 mt-1">
                   Sinyaller, AI skor, takip listesi ve daha fazlası için ücretsiz hesap aç.
                 </p>

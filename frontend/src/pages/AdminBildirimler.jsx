@@ -69,14 +69,14 @@ export default function AdminBildirimler() {
         path: targetPath,
       }, token)
 
-      setFeedback(data.message || 'Bildirim gonderildi')
+      setFeedback(data.message || 'Bildirim gönderildi')
       setTitle('')
       setBody('')
 
       const refreshed = await fetchAdminNotificationSummary(token)
       setSummary(refreshed)
     } catch (err) {
-      setError(err.message || 'Bildirim gonderilemedi')
+      setError(err.message || 'Bildirim gönderilemedi')
     } finally {
       setSending(false)
     }
@@ -88,7 +88,7 @@ export default function AdminBildirimler() {
         <div>
           <h1 className="text-2xl font-bold text-white">Admin Bildirim Merkezi</h1>
           <p className="text-sm text-gray-400 mt-1">
-            Buradan uygulama kapali olsa bile tum kurulu cihazlara FCM bildirimi gonderebilirsiniz.
+            Buradan uygulama kapalı olsa bile tüm kurulu cihazlara FCM bildirimi gönderebilirsiniz.
           </p>
         </div>
         <div className="px-3 py-2 rounded-xl bg-green-500/10 border border-green-500/30 text-green-400 text-sm flex items-center gap-2">
@@ -104,7 +104,7 @@ export default function AdminBildirimler() {
               <Smartphone className="w-5 h-5 text-gold-400" />
             </div>
             <div>
-              <div className="text-xs text-gray-500">Kayitli cihaz</div>
+              <div className="text-xs text-gray-500">Kayıtlı cihaz</div>
               <div className="text-2xl font-bold text-white">
                 {loadingSummary ? '...' : summary?.registeredDeviceCount ?? 0}
               </div>
@@ -118,9 +118,9 @@ export default function AdminBildirimler() {
               <BellRing className="w-5 h-5 text-blue-400" />
             </div>
             <div>
-              <div className="text-xs text-gray-500">Yayin konusu</div>
+              <div className="text-xs text-gray-500">Yayın konusu</div>
               <div className="text-sm font-semibold text-white break-all">
-                {loadingSummary ? 'Yukleniyor' : summary?.topic || 'Yok'}
+                {loadingSummary ? 'Yükleniyor' : summary?.topic || 'Yok'}
               </div>
             </div>
           </div>
@@ -140,7 +140,7 @@ export default function AdminBildirimler() {
             <div>
               <div className="text-xs text-gray-500">Firebase durumu</div>
               <div className="text-sm font-semibold text-white">
-                {loadingSummary ? 'Kontrol ediliyor' : summary?.configured ? 'Hazir' : 'Eksik'}
+                {loadingSummary ? 'Kontrol ediliyor' : summary?.configured ? 'Hazır' : 'Eksik'}
               </div>
             </div>
           </div>
@@ -158,43 +158,43 @@ export default function AdminBildirimler() {
           </p>
           {!summary.configured && (
             <p className="text-xs text-amber-200/80 mt-2">
-              Push bildiriminin calismasi icin Render env tarafinda Firebase service account eklenmeli ve
-              Android uygulamaya google-services.json dosyasi konulmalidir.
+              Push bildiriminin çalışması için Render env tarafında Firebase service account eklenmeli ve
+              Android uygulamaya google-services.json dosyası konulmalıdır.
             </p>
           )}
         </div>
       )}
 
       <div className="card border-gold-500/20">
-        <h2 className="text-lg font-semibold text-white mb-4">Toplu Bildirim Gonder</h2>
+        <h2 className="text-lg font-semibold text-white mb-4">Toplu Bildirim Gönder</h2>
 
         <form onSubmit={handleSend} className="space-y-4">
           <div>
-            <label className="block text-sm text-gray-400 mb-2">Bildirim basligi</label>
+            <label className="block text-sm text-gray-400 mb-2">Bildirim başlığı</label>
             <input
               className="input w-full"
               value={title}
               onChange={(event) => setTitle(event.target.value)}
-              placeholder="Ornek: Yeni analiz yayinda"
+              placeholder="Örnek: Yeni analiz yayında"
               maxLength={120}
               required
             />
           </div>
 
           <div>
-            <label className="block text-sm text-gray-400 mb-2">Bildirim mesaji</label>
+            <label className="block text-sm text-gray-400 mb-2">Bildirim mesajı</label>
             <textarea
               className="input w-full min-h-[120px] resize-y"
               value={body}
               onChange={(event) => setBody(event.target.value)}
-              placeholder="Ornek: EMA34 tarayiciya yeni sinyaller eklendi. Uygulamayi acip inceleyebilirsiniz."
+              placeholder="Örnek: EMA34 tarayıcıya yeni sinyaller eklendi. Uygulamayı açıp inceleyebilirsiniz."
               maxLength={500}
               required
             />
           </div>
 
           <div>
-            <label className="block text-sm text-gray-400 mb-2">Tiklaninca acilacak yol</label>
+            <label className="block text-sm text-gray-400 mb-2">Tıklanınca açılacak yol</label>
             <input
               className="input w-full"
               value={targetPath}
@@ -202,7 +202,7 @@ export default function AdminBildirimler() {
               placeholder="/gunluk-tespitler"
             />
             <p className="text-xs text-gray-500 mt-2">
-              Uygulama acildiginda gidilecek sayfa. Ornek: <span className="text-gold-400">/pro-analiz</span>
+              Uygulama açıldığında gidilecek sayfa. Örnek: <span className="text-gold-400">/pro-analiz</span>
             </p>
           </div>
 
@@ -224,17 +224,17 @@ export default function AdminBildirimler() {
             className="w-full md:w-auto px-5 py-3 rounded-xl bg-gradient-to-r from-gold-500 to-gold-600 text-dark-950 font-semibold flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
           >
             {sending ? <Loader className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-            Bildirimi Gonder
+            Bildirimi Gönder
           </button>
         </form>
       </div>
 
       {summary?.lastBroadcast && (
         <div className="card border-gold-500/20">
-          <h2 className="text-lg font-semibold text-white mb-3">Son gonderim</h2>
+          <h2 className="text-lg font-semibold text-white mb-3">Son gönderim</h2>
           <div className="space-y-2 text-sm">
             <div className="flex justify-between gap-4">
-              <span className="text-gray-400">Baslik</span>
+              <span className="text-gray-400">Başlık</span>
               <span className="text-white text-right">{summary.lastBroadcast.title}</span>
             </div>
             <div className="flex justify-between gap-4">
@@ -242,11 +242,11 @@ export default function AdminBildirimler() {
               <span className="text-white text-right">{summary.lastBroadcast.body}</span>
             </div>
             <div className="flex justify-between gap-4">
-              <span className="text-gray-400">Yonlendirme</span>
+              <span className="text-gray-400">Yönlendirme</span>
               <span className="text-gold-400 text-right">{summary.lastBroadcast.path || '-'}</span>
             </div>
             <div className="flex justify-between gap-4">
-              <span className="text-gray-400">Gonderen</span>
+              <span className="text-gray-400">Gönderen</span>
               <span className="text-white text-right">{summary.lastBroadcast.sentBy || '-'}</span>
             </div>
           </div>

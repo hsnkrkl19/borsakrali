@@ -2,12 +2,12 @@ import { useEffect, useState, useRef, useMemo } from 'react'
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
 import {
   Search, TrendingUp, TrendingDown, Activity, BarChart3, Brain, Waves,
-  CandlestickChart, Layers, Gem, Calculator, Hash, Newspaper, Building2,
-  ExternalLink, RefreshCw, ChevronRight, ArrowRight, Target, AlertCircle,
-  Sparkles, Crown, MessageCircle, FileText,
+  CandlestickChart, Layers, Calculator, Hash, Building2,
+  ExternalLink, RefreshCw, ChevronRight, AlertCircle, Sparkles, Crown,
 } from 'lucide-react'
 import api from '../services/api'
 import StockChart from '../components/charts/StockChart'
+import { Button, Card, Badge, Skeleton } from '../components/ui'
 
 // ─── TradingView dış link (sadece "Aç" butonu için) ───────────────────────
 function tvSymbolFor(symbol, isCrypto) {
@@ -42,41 +42,30 @@ function rsiSignal(r) {
 // ─── Kart wrapper'ı ────────────────────────────────────────────────────────
 function SectionCard({ icon: Icon, title, accent = 'var(--gold-400)', isNew, children, action, loading, empty, error }) {
   return (
-    <div
-      className="rounded-2xl border p-4 sm:p-5 flex flex-col gap-3"
-      style={{
-        background: 'var(--bg-card)',
-        borderColor: 'var(--border-main)',
-        boxShadow: `0 0 0 1px ${accent}10 inset`,
-      }}
-    >
+    <Card padding="md" className="flex flex-col gap-3">
       <div className="flex items-center gap-2">
-        <div
-          className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0"
-          style={{ background: `${accent}1f`, border: `1px solid ${accent}40`, color: accent }}
+        <span
+          className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg"
+          style={{
+            background: `color-mix(in srgb, ${accent} 13%, transparent)`,
+            border: `1px solid color-mix(in srgb, ${accent} 32%, transparent)`,
+            color: accent,
+          }}
         >
-          <Icon className="w-4.5 h-4.5" />
-        </div>
-        <h3 className="text-[14px] font-bold flex-1 truncate" style={{ color: 'var(--text-primary)' }}>
+          <Icon size={18} aria-hidden="true" />
+        </span>
+        <h3 className="flex-1 truncate text-[14px] font-bold" style={{ color: 'var(--text-primary)' }}>
           {title}
         </h3>
-        {isNew && (
-          <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full uppercase tracking-wider"
-            style={{ background: 'rgba(212, 175, 55, 0.15)', color: 'var(--gold-400)' }}
-          >Yeni</span>
-        )}
+        {isNew && <Badge tone="gold">Yeni</Badge>}
       </div>
 
-      <div className="flex-1 min-h-[80px]">
+      <div className="min-h-[80px] flex-1">
         {loading ? (
-          <div className="space-y-2 animate-pulse">
-            <div className="h-4 w-2/3 rounded" style={{ background: 'var(--bg-elevated)' }} />
-            <div className="h-4 w-1/2 rounded" style={{ background: 'var(--bg-elevated)' }} />
-            <div className="h-4 w-3/4 rounded" style={{ background: 'var(--bg-elevated)' }} />
-          </div>
+          <Skeleton count={3} />
         ) : error ? (
-          <div className="text-[12.5px] flex items-start gap-1.5" style={{ color: 'var(--text-faint)' }}>
-            <AlertCircle className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
+          <div className="flex items-start gap-1.5 text-[12.5px]" style={{ color: 'var(--text-faint)' }}>
+            <AlertCircle size={14} className="mt-0.5 flex-shrink-0" aria-hidden="true" />
             <span>{error}</span>
           </div>
         ) : empty ? (
@@ -90,10 +79,10 @@ function SectionCard({ icon: Icon, title, accent = 'var(--gold-400)', isNew, chi
           className="self-start inline-flex items-center gap-1 text-[12px] font-semibold transition-opacity hover:opacity-80"
           style={{ color: accent }}
         >
-          {action.label} <ChevronRight className="w-3.5 h-3.5" />
+          {action.label} <ChevronRight className="h-3.5 w-3.5" />
         </button>
       )}
-    </div>
+    </Card>
   )
 }
 
@@ -250,12 +239,7 @@ export default function HisseMerkezi() {
             {name && name !== symbol && (
               <span className="text-[13px]" style={{ color: 'var(--text-muted)' }}>{name}</span>
             )}
-            {sector && (
-              <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold uppercase tracking-wider"
-                style={{ background: 'rgba(212, 175, 55, 0.13)', color: 'var(--gold-400)' }}>
-                {sector}
-              </span>
-            )}
+            {sector && <Badge tone="gold">{sector}</Badge>}
           </div>
           <div className="flex items-baseline gap-3 mt-2">
             {overview.loading ? (
@@ -278,25 +262,26 @@ export default function HisseMerkezi() {
         </div>
 
         <div className="flex items-center gap-2">
-          <a
+          <Button
+            as="a"
             href={tvExternalLink(symbol, isCrypto)}
             target="_blank"
             rel="noopener noreferrer"
-            className="h-9 px-3 rounded-xl flex items-center gap-2 text-[12.5px] font-semibold transition-all"
-            style={{ background: 'rgba(33, 150, 243, 0.10)', border: '1px solid rgba(33, 150, 243, 0.35)', color: '#56a8f5' }}
+            variant="ghost"
+            size="sm"
+            icon={BarChart3}
+            iconRight={ExternalLink}
           >
-            <BarChart3 className="w-4 h-4" />
             TradingView
-            <ExternalLink className="w-3 h-3" />
-          </a>
-          <button
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            icon={RefreshCw}
             onClick={() => navigate(`/hisse/${symbol}`, { replace: false })}
-            className="h-9 px-3 rounded-xl flex items-center gap-2 text-[12.5px] font-semibold transition-all"
-            style={{ background: 'rgba(212, 175, 55, 0.10)', border: '1px solid var(--border-gold)', color: 'var(--gold-400)' }}
           >
-            <RefreshCw className="w-4 h-4" />
             Yenile
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -415,13 +400,7 @@ export default function HisseMerkezi() {
           {ema34.data && !ema34.data.error && (
             <div className="space-y-2">
               <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-[12px] font-bold px-2 py-0.5 rounded-full border"
-                  style={{
-                    background: ema34.data.aboveEma34 ? 'rgba(0, 201, 138, 0.12)' : 'rgba(255, 59, 70, 0.12)',
-                    borderColor: ema34.data.aboveEma34 ? 'rgba(0, 201, 138, 0.4)' : 'rgba(255, 59, 70, 0.4)',
-                    color: ema34.data.aboveEma34 ? 'var(--jade)' : 'var(--ember)',
-                  }}
-                >
+                <Badge tone={ema34.data.aboveEma34 ? 'jade' : 'ember'}>
                   {ema34.data.activeSignal === 'wave_long' ? '🌊 Wave AL' :
                    ema34.data.activeSignal === 'wave_short' ? '🌊 Wave SAT' :
                    ema34.data.activeSignal === 'cross_above' ? '↑ Yön yukarı' :
@@ -429,7 +408,7 @@ export default function HisseMerkezi() {
                    ema34.data.activeSignal === 'trending_up' ? '⇈ Yükselişte' :
                    ema34.data.activeSignal === 'trending_down' ? '⇊ Düşüşte' :
                    ema34.data.aboveEma34 ? '✓ Üzerinde' : '✗ Altında'}
-                </span>
+                </Badge>
                 <span className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
                   Skor {ema34.data.score}/100
                 </span>
@@ -467,15 +446,9 @@ export default function HisseMerkezi() {
               ? ((tema34.data.lastClose - t34) / t34) * 100 : null
             return (
               <div className="space-y-2">
-                <span className="text-[12px] font-bold px-2 py-0.5 rounded-full border"
-                  style={{
-                    background: above ? 'rgba(0, 201, 138, 0.12)' : 'rgba(255, 59, 70, 0.12)',
-                    borderColor: above ? 'rgba(0, 201, 138, 0.4)' : 'rgba(255, 59, 70, 0.4)',
-                    color: above ? 'var(--jade)' : 'var(--ember)',
-                  }}
-                >
+                <Badge tone={above ? 'jade' : 'ember'}>
                   {tema34.data.activeSignal || (above ? '✓ Üzerinde' : '✗ Altında')}
-                </span>
+                </Badge>
                 <div className="grid grid-cols-3 gap-2 text-[11px]">
                   <KPI label="TEMA34" value={fmt(t34)} />
                   <KPI label="Uzaklık" value={fmtPct(dist)}
@@ -597,15 +570,9 @@ export default function HisseMerkezi() {
               </div>
               <div className="flex flex-wrap gap-1">
                 {combo.data.results.filter(r => r.matched).slice(0, 4).map((r, i) => (
-                  <span key={i} className="text-[10px] px-1.5 py-0.5 rounded font-semibold"
-                    style={{
-                      background: r.direction === 'long' || r.direction === 'bullish'
-                        ? 'rgba(0, 201, 138, 0.13)' : 'rgba(255, 59, 70, 0.13)',
-                      color: r.direction === 'long' || r.direction === 'bullish' ? 'var(--jade)' : 'var(--ember)',
-                    }}
-                  >
+                  <Badge key={i} tone={r.direction === 'long' || r.direction === 'bullish' ? 'jade' : 'ember'}>
                     {r.name || r.strategy || r.label}
-                  </span>
+                  </Badge>
                 ))}
               </div>
             </div>
@@ -671,11 +638,7 @@ export default function HisseMerkezi() {
                     valueColor={upside >= 0 ? 'var(--jade)' : 'var(--ember)'} />
                 </div>
                 {dcf.data.recommendation && (
-                  <span className="text-[10.5px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider"
-                    style={{ background: 'rgba(34, 211, 238, 0.13)', color: '#22d3ee' }}
-                  >
-                    {dcf.data.recommendation}
-                  </span>
+                  <Badge tone="azure">{dcf.data.recommendation}</Badge>
                 )}
               </div>
             )
@@ -884,18 +847,9 @@ function SymbolFinder({ onPick, compact = false, placeholder = 'Hisse veya kript
         <div className="flex flex-wrap gap-1.5 mt-3">
           <span className="text-[11px] mr-1 self-center" style={{ color: 'var(--text-faint)' }}>Popüler:</span>
           {['THYAO', 'GARAN', 'ASELS', 'KCHOL', 'EREGL', 'BIMAS', 'TUPRS', 'AKBNK'].map(s => (
-            <button
-              key={s}
-              onClick={() => goSymbol(s, 'stock')}
-              className="text-[11px] font-semibold px-2 py-1 rounded-lg transition-all hover:scale-105"
-              style={{
-                background: 'rgba(212, 175, 55, 0.10)',
-                border: '1px solid rgba(212, 175, 55, 0.25)',
-                color: 'var(--gold-400)',
-              }}
-            >
+            <Button key={s} variant="outline" size="sm" onClick={() => goSymbol(s, 'stock')}>
               {s}
-            </button>
+            </Button>
           ))}
         </div>
       )}

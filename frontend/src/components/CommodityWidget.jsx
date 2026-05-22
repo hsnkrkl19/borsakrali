@@ -3,9 +3,9 @@ import { createChart } from 'lightweight-charts'
 import { fetchCommodityHistory } from '../utils/commodityHistory'
 
 const COMM_LIST = [
-  { key: 'gold_usd', label: 'Altin (Ons)', short: 'AU', color: '#f59e0b', unit: 'USD' },
-  { key: 'silver_usd', label: 'Gumus (Ons)', short: 'AG', color: '#94a3b8', unit: 'USD' },
-  { key: 'gold_try', label: 'Gram Altin', short: 'GR', color: '#f97316', unit: 'TL/gr' },
+  { key: 'gold_usd', label: 'Altın (Ons)', short: 'AU', color: '#f59e0b', unit: 'USD' },
+  { key: 'silver_usd', label: 'Gümüş (Ons)', short: 'AG', color: '#94a3b8', unit: 'USD' },
+  { key: 'gold_try', label: 'Gram Altın', short: 'GR', color: '#f97316', unit: 'TL/gr' },
   { key: 'usd_try', label: 'Dolar/TL', short: 'USD', color: '#22c55e', unit: 'TL' },
 ]
 
@@ -95,7 +95,7 @@ function CommodityCard({ commodity }) {
             <div className="truncate text-base font-bold leading-tight text-white md:text-lg">
               {price != null
                 ? price.toLocaleString('tr-TR', { maximumFractionDigits: 2 })
-                : <span className="text-xs text-gray-500">Yukleniyor...</span>}
+                : <span className="text-xs text-gray-500">Yükleniyor...</span>}
             </div>
             {price != null && (
               <span className="shrink-0 pb-0.5 text-[10px] font-normal text-gray-500 md:text-xs">
@@ -152,7 +152,7 @@ export default function CommodityWidget() {
   if (error) {
     return (
       <div className="card py-4 text-center text-sm text-gray-500">
-        Veri yuklenemedi. Backend'i yeniden baslatin.
+        Veri yüklenemedi. Backend'i yeniden başlatın.
       </div>
     )
   }

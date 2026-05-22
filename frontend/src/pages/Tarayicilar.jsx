@@ -14,6 +14,7 @@ import TaramaAnalizMerkezi from './TaramaAnalizMerkezi'
 import StratejiKombolari from './StratejiKombolari'
 import XGundem from './XGundem'
 import HaberAkisi from './HaberAkisi'
+import { Button, Badge } from '../components/ui'
 
 // ── Varlık grupları ─────────────────────────────────────────────────────────
 // Her sekme bir veya birden fazla varlık grubuna ait olabilir.
@@ -214,26 +215,6 @@ export default function Tarayicilar() {
 
   return (
     <div className="space-y-4">
-      {/* Header */}
-      <div className="card !p-0 border-amber-500/30 relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-br from-amber-500/[0.10] to-transparent pointer-events-none" />
-        <div className="relative flex items-center gap-3 p-4 sm:p-5">
-          <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center shadow-lg shadow-amber-500/30">
-            <Sparkles className="w-5 h-5 text-slate-950" />
-          </div>
-          <div className="min-w-0 flex-1">
-            <h1 className="text-xl sm:text-2xl font-bold tracking-tight" style={{ color: 'var(--text-primary)' }}>Tarayıcılar</h1>
-            <p className="text-xs sm:text-sm" style={{ color: 'var(--text-muted)' }}>
-              BIST · Kripto · Altın & Gümüş — tüm tarama araçları tek çatı altında
-            </p>
-          </div>
-          <div className="hidden md:flex items-center gap-2 text-[11px] text-gray-500">
-            <span className="px-2 py-1 rounded-md bg-dark-800 border border-dark-700">{TABS.length} araç</span>
-            <span className="px-2 py-1 rounded-md bg-dark-800 border border-dark-700">{visibleTabs.length} görünür</span>
-          </div>
-        </div>
-      </div>
-
       {/* Kıymetli Metaller & Döviz fiyat şeridi */}
       <CommodityStrip />
 
@@ -282,28 +263,22 @@ export default function Tarayicilar() {
         className="bg-dark-900/60 border border-dark-700 rounded-2xl p-1 md:p-1.5 gap-1"
       >
         {visibleTabs.map(t => {
-          const Icon = t.icon
           const isActive = active === t.id
           return (
-            <button
+            <Button
               key={t.id}
               data-tab-key={t.id}
+              variant={isActive ? 'gold' : 'subtle'}
+              size="sm"
+              icon={t.icon}
               onClick={() => setTab(t.id)}
-              className={`flex-shrink-0 flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-4 py-2 sm:py-2.5 rounded-xl text-[12px] sm:text-sm font-semibold whitespace-nowrap transition-all
-                ${isActive
-                  ? 'bg-gradient-to-r from-amber-500 to-amber-600 text-dark-950 shadow-lg shadow-amber-500/25'
-                  : 'text-gray-400 hover:text-white hover:bg-dark-800'
-                }`}
+              aria-pressed={isActive}
+              className="flex-shrink-0"
             >
-              <Icon className="w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0" />
               {t.label}
-              {t.isNew && !isActive && (
-                <span className="text-[8px] sm:text-[9px] font-bold px-1 sm:px-1.5 py-0.5 rounded bg-amber-500/30 text-amber-200 border border-amber-500/40 leading-none">YENİ</span>
-              )}
-              {t.isUpdated && !isActive && (
-                <span className="text-[8px] sm:text-[9px] font-bold px-1 sm:px-1.5 py-0.5 rounded bg-emerald-500/30 text-emerald-200 border border-emerald-500/40 leading-none">+</span>
-              )}
-            </button>
+              {t.isNew && !isActive && <Badge tone="gold">Yeni</Badge>}
+              {t.isUpdated && !isActive && <Badge tone="jade">+</Badge>}
+            </Button>
           )
         })}
       </ScrollableTabBar>

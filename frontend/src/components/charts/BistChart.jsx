@@ -41,7 +41,7 @@ export default function BistChart({ period: propPeriod = '1D', refreshInterval =
       setBistData(data)
       setError(null)
     } catch {
-      setError('Baglanti hatasi')
+      setError('Bağlantı hatası')
     } finally {
       setLoading(false)
     }
@@ -253,19 +253,19 @@ export default function BistChart({ period: propPeriod = '1D', refreshInterval =
       {bistData && (
         <div className={`${palette.footerClass} px-3 py-2 border-t grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs`}>
           <div>
-            <span className="text-gray-500 block">Acilis</span>
+            <span className="text-gray-500 block">Açılış</span>
             <p className="text-white font-medium">{bistData.open?.toLocaleString('tr-TR')}</p>
           </div>
           <div>
-            <span className="text-gray-500 block">En Yuksek</span>
+            <span className="text-gray-500 block">En Yüksek</span>
             <p className="text-green-400 font-medium">{(bistData.high ?? bistData.dayHigh)?.toLocaleString('tr-TR')}</p>
           </div>
           <div>
-            <span className="text-gray-500 block">En Dusuk</span>
+            <span className="text-gray-500 block">En Düşük</span>
             <p className="text-red-400 font-medium">{(bistData.low ?? bistData.dayLow)?.toLocaleString('tr-TR')}</p>
           </div>
           <div>
-            <span className="text-gray-500 block">Onceki Kapanis</span>
+            <span className="text-gray-500 block">Önceki Kapanış</span>
             <p className="text-white font-medium">{bistData.previousClose?.toLocaleString('tr-TR')}</p>
           </div>
         </div>

@@ -22,6 +22,7 @@ import {
 } from 'lucide-react'
 import { createChart } from 'lightweight-charts'
 import api from '../services/api'
+import { Button } from '../components/ui'
 
 const TABS = [
   { id: 'overview',  label: 'Genel Bakış',     icon: TrendingUp },
@@ -150,14 +151,9 @@ function OverviewTab({ status, loading, onRefresh }) {
         <h2 className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>
           Bot performansı
         </h2>
-        <button
-          onClick={onRefresh}
-          className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border"
-          style={{ background: 'rgba(255,255,255,0.05)', borderColor: 'var(--border-subtle)', color: 'var(--text-secondary)' }}
-        >
-          <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+        <Button variant="ghost" size="sm" icon={RefreshCw} loading={loading} onClick={onRefresh}>
           Yenile
-        </button>
+        </Button>
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -221,13 +217,9 @@ function OpenPositionsTab({ open, pending, onRefresh, loading }) {
         <h2 className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>
           Aktif pozisyonlar ({open.length} açık · {pending.length} bekleyen)
         </h2>
-        <button
-          onClick={onRefresh}
-          className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border"
-          style={{ background: 'rgba(255,255,255,0.05)', borderColor: 'var(--border-subtle)', color: 'var(--text-secondary)' }}
-        >
-          <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} /> Yenile
-        </button>
+        <Button variant="ghost" size="sm" icon={RefreshCw} loading={loading} onClick={onRefresh}>
+          Yenile
+        </Button>
       </div>
 
       {open.length === 0 && pending.length === 0 && (
@@ -414,11 +406,9 @@ function TradesTab({ trades, onRefresh, loading }) {
         <h2 className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>
           Kapanan işlemler ({trades.length})
         </h2>
-        <button onClick={onRefresh}
-                className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border"
-                style={{ background: 'rgba(255,255,255,0.05)', borderColor: 'var(--border-subtle)', color: 'var(--text-secondary)' }}>
-          <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} /> Yenile
-        </button>
+        <Button variant="ghost" size="sm" icon={RefreshCw} loading={loading} onClick={onRefresh}>
+          Yenile
+        </Button>
       </div>
 
       {summary && (
@@ -537,11 +527,9 @@ function SignalLogTab({ entries, onRefresh, loading, filters, setFilters }) {
         <h2 className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>
           Sinyal Logu — {entries.length} kayıt
         </h2>
-        <button onClick={onRefresh}
-                className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border"
-                style={{ background: 'rgba(255,255,255,0.05)', borderColor: 'var(--border-subtle)', color: 'var(--text-secondary)' }}>
-          <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} /> Yenile
-        </button>
+        <Button variant="ghost" size="sm" icon={RefreshCw} loading={loading} onClick={onRefresh}>
+          Yenile
+        </Button>
       </div>
 
       <div className="rounded-2xl p-3 border flex flex-wrap gap-2 text-xs"
@@ -867,21 +855,6 @@ export default function TradingBot() {
 
   return (
     <div className="space-y-4 max-w-7xl mx-auto">
-      <header className="flex items-center gap-3">
-        <div className="p-2.5 rounded-xl"
-             style={{ background: 'rgba(212,175,55,0.10)', border: '1px solid var(--border-gold)' }}>
-          <Bot className="w-6 h-6" style={{ color: 'var(--gold-400)' }} />
-        </div>
-        <div>
-          <h1 className="text-xl sm:text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>
-            Trading Bot
-          </h1>
-          <p className="text-xs sm:text-sm" style={{ color: 'var(--text-secondary)' }}>
-            Bugünün LONG sinyallerini sanal portföyle takip eden bot. Tüm kararlar log'da.
-          </p>
-        </div>
-      </header>
-
       <div className="flex flex-wrap gap-1 border-b" style={{ borderColor: 'var(--border-subtle)' }}>
         {TABS.map(t => {
           const Icon = t.icon

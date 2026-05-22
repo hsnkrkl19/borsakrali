@@ -6,6 +6,7 @@ import {
   Wallet, Smartphone,
 } from 'lucide-react'
 import BrandMark from '../components/BrandMark'
+import { Card } from '../components/ui'
 
 const features = [
   {
@@ -39,22 +40,22 @@ const audiences = [
   {
     icon: GraduationCap,
     title: 'Yeni Başlayanlar',
-    body: 'Borsaya yeni adım atan yatırımcılar için Borsa Krali, karmaşık finans teorilerini sade ve görsel hale getirir. Heatmap renk tonları ile sektör performansı anlık görülüyor; tek tıkla istediğiniz hissenin teknik ve temel göstergelerine erişebiliyorsunuz. AI Skor\'un nasıl hesaplandığı sayfanın alt kısmında adım adım açıklanır. Eğitim odaklı yapısı sayesinde her sinyal, neden o sonucu üretti açıkça gösterilir. Terim sözlüğü ve gösterge anlatımları ile teori ve pratiği birlikte öğrenebiliyorsunuz; gerçek piyasaya hazırlıksız çıkmazsınız.',
+    body: 'Borsaya yeni adım atan yatırımcılar için Borsa Kralı, karmaşık finans teorilerini sade ve görsel hale getirir. Heatmap renk tonları ile sektör performansı anlık görülüyor; tek tıkla istediğiniz hissenin teknik ve temel göstergelerine erişebiliyorsunuz. AI Skor\'un nasıl hesaplandığı sayfanın alt kısmında adım adım açıklanır. Eğitim odaklı yapısı sayesinde her sinyal, neden o sonucu üretti açıkça gösterilir. Terim sözlüğü ve gösterge anlatımları ile teori ve pratiği birlikte öğrenebiliyorsunuz; gerçek piyasaya hazırlıksız çıkmazsınız.',
   },
   {
     icon: TrendingUp,
     title: 'Aktif Yatırımcılar',
-    body: 'Günde 5-20 işlem yapan aktif yatırımcılar için Borsa Krali zaman tasarrufu sağlar. Sabah 09:55\'te gelen sinyal taraması, gün içinde fırsat kollayan hisseleri otomatik listeler. Malaysian SNR ile destek-direnç bölgelerini, EMA34 ile trend yönünü ve Pivot hesaplamaları ile günlük hedef seviyeleri ayrı ayrı taranabiliyor. Hızlı arama, watchlist, gerçek zamanlı fiyat akışı ve mobil push bildirimler ile fırsatları kaçırmadan takip edebilirsiniz; her şey tek bir kokpitte toplanıyor.',
+    body: 'Günde 5-20 işlem yapan aktif yatırımcılar için Borsa Kralı zaman tasarrufu sağlar. Sabah 09:55\'te gelen sinyal taraması, gün içinde fırsat kollayan hisseleri otomatik listeler. Malaysian SNR ile destek-direnç bölgelerini, EMA34 ile trend yönünü ve Pivot hesaplamaları ile günlük hedef seviyeleri ayrı ayrı taranabiliyor. Hızlı arama, watchlist, gerçek zamanlı fiyat akışı ve mobil push bildirimler ile fırsatları kaçırmadan takip edebilirsiniz; her şey tek bir kokpitte toplanıyor.',
   },
   {
     icon: Briefcase,
     title: 'Profesyoneller',
-    body: 'Portföy yöneticileri, finansal analistler ve kurumsal yatırımcılar için Borsa Krali; mali tablo, oran analizleri ve KAP haberleri konusunda uzman dostu bir arayüz sunar. Bilanço, gelir tablosu ve nakit akışı karşılaştırmalı olarak yan yana görüntülenir; F/K, PD/DD, ROE, ROIC, brüt kar marjı gibi 30\'dan fazla oran tek panelde toplanır. Algoritma performans takibi ile geçmiş sinyallerin getiri istatistikleri saydam şekilde sunulur; CSV indirme ve API erişimi premium planlarda mevcuttur.',
+    body: 'Portföy yöneticileri, finansal analistler ve kurumsal yatırımcılar için Borsa Kralı; mali tablo, oran analizleri ve KAP haberleri konusunda uzman dostu bir arayüz sunar. Bilanço, gelir tablosu ve nakit akışı karşılaştırmalı olarak yan yana görüntülenir; F/K, PD/DD, ROE, ROIC, brüt kar marjı gibi 30\'dan fazla oran tek panelde toplanır. Algoritma performans takibi ile geçmiş sinyallerin getiri istatistikleri saydam şekilde sunulur; CSV indirme ve API erişimi premium planlarda mevcuttur.',
   },
   {
     icon: BookOpen,
     title: 'Eğitim Alanlar',
-    body: 'Öğrenciler, finansal okuryazarlık kursları ve borsa eğitimi alan herkes için Borsa Krali, gerçek piyasa verileri üzerinde çalışma olanağı sunar. Yeni Başlayanlar Akademisi, gösterge sözlüğü, terim açıklamaları ve sinyal mantığı anlatım sayfaları ile teori ve pratik birlikte gelir. Çalışma kayıtlarınızı finansal notlar bölümünde tutabilir, hangi hisseyi neden incelediğinizi yazarak öğrenme sürecinizi yapılandırabilirsiniz. Ücretsiz plan kapsamında günde 5 hisse derinlemesine analizine erişilir.',
+    body: 'Öğrenciler, finansal okuryazarlık kursları ve borsa eğitimi alan herkes için Borsa Kralı, gerçek piyasa verileri üzerinde çalışma olanağı sunar. Yeni Başlayanlar Akademisi, gösterge sözlüğü, terim açıklamaları ve sinyal mantığı anlatım sayfaları ile teori ve pratik birlikte gelir. Çalışma kayıtlarınızı finansal notlar bölümünde tutabilir, hangi hisseyi neden incelediğinizi yazarak öğrenme sürecinizi yapılandırabilirsiniz. Ücretsiz plan kapsamında günde 5 hisse derinlemesine analizine erişilir.',
   },
 ]
 
@@ -62,12 +63,12 @@ const differentiators = [
   {
     icon: Zap,
     title: 'Gerçek Zamanlı Veri Akışı',
-    body: 'Çoğu ücretsiz platform 15-20 dakika gecikmeli veri sunarken, Borsa Krali aktif işlem saatlerinde Yahoo Finance bağlantısı üzerinden mum verilerini ortalama 30-60 saniye gecikme ile güncellemektedir. Heatmap, watchlist ve hisse detay sayfalarındaki fiyatlar WebSocket bildirimleri ile arka planda sürekli yenilenir. Sayfayı manuel tazelemenize gerek yok; piyasa hareket ederken ekranınız da hareket eder. Hızlı yatırım kararları için saniyelerin önemli olduğu bir ortamda kritik avantaj sağlar.',
+    body: 'Çoğu ücretsiz platform 15-20 dakika gecikmeli veri sunarken, Borsa Kralı aktif işlem saatlerinde Yahoo Finance bağlantısı üzerinden mum verilerini ortalama 30-60 saniye gecikme ile güncellemektedir. Heatmap, watchlist ve hisse detay sayfalarındaki fiyatlar WebSocket bildirimleri ile arka planda sürekli yenilenir. Sayfayı manuel tazelemenize gerek yok; piyasa hareket ederken ekranınız da hareket eder. Hızlı yatırım kararları için saniyelerin önemli olduğu bir ortamda kritik avantaj sağlar.',
   },
   {
     icon: BadgeCheck,
     title: 'Kural Bazlı, Saydam Sinyal',
-    body: 'Borsa Krali\'da hiçbir sinyal kara kutu değildir. Tüm sinyaller, 16 belirli teknik koşulun mantık kapıları ile birleştirilmesinden üretilir; her sinyalin yanında neden verildiği adım adım açıklanır. Bir hisseye 12/16 puan verildiyse hangi 12 koşulun sağlandığını, hangi 4 koşulun sağlanmadığını görebilirsiniz. Bu saydamlık, kullanıcının sinyal mantığını anlayıp kendi karar sürecine entegre etmesini sağlar; sihir yerine matematik vardır, her hesap geri izlenebilir ve doğrulanabilir.',
+    body: 'Borsa Kralı\'da hiçbir sinyal kara kutu değildir. Tüm sinyaller, 16 belirli teknik koşulun mantık kapıları ile birleştirilmesinden üretilir; her sinyalin yanında neden verildiği adım adım açıklanır. Bir hisseye 12/16 puan verildiyse hangi 12 koşulun sağlandığını, hangi 4 koşulun sağlanmadığını görebilirsiniz. Bu saydamlık, kullanıcının sinyal mantığını anlayıp kendi karar sürecine entegre etmesini sağlar; sihir yerine matematik vardır, her hesap geri izlenebilir ve doğrulanabilir.',
   },
   {
     icon: Brain,
@@ -77,7 +78,7 @@ const differentiators = [
   {
     icon: BarChart3,
     title: 'Kapsamlı Mali Tablo Arşivi',
-    body: 'Çoğu kullanıcı dostu platform yalnızca son çeyrek bilançosunu gösterirken, Borsa Krali son 5 yıla ait tüm bilanço, gelir tablosu ve nakit akışı tablolarını karşılaştırmalı olarak sunmaktadır. Yıllık ve çeyreklik görünüm arasında tek tıkla geçiliyor; F/K, PD/DD, ROE, ROIC ve brüt kar marjı gibi temel oranlar otomatik olarak hesaplanıp trend çizgisinde gösterilir. KAP duyuruları mali tablolarla entegre, özet halinde üst kısımda yer alır.',
+    body: 'Çoğu kullanıcı dostu platform yalnızca son çeyrek bilançosunu gösterirken, Borsa Kralı son 5 yıla ait tüm bilanço, gelir tablosu ve nakit akışı tablolarını karşılaştırmalı olarak sunmaktadır. Yıllık ve çeyreklik görünüm arasında tek tıkla geçiliyor; F/K, PD/DD, ROE, ROIC ve brüt kar marjı gibi temel oranlar otomatik olarak hesaplanıp trend çizgisinde gösterilir. KAP duyuruları mali tablolarla entegre, özet halinde üst kısımda yer alır.',
   },
   {
     icon: Wallet,
@@ -87,14 +88,14 @@ const differentiators = [
   {
     icon: Smartphone,
     title: 'Mobil Uyumlu ve Native Uygulama',
-    body: 'Web arayüzü, telefon ve tablet ekranlarında eksiksiz çalışır; tüm sayfalar 320 piksel genişliğinden itibaren optimize edilmiştir. Bunun yanında Android için native paketlenmiş APK uygulamamız (Borsa Krali v3) push bildirim desteği, offline görünüm ve daha hızlı başlangıç süresi sunar. APK, Google Play dışından doğrudan platform üzerinden indirilebilmektedir. iOS native versiyonu yol haritamızda yer almaktadır; bu sırede iPhone kullanıcıları Safari üzerinden web siteyi ana ekrana ekleyebilir.',
+    body: 'Web arayüzü, telefon ve tablet ekranlarında eksiksiz çalışır; tüm sayfalar 320 piksel genişliğinden itibaren optimize edilmiştir. Bunun yanında Android için native paketlenmiş APK uygulamamız (Borsa Kralı v3) push bildirim desteği, offline görünüm ve daha hızlı başlangıç süresi sunar. APK, Google Play dışından doğrudan platform üzerinden indirilebilmektedir. iOS native versiyonu yol haritamızda yer almaktadır; bu sırede iPhone kullanıcıları Safari üzerinden web siteyi ana ekrana ekleyebilir.',
   },
 ]
 
 const faqs = [
   {
-    q: 'Borsa Krali ücretsiz mi?',
-    a: 'Evet, Borsa Krali\'nin temel özellikleri tamamen ücretsizdir. Kayıt sonrası günde 5 hisse derinlemesine analizi, sınırsız heatmap görüntüleme, BIST100 sinyallerinin günlük özeti ve eğitim içeriği hiçbir ücret talep edilmeden alınabilir. Daha yoğun kullanım, gerçek zamanlı bildirim, sınırsız analiz ve gelişmiş tarayıcılar için aylık 50 TL Starter, 300 TL Pro veya tek seferlik 1500 TL Lifetime planları sunulmaktadır. Hiçbir plan otomatik yenilenmez; istediğiniz zaman iptal edebilir, plan yükseltebilir veya düşürebilirsiniz.',
+    q: 'Borsa Kralı ücretsiz mi?',
+    a: 'Evet, Borsa Kralı\'nın temel özellikleri tamamen ücretsizdir. Kayıt sonrası günde 5 hisse derinlemesine analizi, sınırsız heatmap görüntüleme, BIST100 sinyallerinin günlük özeti ve eğitim içeriği hiçbir ücret talep edilmeden alınabilir. Daha yoğun kullanım, gerçek zamanlı bildirim, sınırsız analiz ve gelişmiş tarayıcılar için aylık 50 TL Starter, 300 TL Pro veya tek seferlik 1500 TL Lifetime planları sunulmaktadır. Hiçbir plan otomatik yenilenmez; istediğiniz zaman iptal edebilir, plan yükseltebilir veya düşürebilirsiniz.',
   },
   {
     q: 'Sinyaller ne kadar güvenilir?',
@@ -110,7 +111,7 @@ const faqs = [
   },
   {
     q: 'Yatırım tavsiyesi mi veriyorsunuz?',
-    a: 'Hayır, kesinlikle hayır. Borsa Krali bir yatırım danışmanlık kuruluşu değildir; SPK lisanslı yatırım danışmanı da değildir. Platform üzerinden sunulan tüm analizler, sinyaller, skorlar ve yorumlar yalnızca eğitim ve bilgi amaçlı sunulmaktadır. Hiçbir gösterim "al" veya "sat" tavsiyesi olarak yorumlanmamalı, kişisel yatırım kararlarınızın yerine geçmemelidir. Yatırım kararlarınızdan doğan tüm kar veya zarardan tamamen siz sorumlusunuz. Önemli kararlardan önce SPK lisanslı bir profesyonele başvurmanız önerilir.',
+    a: 'Hayır, kesinlikle hayır. Borsa Kralı bir yatırım danışmanlık kuruluşu değildir; SPK lisanslı yatırım danışmanı da değildir. Platform üzerinden sunulan tüm analizler, sinyaller, skorlar ve yorumlar yalnızca eğitim ve bilgi amaçlı sunulmaktadır. Hiçbir gösterim "al" veya "sat" tavsiyesi olarak yorumlanmamalı, kişisel yatırım kararlarınızın yerine geçmemelidir. Yatırım kararlarınızdan doğan tüm kar veya zarardan tamamen siz sorumlusunuz. Önemli kararlardan önce SPK lisanslı bir profesyonele başvurmanız önerilir.',
   },
   {
     q: 'Mobil uygulama var mı?',
@@ -133,7 +134,7 @@ export default function Hakkimizda() {
         <div className="mb-8 flex items-center justify-between gap-4">
           <Link to="/" className="inline-flex items-center gap-3 text-sm text-gold-400 hover:text-gold-300">
             <BrandMark size="sm" />
-            Borsa Krali
+            Borsa Kralı
           </Link>
           <div className="flex flex-wrap gap-4 text-sm">
             <Link to="/iletisim" className="text-gray-400 hover:text-white">İletişim</Link>
@@ -145,9 +146,9 @@ export default function Hakkimizda() {
         <div className="rounded-3xl border border-gold-500/20 bg-surface-100 p-6 md:p-8 shadow-premium">
           <div className="mb-8 space-y-3">
             <p className="text-sm font-medium text-gold-400">Hakkımızda</p>
-            <h1 className="text-3xl font-bold text-white">Borsa Krali Nedir?</h1>
+            <h1 className="text-3xl font-bold text-white">Borsa Kralı Nedir?</h1>
             <p className="max-w-3xl text-sm leading-7 text-gray-300">
-              Borsa Krali; Borsa İstanbul yatırımcıları için geliştirilmiş premium analiz platformudur.
+              Borsa Kralı; Borsa İstanbul yatırımcıları için geliştirilmiş premium analiz platformudur.
               Canlı piyasa verileri, kural bazlı AI sinyalleri, mali tablo incelemeleri, tarayıcılar ve
               eğitim içerikleri tek bir uygulamada birleştirilmiştir. Amacımız bireysel yatırımcının,
               kurumsal seviyede araçlara hızlı ve sade bir arayüzle erişmesini sağlamaktır.
@@ -156,13 +157,13 @@ export default function Hakkimizda() {
 
           <div className="mb-8 grid gap-4 md:grid-cols-2">
             {features.map(({ icon: Icon, title, body }) => (
-              <div key={title} className="rounded-2xl border border-white/5 bg-dark-900/40 p-5">
+              <Card key={title} padding="none" className="p-5">
                 <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-gold-500/15 text-gold-400">
                   <Icon className="h-5 w-5" />
                 </div>
                 <h2 className="mb-2 text-lg font-semibold text-white">{title}</h2>
                 <p className="text-sm leading-6 text-gray-300">{body}</p>
-              </div>
+              </Card>
             ))}
           </div>
 
@@ -173,7 +174,7 @@ export default function Hakkimizda() {
             </h2>
             <p className="text-sm leading-7 text-gray-300">
               Yatırım kararlarının verisel ve kural bazlı temellere dayanması gerektiğine inanıyoruz.
-              Borsa Krali; karmaşık finansal kavramları sade görüntülere dönüştürerek, hem yeni başlayan
+              Borsa Kralı; karmaşık finansal kavramları sade görüntülere dönüştürerek, hem yeni başlayan
               hem de tecrübeli yatırımcının piyasayı daha hızlı okumasına yardımcı olur.
             </p>
           </section>
@@ -181,11 +182,11 @@ export default function Hakkimizda() {
           <section className="mb-6 rounded-2xl border border-white/5 bg-dark-900/40 p-5">
             <h2 className="mb-3 flex items-center gap-2 text-lg font-semibold text-white">
               <Layers className="h-5 w-5 text-gold-400" />
-              Borsa Krali Nasıl Çalışır?
+              Borsa Kralı Nasıl Çalışır?
             </h2>
             <div className="space-y-4 text-sm leading-7 text-gray-300">
               <p>
-                Borsa Krali, modern bir teknik altyapı üzerine kurulmuştur. Sistem; React 18 ve Vite
+                Borsa Kralı, modern bir teknik altyapı üzerine kurulmuştur. Sistem; React 18 ve Vite
                 tabanlı hızlı bir ön yüz, Node.js ile Express üzerinde çalışan veri katmanı, Yahoo Finance
                 ve KAP gibi güvenilir kaynaklardan beslenen veri hatları ve gerçek zamanlı WebSocket
                 bildirimleri üzerinden işlemektedir. Açılan her sayfa, arka planda paralel çağrılarla BIST
@@ -217,18 +218,18 @@ export default function Hakkimizda() {
               Kimler İçin Tasarlandı?
             </h2>
             <p className="mb-4 text-sm leading-6 text-gray-400">
-              Borsa Krali farklı yatırımcı profilleri düşünülerek tasarlandı. Hangi kitleye nasıl hitap
+              Borsa Kralı farklı yatırımcı profilleri düşünülerek tasarlandı. Hangi kitleye nasıl hitap
               ettiğini aşağıdaki kartlarda inceleyebilirsiniz.
             </p>
             <div className="grid gap-4 md:grid-cols-2">
               {audiences.map(({ icon: Icon, title, body }) => (
-                <div key={title} className="rounded-xl border border-white/5 bg-dark-950/40 p-4">
+                <Card key={title} padding="none" className="p-4">
                   <div className="mb-3 flex h-9 w-9 items-center justify-center rounded-lg bg-gold-500/15 text-gold-400">
                     <Icon className="h-5 w-5" />
                   </div>
                   <h3 className="mb-2 text-base font-semibold text-white">{title}</h3>
                   <p className="text-sm leading-6 text-gray-300">{body}</p>
-                </div>
+                </Card>
               ))}
             </div>
           </section>
@@ -239,12 +240,12 @@ export default function Hakkimizda() {
               Bizi Diğer Platformlardan Ayıran 6 Özellik
             </h2>
             <p className="mb-4 text-sm leading-6 text-gray-400">
-              Türkiye&apos;de onlarca borsa platformu var; ancak Borsa Krali şu 6 noktada belirgin
+              Türkiye&apos;de onlarca borsa platformu var; ancak Borsa Kralı şu 6 noktada belirgin
               şekilde farklılaşır.
             </p>
             <div className="space-y-4">
               {differentiators.map(({ icon: Icon, title, body }, idx) => (
-                <div key={title} className="flex gap-4 rounded-xl border border-white/5 bg-dark-950/40 p-4">
+                <Card key={title} padding="none" className="flex gap-4 p-4">
                   <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-gold-500/15 text-gold-400">
                     <Icon className="h-5 w-5" />
                   </div>
@@ -254,7 +255,7 @@ export default function Hakkimizda() {
                     </h3>
                     <p className="text-sm leading-6 text-gray-300">{body}</p>
                   </div>
-                </div>
+                </Card>
               ))}
             </div>
           </section>
@@ -290,7 +291,7 @@ export default function Hakkimizda() {
             </h2>
             <div className="space-y-4 text-sm leading-7 text-gray-300">
               <p>
-                Borsa Krali sabit bir ürün değil, sürekli evrilen bir platformdur. 2026 yılının ilk
+                Borsa Kralı sabit bir ürün değil, sürekli evrilen bir platformdur. 2026 yılının ilk
                 yarısında v3.0 sürümü ile abonelik sistemi, finansal notlar, ekonomik takvim, Malaysian
                 SNR tarayıcısı ve istek paneli devreye alındı. v4.0 ile günlük sinyal sistemi 16 koşullu
                 universal skorlama, 11:00 revize taraması ve gün içi otomatik refresh ile yenilendi.
@@ -326,7 +327,7 @@ export default function Hakkimizda() {
           <section className="mb-6 rounded-2xl border border-white/5 bg-dark-900/40 p-5">
             <h2 className="mb-2 text-lg font-semibold text-white">Yasal Uyarı</h2>
             <p className="text-sm leading-7 text-gray-300">
-              Borsa Krali bir yatırım danışmanlık kuruluşu değildir. Platform üzerinden sunulan analizler,
+              Borsa Kralı bir yatırım danışmanlık kuruluşu değildir. Platform üzerinden sunulan analizler,
               sinyaller ve skorlar yatırım tavsiyesi niteliği taşımaz; yalnızca eğitim ve bilgi amaçlı sunulur.
               Yatırım kararlarınızdan doğan sonuçlardan tamamen siz sorumlusunuz.
             </p>

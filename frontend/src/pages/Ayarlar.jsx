@@ -54,13 +54,13 @@ const CHART_COLOR_OPTIONS = [
   {
     key: 'default',
     label: 'Standart',
-    description: 'Yesil AL / Kirmizi SAT',
+    description: 'Yeşil AL / Kırmızı SAT',
     swatches: ['bg-green-500', 'bg-red-500'],
   },
   {
     key: 'reverse',
     label: 'Ters',
-    description: 'Kirmizi AL / Yesil SAT',
+    description: 'Kırmızı AL / Yeşil SAT',
     swatches: ['bg-red-500', 'bg-green-500'],
   },
 ]
@@ -83,7 +83,7 @@ const CHART_TYPE_OPTIONS = [
   },
   {
     key: 'line',
-    label: 'Cizgi',
+    label: 'Çizgi',
     description: 'Sade',
     icon: (
       <svg className="h-8 w-8" viewBox="0 0 32 32" fill="none">
@@ -101,7 +101,7 @@ const CHART_TYPE_OPTIONS = [
   },
   {
     key: 'bar',
-    label: 'Cubuk',
+    label: 'Çubuk',
     description: 'OHLC',
     icon: (
       <svg className="h-8 w-8" viewBox="0 0 32 32" fill="none">
@@ -209,8 +209,8 @@ export default function Ayarlar() {
 
       <SectionCard
         icon={<Type className="h-5 w-5 text-gold-400" />}
-        title="Yazi Boyutu"
-        subtitle="Ekrandaki metin buyuklugunu ayarlayin"
+        title="Yazı Boyutu"
+        subtitle="Ekrandaki metin büyüklüğünü ayarlayın"
         defaultOpen
       >
         <div className="flex items-center gap-4">
@@ -248,12 +248,12 @@ export default function Ayarlar() {
 
             <div className="text-center text-xs text-gray-500">
               {fontPercent === 100 ? (
-                <span className="text-green-400">Varsayilan (%100)</span>
+                <span className="text-green-400">Varsayılan (%100)</span>
               ) : (
                 <span>
                   %{fontPercent}{' '}
                   <button onClick={resetFont} className="text-gold-400 underline hover:text-gold-300">
-                    sifirla
+                    sıfırla
                   </button>
                 </span>
               )}
@@ -274,9 +274,9 @@ export default function Ayarlar() {
         </div>
 
         <div className="mt-4 rounded-xl border border-dark-600 bg-dark-800 p-3">
-          <p className="mb-1 text-xs text-gray-500">Onizleme</p>
+          <p className="mb-1 text-xs text-gray-500">Önizleme</p>
           <p className="font-medium text-white" style={{ fontSize: `${fontPercent}%` }}>
-            THYAO - Turk Hava Yollari
+            THYAO - Türk Hava Yolları
           </p>
           <p className="text-sm text-gray-400" style={{ fontSize: `${fontPercent * 0.875}%` }}>
             +2.45% • 289.25 TL
@@ -287,7 +287,7 @@ export default function Ayarlar() {
       <SectionCard
         icon={<Palette className="h-5 w-5 text-gold-400" />}
         title="Tema"
-        subtitle="Uygulamanin gorunum modunu secin"
+        subtitle="Uygulamanın görünüm modunu seçin"
         defaultOpen
       >
         <div className="grid gap-3 sm:grid-cols-2">
@@ -301,7 +301,7 @@ export default function Ayarlar() {
           >
             <Moon className={`h-5 w-5 ${theme === 'dark' ? 'text-gold-400' : 'text-gray-400'}`} />
             <div className="text-left">
-              <p className="text-sm font-medium text-white">Karanlik</p>
+              <p className="text-sm font-medium text-white">Karanlık</p>
               <p className="text-xs text-gray-500">Gece modu</p>
             </div>
             {theme === 'dark' ? <Check className="absolute right-3 top-3 h-4 w-4 text-gold-400" /> : null}
@@ -317,8 +317,8 @@ export default function Ayarlar() {
           >
             <Sun className={`h-5 w-5 ${theme === 'light' ? 'text-gold-400' : 'text-gray-400'}`} />
             <div className="text-left">
-              <p className="text-sm font-medium text-white">Aydinlik</p>
-              <p className="text-xs text-gray-500">Gunduz modu</p>
+              <p className="text-sm font-medium text-white">Aydınlık</p>
+              <p className="text-xs text-gray-500">Gündüz modu</p>
             </div>
             {theme === 'light' ? <Check className="absolute right-3 top-3 h-4 w-4 text-gold-400" /> : null}
           </button>
@@ -343,7 +343,7 @@ export default function Ayarlar() {
           </svg>
         }
         title="Grafik Renkleri"
-        subtitle="Yukselen ve dusen mum renkleri"
+        subtitle="Yükselen ve düşen mum renkleri"
       >
         <div className="grid gap-3 sm:grid-cols-2">
           {CHART_COLOR_OPTIONS.map((option) => (
@@ -373,8 +373,8 @@ export default function Ayarlar() {
 
       <SectionCard
         icon={<CandlestickChart className="h-5 w-5 text-gold-400" />}
-        title="Grafik Turu"
-        subtitle="Hisse grafiklerinin gorunumu"
+        title="Grafik Türü"
+        subtitle="Hisse grafiklerinin görünümü"
       >
         <div className="grid gap-3 sm:grid-cols-3">
           {CHART_TYPE_OPTIONS.map((option) => (
@@ -398,7 +398,7 @@ export default function Ayarlar() {
         </div>
 
         <p className="mt-3 text-[11px] text-gray-600">
-          Mum grafik en fazla bilgiyi sunar. Cizgi daha sade bir gorunum saglar.
+          Mum grafik en fazla bilgiyi sunar. Çizgi daha sade bir görünüm sağlar.
         </p>
       </SectionCard>
 
@@ -465,7 +465,7 @@ export default function Ayarlar() {
 
           <div className="rounded-lg border border-gold-500/20 bg-gold-500/10 p-3">
             <p className="text-xs text-gold-400">
-              Hesap bilgilerini guncellemek icin destek ekibiyle iletisime gecin.
+              Hesap bilgilerini güncellemek için destek ekibiyle iletişime geçin.
             </p>
           </div>
         </div>
@@ -473,17 +473,17 @@ export default function Ayarlar() {
 
       <SectionCard
         icon={<KeyRound className="h-5 w-5 text-gold-400" />}
-        title="Sifre ve Guvenlik"
-        subtitle="Canli kullanima uygun oturum guvenligi"
+        title="Şifre ve Güvenlik"
+        subtitle="Canlı kullanıma uygun oturum güvenliği"
       >
         <div className="space-y-3">
           <div className="rounded-2xl border border-green-500/20 bg-green-500/10 p-4">
             <div className="flex items-start gap-3">
               <ShieldCheck className="mt-0.5 h-5 w-5 flex-shrink-0 text-green-400" />
               <div>
-                <p className="text-sm font-medium text-white">Eski oturumlar otomatik kapanir</p>
+                <p className="text-sm font-medium text-white">Eski oturumlar otomatik kapanır</p>
                 <p className="mt-1 text-xs text-gray-300">
-                  Sifre degistirdiginizde daha once acilmis tum eski oturumlar guvenlik icin gecersiz olur.
+                  Şifre değiştirdiğinizde daha önce açılmış tüm eski oturumlar güvenlik için geçersiz olur.
                 </p>
               </div>
             </div>
@@ -494,7 +494,7 @@ export default function Ayarlar() {
             className="flex items-center justify-between rounded-2xl border border-gold-500/20 bg-dark-800 px-4 py-3 text-sm text-gray-200 transition-all hover:border-gold-500/40 hover:bg-dark-700"
           >
             <div>
-              <div className="font-medium text-white">Sifremi degistir</div>
+              <div className="font-medium text-white">Şifremi değiştir</div>
               <div className="text-xs text-gray-500">Mevcut şifrenizi doğrulayıp yeni şifre belirleyin</div>
             </div>
             <ArrowRight className="h-4 w-4 text-gold-400" />
@@ -504,14 +504,14 @@ export default function Ayarlar() {
 
       <SectionCard
         icon={<Smartphone className="h-5 w-5 text-gold-400" />}
-        title="Uygulama Hakkinda"
+        title="Uygulama Hakkında"
       >
         <div className="space-y-2 text-sm">
           {[
-            ['Uygulama Adi', 'Borsa Krali'],
+            ['Uygulama Adı', 'Borsa Kralı'],
             ['Versiyon', '3.3.2'],
-            ['Veri Kaynagi', 'Yahoo Finance'],
-            ['Borsa', 'BIST (Borsa Istanbul)'],
+            ['Veri Kaynağı', 'Yahoo Finance'],
+            ['Borsa', 'BIST (Borsa İstanbul)'],
           ].map(([label, value]) => (
             <div
               key={label}
@@ -525,7 +525,7 @@ export default function Ayarlar() {
 
         <div className="mt-4 rounded-lg bg-dark-800 p-3">
           <p className="text-center text-xs text-gray-500">
-            Bu uygulama yalnizca egitim amaclidir. Yatirim tavsiyesi degildir.
+            Bu uygulama yalnızca eğitim amaçlıdır. Yatırım tavsiyesi değildir.
           </p>
         </div>
 

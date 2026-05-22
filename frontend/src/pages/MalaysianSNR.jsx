@@ -5,6 +5,7 @@ import { createChart, LineStyle } from 'lightweight-charts'
 import api from '../services/api'
 import InfoTooltip from '../components/InfoTooltip'
 import { fetchCommodityHistory } from '../utils/commodityHistory'
+import { Button } from '../components/ui'
 
 // ─── lightweight-charts SNR Grafiği ──────────────────────────────────────────
 const CHART_TIMEFRAMES = [
@@ -262,7 +263,7 @@ const TIPS = {
     title: 'Skor (0 – 100)',
     description: 'Zone\'un güvenilirlik puanı. 50 ve üzeri skor alan zone\'lar sinyal listesine girer ve A+/A/B notu alır. Birden fazla faktörün bir arada bulunması skoru katlar. En yüksek skoru alan zone en önce gösterilir.',
     formula: 'Başlangıç puanı        : 40\n+ Taze (fresh)          : +15\n+ Test edilmiş (tested) : +5\n+ Gap zone              : +10\n+ Engulfing (yakın 3 bar): +15\n+ Likidite süpürmesi    : +20\n+ Storyline uyumu       : +20\n− Storyline zıt yön     : −10\n− Her dokunma (touch)   : −5\n+ Onaylı (validated)    : +5\n\nMaksimum : 100 | Minimum : 0\n\nNot eşikleri:\n  A+ ≥ 80 | A ≥ 65 | B ≥ 50',
-    source: 'snrService.js scoreZones() — Borsa Krali'
+    source: 'snrService.js scoreZones() — Borsa Kralı'
   },
   grade: {
     title: 'Grade (Not: A+ / A / B)',
@@ -438,41 +439,26 @@ export default function MalaysianSNR() {
           </div>
           <p className="text-xs text-gray-500 mt-0.5">Body-Bazlı Destek/Direnç — Engulfing Teyitli Sinyal Sistemi</p>
         </div>
-        <button
-          onClick={() => { setTab('scanner'); loadScanner() }}
-          className="btn-secondary flex items-center gap-2 text-sm"
-        >
-          <BarChart2 className="w-4 h-4" />
+        <Button variant="ghost" size="sm" icon={BarChart2} onClick={() => { setTab('scanner'); loadScanner() }}>
           BIST Tarayıcı
-        </button>
+        </Button>
       </div>
 
       {/* ── Varlık Tipi Seçimi ──────────────────────────────────────────────── */}
       <div className="flex gap-2 flex-wrap">
-        <button
-          onClick={() => setAssetType('stock')}
-          className={`flex items-center gap-2 px-4 py-2 rounded-xl font-medium text-sm transition-all ${assetType === 'stock' ? 'bg-gold-500 text-dark-950' : 'bg-dark-800 text-gray-400 hover:text-white'}`}
-        >
+        <Button variant={assetType === 'stock' ? 'gold' : 'ghost'} onClick={() => setAssetType('stock')} aria-pressed={assetType === 'stock'}>
           📈 BIST Hisseleri
-        </button>
-        <button
-          onClick={() => setAssetType('crypto')}
-          className={`flex items-center gap-2 px-4 py-2 rounded-xl font-medium text-sm transition-all ${assetType === 'crypto' ? 'bg-orange-500 text-white' : 'bg-dark-800 text-gray-400 hover:text-white'}`}
-        >
+        </Button>
+        <Button variant={assetType === 'crypto' ? 'gold' : 'ghost'} onClick={() => setAssetType('crypto')} aria-pressed={assetType === 'crypto'}>
           🪙 Kripto Paralar
-        </button>
-        <button
-          onClick={() => setAssetType('commodity')}
-          className={`flex items-center gap-2 px-4 py-2 rounded-xl font-medium text-sm transition-all ${assetType === 'commodity' ? 'bg-yellow-500 text-dark-950' : 'bg-dark-800 text-gray-400 hover:text-white'}`}
-        >
+        </Button>
+        <Button variant={assetType === 'commodity' ? 'gold' : 'ghost'} onClick={() => setAssetType('commodity')} aria-pressed={assetType === 'commodity'}>
           🏅 Kıymetli Metaller
-        </button>
+        </Button>
         {assetType === 'crypto' && TOTAL_MARKET.map(m => (
-          <button key={m.symbol}
-            onClick={() => { setInputVal(m.symbol); analyze(m.symbol, 'crypto') }}
-            className="px-3 py-2 bg-gold-400/20 text-gold-400 border border-gold-400/30 text-xs rounded-xl hover:bg-gold-400/30 transition-colors font-medium">
+          <Button key={m.symbol} variant="outline" size="sm" onClick={() => { setInputVal(m.symbol); analyze(m.symbol, 'crypto') }}>
             {m.label}
-          </button>
+          </Button>
         ))}
       </div>
 
@@ -486,20 +472,18 @@ export default function MalaysianSNR() {
             onChange={e => setInputVal(e.target.value.toUpperCase())}
             onKeyDown={e => e.key === 'Enter' && analyze()}
           />
-          <button onClick={() => analyze()} disabled={loading} className="btn-primary px-5 flex items-center gap-2">
-            {loading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
+          <Button variant="gold" icon={Search} loading={loading} onClick={() => analyze()}>
             Analiz Et
-          </button>
+          </Button>
         </div>
 
         {/* BIST Hızlı Erişim */}
         {assetType === 'stock' && (
           <div className="flex flex-wrap gap-1.5 mt-3">
             {POPULAR.map(s => (
-              <button key={s} onClick={() => { setInputVal(s); analyze(s, 'stock') }}
-                className="px-2.5 py-1 bg-dark-700 hover:bg-dark-600 text-xs text-gray-300 rounded-lg transition-colors">
+              <Button key={s} variant="ghost" size="sm" onClick={() => { setInputVal(s); analyze(s, 'stock') }}>
                 {s}
-              </button>
+              </Button>
             ))}
           </div>
         )}
@@ -508,10 +492,9 @@ export default function MalaysianSNR() {
         {assetType === 'commodity' && (
           <div className="flex flex-wrap gap-1.5 mt-3">
             {COMMODITY_LIST.map(c => (
-              <button key={c.symbol} onClick={() => { setInputVal(c.symbol); analyze(c.symbol, 'commodity') }}
-                className="px-2.5 py-1 bg-yellow-500/10 border border-yellow-500/20 hover:bg-yellow-500/20 text-xs text-yellow-300 rounded-lg transition-colors font-medium">
+              <Button key={c.symbol} variant="ghost" size="sm" onClick={() => { setInputVal(c.symbol); analyze(c.symbol, 'commodity') }}>
                 {c.symbol} — {c.label}
-              </button>
+              </Button>
             ))}
           </div>
         )}
@@ -521,10 +504,9 @@ export default function MalaysianSNR() {
           <div className="mt-3">
             <div className="flex flex-wrap gap-1.5">
               {CRYPTO_TOP.slice(cryptoPage * 30, cryptoPage * 30 + 30).map(s => (
-                <button key={s} onClick={() => { setInputVal(s); analyze(s, 'crypto') }}
-                  className="px-2.5 py-1 bg-orange-500/10 border border-orange-500/20 hover:bg-orange-500/20 text-xs text-orange-300 rounded-lg transition-colors">
+                <Button key={s} variant="ghost" size="sm" onClick={() => { setInputVal(s); analyze(s, 'crypto') }}>
                   {s}
-                </button>
+                </Button>
               ))}
             </div>
             <div className="flex gap-2 mt-2">
@@ -796,10 +778,16 @@ export default function MalaysianSNR() {
               { id: 'zones',   label: `Tüm Zonlar (${allZones.length})` },
               { id: 'signals', label: `Sinyaller (${signals.length})` },
             ].map(t => (
-              <button key={t.id} onClick={() => setTab(t.id)}
-                className={`flex-1 py-2 text-sm font-medium rounded-lg transition-colors ${tab === t.id ? 'bg-gold-500 text-dark-950' : 'text-gray-400 hover:text-white'}`}>
+              <Button
+                key={t.id}
+                variant={tab === t.id ? 'gold' : 'subtle'}
+                size="sm"
+                onClick={() => setTab(t.id)}
+                aria-pressed={tab === t.id}
+                className="flex-1"
+              >
                 {t.label}
-              </button>
+              </Button>
             ))}
           </div>
 
@@ -852,10 +840,9 @@ export default function MalaysianSNR() {
               <h2 className="text-sm font-semibold text-white">BIST Yüksek Puanlı Sinyaller</h2>
               <InfoTooltip {...TIPS.score} />
             </div>
-            <button onClick={() => loadScanner()} disabled={scanLoading} className="btn-secondary text-xs px-3 py-1.5 flex items-center gap-1">
-              <RefreshCw className={`w-3 h-3 ${scanLoading ? 'animate-spin' : ''}`} />
+            <Button variant="ghost" size="sm" icon={RefreshCw} loading={scanLoading} onClick={() => loadScanner()}>
               Yenile
-            </button>
+            </Button>
           </div>
 
           {/* Tarama kapsamı seçici */}
@@ -868,20 +855,18 @@ export default function MalaysianSNR() {
               { id: 'crypto',    label: '🪙 Kripto',  hint: '~20 coin' },
               { id: 'commodity', label: '🏅 Emtia',   hint: 'Au/Ag' },
             ].map(opt => (
-              <button
+              <Button
                 key={opt.id}
-                onClick={() => { setScanScope(opt.id); loadScanner(opt.id) }}
+                variant={scanScope === opt.id ? 'gold' : 'subtle'}
+                size="sm"
                 disabled={scanLoading}
-                className={`px-2.5 py-1 rounded-md text-xs font-semibold border transition disabled:opacity-50 ${
-                  scanScope === opt.id
-                    ? 'bg-amber-500/20 border-amber-500/50 text-amber-200'
-                    : 'bg-dark-700 border-dark-600 text-gray-400 hover:text-white'
-                }`}
+                onClick={() => { setScanScope(opt.id); loadScanner(opt.id) }}
+                aria-pressed={scanScope === opt.id}
               >
                 {opt.label}
-                {opt.recommended && scanScope !== opt.id && <span className="ml-1 text-[8px] text-emerald-400">★</span>}
-                <span className="ml-1 text-[9px] opacity-70">{opt.hint}</span>
-              </button>
+                {opt.recommended && scanScope !== opt.id && <span className="text-[8px] text-emerald-400">★</span>}
+                <span className="text-[9px] opacity-70">{opt.hint}</span>
+              </Button>
             ))}
           </div>
 

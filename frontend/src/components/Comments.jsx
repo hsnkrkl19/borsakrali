@@ -37,7 +37,7 @@ export default function Comments() {
     setSuccess('')
 
     if (!name.trim() || !message.trim()) {
-      setError('Ad ve mesaj alanlari zorunludur!')
+      setError('Ad ve mesaj alanları zorunludur!')
       return
     }
 
@@ -62,7 +62,7 @@ export default function Comments() {
         setError(data.error || 'Yorum eklenemedi')
       }
     } catch (err) {
-      setError('Baglanti hatasi!')
+      setError('Bağlantı hatası!')
     } finally {
       setSubmitting(false)
     }
@@ -76,10 +76,10 @@ export default function Comments() {
     const hours = Math.floor(diff / 3600000)
     const days = Math.floor(diff / 86400000)
 
-    if (minutes < 1) return 'Simdi'
-    if (minutes < 60) return `${minutes} dk once`
-    if (hours < 24) return `${hours} saat once`
-    if (days < 7) return `${days} gun once`
+    if (minutes < 1) return 'Şimdi'
+    if (minutes < 60) return `${minutes} dk önce`
+    if (hours < 24) return `${hours} saat önce`
+    if (days < 7) return `${days} gün önce`
     return date.toLocaleDateString('tr-TR')
   }
 
@@ -91,7 +91,7 @@ export default function Comments() {
         className="bg-primary-600 hover:bg-primary-700 text-white rounded-full p-4 shadow-lg flex items-center gap-2 transition-all"
       >
         <MessageSquare className="w-5 h-5" />
-        <span className="font-medium">Gorus & Oneri</span>
+        <span className="font-medium">Görüş & Öneri</span>
         {isOpen ? <ChevronDown className="w-4 h-4" /> : <ChevronUp className="w-4 h-4" />}
       </button>
 
@@ -102,9 +102,9 @@ export default function Comments() {
           <div className="bg-dark-900 p-4 border-b border-dark-700">
             <h3 className="text-lg font-bold text-white flex items-center gap-2">
               <MessageSquare className="w-5 h-5 text-primary-500" />
-              Gorus ve Oneriler
+              Görüş ve Öneriler
             </h3>
-            <p className="text-xs text-gray-500 mt-1">Dusuncelerinizi paylasın</p>
+            <p className="text-xs text-gray-500 mt-1">Düşüncelerinizi paylaşın</p>
           </div>
 
           {/* Comment Form */}
@@ -123,7 +123,7 @@ export default function Comments() {
             <div className="mb-3">
               <input
                 type="text"
-                placeholder="Adiniz"
+                placeholder="Adınız"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 maxLength={50}
@@ -133,7 +133,7 @@ export default function Comments() {
 
             <div className="mb-3">
               <textarea
-                placeholder="Mesajiniz..."
+                placeholder="Mesajınız..."
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
                 maxLength={500}
@@ -149,11 +149,11 @@ export default function Comments() {
               className="w-full bg-primary-600 hover:bg-primary-700 disabled:bg-dark-700 text-white py-2 rounded-lg font-medium flex items-center justify-center gap-2 transition-colors"
             >
               {submitting ? (
-                'Gonderiliyor...'
+                'Gönderiliyor...'
               ) : (
                 <>
                   <Send className="w-4 h-4" />
-                  Gonder
+                  Gönder
                 </>
               )}
             </button>
@@ -167,7 +167,7 @@ export default function Comments() {
               </div>
             ) : comments.length === 0 ? (
               <div className="text-center py-4 text-gray-500 text-sm">
-                Henuz yorum yok. Ilk yorumu siz yapin!
+                Henüz yorum yok. İlk yorumu siz yapın!
               </div>
             ) : (
               comments.map((comment) => (

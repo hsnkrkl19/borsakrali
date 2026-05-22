@@ -63,7 +63,7 @@ const TERM_EXPLANATIONS = [
     hint: '-2.22 altındaki değerler genelde daha güven vericidir.'
   },
   {
-    title: 'F/K Orani',
+    title: 'F/K Oranı',
     description: 'Fiyatın şirkete ait kâra göre pahalı mı ucuz mu olduğunu anlatır.',
     hint: 'Tek başına yeterli değildir; sektörle birlikte okunmalıdır.'
   },
@@ -695,7 +695,7 @@ export default function HisseAISkor() {
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5">
               <FundamentalItem
                 label="Altman Z-Score"
-                description="Finansal sikinti riskini olcer."
+                description="Finansal sıkıntı riskini ölçer."
                 readingHint="Yüksek değer genelde daha güven verici kabul edilir."
                 value={analysis.fundamentals?.altmanZScore}
                 interpretation={analysis.fundamentals?.altmanInterpretation}
@@ -716,14 +716,14 @@ export default function HisseAISkor() {
               />
               <FundamentalItem
                 label="Beneish M-Score"
-                description="Kar manipulasyonu riskine bakar."
-                readingHint="-2.22 altindaki degerler genelde daha olumlu okunur."
+                description="Kar manipülasyonu riskine bakar."
+                readingHint="-2.22 altındaki değerler genelde daha olumlu okunur."
                 value={analysis.fundamentals?.beneishMScore}
                 interpretation={analysis.fundamentals?.beneishInterpretation}
                 good={analysis.fundamentals?.beneishMScore < -2.22}
               />
               <FundamentalItem
-                label="F/K Orani"
+                label="F/K Oranı"
                 description="Fiyatın kâra göre pahalı mı ucuz mu olduğunu gösterir."
                 readingHint="Düşük değer bazen daha makul fiyatlama anlamına gelebilir."
                 value={analysis.fundamentals?.priceToEarnings}
