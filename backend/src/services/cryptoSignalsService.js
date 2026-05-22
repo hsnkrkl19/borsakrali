@@ -57,8 +57,27 @@ const EXCLUDED_SYMBOLS = new Set([
 ]);
 
 const COINGECKO_BASE = 'https://api.coingecko.com/api/v3';
-const BINANCE_BASE = 'https://api.binance.com';
-const BINANCE_FAPI_BASE = 'https://fapi.binance.com';
+// Binance prod ortamında (Render ABD IP) HTTP 451 veriyor → Bybit v5 public
+// market data kullanılıyor (geo-engelsiz; liquidationService de Bybit'te).
+const BYBIT_BASE = 'https://api.bybit.com';
+
+// Binance interval kodu → Bybit v5 interval kodu
+const BYBIT_INTERVAL = {
+  '1m': '1', '3m': '3', '5m': '5', '15m': '15', '30m': '30',
+  '1h': '60', '2h': '120', '4h': '240', '6h': '360', '12h': '720',
+  '1d': 'D', '1w': 'W', '1M': 'M',
+};
+
+// Bybit kline (yeni→eski sıra, [start,o,h,l,c,volume,turnover]) → eski→yeni normalize
+function parseBybitKlines(list) {
+  return (list || [])
+    .map(k => ({
+      time: Math.floor(Number(k[0]) / 1000),
+      open: +k[1], high: +k[2], low: +k[3], close: +k[4], volume: +k[5],
+    }))
+    .filter(c => Number.isFinite(c.close) && c.close > 0)
+    .sort((a, b) => a.time - b.time);
+}
 
 // Modül-içi cache (process restart'ta sıfırlanır)
 let universeCache = { data: null, t: 0 };
@@ -121,7 +140,7 @@ async function getTop100Coins() {
   }
 }
 
-// ── Binance USDT pariteleri — geçerli sembolleri filtrele ─────────────────
+// ── Bybit USDT pariteleri (spot + linear perpetual) — geçerli sembol filtresi
 async function getBinanceUsdtSymbols() {
   const now = Date.now();
   if (binanceSymbolsCache.spot && now - binanceSymbolsCache.t < SYMBOLS_TTL) {
@@ -129,74 +148,75 @@ async function getBinanceUsdtSymbols() {
   }
   try {
     const [spotRes, futRes] = await Promise.allSettled([
-      axios.get(`${BINANCE_BASE}/api/v3/exchangeInfo`, { timeout: 20000 }),
-      axios.get(`${BINANCE_FAPI_BASE}/fapi/v1/exchangeInfo`, { timeout: 20000 }),
+      axios.get(`${BYBIT_BASE}/v5/market/instruments-info`, { params: { category: 'spot' }, timeout: 20000 }),
+      axios.get(`${BYBIT_BASE}/v5/market/instruments-info`, { params: { category: 'linear' }, timeout: 20000 }),
     ]);
     const spot = spotRes.status === 'fulfilled'
       ? new Set(
-          (spotRes.value.data?.symbols || [])
-            .filter(s => s.status === 'TRADING' && s.quoteAsset === 'USDT')
-            .map(s => s.baseAsset.toUpperCase())
+          (spotRes.value.data?.result?.list || [])
+            .filter(s => s.status === 'Trading' && s.quoteCoin === 'USDT')
+            .map(s => String(s.baseCoin).toUpperCase())
         )
       : new Set();
     const futures = futRes.status === 'fulfilled'
       ? new Set(
-          (futRes.value.data?.symbols || [])
-            .filter(s => s.status === 'TRADING' && s.quoteAsset === 'USDT' && s.contractType === 'PERPETUAL')
-            .map(s => s.baseAsset.toUpperCase())
+          (futRes.value.data?.result?.list || [])
+            .filter(s => s.status === 'Trading' && s.quoteCoin === 'USDT' && s.contractType === 'LinearPerpetual')
+            .map(s => String(s.baseCoin).toUpperCase())
         )
       : new Set();
     binanceSymbolsCache = { spot, futures, t: now };
     return binanceSymbolsCache;
   } catch (e) {
-    console.error('[CryptoSignals] Binance exchangeInfo hata:', e.message);
+    console.error('[CryptoSignals] Bybit instruments-info hata:', e.message);
     return { spot: new Set(), futures: new Set(), t: now };
   }
 }
 
-// ── Binance klines (mum verisi) ───────────────────────────────────────────
+// ── Bybit klines (mum verisi) ─────────────────────────────────────────────
 async function fetchKlines(symbol, interval, limit = 200) {
   const cacheKey = `${symbol}:${interval}:${limit}`;
   const now = Date.now();
   const cached = klinesCache.get(cacheKey);
   if (cached && now - cached.t < KLINES_CACHE_TTL_MS) return cached.data;
 
+  const bi = BYBIT_INTERVAL[interval];
+  if (!bi) return null;
   try {
-    const res = await axios.get(`${BINANCE_BASE}/api/v3/klines`, {
-      params: { symbol: `${symbol}USDT`, interval, limit },
+    const res = await axios.get(`${BYBIT_BASE}/v5/market/kline`, {
+      params: { category: 'spot', symbol: `${symbol}USDT`, interval: bi, limit: Math.min(limit, 1000) },
       timeout: 15000,
     });
-    // Binance kline format: [openTime, open, high, low, close, volume, closeTime, ...]
-    const candles = (res.data || []).map(k => ({
-      time: Math.floor(k[0] / 1000),
-      open: +k[1], high: +k[2], low: +k[3], close: +k[4],
-      volume: +k[5],
-    }));
-    klinesCache.set(cacheKey, { data: candles, t: now });
-    return candles;
-  } catch (e) {
-    // 400 (sembol yok) — bu coin Binance'te USDT paritesinde değil
-    if (e.response?.status === 400) {
+    // retCode != 0 → sembol yok / USDT paritesi değil
+    if (res.data?.retCode !== 0) {
       klinesCache.set(cacheKey, { data: null, t: now });
       return null;
     }
-    console.error(`[CryptoSignals] Binance klines hata ${symbol}/${interval}:`, e.message);
+    const candles = parseBybitKlines(res.data?.result?.list);
+    if (!candles.length) {
+      klinesCache.set(cacheKey, { data: null, t: now });
+      return null;
+    }
+    klinesCache.set(cacheKey, { data: candles, t: now });
+    return candles;
+  } catch (e) {
+    console.error(`[CryptoSignals] Bybit klines hata ${symbol}/${interval}:`, e.message);
     return null;
   }
 }
 
-// ── Funding rate (USDT-M perpetual) ───────────────────────────────────────
+// ── Funding rate (USDT-M perpetual) — Bybit linear tickers ────────────────
 async function fetchFundingRate(symbol) {
   try {
-    const res = await axios.get(`${BINANCE_FAPI_BASE}/fapi/v1/premiumIndex`, {
-      params: { symbol: `${symbol}USDT` },
+    const res = await axios.get(`${BYBIT_BASE}/v5/market/tickers`, {
+      params: { category: 'linear', symbol: `${symbol}USDT` },
       timeout: 10000,
     });
-    const d = res.data;
-    if (!d || d.lastFundingRate == null) return null;
+    const d = res.data?.result?.list?.[0];
+    if (!d || d.fundingRate == null || d.fundingRate === '') return null;
     return {
-      rate: parseFloat(d.lastFundingRate),
-      nextTime: d.nextFundingTime,
+      rate: parseFloat(d.fundingRate),
+      nextTime: d.nextFundingTime ? Number(d.nextFundingTime) : null,
     };
   } catch (e) {
     return null;
@@ -517,24 +537,22 @@ async function analyzeSingleCoin(symbol) {
 }
 
 // ── Backtest: geçmiş tarih ile sinyal performans simülasyonu ──────────────
-// Binance klines API'nin endTime/startTime parametrelerini kullanır —
-// gelecek veri sızdırmayı önler.
+// Bybit kline API'nin start/end parametrelerini kullanır — gelecek veri
+// sızdırmayı önler.
 
 async function fetchKlinesHistorical(symbol, interval, endTimeMs, limit = 250) {
+  const bi = BYBIT_INTERVAL[interval];
+  if (!bi) return null;
   try {
-    const res = await axios.get(`${BINANCE_BASE}/api/v3/klines`, {
+    const res = await axios.get(`${BYBIT_BASE}/v5/market/kline`, {
       params: {
-        symbol: `${symbol}USDT`,
-        interval, limit,
-        endTime: endTimeMs,
+        category: 'spot', symbol: `${symbol}USDT`,
+        interval: bi, limit: Math.min(limit, 1000), end: endTimeMs,
       },
       timeout: 15000,
     });
-    return (res.data || []).map(k => ({
-      time: Math.floor(k[0] / 1000),
-      open: +k[1], high: +k[2], low: +k[3], close: +k[4],
-      volume: +k[5],
-    }));
+    if (res.data?.retCode !== 0) return null;
+    return parseBybitKlines(res.data?.result?.list);
   } catch (e) {
     return null;
   }
@@ -542,20 +560,15 @@ async function fetchKlinesHistorical(symbol, interval, endTimeMs, limit = 250) {
 
 async function fetchFutureCandles(symbol, startTimeMs, days = 7) {
   try {
-    const res = await axios.get(`${BINANCE_BASE}/api/v3/klines`, {
+    const res = await axios.get(`${BYBIT_BASE}/v5/market/kline`, {
       params: {
-        symbol: `${symbol}USDT`,
-        interval: '1d',
-        limit: days,
-        startTime: startTimeMs,
+        category: 'spot', symbol: `${symbol}USDT`,
+        interval: 'D', limit: days, start: startTimeMs,
       },
       timeout: 15000,
     });
-    return (res.data || []).map(k => ({
-      time: Math.floor(k[0] / 1000),
-      open: +k[1], high: +k[2], low: +k[3], close: +k[4],
-      volume: +k[5],
-    }));
+    if (res.data?.retCode !== 0) return [];
+    return parseBybitKlines(res.data?.result?.list);
   } catch (e) {
     return [];
   }
