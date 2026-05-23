@@ -14,6 +14,7 @@ import {
   KeyRound,
   Search,
   Settings,
+  Database,
 } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { useAuthStore } from '../store/authStore'
@@ -58,12 +59,13 @@ export default function Sidebar({ isOpen, onToggle }) {
   // toplandı (App.jsx REDIRECT_MAP). Admin için +1 link.
   // data-tour: Parça 4 OnboardingTour buraya spotlight çakıyor.
   const allNavItems = [
-    { path: '/',          label: 'Ana Sayfa',       icon: Home,     isPublic: true                            },
-    { path: '/sinyaller', label: 'Sinyaller',       icon: Activity, isPublic: true,  tour: 'nav-sinyaller' },
-    { path: '/firsatlar', label: 'Tarayıcılar',     icon: Search,                    tour: 'nav-firsatlar' },
-    { path: '/botlar',    label: 'Botlar',          icon: Bot,                       tour: 'nav-botlar'    },
-    { path: '/ogren',     label: 'Öğren',           icon: BookOpen, isPublic: true,  tour: 'nav-ogren'     },
-    { path: '/hesabim',   label: 'Hesabım',         icon: User                                              },
+    { path: '/',                   label: 'Ana Sayfa',       icon: Home,     isPublic: true                            },
+    { path: '/sinyaller',          label: 'Sinyaller',       icon: Activity, isPublic: true,  tour: 'nav-sinyaller' },
+    { path: '/firsatlar',          label: 'Tarayıcılar',     icon: Search,                    tour: 'nav-firsatlar' },
+    { path: '/botlar',             label: 'Botlar',          icon: Bot,                       tour: 'nav-botlar'    },
+    { path: '/is-yatirim-veri',    label: 'Veri',            icon: Database, isPublic: true                            },
+    { path: '/ogren',              label: 'Öğren',           icon: BookOpen, isPublic: true,  tour: 'nav-ogren'     },
+    { path: '/hesabim',            label: 'Hesabım',         icon: User                                              },
     ...(user?.role === 'admin'
       ? [{ path: '/admin-bildirimler', label: 'Admin Bildirim', icon: BellRing, highlight: true, badge: 'ADMIN' }]
       : []),

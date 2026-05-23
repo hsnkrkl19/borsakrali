@@ -8,8 +8,9 @@
  *
  * Veri direkt `/api/isyatirim/*` üzerinden gelir. Her sekmenin CSV indirme butonu vardır.
  */
-import { useState, useEffect, useMemo, useCallback } from 'react'
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { Database, RefreshCw, Download, Search, Calendar, Building2, BarChart3, FileSpreadsheet, Info } from 'lucide-react'
+import { createChart } from 'lightweight-charts'
 import api from '../services/api'
 import { Button, Card, PageHeader, EmptyState, Spinner } from '../components/ui'
 import ScrollableTabBar from '../components/ScrollableTabBar'
@@ -61,6 +62,78 @@ function downloadCsv(rows, headers, fileName) {
   setTimeout(() => URL.revokeObjectURL(url), 1000)
 }
 
+// ── Mini grafik (kapanış area series) ────────────────────────────────────
+// `series` = [{ date: 'YYYY-MM-DD', value: number }] — düzenli (eski→yeni)
+function MiniChart({ series, title, color = '#d4af37', height = 200 }) {
+  const containerRef = useRef(null)
+  const chartRef = useRef(null)
+  const seriesRef = useRef(null)
+
+  useEffect(() => {
+    if (!containerRef.current) return
+    const chart = createChart(containerRef.current, {
+      width: containerRef.current.clientWidth,
+      height,
+      layout: { background: { color: 'transparent' }, textColor: '#9ca3af' },
+      grid: { vertLines: { color: 'rgba(75,85,99,0.15)' }, horzLines: { color: 'rgba(75,85,99,0.15)' } },
+      rightPriceScale: { borderColor: 'rgba(75,85,99,0.3)' },
+      timeScale: { borderColor: 'rgba(75,85,99,0.3)', timeVisible: false, secondsVisible: false },
+      crosshair: { mode: 1 },
+      handleScroll: true,
+      handleScale: true,
+    })
+    chartRef.current = chart
+    const area = chart.addAreaSeries({
+      lineColor: color,
+      topColor: color + '55',
+      bottomColor: color + '00',
+      lineWidth: 2,
+      priceFormat: { type: 'price', precision: 2, minMove: 0.01 },
+    })
+    seriesRef.current = area
+
+    const ro = new ResizeObserver(() => {
+      if (containerRef.current && chartRef.current) {
+        chartRef.current.applyOptions({ width: containerRef.current.clientWidth })
+      }
+    })
+    ro.observe(containerRef.current)
+
+    return () => {
+      ro.disconnect()
+      try { chart.remove() } catch (_) {}
+      chartRef.current = null
+      seriesRef.current = null
+    }
+  }, [height, color])
+
+  useEffect(() => {
+    if (!seriesRef.current || !series?.length) return
+    const data = series
+      .filter(d => d.date && d.value != null && Number.isFinite(d.value))
+      .map(d => ({ time: d.date, value: d.value }))
+    if (!data.length) return
+    try {
+      seriesRef.current.setData(data)
+      chartRef.current?.timeScale?.().fitContent()
+    } catch (e) {
+      // setData hatalı format atarsa görmezden gel
+    }
+  }, [series])
+
+  return (
+    <div className="rounded-xl border border-dark-700 bg-dark-900/40 p-2 mb-3">
+      {title && (
+        <div className="text-[11px] font-bold text-gray-400 px-1 pb-1 flex items-center gap-1.5">
+          <BarChart3 size={11} className="text-amber-400" />
+          {title}
+        </div>
+      )}
+      <div ref={containerRef} style={{ width: '100%', height }} />
+    </div>
+  )
+}
+
 // ── Stock sekmesi ────────────────────────────────────────────────────────
 function StockTab() {
   const [symbol, setSymbol] = useState('THYAO')
@@ -109,6 +182,12 @@ function StockTab() {
   // Son satırı en üstte gösterelim — render limiti 80 satır, tam veri CSV'de
   const rows = useMemo(() => [...data].reverse().slice(0, 80), [data])
 
+  // Grafik için kronolojik sıra
+  const chartSeries = useMemo(
+    () => data.map(d => ({ date: d.date, value: d.close })).filter(d => d.date && d.value != null),
+    [data]
+  )
+
   return (
     <Card padding="md">
       <form onSubmit={onSubmit} className="grid grid-cols-1 sm:grid-cols-4 gap-2 mb-3">
@@ -140,6 +219,10 @@ function StockTab() {
 
       {error && (
         <div className="mb-3 p-3 rounded-xl bg-red-500/10 border border-red-500/30 text-sm text-red-300">⚠ {error}</div>
+      )}
+
+      {chartSeries.length > 1 && (
+        <MiniChart series={chartSeries} title={`${symbol.toUpperCase()} — Düzeltilmiş Kapanış (${chartSeries.length} gün)`} height={220} />
       )}
 
       <div className="flex items-center justify-between mb-2">
@@ -225,6 +308,11 @@ function IndexTab({ knownIndices }) {
 
   const rows = useMemo(() => [...data].reverse().slice(0, 80), [data])
 
+  const chartSeries = useMemo(
+    () => data.map(d => ({ date: d.date, value: d.value })).filter(d => d.date && d.value != null),
+    [data]
+  )
+
   const csvHeaders = [
     { key: 'date',  label: 'Tarih' },
     { key: 'index', label: 'Endeks' },
@@ -270,6 +358,15 @@ function IndexTab({ knownIndices }) {
           <Stat label="Max" value={fmtNum(stats.max, 2)} tone="emerald" />
           <Stat label="Değişim" value={`${stats.change >= 0 ? '+' : ''}${fmtNum(stats.changePct, 2)}%`} tone={stats.change >= 0 ? 'emerald' : 'rose'} />
         </div>
+      )}
+
+      {chartSeries.length > 1 && (
+        <MiniChart
+          series={chartSeries}
+          title={`${code.toUpperCase()} — Kapanış (${chartSeries.length} gün)`}
+          color={stats && stats.change >= 0 ? '#10b981' : '#ef4444'}
+          height={240}
+        />
       )}
 
       <div className="flex items-center justify-between mb-2">

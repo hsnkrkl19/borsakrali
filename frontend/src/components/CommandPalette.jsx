@@ -4,7 +4,7 @@ import {
   Search, LayoutDashboard, Crosshair, Coins, Gem, Activity, Building2,
   Calculator, Target, TrendingUp, Briefcase, BookOpen, Calendar,
   CreditCard, Settings, Sparkles, KeyRound, LogOut, ArrowRight,
-  Bell, MessageCircle, Sun, Moon, Bookmark, Bot, Crown,
+  Bell, MessageCircle, Sun, Moon, Bookmark, Bot, Crown, Database,
 } from 'lucide-react'
 import apiClient from '../services/api'
 import { useAuthStore } from '../store/authStore'
@@ -43,6 +43,7 @@ const PAGE_ITEMS = [
 
   // — Bilgi —
   { kind: 'page', label: 'Ekonomik Takvim',    to: '/ekonomik-takvim',        icon: Calendar },
+  { kind: 'page', label: 'İş Yatırım Verileri',to: '/is-yatirim-veri',        icon: Database,        hint: 'Hisse · Endeks · Mali tablo — CSV indir' },
   { kind: 'page', label: 'İstek Paneli',       to: '/istek-paneli',           icon: MessageCircle },
   { kind: 'page', label: 'Site Haritası',      to: '/site-haritasi',          icon: Sparkles,        hint: 'Tüm sayfalar' },
 ]

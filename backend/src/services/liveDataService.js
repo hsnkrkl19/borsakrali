@@ -95,6 +95,34 @@ async function fetchYahooData(symbol) {
   }
 }
 
+// Yahoo başarısız olursa İş Yatırım HisseTekil'den günlük OHLC fallback (sadece günlük interval için)
+async function fetchHistoricalFromIsYatirim(symbol, period) {
+  try {
+    if (symbol.includes('-')) return null; // kripto destekli değil
+    const { fetchStockData } = require('./isYatirimDataService');
+    const monthsMap = { '5d': 0.5, '1mo': 1, '3mo': 3, '6mo': 6, '1y': 12, '2y': 24, '5y': 60 };
+    const months = monthsMap[period] || 3;
+    const end = new Date();
+    const start = new Date();
+    start.setMonth(end.getMonth() - Math.ceil(months));
+    const fmt = (d) => `${String(d.getDate()).padStart(2,'0')}-${String(d.getMonth()+1).padStart(2,'0')}-${d.getFullYear()}`;
+    const rows = await fetchStockData(symbol, fmt(start), fmt(end));
+    if (!rows || !rows.length) return null;
+    return rows.map(r => ({
+      date: r.date,
+      timestamp: new Date(r.date + 'T00:00:00Z').getTime(),
+      open: r.weightedAvg, // İş Yatırım açılışı yok, AOF'u açılış olarak yaklaştır
+      high: r.high,
+      low: r.low,
+      close: r.close,
+      volume: r.volume,
+    })).filter(d => d.close != null);
+  } catch (e) {
+    console.warn(`[IsYatirimFallback] ${symbol} historical fallback başarısız: ${e.message?.substring(0, 80)}`);
+    return null;
+  }
+}
+
 // Gecmis veri cek
 async function fetchHistoricalData(symbol, period = '3mo', interval = '1d') {
   try {
@@ -110,7 +138,11 @@ async function fetchHistoricalData(symbol, period = '3mo', interval = '1d') {
     }, 3);
 
     const result = response.data?.chart?.result?.[0];
-    if (!result) return null;
+    if (!result) {
+      // Yahoo boş döndü — sadece günlük interval için İş Yatırım'a düş
+      if (interval === '1d') return await fetchHistoricalFromIsYatirim(symbol, period);
+      return null;
+    }
 
     const timestamps = result.timestamp || [];
     const quote = result.indicators?.quote?.[0] || {};
@@ -128,6 +160,43 @@ async function fetchHistoricalData(symbol, period = '3mo', interval = '1d') {
     return data;
   } catch (error) {
     console.error(`Historical veri hatasi ${symbol}:`, error.message);
+    // Sadece günlük interval için İş Yatırım'a düş — diğer interval'lar (1h, 15m vs) desteklenmez
+    if (interval === '1d') return await fetchHistoricalFromIsYatirim(symbol, period);
+    return null;
+  }
+}
+
+// İş Yatırım IndexHistoricalAll fallback (Render ABD IP'sinde Yahoo 429 olursa)
+// Son 2 işlem gününü çeker, son = current, önceki = previousClose.
+async function fetchIndexFromIsYatirim(code, displayName) {
+  try {
+    const { fetchIndexData } = require('./isYatirimDataService');
+    const end = new Date();
+    const start = new Date();
+    start.setDate(end.getDate() - 10);
+    const fmt = (d) => `${String(d.getDate()).padStart(2,'0')}-${String(d.getMonth()+1).padStart(2,'0')}-${d.getFullYear()}`;
+    const rows = await fetchIndexData(code, fmt(start), fmt(end));
+    if (!rows || rows.length < 2) return null;
+    const last = rows[rows.length - 1];
+    const prev = rows[rows.length - 2];
+    const change = last.value - prev.value;
+    const changePercent = prev.value ? (change / prev.value) * 100 : 0;
+    return {
+      symbol: code,
+      name: displayName,
+      value: last.value,
+      previousClose: prev.value,
+      change: +change.toFixed(2),
+      changePercent: +changePercent.toFixed(2),
+      high: null,
+      low: null,
+      volume: null,
+      timestamp: new Date().toISOString(),
+      source: 'isyatirim',
+      stale: true, // önceki kapanış — gün içi canlı değil
+    };
+  } catch (e) {
+    console.warn(`[IsYatirimFallback] ${code} fallback başarısız: ${e.message?.substring(0, 80)}`);
     return null;
   }
 }
@@ -145,7 +214,7 @@ async function fetchBist100() {
     });
 
     const result = response.data?.chart?.result?.[0];
-    if (!result) return null;
+    if (!result) return await fetchIndexFromIsYatirim('XU100', 'BIST 100');
 
     const meta = result.meta;
     const currentPrice = meta.regularMarketPrice;
@@ -167,7 +236,7 @@ async function fetchBist100() {
     };
   } catch (error) {
     console.error('BIST 100 veri hatasi:', error.message);
-    return null;
+    return await fetchIndexFromIsYatirim('XU100', 'BIST 100');
   }
 }
 
@@ -184,7 +253,7 @@ async function fetchBist30() {
     });
 
     const result = response.data?.chart?.result?.[0];
-    if (!result) return null;
+    if (!result) return await fetchIndexFromIsYatirim('XU030', 'BIST 30');
 
     const meta = result.meta;
     const currentPrice = meta.regularMarketPrice;
@@ -206,7 +275,7 @@ async function fetchBist30() {
     };
   } catch (error) {
     console.error('BIST 30 veri hatasi:', error.message);
-    return null;
+    return await fetchIndexFromIsYatirim('XU030', 'BIST 30');
   }
 }
 

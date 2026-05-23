@@ -58,6 +58,7 @@ const ROUTES = [
   '/ekonomik-takvim',
   '/sinyaller',
   '/borsapy',
+  '/is-yatirim-veri',
 ]
 
 const MIME = {
