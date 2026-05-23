@@ -1,10 +1,20 @@
 import {
-  GitBranch, Sparkles, Bitcoin, Calendar, Search, BellRing, GraduationCap,
+  GitBranch, Sparkles, Bitcoin, Calendar, Search, BellRing, GraduationCap, Bot,
 } from 'lucide-react'
 import { useScrollReveal, useHoverTilt } from '../../hooks/useAnime'
 
 /* ─── Site sürüm geçmişi — son güncellemeler ──────────────────────────── */
 const RELEASES = [
+  {
+    version: 'v4.4',
+    date: 'Mayıs 2026',
+    title: 'Trading Bot & X Gündem',
+    icon: Bot,
+    description: 'Otomatik strateji motoru — Trading Bot, TEMA34 ve Kağıt Üzerinde botları bir arada. Gerçek X.com taraması ile 549 sembolde canlı sosyal duygu radarı.',
+    highlights: ['3 bot bir arada', 'Walk-Forward + Monte Carlo', 'X.com 549 sembol'],
+    accent: '249,115,22',
+    badge: 'AKTİF',
+  },
   {
     version: 'v4.3',
     date: 'Mayıs 2026',
@@ -13,7 +23,7 @@ const RELEASES = [
     description: '7 zaman çerçevesi (1d → 1h → 1g → 1h) eş zamanlı ağırlıklı agregasyon. Bayesian olasılık modeli + 12 mum formasyonu × ATR rejim filtresi.',
     highlights: ['7 TF Confluence', 'Bayesian P(win)', '4 mod (Tarayıcı · Confluence · Kalibrasyon · Backtest)'],
     accent: '212,175,55',
-    badge: 'AKTİF',
+    badge: '',
   },
   {
     version: 'v4.2',

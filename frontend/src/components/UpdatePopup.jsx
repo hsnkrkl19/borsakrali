@@ -3,22 +3,29 @@ import { X, Sparkles, Crown, ArrowRight, Flame } from 'lucide-react'
 import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
 
-const VERSION = '4.3.0'
+const VERSION = '4.4.0'
 const HOLD_SECONDS = 4
 
 const NEW_FEATURES = [
   {
-    icon: '👑',
-    title: 'Yeni Amblem',
-    desc: 'Hanedan tarzı boğa + altın taç + yükseliş mumları — favicon, app icon, Google Play tek seferde yenilendi',
-    tone: 'amber',
+    icon: '🤖',
+    title: 'Trading Bot Ailesi',
+    desc: '3 bot bir arada — Trading Bot · TEMA34 · Kağıt Üzerinde. Backtest, Walk-Forward ve Monte Carlo sınama katmanı',
+    tone: 'orange',
     hot: true,
   },
   {
-    icon: '🤖',
-    title: 'Trading Bot',
-    desc: 'Freqtrade port edilmiş otomatik strateji motoru — backtest + canlı sınama katmanı',
-    tone: 'orange',
+    icon: '𝕏',
+    title: 'X Gündem Taraması',
+    desc: 'Gerçek X.com taraması — 549 BIST + kripto sembolünde canlı sosyal duygu radarı, sahte veri yok',
+    tone: 'cyan',
+    hot: true,
+  },
+  {
+    icon: '📊',
+    title: 'Kripto + MTF Konfluans',
+    desc: 'Top 100 coin, 7 zaman dilimi ağırlıklı agregasyon + Bayesian kazanç olasılığı',
+    tone: 'blue',
     hot: true,
   },
   {
@@ -26,19 +33,12 @@ const NEW_FEATURES = [
     title: 'Likidasyon Haritası',
     desc: 'Coinglass benzeri likidasyon yoğunluk haritası — heatmap + uzun/kısa cluster\'lar',
     tone: 'orange',
-    hot: true,
   },
   {
     icon: '🎯',
     title: 'SMC Tarayıcı',
     desc: 'Smart Money Concepts — order block, FVG, BOS/CHOCH otomatik tespiti',
     tone: 'cyan',
-  },
-  {
-    icon: '⏱️',
-    title: 'MTF + Ses Uyarısı',
-    desc: '7 timeframe kripto konfluans + STRONG sinyal ping sesi + Bayesian win probability',
-    tone: 'blue',
   },
   {
     icon: '🌊',
@@ -48,19 +48,19 @@ const NEW_FEATURES = [
   },
   {
     icon: '🛢️',
-    title: 'Emtia Sinyalleri',
-    desc: 'Altın, gümüş, brent, doğal gaz — günlük teknik sinyaller + ekonomik takvim entegre',
+    title: 'Emtia + Ekonomik Takvim',
+    desc: 'Altın, gümüş, brent, doğal gaz günlük sinyalleri + TR/US ekonomik takvim',
     tone: 'amber',
   },
   {
-    icon: '📱',
-    title: 'Yeni Mobil Deneyim',
-    desc: 'Bottom nav yenilendi + sayfa geçişlerinde smooth animasyon + tema değişim ripple efekti',
-    tone: 'cyan',
+    icon: '📅',
+    title: 'Günlük Tespitler',
+    desc: '09:55 pre-market taraması, 16 koşul evrensel skorlama, top 10 push bildirim',
+    tone: 'blue',
   },
 ]
 
-const POPUP_KEY = 'bk-update-popup-v4.3'
+const POPUP_KEY = 'bk-update-popup-v4.4'
 const MAX_SHOWS = 2
 const INTERVAL_MS = 10 * 60 * 1000
 
@@ -213,9 +213,9 @@ export default function UpdatePopup() {
                 <h2
                   className="font-bold text-xl leading-tight mt-1"
                   style={{ color: 'var(--text-primary)' }}
-                >Tahta yenilendi 👑</h2>
+                >Krallık genişledi 👑</h2>
                 <p className="text-[11px] mt-0.5" style={{ color: 'var(--text-faint)' }}>
-                  Yeni amblem + 7 yeni özellik tek güncellemede
+                  Trading Bot, X taraması ve dahası tek güncellemede
                 </p>
               </div>
             </div>
@@ -246,9 +246,9 @@ export default function UpdatePopup() {
               color: 'var(--text-secondary)',
             }}
           >
-            Yeni hanedan amblemi · <span className="font-bold" style={{ color: 'var(--gold-400)' }}>Trading Bot</span> · <span className="font-bold" style={{ color: 'var(--gold-400)' }}>Likidasyon Haritası</span> · <span className="font-bold" style={{ color: 'var(--gold-400)' }}>SMC</span> · MTF + ses uyarısı · EMA34 Wave · Emtia · yeni mobil deneyim.
+            <span className="font-bold" style={{ color: 'var(--gold-400)' }}>Trading Bot</span> · <span className="font-bold" style={{ color: 'var(--gold-400)' }}>X Gündem taraması</span> · Kripto MTF konfluans · Likidasyon Haritası · SMC · EMA34 Wave · Emtia sinyalleri.
             <div className="text-[11px] mt-1.5 opacity-80">
-              22 Faz kripto sistemi · 8+ yeni sayfa · sıfırdan amblem · v4.3.0 🚀
+              Gerçek X.com verisi · 3 bot bir arada · 549 sembol sosyal radar · v{VERSION} 🚀
             </div>
           </div>
 

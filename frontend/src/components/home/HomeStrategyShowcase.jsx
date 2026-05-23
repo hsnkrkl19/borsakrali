@@ -5,8 +5,9 @@ import {
   useScrollReveal, useHoverTilt, useCountUp,
 } from '../../hooks/useAnime'
 import {
-  Layers, TrendingUp, Target, GitMerge, Zap, Activity, ArrowUpRight,
+  Layers, TrendingUp, Target, GitMerge, Zap, Activity, ArrowUpRight, Bot,
 } from 'lucide-react'
+import XLogo from '../XLogo'
 
 /* ─── Strateji vitrini — gerçek backtest dönüşleri ─────────────────────── */
 const STRATEGIES = [
@@ -21,6 +22,30 @@ const STRATEGIES = [
     icon: Layers,
     to: '/gunluk-tespitler?tab=mtf',
     spark: [40, 38, 42, 46, 44, 50, 53, 49, 55, 60, 58, 64, 68, 72, 70, 76],
+  },
+  {
+    id: 'bot',
+    name: 'Otomatik Trading Bot',
+    desc: 'Bugünün LONG sinyallerini sanal portföyle takip eder. Walk-Forward + Monte Carlo ile sınanmış strateji motoru.',
+    indicators: ['Backtest', 'Walk-Forward', 'Monte Carlo'],
+    metric: null, label: 'Strateji Motoru',
+    period: 'Trading · TEMA34 · Kağıt Üzerinde — 3 bot',
+    color: '249,115,22',
+    icon: Bot,
+    to: '/botlar?tab=trading',
+    spark: [34, 38, 36, 41, 45, 43, 49, 53, 51, 57, 60, 58, 64, 68, 72, 77],
+  },
+  {
+    id: 'xscan',
+    name: 'X Gündem Taraması',
+    desc: 'Gerçek X.com taraması — 549 BIST + kripto sembolünde canlı sosyal duygu radarı. Uydurma veri yok.',
+    indicators: ['Sentiment', 'Mention Hacmi', 'Trend'],
+    metric: 549, suffix: ' sembol',
+    period: 'Tüm evren sürekli rolling taranır',
+    color: '56,189,248',
+    icon: XLogo,
+    to: '/tarayicilar?tab=x-gundem',
+    spark: [44, 52, 47, 58, 53, 62, 56, 65, 60, 68, 63, 71, 66, 73, 69, 76],
   },
   {
     id: 'spot',

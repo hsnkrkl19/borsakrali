@@ -2,9 +2,8 @@ import { useNavigate, Link, Navigate } from 'react-router-dom'
 import { useState, useEffect, useMemo, useRef } from 'react'
 import { useAuthStore } from '../store/authStore'
 import {
-  Crown, Mail, Lock, ArrowRight, TrendingUp, Shield, Zap, BarChart3,
-  Loader, AlertCircle, PlayCircle, Sparkles, Eye, EyeOff, Activity,
-  CandlestickChart, Cpu, Lightbulb,
+  Mail, Lock, ArrowRight, Loader, AlertCircle, PlayCircle, Sparkles,
+  Eye, EyeOff, CandlestickChart, Cpu, Bot, Radar, Layers,
 } from 'lucide-react'
 import { loginWithPassword } from '../services/auth'
 import BrandMark from '../components/BrandMark'
@@ -12,6 +11,7 @@ import GoogleSignInButton from '../components/GoogleSignInButton'
 import { Button } from '../components/ui'
 import { getApiBase } from '../config'
 import { getStoredTheme } from '../utils/theme'
+import XLogo from '../components/XLogo'
 
 /**
  * Subscribe the component to the global theme so colors update when the
@@ -314,11 +314,60 @@ export default function Login() {
     navigate('/')
   }
 
+  // Hero özellik vitrini — her kart kendi vurgu rengini taşır.
+  // accent = koyu tema RGB'si · accentLight = açık temada okunur koyu varyant.
   const features = [
-    { icon: CandlestickChart, title: 'Gerçek Zamanlı BIST', stat: '510+', subtitle: 'hisse · dakikalık güncelleme' },
-    { icon: Cpu, title: 'AI Hisse Skoru', stat: '14', subtitle: 'gösterge · derin analiz motoru' },
-    { icon: Activity, title: 'Premium İndikatörler', stat: 'RSI · MACD · SNR', subtitle: 'EMA · Bollinger · Stoch · ATR' },
-    { icon: Lightbulb, title: 'Akıllı Sinyal Motoru', stat: 'Live', subtitle: 'günlük tespitler · al-sat alarmı' },
+    {
+      icon: CandlestickChart,
+      title: 'Gerçek Zamanlı BIST',
+      stat: '510+ Hisse',
+      subtitle: 'canlı fiyat akışı · heatmap',
+      accent: '212, 175, 55',
+      accentLight: '180, 83, 9',
+    },
+    {
+      icon: Cpu,
+      title: 'AI Hisse Skoru',
+      stat: '14 Gösterge',
+      subtitle: 'RSI · MACD · SNR derin motor',
+      accent: '245, 158, 11',
+      accentLight: '180, 83, 9',
+    },
+    {
+      icon: Bot,
+      title: 'Otomatik Trading Bot',
+      stat: 'Backtest + Canlı',
+      subtitle: 'strateji motoru · sanal portföy',
+      accent: '0, 201, 138',
+      accentLight: '4, 120, 87',
+      isNew: true,
+    },
+    {
+      icon: XLogo,
+      title: 'X Gündem Taraması',
+      stat: '549 Sembol',
+      subtitle: 'canlı sosyal duygu radarı',
+      accent: '56, 189, 248',
+      accentLight: '2, 132, 199',
+      isNew: true,
+    },
+    {
+      icon: Layers,
+      title: 'Kripto + MTF Sinyal',
+      stat: '7 Zaman Dilimi',
+      subtitle: 'top 100 coin · Bayesian skor',
+      accent: '139, 92, 246',
+      accentLight: '109, 40, 217',
+      isNew: true,
+    },
+    {
+      icon: Radar,
+      title: 'Akıllı Sinyal Motoru',
+      stat: 'Canlı',
+      subtitle: 'günlük tespit · al-sat alarmı',
+      accent: '244, 63, 94',
+      accentLight: '190, 18, 60',
+    },
   ]
 
   // ═══════════════════════════════════════════════════════════════════════
@@ -336,16 +385,21 @@ export default function Login() {
         <p className="text-amber-400/80 text-[10px] uppercase tracking-[0.22em] font-bold mt-1">Obsidian Edition</p>
         <Link
           to="/yenilikler"
-          className="inline-flex items-center gap-1.5 mt-4 px-3.5 py-1.5 rounded-full text-[11px] font-semibold transition-colors"
+          className="group relative inline-flex items-center gap-2 mt-5 px-5 py-2.5 rounded-xl text-[13px] font-bold overflow-hidden transition-transform hover:scale-[1.04]"
           style={{
-            background: 'rgba(212, 175, 55, 0.10)',
-            border: '1px solid rgba(212, 175, 55, 0.35)',
-            color: isLight ? '#92400e' : '#fcd34d',
+            background: 'linear-gradient(135deg, var(--gold-300) 0%, var(--gold-500) 100%)',
+            color: '#1a1208',
+            boxShadow: '0 8px 24px -6px rgba(212, 175, 55, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.45)',
           }}
         >
-          <Sparkles className="w-3 h-3" />
-          Platformu Tanı · Yenilikler
-          <ArrowRight className="w-3 h-3" />
+          <span
+            aria-hidden="true"
+            className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-[1100ms] ease-out"
+            style={{ background: 'linear-gradient(120deg, transparent 30%, rgba(255, 255, 255, 0.6) 50%, transparent 70%)' }}
+          />
+          <Sparkles className="w-4 h-4 relative" />
+          <span className="relative">Platformu Tanı</span>
+          <ArrowRight className="w-4 h-4 relative transition-transform group-hover:translate-x-0.5" />
         </Link>
       </div>
 
@@ -602,17 +656,21 @@ export default function Login() {
           <div className="flex items-center gap-2 flex-wrap">
             <Link
               to="/yenilikler"
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-[11px] font-semibold transition-colors hover:scale-[1.02]"
+              className="group relative inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-[13.5px] font-bold overflow-hidden transition-transform hover:scale-[1.04]"
               style={{
-                background: 'rgba(212, 175, 55, 0.10)',
-                border: '1px solid rgba(212, 175, 55, 0.35)',
-                color: isLight ? '#92400e' : '#fcd34d',
-                backdropFilter: 'blur(6px)',
+                background: 'linear-gradient(135deg, var(--gold-300) 0%, var(--gold-500) 100%)',
+                color: '#1a1208',
+                boxShadow: '0 8px 26px -6px rgba(212, 175, 55, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.45)',
               }}
             >
-              <Sparkles className="w-3.5 h-3.5" />
-              Platformu Tanı
-              <ArrowRight className="w-3 h-3" />
+              <span
+                aria-hidden="true"
+                className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-[1100ms] ease-out"
+                style={{ background: 'linear-gradient(120deg, transparent 30%, rgba(255, 255, 255, 0.6) 50%, transparent 70%)' }}
+              />
+              <Sparkles className="w-4 h-4 relative" />
+              <span className="relative">Platformu Tanı</span>
+              <ArrowRight className="w-4 h-4 relative transition-transform group-hover:translate-x-0.5" />
             </Link>
             <div className="hidden xl:flex items-center gap-2">
               {macro.bist100 && (
@@ -644,15 +702,15 @@ export default function Login() {
         </div>
 
         {/* Big hero copy */}
-        <div className="relative z-10 flex-1 flex flex-col justify-center px-12 pb-16">
+        <div className="relative z-10 flex-1 flex flex-col justify-center px-12 pb-12">
           <div className="max-w-xl">
-            <div className="inline-flex items-center gap-2 mb-6 pill pill-gold">
+            <div className="inline-flex items-center gap-2 mb-5 pill pill-gold">
               <span className="status-dot status-dot-gold" />
               Premium Analiz Platformu
             </div>
 
             <h2
-              className="text-[3.25rem] leading-[1.05] font-black tracking-tight mb-6"
+              className="text-[3.25rem] leading-[1.05] font-black tracking-tight mb-5"
               style={{ color: isLight ? '#0f172a' : '#ffffff' }}
             >
               Borsanın
@@ -663,57 +721,80 @@ export default function Login() {
             </h2>
 
             <p
-              className="text-base leading-relaxed mb-10 max-w-md"
+              className="text-base leading-relaxed mb-7 max-w-md"
               style={{ color: isLight ? '#475569' : '#cbd5e1' }}
             >
-              Profesyonel BIST analizi · Gerçek zamanlı veri · AI destekli sinyaller.
-              Tüm araçlar, tek bir cebinizde.
+              Profesyonel BIST ve kripto analizi · otomatik trading botları · AI
+              destekli sinyaller. Tüm araçlar, tek bir cebinizde.
             </p>
 
-            {/* Feature grid */}
-            <div className="grid grid-cols-2 gap-3 max-w-lg">
+            {/* Feature grid — 6 kart, her biri kendi vurgu rengiyle */}
+            <div className="grid grid-cols-2 gap-2.5 max-w-lg">
               {features.map((f, i) => {
                 const Icon = f.icon
+                const ac = isLight ? f.accentLight : f.accent
                 return (
                   <div
                     key={i}
-                    className="group relative overflow-hidden rounded-2xl p-4 transition-all hover:translate-y-[-2px]"
+                    className="group relative overflow-hidden rounded-2xl p-3.5 transition-all duration-300 hover:translate-y-[-3px]"
                     style={{
-                      background: isLight ? 'rgba(255, 255, 255, 0.85)' : 'rgba(255, 255, 255, 0.03)',
-                      border: isLight
-                        ? '1px solid rgba(212, 175, 55, 0.35)'
-                        : '1px solid rgba(212, 175, 55, 0.12)',
+                      background: isLight ? 'rgba(255, 255, 255, 0.88)' : 'rgba(255, 255, 255, 0.03)',
+                      border: `1px solid rgba(${f.accent}, ${isLight ? 0.32 : 0.18})`,
                       backdropFilter: 'blur(8px)',
-                      boxShadow: isLight ? '0 1px 4px rgba(15,23,42,0.06)' : 'none',
+                      boxShadow: isLight ? '0 1px 4px rgba(15, 23, 42, 0.06)' : 'none',
                     }}
                   >
-                    {/* Hover gold sweep */}
+                    {/* Vurgu üst çizgisi */}
+                    <span
+                      aria-hidden="true"
+                      className="absolute inset-x-0 top-0 h-px"
+                      style={{ background: `linear-gradient(90deg, transparent, rgba(${f.accent}, 0.7), transparent)` }}
+                    />
+                    {/* Hover'da vurgu parıltısı */}
                     <div
-                      className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"
+                      className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"
+                      style={{ background: `radial-gradient(140px 90px at 24% 0%, rgba(${f.accent}, 0.18), transparent 70%)` }}
+                    />
+
+                    {/* "Yeni" rozeti */}
+                    {f.isNew && (
+                      <span
+                        className="absolute top-2.5 right-2.5 text-[8px] font-black uppercase tracking-[0.14em] px-1.5 py-0.5 rounded-md"
+                        style={{
+                          background: `rgba(${f.accent}, 0.16)`,
+                          color: `rgb(${ac})`,
+                          border: `1px solid rgba(${f.accent}, 0.5)`,
+                        }}
+                      >
+                        Yeni
+                      </span>
+                    )}
+
+                    {/* İkon kutucuğu */}
+                    <div
+                      className="w-9 h-9 rounded-xl flex items-center justify-center mb-2.5 transition-transform duration-300 group-hover:scale-110"
                       style={{
-                        background:
-                          'linear-gradient(135deg, rgba(212, 175, 55, 0.08), transparent 60%)',
+                        background: `linear-gradient(135deg, rgba(${f.accent}, 0.20), rgba(${f.accent}, 0.05))`,
+                        border: `1px solid rgba(${f.accent}, 0.38)`,
                       }}
-                    />
-                    <Icon
-                      className="w-5 h-5 mb-2.5"
-                      strokeWidth={2.2}
-                      style={{ color: isLight ? '#b45309' : '#fcd34d' }}
-                    />
+                    >
+                      <Icon className="w-[18px] h-[18px]" strokeWidth={2.2} style={{ color: `rgb(${ac})` }} />
+                    </div>
+
                     <div
-                      className="text-[11px] font-bold uppercase tracking-wider"
-                      style={{ color: isLight ? '#92400e' : '#fcd34d' }}
+                      className="text-[10px] font-bold uppercase tracking-[0.1em]"
+                      style={{ color: `rgb(${ac})` }}
                     >
                       {f.stat}
                     </div>
                     <div
-                      className="text-sm font-semibold leading-tight mt-0.5"
+                      className="text-[13.5px] font-semibold leading-tight mt-0.5"
                       style={{ color: isLight ? '#0f172a' : '#ffffff' }}
                     >
                       {f.title}
                     </div>
                     <div
-                      className="text-[11px] mt-1 leading-snug"
+                      className="text-[10.5px] mt-1 leading-snug"
                       style={{ color: isLight ? '#64748b' : '#94a3b8' }}
                     >
                       {f.subtitle}
@@ -739,7 +820,7 @@ export default function Login() {
               className="text-[10px] uppercase tracking-wider"
               style={{ color: isLight ? '#94a3b8' : '#475569' }}
             >
-              v3.0 · Obsidian
+              v4.4 · Obsidian
             </p>
           </div>
         </div>
