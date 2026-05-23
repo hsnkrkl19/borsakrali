@@ -247,7 +247,7 @@ RSI < 30 -> aşırı satım bölgesi`}
               </ul>
               <p className="mt-3">
                 Periyot uyumsuzluğu, bir sinyali iki ayrı zaman diliminde teyit etmeye çalışırken sık yapılan
-                bir hatadir. Örneğin günlük grafikte alış sinyali olan bir hisse, haftalıkta hâlâ düşen
+                bir hatadır. Örneğin günlük grafikte alış sinyali olan bir hisse, haftalıkta hâlâ düşen
                 trendde olabilir. Karar verirken bir üst zaman dilimi (haftalık) ile bir alt zaman dilimi
                 (günlük) birlikte değerlendirilmelidir.
               </p>
@@ -322,7 +322,7 @@ sağlam giriş noktası olanı seçilir.`}
               </ul>
               <p className="mt-3">
                 Sade kalın: iki ya da üç indikatörle başlayın, bunları uzun süre kullanın ve davranışlarını
-                ezbereyleyin. İyi bir indikatör, doğru kullanılan basit bir indikatördür — gizemli bir formül
+                ezberleyin. İyi bir indikatör, doğru kullanılan basit bir indikatördür — gizemli bir formül
                 değil.
               </p>
             </section>
@@ -379,7 +379,7 @@ sağlam giriş noktası olanı seçilir.`}
             </section>
 
             <p className="border-t border-white/5 pt-4 text-xs text-gray-500">
-              Bu içerik yatırım tavsiyesi değildir. Yalnızca eğitim ve bilgilendirme amaçlıyla hazırlanmıştır.
+              Bu içerik yatırım tavsiyesi değildir. Yalnızca eğitim ve bilgilendirme amacıyla hazırlanmıştır.
               Yatırım kararlarınız için kendi araştırmanızı yapmanız ve gerekirse profesyonel destek almanız
               önerilir.
             </p>

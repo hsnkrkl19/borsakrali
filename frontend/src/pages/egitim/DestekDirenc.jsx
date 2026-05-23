@@ -335,7 +335,7 @@ S3 = S1 - (Önceki Gün Yüksek - Düşük)`}
             </section>
 
             <p className="border-t border-white/5 pt-4 text-xs text-gray-500">
-              Bu içerik yatırım tavsiyesi değildir. Yalnızca eğitim ve bilgilendirme amaçlıyla hazırlanmıştır.
+              Bu içerik yatırım tavsiyesi değildir. Yalnızca eğitim ve bilgilendirme amacıyla hazırlanmıştır.
               Yatırım kararlarınız için kendi araştırmanızı yapmanız ve gerekirse profesyonel destek almanız
               önerilir.
             </p>
