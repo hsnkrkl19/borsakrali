@@ -652,10 +652,44 @@ class CronJobsService {
       { scheduled: false }
     );
 
+    // Borsapy makro warmup + TCMB PPK takvim uyarısı — günde 1 kez (sabah 08:30)
+    const borsapyWarmupJob = cron.schedule(
+      '30 8 * * *',
+      async () => {
+        try {
+          const svc = require('./borsapyDataService');
+          // Cache'i ısıt — UI hızlı açılsın
+          await Promise.allSettled([
+            svc.getBondYields(),
+            svc.getBankRates('USD'),
+            svc.getBankRates('EUR'),
+          ]);
+          // PPK toplantısı geçtiyse log uyarısı
+          const policy = svc.getTcmbPolicyRate();
+          if (policy?.nextMeeting) {
+            const next = new Date(policy.nextMeeting);
+            const now = new Date();
+            const daysOverdue = Math.floor((now - next) / (1000 * 60 * 60 * 24));
+            if (daysOverdue > 1) {
+              logger.warn(`[Borsapy] ⚠️  TCMB PPK toplantısı ${daysOverdue} gün önce yapıldı (${policy.nextMeeting}). Politika faizini güncelleyin: backend/src/services/borsapyDataService.js getTcmbPolicyRate()`);
+            }
+          }
+          logger.info('[Borsapy] Günlük makro cache warmup tamamlandı');
+        } catch (error) {
+          logger.error('[Borsapy] Warmup job failed:', error.message);
+        }
+      },
+      { scheduled: false }
+    );
+
+    // Borsapy makro warmup hemen başlat
+    borsapyWarmupJob.start();
+
     // Store jobs
     this.jobs = [
       priceUpdateJob,
       indicatorJob,
+      borsapyWarmupJob,
       dailyUpdateJob,
       signalDetectionJob,
       kapUpdateJob,

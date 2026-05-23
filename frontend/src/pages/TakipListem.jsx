@@ -1,8 +1,10 @@
 import { useState, useEffect, useMemo, useRef } from 'react'
+import { Link } from 'react-router-dom'
 import {
   Briefcase, Plus, Trash2, TrendingUp, TrendingDown, RefreshCw,
   X, Calendar, DollarSign, Hash, FileText, AlertCircle, Edit3,
   ChevronDown, ChevronRight, ShoppingCart, Receipt, Search, Check,
+  PiggyBank, Star,
 } from 'lucide-react'
 import api from '../services/api'
 import { showError, showSuccess } from '../utils/toast'
@@ -186,6 +188,9 @@ export default function TakipListem() {
         <Button variant="ghost" size="sm" icon={RefreshCw} loading={loading} aria-label="Yenile" onClick={() => setRefreshTick(t => t + 1)} />
         <Button variant="gold" size="sm" icon={Plus} onClick={() => { resetForm(); setShowAdd(true) }}>İşlem Ekle</Button>
       </div>
+
+      <FundWatchlistSection />
+
 
       {/* Toplam Özet */}
       <div className={`rounded-2xl border p-4 sm:p-5 ${
@@ -616,6 +621,99 @@ function Mini({ label, value, color = 'gray' }) {
     <div className="bg-dark-800 rounded-lg px-2.5 py-2">
       <div className="text-[9px] uppercase tracking-wider text-gray-500">{label}</div>
       <div className={`text-xs sm:text-sm font-bold font-mono ${colorClass}`}>{value}</div>
+    </div>
+  )
+}
+
+/* ─── TEFAS Fon Watchlist — Borsapy entegrasyonu ──────────────────── */
+function FundWatchlistSection() {
+  const [funds, setFunds] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [collapsed, setCollapsed] = useState(false)
+
+  const load = async () => {
+    setLoading(true)
+    try {
+      const r = await api.get('/borsapy/funds/watchlist')
+      setFunds(r.data?.funds || [])
+    } catch {
+      setFunds([])
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => { load() }, [])
+
+  const remove = async (code) => {
+    try {
+      await api.delete(`/borsapy/funds/watchlist/${code}`)
+      load()
+    } catch {}
+  }
+
+  if (loading) return null
+  if (funds.length === 0) {
+    return (
+      <Link
+        to="/borsapy?tab=tefas"
+        className="flex items-center gap-3 p-3 rounded-xl border border-dashed border-dark-700 hover:border-gold-500/40 transition-all group"
+      >
+        <PiggyBank className="w-4 h-4 text-gray-500 group-hover:text-gold-400" />
+        <div className="flex-1 text-sm text-gray-400">
+          <span className="font-semibold">TEFAS fon takibi: </span>
+          <span className="text-gray-500">Bir fon ekle — değer ve günlük getiri burada görünsün.</span>
+        </div>
+        <ChevronRight className="w-4 h-4 text-gray-600 group-hover:text-gold-400 group-hover:translate-x-0.5 transition" />
+      </Link>
+    )
+  }
+
+  return (
+    <div className="rounded-xl border border-gold-500/20 bg-gold-500/5 p-3 space-y-2">
+      <div className="flex items-center justify-between">
+        <button
+          onClick={() => setCollapsed(c => !c)}
+          className="flex items-center gap-2 text-sm font-semibold text-gold-300"
+        >
+          <PiggyBank className="w-4 h-4" />
+          TEFAS Fon Takibim ({funds.length})
+          <ChevronDown className={`w-3.5 h-3.5 transition-transform ${collapsed ? '-rotate-90' : ''}`} />
+        </button>
+        <Link to="/borsapy?tab=tefas" className="text-xs text-gold-400 hover:underline">+ Fon ekle</Link>
+      </div>
+
+      {!collapsed && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+          {funds.map((f) => (
+            <div key={f.code} className="bg-dark-900/40 rounded-lg p-2.5 border border-dark-800/60 hover:border-gold-500/30 transition-all">
+              <div className="flex items-start justify-between">
+                <div className="flex-1 min-w-0">
+                  <div className="font-mono text-sm font-bold text-gold-300">{f.code}</div>
+                  <div className="text-[11px] text-gray-500 truncate">{f.name || '—'}</div>
+                  {f.price != null && (
+                    <div className="mt-1 flex items-center gap-2">
+                      <span className="text-sm font-mono text-gray-200">{Number(f.price).toFixed(4)}</span>
+                      {f.dailyReturn != null && (
+                        <span className={`text-xs font-mono font-semibold ${f.dailyReturn > 0 ? 'text-emerald-400' : f.dailyReturn < 0 ? 'text-red-400' : 'text-gray-400'}`}>
+                          {f.dailyReturn > 0 ? '+' : ''}{Number(f.dailyReturn).toFixed(2)}%
+                        </span>
+                      )}
+                    </div>
+                  )}
+                </div>
+                <button
+                  onClick={() => remove(f.code)}
+                  className="p-1 text-gray-500 hover:text-red-400 transition"
+                  title="Çıkar"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 }

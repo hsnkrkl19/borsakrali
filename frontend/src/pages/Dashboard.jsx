@@ -2,8 +2,9 @@ import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   ArrowRight, ChevronRight, RefreshCw, TrendingUp, TrendingDown,
-  Search, Crown, Eye, Clock, AlertTriangle,
+  Search, Crown, Eye, Clock, AlertTriangle, Database, Percent, Landmark, Globe,
 } from 'lucide-react'
+import { Link } from 'react-router-dom'
 import apiClient from '../services/api'
 import GuestCTA from '../components/GuestCTA'
 import HelpBubble from '../components/HelpBubble'
@@ -208,6 +209,67 @@ function DashboardStockSearch() {
         ))}
       </div>
     </Card>
+  )
+}
+
+/* ─── Makro Snapshot — politika faizi + USD + 10Y bono ──────────────── */
+function MakroSnapshot() {
+  const [data, setData] = useState({ policy: null, bonds: null, usd: null })
+
+  useEffect(() => {
+    let active = true
+    Promise.allSettled([
+      apiClient.get('/borsapy/tcmb/policy-rate'),
+      apiClient.get('/borsapy/bonds/yields'),
+      apiClient.get('/borsapy/banks/rates?currency=USD'),
+    ]).then(([p, b, u]) => {
+      if (!active) return
+      setData({
+        policy: p.status === 'fulfilled' ? p.value.data?.rates : null,
+        bonds:  b.status === 'fulfilled' ? b.value.data?.yields : null,
+        usd:    u.status === 'fulfilled' ? u.value.data : null,
+      })
+    })
+    return () => { active = false }
+  }, [])
+
+  const usdRate = data.usd?.banks?.[0]?.sell ?? data.usd?.bestForBuying?.sell ?? null
+
+  return (
+    <Link
+      to="/borsapy"
+      className="group flex items-stretch gap-3 rounded-xl border p-3 transition-all hover:border-gold-500/50 overflow-x-auto"
+      style={{ background: 'rgba(212, 175, 55, 0.04)', borderColor: 'var(--border-gold)' }}
+      title="Borsapy Veri Merkezi'ne git"
+    >
+      <div className="flex items-center gap-2 flex-shrink-0 pr-2 border-r border-dark-800/60">
+        <Database className="w-4 h-4 text-gold-400" />
+        <div>
+          <div className="text-[10px] uppercase tracking-wider font-semibold text-gold-400">Makro</div>
+          <div className="text-[11px] text-gray-400">Borsapy</div>
+        </div>
+      </div>
+      <MakroChip icon={Percent}  label="TCMB Faiz" value={data.policy?.policyRate} suffix="%" />
+      <MakroChip icon={Landmark} label="10Y Bono"  value={data.bonds?.['10Y']}      suffix="%" />
+      <MakroChip icon={Globe}    label="USD/TRY"   value={usdRate}                  suffix=" TL" decimals={3} />
+      <div className="hidden sm:flex items-center pl-2 ml-auto text-xs text-gold-400 group-hover:translate-x-0.5 transition-transform">
+        Detay <ChevronRight className="w-3 h-3" />
+      </div>
+    </Link>
+  )
+}
+
+function MakroChip({ icon: Icon, label, value, suffix = '', decimals = 2 }) {
+  return (
+    <div className="flex items-center gap-2 px-2 min-w-fit">
+      <Icon className="w-3.5 h-3.5 text-gold-400/70" />
+      <div>
+        <div className="text-[10px] uppercase text-gray-500 tracking-wider">{label}</div>
+        <div className="text-sm font-bold text-gray-200 font-mono">
+          {value != null ? `${Number(value).toFixed(decimals)}${suffix}` : '—'}
+        </div>
+      </div>
+    </div>
   )
 }
 
@@ -449,6 +511,9 @@ export default function Dashboard() {
 
         {/* Hisse Merkezi araması — herhangi bir hisseyi yaz, tek çatı altında detaya git */}
         <DashboardStockSearch />
+
+        {/* Makro Snapshot — politika faizi + USD + 10Y bono — /borsapy linki */}
+        <MakroSnapshot />
 
         {error && (
           <div

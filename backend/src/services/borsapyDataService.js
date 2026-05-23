@@ -407,6 +407,373 @@ async function getBankRates(currency = 'USD') {
   }
 }
 
+// ─────────────────────────────────────────────────────────────────────
+// VIOP — İş Yatırım Vadeli İşlemler ve Opsiyon Pazarı
+// borsapy/_providers/viop.py port'u — accordion HTML scrape
+// ─────────────────────────────────────────────────────────────────────
+
+const VIOP_URL = 'https://www.isyatirim.com.tr/tr-tr/analiz/Sayfalar/viop.aspx';
+
+const VIOP_SECTIONS = {
+  stock_futures:     'Pay Vadeli İşlem Ana Pazarı',
+  index_futures:     'Endeks Vadeli İşlem Ana Pazarı',
+  currency_futures:  'Döviz Vadeli İşlem Ana Pazarı',
+  commodity_futures: 'Kıymetli Madenler Vadeli İşlem Ana Pazarı',
+  stock_options:     'Pay Opsiyon Ana Pazarı',
+  index_options:     'Endeks Opsiyon Ana Pazarı',
+};
+
+function parseTrNumber(s) {
+  if (s == null) return null;
+  const str = String(s).trim().replace(/\./g, '').replace(',', '.').replace(/[^\d.\-]/g, '');
+  const n = parseFloat(str);
+  return Number.isFinite(n) ? n : null;
+}
+
+async function getViopContracts() {
+  const cached = getCache('viop-all');
+  if (cached) return cached;
+
+  try {
+    const res = await axios.get(VIOP_URL, {
+      headers: { 'User-Agent': USER_AGENT, 'Accept': 'text/html' },
+      timeout: 20000,
+    });
+    const $ = cheerio.load(res.data);
+
+    const result = {};
+    for (const [key, title] of Object.entries(VIOP_SECTIONS)) {
+      result[key] = [];
+      // accordion-title <a> içinde başlık var
+      const $titleEl = $('.accordion-title a, .accordion-title').filter((_, el) => $(el).text().trim() === title).first();
+      const $container = $titleEl.closest('.accordion-item');
+      const $table = $container.find('table').first();
+      if (!$table.length) continue;
+
+      $table.find('tbody tr').each((_, tr) => {
+        const $tr = $(tr);
+        const tds = $tr.find('td');
+        if (tds.length < 5) return;
+
+        // İlk td: title="F_CIMSA0626 | CIMSA Haziran 2026 Vadeli", text=display name
+        const titleAttr = ($(tds[0]).attr('title') || '').trim();
+        const [code, displayName] = titleAttr.includes('|')
+          ? titleAttr.split('|').map(s => s.trim())
+          : [titleAttr, $(tds[0]).text().trim()];
+
+        if (!code) return;
+
+        // Header sırası: Kontrat | Son Fiyat | Değişim (%) | Değişim (TL) | Hacim (TL) | Hacim (Adet)
+        result[key].push({
+          code,
+          name: displayName || $(tds[0]).text().trim(),
+          price:      parseTrNumber($(tds[1]).text()),
+          changePct:  parseTrNumber($(tds[2]).text()),
+          change:     parseTrNumber($(tds[3]).text()),
+          volumeTl:   parseTrNumber($(tds[4]).text()),
+          volumeQty:  parseTrNumber($(tds[5]).text()),
+        });
+      });
+    }
+
+    const out = {
+      ...result,
+      timestamp: new Date().toISOString(),
+      source: 'İş Yatırım VİOP (15dk gecikmeli)',
+    };
+    setCache('viop-all', out, 10 * 60 * 1000); // 10dk
+    return out;
+  } catch (err) {
+    console.warn('[borsapy] VIOP error:', err.message);
+    return {
+      stock_futures: [], index_futures: [], currency_futures: [], commodity_futures: [],
+      stock_options: [], index_options: [],
+      error: err.message,
+    };
+  }
+}
+
+async function getViopByCategory(category) {
+  const all = await getViopContracts();
+  if (!all || all.error) return all;
+  return {
+    category,
+    contracts: all[category] || [],
+    timestamp: all.timestamp,
+    source: all.source,
+  };
+}
+
+async function searchViopBySymbol(symbol) {
+  const all = await getViopContracts();
+  if (!all || all.error) return { symbol, matches: [], error: all?.error };
+  const q = String(symbol || '').toUpperCase();
+  const matches = [];
+  for (const [cat, list] of Object.entries(all)) {
+    if (!Array.isArray(list)) continue;
+    list.forEach(c => {
+      if ((c.code || '').toUpperCase().includes(q) || (c.name || '').toUpperCase().includes(q)) {
+        matches.push({ category: cat, ...c });
+      }
+    });
+  }
+  return { symbol: q, matches, timestamp: all.timestamp };
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// EVDS — TCMB Elektronik Veri Dağıtım Sistemi
+// Catalog endpoint'leri key gerektirmez (kategoriler/seri listesi/search)
+// ─────────────────────────────────────────────────────────────────────
+
+const EVDS_BASE = 'https://evds3.tcmb.gov.tr/igmevdsms-dis';
+
+async function getEvdsCategories() {
+  const cached = getCache('evds-categories');
+  if (cached) return cached;
+  try {
+    const res = await axios.get(`${EVDS_BASE}/categories/withDatagroups/type=json`, {
+      headers: { 'User-Agent': USER_AGENT, 'Accept': 'application/json' },
+      timeout: 15000,
+    });
+    const data = res.data;
+    setCache('evds-categories', data, 6 * 60 * 60 * 1000); // 6 saat
+    return data;
+  } catch (err) {
+    console.warn('[borsapy] EVDS categories error:', err.message);
+    return { error: err.message };
+  }
+}
+
+async function getEvdsSeriesList(datagroupCode) {
+  const code = String(datagroupCode || '').trim();
+  if (!code) throw new Error('datagroup code zorunlu');
+  const cacheKey = `evds-series:${code}`;
+  const cached = getCache(cacheKey);
+  if (cached) return cached;
+  try {
+    const url = `${EVDS_BASE}/serieList/fe/type=json&code=${encodeURIComponent(code)}`;
+    const res = await axios.get(url, {
+      headers: { 'User-Agent': USER_AGENT, 'Accept': 'application/json' },
+      timeout: 15000,
+    });
+    setCache(cacheKey, res.data, 6 * 60 * 60 * 1000);
+    return res.data;
+  } catch (err) {
+    console.warn(`[borsapy] EVDS series list error (${code}):`, err.message);
+    return { error: err.message };
+  }
+}
+
+async function searchEvds(term) {
+  const q = String(term || '').trim();
+  if (!q) return { results: [] };
+  const cacheKey = `evds-search:${q.toLowerCase()}`;
+  const cached = getCache(cacheKey);
+  if (cached) return cached;
+  try {
+    const res = await axios.get(`${EVDS_BASE}/searchResults?searchVal=${encodeURIComponent(q)}`, {
+      headers: { 'User-Agent': USER_AGENT, 'Accept': 'application/json' },
+      timeout: 15000,
+    });
+    setCache(cacheKey, res.data, 30 * 60 * 1000);
+    return res.data;
+  } catch (err) {
+    console.warn(`[borsapy] EVDS search error (${q}):`, err.message);
+    return { error: err.message };
+  }
+}
+
+/**
+ * EVDS series değerleri — KEY GEREKTİRİR (process.env.EVDS_KEY).
+ * Key yoksa hata mesajı döner.
+ */
+async function getEvdsSeriesData(seriesCode, period = '1y') {
+  const key = process.env.EVDS_KEY;
+  if (!key) {
+    return { error: 'EVDS_KEY tanımlı değil. evds3.tcmb.gov.tr/serviceweb üzerinden ücretsiz key alın ve env değişkenine ekleyin.' };
+  }
+  const codes = Array.isArray(seriesCode) ? seriesCode.join('-') : String(seriesCode);
+  // Tarih aralığı
+  const end = new Date();
+  const start = new Date(end);
+  const m = String(period).match(/(\d+)([dmy])/i);
+  if (m) {
+    const num = Number(m[1]);
+    const unit = m[2].toLowerCase();
+    if (unit === 'd') start.setDate(end.getDate() - num);
+    else if (unit === 'm') start.setMonth(end.getMonth() - num);
+    else start.setFullYear(end.getFullYear() - num);
+  } else {
+    start.setFullYear(end.getFullYear() - 1);
+  }
+  const fmt = (d) => `${String(d.getDate()).padStart(2, '0')}-${String(d.getMonth() + 1).padStart(2, '0')}-${d.getFullYear()}`;
+  const url = `https://evds2.tcmb.gov.tr/service/evds/series=${encodeURIComponent(codes)}&startDate=${fmt(start)}&endDate=${fmt(end)}&type=json&key=${encodeURIComponent(key)}`;
+  try {
+    const res = await axios.get(url, {
+      headers: { 'User-Agent': USER_AGENT, 'Accept': 'application/json' },
+      timeout: 20000,
+    });
+    return res.data;
+  } catch (err) {
+    console.warn('[borsapy] EVDS series data error:', err.message);
+    return { error: err.message };
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// Eurobond — Türkiye'nin USD/EUR cinsi eurobond getirileri
+// Ziraat API yerine Yahoo Finance'den proxy (TUR tickers)
+// ─────────────────────────────────────────────────────────────────────
+
+async function getEurobondYields() {
+  const cached = getCache('eurobond-yields');
+  if (cached) return cached;
+  // Türkiye eurobondlarının yaklaşık getirileri için kullanılabilir göstergeler:
+  // ABD 10Y + Türk CDS = Eurobond getirisi yaklaşıkı. Doğrudan tikerlar yok.
+  // Çözüm: temel ticker'ları topla.
+  const symbols = [
+    { ticker: '^TNX',  label: 'ABD 10Y Tahvil Getirisi (referans)' },
+    { ticker: '^FVX',  label: 'ABD 5Y Tahvil Getirisi (referans)' },
+    { ticker: 'TUR',   label: 'iShares MSCI Turkey ETF (USD)' },
+  ];
+  try {
+    const YF = require('yahoo-finance2').default;
+    const yahooFinance = typeof YF === 'function' ? new YF({ suppressNotices: ['yahooSurvey'] }) : YF;
+    const results = await Promise.all(symbols.map(async (s) => {
+      try {
+        const q = await yahooFinance.quote(s.ticker);
+        return {
+          ticker: s.ticker,
+          label: s.label,
+          price: q?.regularMarketPrice ?? null,
+          change: q?.regularMarketChange ?? null,
+          changePct: q?.regularMarketChangePercent ?? null,
+          currency: q?.currency || 'USD',
+        };
+      } catch (e) {
+        return { ticker: s.ticker, label: s.label, error: e.message };
+      }
+    }));
+
+    const out = {
+      indicators: results,
+      note: 'Türkiye eurobond getirileri için doğrudan ücretsiz endpoint yok. Yukarıdaki göstergeler proxy olarak kullanılabilir (ABD tahvil getirileri + Türkiye ETF\'i).',
+      timestamp: new Date().toISOString(),
+    };
+    setCache('eurobond-yields', out, 60 * 60 * 1000); // 1 saat
+    return out;
+  } catch (err) {
+    console.warn('[borsapy] Eurobond error:', err.message);
+    return { indicators: [], error: err.message };
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// Teknik Scanner — Yahoo Finance verisi üzerinde RSI/MA tabanlı tarama
+// Borsapy'nin bp.scan() port'u — basit ama etkili
+// ─────────────────────────────────────────────────────────────────────
+
+function calcRSI(closes, period = 14) {
+  if (closes.length < period + 1) return null;
+  let gains = 0, losses = 0;
+  for (let i = closes.length - period; i < closes.length; i++) {
+    const change = closes[i] - closes[i - 1];
+    if (change > 0) gains += change;
+    else losses -= change;
+  }
+  const avgGain = gains / period;
+  const avgLoss = losses / period;
+  if (avgLoss === 0) return 100;
+  const rs = avgGain / avgLoss;
+  return 100 - (100 / (1 + rs));
+}
+
+function calcSMA(closes, period) {
+  if (closes.length < period) return null;
+  const slice = closes.slice(-period);
+  return slice.reduce((a, b) => a + b, 0) / period;
+}
+
+/**
+ * BIST taraması — kriter tabanlı.
+ * @param {Object} criteria { rsiBelow, rsiAbove, priceAboveSma, priceBelowSma, volumeMin, changeMin, changeMax }
+ * @param {string} universe 'bist30' | 'bist100' | 'all'
+ */
+async function scanStocks(criteria = {}, universe = 'bist30') {
+  const liveDataService = require('./liveDataService');
+  const { bist30Stocks, bist100Stocks, allBistStocks } = require('../data/allBistStocks');
+  const yahooFinance = require('yahoo-finance2').default;
+
+  const pool = universe === 'all' ? allBistStocks
+    : universe === 'bist100' ? bist100Stocks
+    : bist30Stocks;
+
+  const symbols = (Array.isArray(pool) ? pool : []).slice(0, 100).map(s => typeof s === 'string' ? s : s.symbol || s.code).filter(Boolean);
+
+  const matches = [];
+  const errors = [];
+
+  // Batch'ler halinde (5'erli)
+  for (let i = 0; i < symbols.length; i += 5) {
+    const batch = symbols.slice(i, i + 5);
+    await Promise.all(batch.map(async (sym) => {
+      try {
+        const yahooSym = sym.endsWith('.IS') ? sym : `${sym}.IS`;
+        const hist = await yahooFinance.historical(yahooSym, {
+          period1: new Date(Date.now() - 100 * 24 * 60 * 60 * 1000),
+          interval: '1d',
+        });
+        if (!Array.isArray(hist) || hist.length < 20) return;
+        const closes = hist.map(h => h.close).filter(Number.isFinite);
+        const volumes = hist.map(h => h.volume).filter(Number.isFinite);
+        const last = closes[closes.length - 1];
+        const prev = closes[closes.length - 2] || last;
+        const lastVolume = volumes[volumes.length - 1] || 0;
+        const changePct = prev > 0 ? ((last - prev) / prev) * 100 : 0;
+
+        const rsi = calcRSI(closes, 14);
+        const sma20 = calcSMA(closes, 20);
+        const sma50 = calcSMA(closes, 50);
+
+        let passes = true;
+        if (criteria.rsiBelow != null && (rsi == null || rsi >= criteria.rsiBelow)) passes = false;
+        if (criteria.rsiAbove != null && (rsi == null || rsi <= criteria.rsiAbove)) passes = false;
+        if (criteria.priceAboveSma === 20 && (sma20 == null || last <= sma20)) passes = false;
+        if (criteria.priceAboveSma === 50 && (sma50 == null || last <= sma50)) passes = false;
+        if (criteria.priceBelowSma === 20 && (sma20 == null || last >= sma20)) passes = false;
+        if (criteria.priceBelowSma === 50 && (sma50 == null || last >= sma50)) passes = false;
+        if (criteria.volumeMin != null && lastVolume < Number(criteria.volumeMin)) passes = false;
+        if (criteria.changeMin != null && changePct < Number(criteria.changeMin)) passes = false;
+        if (criteria.changeMax != null && changePct > Number(criteria.changeMax)) passes = false;
+        if (criteria.smaCross === 'golden' && (sma20 == null || sma50 == null || sma20 <= sma50)) passes = false;
+        if (criteria.smaCross === 'death' && (sma20 == null || sma50 == null || sma20 >= sma50)) passes = false;
+
+        if (passes) {
+          matches.push({
+            symbol: sym, price: last, changePct,
+            rsi: rsi != null ? +rsi.toFixed(2) : null,
+            sma20: sma20 != null ? +sma20.toFixed(2) : null,
+            sma50: sma50 != null ? +sma50.toFixed(2) : null,
+            volume: lastVolume,
+          });
+        }
+      } catch (e) {
+        errors.push({ symbol: sym, error: e.message });
+      }
+    }));
+  }
+
+  matches.sort((a, b) => (b.changePct || 0) - (a.changePct || 0));
+  return {
+    criteria, universe,
+    matches,
+    count: matches.length,
+    scanned: symbols.length,
+    errors: errors.slice(0, 5),
+    timestamp: new Date().toISOString(),
+  };
+}
+
 module.exports = {
   // TEFAS
   searchTefasFunds,
@@ -420,4 +787,18 @@ module.exports = {
   // Banks
   getBankRates,
   CURRENCY_SLUGS,
+  // VIOP
+  getViopContracts,
+  getViopByCategory,
+  searchViopBySymbol,
+  VIOP_SECTIONS,
+  // EVDS
+  getEvdsCategories,
+  getEvdsSeriesList,
+  searchEvds,
+  getEvdsSeriesData,
+  // Eurobond
+  getEurobondYields,
+  // Scanner
+  scanStocks,
 };

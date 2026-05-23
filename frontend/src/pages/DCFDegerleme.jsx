@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
-import { useSearchParams } from 'react-router-dom'
-import { Calculator, Search, TrendingUp, TrendingDown, RefreshCw, AlertCircle, Info, Target, Zap } from 'lucide-react'
+import { useSearchParams, Link } from 'react-router-dom'
+import { Calculator, Search, TrendingUp, TrendingDown, RefreshCw, AlertCircle, Info, Target, Zap, ExternalLink } from 'lucide-react'
 import api from '../services/api'
 import { Button } from '../components/ui'
 
@@ -339,6 +339,10 @@ export default function DCFDegerleme() {
         </div>
       </div>
 
+      {/* Canlı risksiz oran — Borsapy 10Y bono */}
+      <RiskFreeRateBanner />
+
+
       {/* Error */}
       {error && (
         <div className="p-4 bg-red-500/10 border border-red-500/30 rounded-xl flex items-center gap-3 text-red-400">
@@ -494,3 +498,37 @@ export default function DCFDegerleme() {
     </div>
   )
 }
+
+/* ─── Canlı Risksiz Oran Banner — Borsapy'den 10Y bono getirisi ───── */
+function RiskFreeRateBanner() {
+  const [bonds, setBonds] = useState(null)
+  useEffect(() => {
+    api.get('/borsapy/bonds/yields')
+      .then(r => setBonds(r.data?.yields))
+      .catch(() => {})
+  }, [])
+
+  if (!bonds || bonds['10Y'] == null) return null
+
+  return (
+    <Link
+      to="/borsapy"
+      className="flex items-center gap-3 p-3 rounded-xl border border-gold-500/20 bg-gold-500/5 hover:border-gold-500/40 transition-all group"
+      title="Canlı bono getirilerini Borsapy Veri Merkezi'nde gör"
+    >
+      <Target className="w-4 h-4 text-gold-400 flex-shrink-0" />
+      <div className="flex-1 text-sm">
+        <span className="text-gray-400">Canlı risksiz oran (10Y TR tahvil): </span>
+        <strong className="text-gold-300 font-mono">{bonds['10Y'].toFixed(2)}%</strong>
+        <span className="text-gray-500 ml-2 text-xs">
+          · 2Y: {bonds['2Y']?.toFixed(2) ?? '—'}% · 5Y: {bonds['5Y']?.toFixed(2) ?? '—'}%
+        </span>
+        <span className="text-gray-500 text-xs italic ml-2 hidden sm:inline">
+          Aşağıdaki WACC sektör tablosundan; canlı bono ile karşılaştır.
+        </span>
+      </div>
+      <ExternalLink className="w-3.5 h-3.5 text-gold-400 group-hover:translate-x-0.5 transition-transform" />
+    </Link>
+  )
+}
+

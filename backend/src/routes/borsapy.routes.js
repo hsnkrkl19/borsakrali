@@ -127,4 +127,158 @@ router.get('/banks/rates-multi', async (req, res) => {
   }
 });
 
+// ─── VIOP (Vadeli İşlem) ────────────────────────────────────────────
+router.get('/viop', async (req, res) => {
+  try {
+    const data = await svc.getViopContracts();
+    ok(res, { viop: data });
+  } catch (err) {
+    fail(res, 500, err.message);
+  }
+});
+
+router.get('/viop/:category', async (req, res) => {
+  try {
+    const valid = Object.keys(svc.VIOP_SECTIONS);
+    if (!valid.includes(req.params.category)) {
+      return fail(res, 400, `Geçersiz kategori. Seçenekler: ${valid.join(', ')}`);
+    }
+    const data = await svc.getViopByCategory(req.params.category);
+    ok(res, data);
+  } catch (err) {
+    fail(res, 500, err.message);
+  }
+});
+
+router.get('/viop/search/:symbol', async (req, res) => {
+  try {
+    const data = await svc.searchViopBySymbol(req.params.symbol);
+    ok(res, data);
+  } catch (err) {
+    fail(res, 500, err.message);
+  }
+});
+
+// ─── EVDS (TCMB) ────────────────────────────────────────────────────
+router.get('/evds/categories', async (req, res) => {
+  try {
+    const data = await svc.getEvdsCategories();
+    ok(res, { data });
+  } catch (err) {
+    fail(res, 500, err.message);
+  }
+});
+
+router.get('/evds/series-list/:datagroup', async (req, res) => {
+  try {
+    const data = await svc.getEvdsSeriesList(req.params.datagroup);
+    ok(res, { data });
+  } catch (err) {
+    fail(res, 500, err.message);
+  }
+});
+
+router.get('/evds/search', async (req, res) => {
+  try {
+    const q = (req.query.q || '').toString();
+    if (!q) return fail(res, 400, 'Arama metni gerekli');
+    const data = await svc.searchEvds(q);
+    ok(res, { data });
+  } catch (err) {
+    fail(res, 500, err.message);
+  }
+});
+
+router.get('/evds/series/:code', async (req, res) => {
+  try {
+    const period = (req.query.period || '1y').toString();
+    const data = await svc.getEvdsSeriesData(req.params.code, period);
+    ok(res, { data });
+  } catch (err) {
+    fail(res, 500, err.message);
+  }
+});
+
+// ─── Eurobond ───────────────────────────────────────────────────────
+router.get('/eurobond/yields', async (req, res) => {
+  try {
+    const data = await svc.getEurobondYields();
+    ok(res, { data });
+  } catch (err) {
+    fail(res, 500, err.message);
+  }
+});
+
+// ─── Teknik Scanner ─────────────────────────────────────────────────
+router.get('/scanner', async (req, res) => {
+  try {
+    const universe = (req.query.universe || 'bist30').toString();
+    const criteria = {
+      rsiBelow:      req.query.rsiBelow      != null ? Number(req.query.rsiBelow)      : null,
+      rsiAbove:      req.query.rsiAbove      != null ? Number(req.query.rsiAbove)      : null,
+      priceAboveSma: req.query.priceAboveSma != null ? Number(req.query.priceAboveSma) : null,
+      priceBelowSma: req.query.priceBelowSma != null ? Number(req.query.priceBelowSma) : null,
+      volumeMin:     req.query.volumeMin     != null ? Number(req.query.volumeMin)     : null,
+      changeMin:     req.query.changeMin     != null ? Number(req.query.changeMin)     : null,
+      changeMax:     req.query.changeMax     != null ? Number(req.query.changeMax)     : null,
+      smaCross:      req.query.smaCross || null,
+    };
+    const data = await svc.scanStocks(criteria, universe);
+    ok(res, data);
+  } catch (err) {
+    fail(res, 500, err.message);
+  }
+});
+
+// ─── Fund Watchlist (kullanıcı bazlı, in-memory) ────────────────────
+const fundWatchlists = new Map(); // userId → Set<fonKodu>
+
+function getUserKey(req) {
+  // Token varsa header'dan id parse et — yoksa 'guest'
+  const auth = req.headers.authorization || '';
+  if (auth.startsWith('Bearer ')) {
+    const token = auth.slice(7);
+    return `tok:${token.slice(0, 16)}`;
+  }
+  return req.ip || 'guest';
+}
+
+router.get('/funds/watchlist', async (req, res) => {
+  try {
+    const key = getUserKey(req);
+    const codes = [...(fundWatchlists.get(key) || new Set())];
+    // Detayları çek
+    const funds = await Promise.all(codes.map(async (c) => {
+      try { return await svc.getTefasFundDetail(c); }
+      catch { return { code: c, error: true }; }
+    }));
+    ok(res, { codes, funds });
+  } catch (err) {
+    fail(res, 500, err.message);
+  }
+});
+
+router.post('/funds/watchlist', (req, res) => {
+  try {
+    const { code } = req.body || {};
+    if (!code) return fail(res, 400, 'Fon kodu gerekli');
+    const key = getUserKey(req);
+    if (!fundWatchlists.has(key)) fundWatchlists.set(key, new Set());
+    fundWatchlists.get(key).add(String(code).toUpperCase());
+    ok(res, { codes: [...fundWatchlists.get(key)] });
+  } catch (err) {
+    fail(res, 500, err.message);
+  }
+});
+
+router.delete('/funds/watchlist/:code', (req, res) => {
+  try {
+    const key = getUserKey(req);
+    if (fundWatchlists.has(key)) fundWatchlists.get(key).delete(req.params.code.toUpperCase());
+    ok(res, { codes: [...(fundWatchlists.get(key) || new Set())] });
+  } catch (err) {
+    fail(res, 500, err.message);
+  }
+});
+
 module.exports = router;
