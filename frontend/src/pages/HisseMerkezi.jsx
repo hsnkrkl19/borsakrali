@@ -4,6 +4,7 @@ import {
   Search, TrendingUp, TrendingDown, Activity, BarChart3, Brain, Waves,
   CandlestickChart, Layers, Calculator, Hash, Building2,
   ExternalLink, RefreshCw, ChevronRight, AlertCircle, Sparkles, Crown,
+  Database,
 } from 'lucide-react'
 import api from '../services/api'
 import StockChart from '../components/charts/StockChart'
@@ -262,6 +263,16 @@ export default function HisseMerkezi() {
         </div>
 
         <div className="flex items-center gap-2">
+          {!isCrypto && (
+            <Button
+              variant="ghost"
+              size="sm"
+              icon={Database}
+              onClick={() => navigate(`/is-yatirim-veri?symbol=${symbol}&tab=stock`)}
+            >
+              İş Yatırım
+            </Button>
+          )}
           <Button
             as="a"
             href={tvExternalLink(symbol, isCrypto)}

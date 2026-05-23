@@ -9,7 +9,8 @@
  * Veri direkt `/api/isyatirim/*` üzerinden gelir. Her sekmenin CSV indirme butonu vardır.
  */
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
-import { Database, RefreshCw, Download, Search, Calendar, Building2, BarChart3, FileSpreadsheet, Info } from 'lucide-react'
+import { useSearchParams } from 'react-router-dom'
+import { Database, RefreshCw, Download, Search, Calendar, Building2, BarChart3, FileSpreadsheet, Info, Calculator } from 'lucide-react'
 import { createChart } from 'lightweight-charts'
 import api from '../services/api'
 import { Button, Card, PageHeader, EmptyState, Spinner } from '../components/ui'
@@ -135,8 +136,8 @@ function MiniChart({ series, title, color = '#d4af37', height = 200 }) {
 }
 
 // ── Stock sekmesi ────────────────────────────────────────────────────────
-function StockTab() {
-  const [symbol, setSymbol] = useState('THYAO')
+function StockTab({ initialSymbol }) {
+  const [symbol, setSymbol] = useState(initialSymbol || 'THYAO')
   const [start, setStart] = useState(yearsAgoTr(1))
   const [end, setEnd] = useState(todayTr())
   const [data, setData] = useState([])
@@ -415,10 +416,112 @@ function IndexTab({ knownIndices }) {
   )
 }
 
+// ── Mali Tablo: hesaplanmış oranlar ─────────────────────────────────────
+// İş Yatırım KALEM_ADI'na göre değer bulur. periodKey: 'Q1'|'Q2'|'Q3'|'Q4'
+function findItemValue(rows, namePatterns, periodKey = 'Q4') {
+  for (const pat of namePatterns) {
+    const found = rows.find(r => {
+      const name = (r.itemDescTr || '').toLowerCase().replace(/\s+/g, ' ').trim()
+      if (pat instanceof RegExp) return pat.test(name)
+      return name.includes(String(pat).toLowerCase())
+    })
+    if (found) {
+      const v = found[periodKey]
+      if (v != null && Number.isFinite(v) && v !== 0) return v
+    }
+  }
+  return null
+}
+
+function calcRatios(rows, periodKey = 'Q4') {
+  if (!rows?.length) return null
+  const g = (patterns) => findItemValue(rows, patterns, periodKey)
+
+  const totalAssets    = g(['toplam varlık', 'toplam aktif', 'varlıklar toplamı'])
+  const currentAssets  = g(['dönen varlıklar', 'i- dönen varlıklar', 'i.dönen varlıklar'])
+  const currentLiab    = g(['kısa vadeli yükümlülük', 'iii- kısa vadeli yükümlülükler'])
+  const totalLiab      = g(['toplam yükümlülük', 'yükümlülükler toplamı', 'toplam kaynak'])
+  const equity         = g(['ana ortaklığa ait özkaynak', 'toplam özkaynak', 'özkaynaklar toplamı', 'özkaynak'])
+  const revenue        = g(['hasılat', 'satış geliri', 'net satış', 'satışlar'])
+  const grossProfit    = g(['brüt kâr', 'brüt kar'])
+  const operatingProfit= g(['esas faaliyet kârı', 'faaliyet kârı', 'faaliyet karı'])
+  const netProfit      = g(['dönem net kârı', 'net dönem kârı', 'dönem net kâr', 'net kâr (zarar)', 'dönem net kar'])
+
+  const finalLiab = totalLiab ?? (totalAssets != null && equity != null ? totalAssets - equity : null)
+  const r = {}
+  if (revenue && grossProfit)     r.grossMargin    = grossProfit / revenue * 100
+  if (revenue && operatingProfit) r.opMargin       = operatingProfit / revenue * 100
+  if (revenue && netProfit)       r.netMargin      = netProfit / revenue * 100
+  if (totalAssets && netProfit)   r.roa            = netProfit / totalAssets * 100
+  if (equity && netProfit)        r.roe            = netProfit / equity * 100
+  if (currentAssets && currentLiab) r.currentRatio = currentAssets / currentLiab
+  if (equity && finalLiab)        r.debtToEquity   = finalLiab / equity
+  r._revenue = revenue
+  r._netProfit = netProfit
+  r._totalAssets = totalAssets
+  r._equity = equity
+  return Object.keys(r).length > 4 ? r : null // sadece label dışı 0 hesap varsa null dön
+}
+
+// En son veri içeren çeyreği bul (Q4 → Q3 → Q2 → Q1). Bir kalemin dolu olması yeterli.
+function detectLastFilledPeriod(rows) {
+  for (const k of ['Q4', 'Q3', 'Q2', 'Q1']) {
+    if (rows?.some(r => r[k] != null && Number.isFinite(r[k]) && r[k] !== 0)) return k
+  }
+  return 'Q4'
+}
+
+function RatiosPanel({ rows, year, periodKey }) {
+  const effectiveKey = periodKey || detectLastFilledPeriod(rows)
+  const r = useMemo(() => calcRatios(rows, effectiveKey), [rows, effectiveKey])
+  if (!r) return null
+  const periodLabel = effectiveKey === 'Q4' ? 'Yıllık' : effectiveKey === 'Q3' ? '9 Ay Kümülatif' : effectiveKey === 'Q2' ? '6 Ay Kümülatif' : '3 Ay Kümülatif'
+
+  const Item = ({ label, value, suffix = '%', tone, hint, decimals = 2 }) => {
+    const v = value
+    const display = v == null || !Number.isFinite(v) ? '—' : `${suffix === '%' && v >= 0 ? '+' : ''}${v.toFixed(decimals)}${suffix}`
+    let color = 'text-white'
+    if (v != null && tone) {
+      if (tone === 'higher-better') color = v >= 0 ? 'text-emerald-300' : 'text-rose-300'
+      else if (tone === 'lower-better') color = v <= 1 ? 'text-emerald-300' : v <= 2 ? 'text-amber-300' : 'text-rose-300'
+      else if (tone === 'ratio-current') color = v >= 1.5 ? 'text-emerald-300' : v >= 1 ? 'text-amber-300' : 'text-rose-300'
+    }
+    return (
+      <div className="rounded-lg border border-dark-700 bg-dark-900/50 px-2.5 py-2">
+        <div className="text-[10px] uppercase tracking-wider text-gray-500">{label}</div>
+        <div className={`text-base font-bold font-mono ${color}`}>{display}</div>
+        {hint && <div className="text-[10px] text-gray-600 mt-0.5">{hint}</div>}
+      </div>
+    )
+  }
+
+  return (
+    <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 p-3 mb-3">
+      <div className="text-[11px] font-bold text-amber-300 mb-2 flex items-center gap-1.5">
+        <Calculator size={11} />
+        Hesaplanmış Oranlar — {year} ({periodLabel})
+      </div>
+      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2">
+        <Item label="Brüt Kâr Marjı"    value={r.grossMargin}  tone="higher-better" />
+        <Item label="Faaliyet Marjı"     value={r.opMargin}    tone="higher-better" />
+        <Item label="Net Kâr Marjı"      value={r.netMargin}   tone="higher-better" />
+        <Item label="ROA"                value={r.roa}         tone="higher-better" hint="Aktif Kârlılığı" />
+        <Item label="ROE"                value={r.roe}         tone="higher-better" hint="Özkaynak Kârlılığı" />
+        <Item label="Cari Oran"          value={r.currentRatio} suffix="" decimals={2} tone="ratio-current" hint="Dönen V. / KV Yük." />
+        <Item label="Borç/Özkaynak"      value={r.debtToEquity} suffix="" decimals={2} tone="lower-better" hint="Toplam Yük. / Özkaynak" />
+      </div>
+      <div className="text-[10px] text-gray-500 mt-2 leading-snug">
+        ⓘ Oranlar IFRS standart raporlardan otomatik türetilmiştir. Sektör (örn. havayolu, finans) özel
+        bilanço yapısı bazı marjları yanıltabilir — ham veriyi tablodan veya CSV'den doğrulayın.
+      </div>
+    </div>
+  )
+}
+
 // ── Financials sekmesi ───────────────────────────────────────────────────
-function FinancialsTab({ groups }) {
+function FinancialsTab({ groups, initialSymbol }) {
   const now = new Date()
-  const [symbol, setSymbol] = useState('THYAO')
+  const [symbol, setSymbol] = useState(initialSymbol || 'THYAO')
   const [startYear, setStartYear] = useState(now.getFullYear() - 2)
   const [endYear, setEndYear] = useState(now.getFullYear())
   const [exchange, setExchange] = useState('TRY')
@@ -526,6 +629,7 @@ function FinancialsTab({ groups }) {
               <div className="text-xs font-bold text-amber-300 mb-1.5 flex items-center gap-2">
                 <Calendar size={12} /> {year} ({exchange})
               </div>
+              <RatiosPanel rows={rows} year={year} />
               <div className="overflow-x-auto rounded-xl border border-dark-700">
                 <table className="w-full text-xs">
                   <thead className="bg-dark-800 text-gray-400 border-b border-dark-700">
@@ -576,8 +680,15 @@ function Stat({ label, value, tone }) {
 
 // ── Ana sayfa ────────────────────────────────────────────────────────────
 export default function IsYatirimVeri() {
-  const [tab, setTab] = useState('stock')
+  const [searchParams] = useSearchParams()
+  const urlSymbol = (searchParams.get('symbol') || '').toUpperCase().trim() || null
+  const urlTab    = searchParams.get('tab') // 'stock'|'index'|'financials'
+  const [tab, setTab] = useState(urlTab || 'stock')
   const [meta, setMeta] = useState({ indices: [], financialGroups: [] })
+
+  useEffect(() => {
+    if (urlTab && urlTab !== tab) setTab(urlTab)
+  }, [urlTab]) // eslint-disable-line
 
   useEffect(() => {
     api.get('/isyatirim/meta')
@@ -621,9 +732,9 @@ export default function IsYatirimVeri() {
         </div>
       </ScrollableTabBar>
 
-      {tab === 'stock'      && <StockTab />}
+      {tab === 'stock'      && <StockTab initialSymbol={urlSymbol} />}
       {tab === 'index'      && <IndexTab knownIndices={meta.indices} />}
-      {tab === 'financials' && <FinancialsTab groups={meta.financialGroups} />}
+      {tab === 'financials' && <FinancialsTab groups={meta.financialGroups} initialSymbol={urlSymbol} />}
 
       <div className="text-[11px] text-gray-500 px-1 leading-relaxed">
         ⓘ Veriler isyatirim.com.tr'den canlı çekilir, 5 dk önbelleğe alınır.
