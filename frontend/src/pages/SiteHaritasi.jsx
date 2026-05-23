@@ -6,7 +6,7 @@ import {
   Briefcase, BookOpen, Calendar, CreditCard, Settings, KeyRound,
   MessageCircle, Bell, Layers, BarChart3, FileText, Sparkles,
   Brain, Lock, Star, History, Shield, GraduationCap, Info, Mail,
-  ChevronUp, X,
+  ChevronUp, X, Database,
 } from 'lucide-react'
 import GuestCTA from '../components/GuestCTA'
 
@@ -159,6 +159,35 @@ const SECTIONS = [
           { label: 'Kütüphane', query: 'tab=kutuphane' },
         ],
         keywords: ['backtest', 'performans', 'kütüphane', 'strateji'],
+      },
+      {
+        path: '/is-yatirim-veri',
+        label: 'İş Yatırım Verileri',
+        icon: Database,
+        description: 'isyatirim.com.tr resmi kaynağından hisse fiyatı, endeks ve mali tablo verisi — CSV/Excel olarak indirilebilir.',
+        usage: 'Ham veriyle kendi analizinizi yapmak veya CSV/Excel almak için.',
+        badge: 'YENİ',
+        tabs: [
+          { label: 'Hisse', query: 'tab=stock' },
+          { label: 'Endeks', query: 'tab=index' },
+          { label: 'Mali Tablo', query: 'tab=financials' },
+        ],
+        keywords: ['iş yatırım', 'isyatirim', 'hissetekil', 'mali tablo', 'endeks', 'csv', 'excel', 'veri indir', 'XU100', 'XU030'],
+      },
+      {
+        path: '/borsapy',
+        label: 'Borsapy Veri Merkezi',
+        icon: Database,
+        description: 'TEFAS yatırım fonları, TCMB politika faizi, devlet tahvili getirileri, banka döviz kuru karşılaştırması ve resmi TCMB enflasyon hesaplayıcı — tek sayfada.',
+        usage: 'BIST dışındaki Türk makro/fon verisine hızlı erişim için.',
+        badge: 'YENİ',
+        tabs: [
+          { label: 'TCMB & Makro',   query: 'tab=makro' },
+          { label: 'TEFAS Fonları',  query: 'tab=tefas' },
+          { label: 'Banka Kurları',  query: 'tab=bankalar' },
+          { label: 'Enflasyon Hesap',query: 'tab=enflasyon' },
+        ],
+        keywords: ['borsapy', 'tefas', 'fon', 'tcmb', 'politika faizi', 'enflasyon', 'tüfe', 'banka kuru', 'tahvil', 'bono', 'yatırım fonu', 'emeklilik'],
       },
     ],
   },

@@ -72,6 +72,8 @@ import GunSonuPerformans from './pages/GunSonuPerformans' // YENİ: günün siny
 import TradingBot from './pages/TradingBot' // YENİ v5.1: Freqtrade port + sınama katmanı
 import Yenilikler from './pages/Yenilikler' // YENİ v5.2: Hoşgeldin / yenilikler ekranı (tekrar göster)
 import HisseMerkezi from './pages/HisseMerkezi' // YENİ v5.3: Tek çatı altında hisse detayları
+import IsYatirimVeri from './pages/IsYatirimVeri' // YENİ v5.4: İş Yatırım hisse/endeks/mali tablo veri arayüzü
+import BorsapyMerkezi from './pages/BorsapyMerkezi' // YENİ v5.5: TEFAS+TCMB+Banka kurları+Enflasyon (borsapy esinli)
 
 // === PARÇA 1 WRAPPER'LARI (21→6 sekme sadeleştirmesi) ===
 import Firsatlar from './pages/Firsatlar' // Tarayıcılar + Günlük Sinyaller
@@ -210,6 +212,10 @@ function App() {
                 {/* Eski heatmap URL → yeni sinyaller sayfasına (heatmap alt sekme) */}
                 <Route path="/canli-heatmap" element={<Navigate to="/sinyaller?tab=heatmap" replace />} />
                 <Route path="/ekonomik-takvim" element={<EkonomikTakvim />} />
+                <Route path="/is-yatirim-veri" element={<IsYatirimVeri />} />
+                {/* Borsapy Veri Merkezi — public (TEFAS + TCMB + banka kurları + enflasyon) */}
+                <Route path="/borsapy" element={<BorsapyMerkezi />} />
+                <Route path="/veri-merkezi" element={<Navigate to="/borsapy" replace />} />
                 <Route path="/site-haritasi" element={<SiteHaritasi />} />
                 <Route path="/endeks/:symbol" element={<EndeksDetay />} />
                 <Route path="/yenilikler" element={<Yenilikler />} />

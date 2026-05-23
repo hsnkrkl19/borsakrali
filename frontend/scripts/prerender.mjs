@@ -57,6 +57,7 @@ const ROUTES = [
   '/site-haritasi',
   '/ekonomik-takvim',
   '/sinyaller',
+  '/borsapy',
 ]
 
 const MIME = {

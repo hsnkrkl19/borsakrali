@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
-import { RefreshCw, AlertCircle, Calendar, ExternalLink, Brain, TrendingUp, TrendingDown, Minus, ChevronDown, ChevronUp } from 'lucide-react'
+import { RefreshCw, AlertCircle, Calendar, ExternalLink, Brain, TrendingUp, TrendingDown, Minus, ChevronDown, ChevronUp, Database, ArrowRight } from 'lucide-react'
+import { Link } from 'react-router-dom'
 import api from '../services/api'
 import GuestCTA from '../components/GuestCTA'
 import { PageHeader, Button } from '../components/ui'
@@ -110,6 +111,21 @@ export default function EkonomikTakvim() {
           <Button variant="ghost" size="sm" icon={RefreshCw} loading={loading} onClick={() => fetchCalendar(year, month, true)}>Yenile</Button>
         }
       />
+
+      {/* Borsapy Veri Merkezi CTA — TCMB faiz/enflasyon/TEFAS/banka kuru için */}
+      <Link
+        to="/borsapy"
+        className="flex items-center gap-3 p-3 rounded-xl bg-gradient-to-r from-gold-500/10 to-gold-500/5 border border-gold-500/30 hover:border-gold-500/50 transition-all group"
+      >
+        <div className="p-2 rounded-lg bg-gold-500/15">
+          <Database className="w-4 h-4 text-gold-400" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="text-sm font-semibold text-gold-300">Borsapy Veri Merkezi</div>
+          <div className="text-xs text-gray-400 truncate">TCMB politika faizi, TEFAS fonları, banka döviz kurları, enflasyon hesaplayıcı</div>
+        </div>
+        <ArrowRight className="w-4 h-4 text-gold-400 group-hover:translate-x-0.5 transition-transform" />
+      </Link>
 
       {/* Ay Navigasyonu */}
       <div className="flex items-center gap-2">
