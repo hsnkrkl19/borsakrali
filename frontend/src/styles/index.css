@@ -717,13 +717,13 @@
 [data-theme="light"] .text-gray-200  { color: #334155 !important; }
 [data-theme="light"] .text-gray-300  { color: #475569 !important; }
 [data-theme="light"] .text-gray-400  { color: #64748b !important; }
-[data-theme="light"] .text-gray-500  { color: #94a3b8 !important; }
-[data-theme="light"] .text-gray-600  { color: #b8c2cc !important; }
+[data-theme="light"] .text-gray-500  { color: #6b7280 !important; }
+[data-theme="light"] .text-gray-600  { color: #94a3b8 !important; }
 [data-theme="light"] .text-slate-200 { color: #334155 !important; }
 [data-theme="light"] .text-slate-300 { color: #475569 !important; }
 [data-theme="light"] .text-slate-400 { color: #64748b !important; }
-[data-theme="light"] .text-slate-500 { color: #94a3b8 !important; }
-[data-theme="light"] .text-slate-600 { color: #b8c2cc !important; }
+[data-theme="light"] .text-slate-500 { color: #6b7280 !important; }
+[data-theme="light"] .text-slate-600 { color: #94a3b8 !important; }
 [data-theme="light"] .text-slate-700 { color: #475569 !important; }
 
 /* Aksent text renkleri — açık tonlar (200/300) light bg'de kontrast vermiyor;
@@ -792,6 +792,17 @@
 [data-theme="light"] .text-red-300    { color: #b91c1c !important; }
 [data-theme="light"] .text-red-400    { color: #b91c1c !important; }
 
+/* Parlak sarı + primary(sarı palet) metinler beyaz zeminde okunmuyor →
+   light'ta okunur emerald/amber tonlarına. primary marka olduğu için emerald. */
+[data-theme="light"] .text-yellow-400,
+[data-theme="light"] .text-yellow-500   { color: #a16207 !important; }
+[data-theme="light"] .text-primary-200,
+[data-theme="light"] .text-primary-300,
+[data-theme="light"] .text-primary-400  { color: #059669 !important; }
+[data-theme="light"] .text-primary-500,
+[data-theme="light"] .text-primary-600,
+[data-theme="light"] .text-primary-700  { color: #047857 !important; }
+
 /* Parça 1: purple/pink Tailwind sınıfları renk paleti sadeleştirmesiyle kaldırıldı.
    Cyan/emerald light overrides — emerald hâlâ jade tonlarına yakın bazı yerlerde kullanılıyor. */
 [data-theme="light"] .text-cyan-200   { color: #0e7490 !important; }
@@ -804,6 +815,32 @@
 
 [data-theme="light"] .text-yellow-200 { color: #a16207 !important; }
 [data-theme="light"] .text-yellow-300 { color: #a16207 !important; }
+
+/* Geniş parlak-renk seti — koyu-tema gösterge renklerinin (lime/teal/sky/rose/
+   indigo/violet) beyaz zeminde okunur koyu varyantları. */
+[data-theme="light"] .text-lime-200,
+[data-theme="light"] .text-lime-300,
+[data-theme="light"] .text-lime-400,
+[data-theme="light"] .text-lime-500    { color: #4d7c0f !important; }
+[data-theme="light"] .text-teal-200,
+[data-theme="light"] .text-teal-300,
+[data-theme="light"] .text-teal-400,
+[data-theme="light"] .text-teal-500    { color: #0f766e !important; }
+[data-theme="light"] .text-sky-200,
+[data-theme="light"] .text-sky-300,
+[data-theme="light"] .text-sky-400,
+[data-theme="light"] .text-sky-500     { color: #0369a1 !important; }
+[data-theme="light"] .text-indigo-300,
+[data-theme="light"] .text-indigo-400  { color: #4338ca !important; }
+[data-theme="light"] .text-rose-300,
+[data-theme="light"] .text-rose-400,
+[data-theme="light"] .text-rose-500    { color: #be123c !important; }
+[data-theme="light"] .text-fuchsia-300,
+[data-theme="light"] .text-fuchsia-400 { color: #a21caf !important; }
+[data-theme="light"] .text-violet-300,
+[data-theme="light"] .text-violet-400,
+[data-theme="light"] .text-purple-300,
+[data-theme="light"] .text-purple-400  { color: #6d28d9 !important; }
 
 /* Light mode'da gradient stop'lar opak beyaz olmalı — yarı saydam beyaz krem
    zeminin üstünde "buğulu" görünüm yaratıyordu (kart sınırı belirsiz, metin yıkanmış).

@@ -243,10 +243,12 @@ export default function Tarayicilar() {
                              f.color === 'blue' ? 'rgba(59,130,246,0.5)' :
                              f.color === 'orange' ? 'rgba(249,115,22,0.5)' :
                              'rgba(234,179,8,0.5)',
-                color: f.color === 'amber' ? '#fde68a' :
-                       f.color === 'blue' ? '#bfdbfe' :
-                       f.color === 'orange' ? '#fed7aa' :
-                       '#fef08a',
+                color: `color-mix(in srgb, ${
+                  f.color === 'amber' ? '#f59e0b' :
+                  f.color === 'blue' ? '#3b82f6' :
+                  f.color === 'orange' ? '#f97316' :
+                  '#eab308'
+                } 66%, var(--text-primary) 34%)`,
               } : undefined}
             >
               <Icon className="w-3.5 h-3.5" />

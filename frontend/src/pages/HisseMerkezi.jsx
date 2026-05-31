@@ -78,7 +78,7 @@ function SectionCard({ icon: Icon, title, accent = 'var(--gold-400)', isNew, chi
         <button
           onClick={action.onClick}
           className="self-start inline-flex items-center gap-1 text-[12px] font-semibold transition-opacity hover:opacity-80"
-          style={{ color: accent }}
+          style={{ color: `color-mix(in srgb, ${accent} 68%, var(--text-primary) 32%)` }}
         >
           {action.label} <ChevronRight className="h-3.5 w-3.5" />
         </button>
