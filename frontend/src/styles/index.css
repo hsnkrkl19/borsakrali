@@ -642,6 +642,30 @@
 [data-theme="light"] .bg-dark-950\/90 {
   background-color: rgba(15, 23, 42, 0.45) !important;
 }
+/* dark-950'in DÜŞÜK opacity'leri MODAL DEĞİL → YÜZEY (sticky toolbar, FAQ kartı, rozet).
+   /90-/95 yukarıda modal scrim kaldı; /85 ve altı light'ta açık frosted yüzeye çevrilir
+   (yoksa koyu-üstü-koyu: ör. SiteHaritasi sticky arama çubuğu, Hakkımızda SSS kartı). */
+[data-theme="light"] .bg-dark-950\/85,
+[data-theme="light"] .bg-dark-950\/80 {
+  background-color: rgba(255, 255, 255, 0.85) !important;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+[data-theme="light"] .bg-dark-950\/70,
+[data-theme="light"] .bg-dark-950\/60,
+[data-theme="light"] .bg-dark-950\/50 {
+  background-color: rgba(255, 255, 255, 0.92) !important;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.05);
+}
+[data-theme="light"] .bg-dark-950\/40,
+[data-theme="light"] .bg-dark-950\/30,
+[data-theme="light"] .bg-dark-950\/20 {
+  background-color: rgba(248, 250, 252, 0.80) !important;
+  border-color: rgba(15, 23, 42, 0.06) !important;
+}
+/* details[open] → open:bg-dark-950/60 de aynı açık yüzeyde kalsın (Hakkımızda SSS) */
+[data-theme="light"] details[open].open\:bg-dark-950\/60 {
+  background-color: rgba(255, 255, 255, 0.92) !important;
+}
 [data-theme="light"] .bg-dark-800\/80,
 [data-theme="light"] .bg-dark-800\/60,
 [data-theme="light"] .bg-dark-800\/50,
@@ -834,6 +858,7 @@
 [data-theme="light"] .text-sky-500     { color: #0369a1 !important; }
 [data-theme="light"] .text-indigo-300,
 [data-theme="light"] .text-indigo-400  { color: #4338ca !important; }
+[data-theme="light"] .text-rose-200,
 [data-theme="light"] .text-rose-300,
 [data-theme="light"] .text-rose-400,
 [data-theme="light"] .text-rose-500    { color: #be123c !important; }

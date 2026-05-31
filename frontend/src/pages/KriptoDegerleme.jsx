@@ -233,7 +233,7 @@ export default function KriptoDegerleme() {
       {/* Methodology hint */}
       <div className="rounded-xl border border-blue-500/20 bg-blue-500/5 p-3 flex gap-2 items-start">
         <Info className="w-4 h-4 text-blue-400 flex-shrink-0 mt-0.5" />
-        <div className="text-xs text-blue-200/90">
+        <div className="text-xs text-blue-300">
           <span className="font-semibold">Metodoloji:</span> 5 model eşit ağırlıkta 0-100 skor üretir;
           ortalama "composite skor" verdict'i belirler. DCF crypto'ya doğrudan uygulanamadığı için drawdown,
           MA reversion, Stock-to-Flow, NVT-proxy ve volatilite band karması kullanılıyor.

@@ -333,7 +333,7 @@ export default function DCFDegerleme() {
       {/* Methodology hint */}
       <div className="rounded-xl border border-blue-500/20 bg-blue-500/5 p-3 sm:p-3.5 flex gap-2.5 items-start">
         <Info className="w-4 h-4 text-blue-400 flex-shrink-0 mt-0.5" />
-        <div className="text-sm text-blue-200/90 leading-relaxed">
+        <div className="text-sm text-blue-300 leading-relaxed">
           <span className="font-semibold">Metodoloji:</span> 5 yıllık FCF projeksiyonu (CAGR %15 ile sınırlı, yıllık decay 0.95→0.80),
           Gordon terminal (g=%2.5), sektör bazlı WACC. <span className="opacity-70">Kaynak: virattt/dexter DCF skill</span>
         </div>
