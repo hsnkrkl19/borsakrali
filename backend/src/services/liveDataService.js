@@ -62,8 +62,8 @@ async function fetchYahooData(symbol) {
 
     const currentPrice = meta.regularMarketPrice;
     const previousClose = meta.previousClose || meta.chartPreviousClose;
-    const change = currentPrice - previousClose;
-    const changePercent = (change / previousClose) * 100;
+    const change = previousClose ? currentPrice - previousClose : 0;
+    const changePercent = previousClose ? (change / previousClose) * 100 : 0;
 
     return {
       symbol,
@@ -155,7 +155,7 @@ async function fetchHistoricalData(symbol, period = '3mo', interval = '1d') {
       low: quote.low?.[i],
       close: quote.close?.[i],
       volume: quote.volume?.[i]
-    })).filter(d => d.close !== null);
+    })).filter(d => d.close != null);
 
     return data;
   } catch (error) {
@@ -219,8 +219,8 @@ async function fetchBist100() {
     const meta = result.meta;
     const currentPrice = meta.regularMarketPrice;
     const previousClose = meta.previousClose || meta.chartPreviousClose;
-    const change = currentPrice - previousClose;
-    const changePercent = (change / previousClose) * 100;
+    const change = previousClose ? currentPrice - previousClose : 0;
+    const changePercent = previousClose ? (change / previousClose) * 100 : 0;
 
     return {
       symbol: 'XU100',
@@ -258,8 +258,8 @@ async function fetchBist30() {
     const meta = result.meta;
     const currentPrice = meta.regularMarketPrice;
     const previousClose = meta.previousClose || meta.chartPreviousClose;
-    const change = currentPrice - previousClose;
-    const changePercent = (change / previousClose) * 100;
+    const change = previousClose ? currentPrice - previousClose : 0;
+    const changePercent = previousClose ? (change / previousClose) * 100 : 0;
 
     return {
       symbol: 'XU030',
@@ -366,10 +366,10 @@ function calculateIndicators(historicalData) {
     return null;
   }
 
-  const closes = historicalData.map(d => d.close).filter(c => c !== null);
-  const highs = historicalData.map(d => d.high).filter(h => h !== null);
-  const lows = historicalData.map(d => d.low).filter(l => l !== null);
-  const volumes = historicalData.map(d => d.volume).filter(v => v !== null);
+  const closes = historicalData.map(d => d.close).filter(c => c != null);
+  const highs = historicalData.map(d => d.high).filter(h => h != null);
+  const lows = historicalData.map(d => d.low).filter(l => l != null);
+  const volumes = historicalData.map(d => d.volume).filter(v => v != null);
 
   // EMA hesaplama
   const calculateEMA = (data, period) => {
@@ -825,21 +825,21 @@ function searchStocks(query) {
 
 function getTopGainers(limit = 10) {
   return Array.from(stockCache.values())
-    .filter(s => s.changePercent !== null)
+    .filter(s => Number.isFinite(s.changePercent))
     .sort((a, b) => b.changePercent - a.changePercent)
     .slice(0, limit);
 }
 
 function getTopLosers(limit = 10) {
   return Array.from(stockCache.values())
-    .filter(s => s.changePercent !== null)
+    .filter(s => Number.isFinite(s.changePercent))
     .sort((a, b) => a.changePercent - b.changePercent)
     .slice(0, limit);
 }
 
 function getMostActive(limit = 10) {
   return Array.from(stockCache.values())
-    .filter(s => s.volume !== null)
+    .filter(s => Number.isFinite(s.volume))
     .sort((a, b) => b.volume - a.volume)
     .slice(0, limit);
 }
