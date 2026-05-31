@@ -740,6 +740,8 @@
 [data-theme="light"] .text-amber-400\/60 { color: #92400ec0 !important; }
 [data-theme="light"] .text-amber-500  { color: #92400e !important; }
 [data-theme="light"] .text-amber-600  { color: #78350f !important; }
+[data-theme="light"] .text-gold-200,
+[data-theme="light"] .text-gold-300   { color: #059669 !important; }
 [data-theme="light"] .text-gold-400   { color: #047857 !important; }
 
 /* Amber background tints — açık zeminde çok soluk kalmasın */
@@ -841,6 +843,19 @@
 [data-theme="light"] .text-violet-400,
 [data-theme="light"] .text-purple-300,
 [data-theme="light"] .text-purple-400  { color: #6d28d9 !important; }
+
+/* Custom semantic paletler (warning=amber, success=yeşil, danger=kırmızı) —
+   parlak tonları beyaz zeminde okunur koyu varyantlara. */
+[data-theme="light"] .text-warning-200,
+[data-theme="light"] .text-warning-300,
+[data-theme="light"] .text-warning-400,
+[data-theme="light"] .text-warning-500  { color: #a16207 !important; }
+[data-theme="light"] .text-success-300,
+[data-theme="light"] .text-success-400,
+[data-theme="light"] .text-success-500  { color: #15803d !important; }
+[data-theme="light"] .text-danger-300,
+[data-theme="light"] .text-danger-400,
+[data-theme="light"] .text-danger-500   { color: #b91c1c !important; }
 
 /* Light mode'da gradient stop'lar opak beyaz olmalı — yarı saydam beyaz krem
    zeminin üstünde "buğulu" görünüm yaratıyordu (kart sınırı belirsiz, metin yıkanmış).
