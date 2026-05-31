@@ -1,4 +1,4 @@
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { useEffect } from 'react'
 import Layout from './components/Layout'
 import UpdatePopup from './components/UpdatePopup'
@@ -130,6 +130,18 @@ const REDIRECT_MAP = [
   { from: '/takip-listem',             to: '/hesabim?tab=takip'          },
   { from: '/notlarim',                 to: '/hesabim?tab=notlar'         },
 ]
+
+// Eski URL'e gelen query string'i (tab/symbol/focus vs.) yeni URL'e taşı.
+// Statik <Navigate to="..."> gelen aramayı düşürür → derin linkler bozulur.
+// Hedefin kendi varsayılanları (örn. ?tab=genel) gelen parametrelerle ezilir.
+function RedirectWithQuery({ to }) {
+  const location = useLocation()
+  const [toPath, toQuery] = to.split('?')
+  const params = new URLSearchParams(toQuery || '')
+  for (const [k, v] of new URLSearchParams(location.search)) params.set(k, v)
+  const qs = params.toString()
+  return <Navigate to={qs ? `${toPath}?${qs}` : toPath} replace />
+}
 
 function App() {
   const { isAuthenticated, token, updateUser, user } = useAuthStore()
@@ -275,7 +287,7 @@ function App() {
 
                 {/* === ESKI URL -> YENI URL YONLENDIRMELERI === */}
                 {REDIRECT_MAP.map(r => (
-                  <Route key={r.from} path={r.from} element={<Navigate to={r.to} replace />} />
+                  <Route key={r.from} path={r.from} element={<RedirectWithQuery to={r.to} />} />
                 ))}
 
                 {/* Bilinmeyen yollar Dashboard'a */}
