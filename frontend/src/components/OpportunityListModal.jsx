@@ -12,14 +12,14 @@ import { useEffect, useMemo, useState } from 'react'
 import { X, ChevronRight, TrendingUp, RotateCcw, Search } from 'lucide-react'
 
 const DIRECTION_STYLES = {
-  long:  { label: 'AL',  rgb: '0, 201, 138' },
-  short: { label: 'SAT', rgb: '255, 59, 70' },
+  long:  { label: 'AL',  rgb: '16, 185, 129' },
+  short: { label: 'SAT', rgb: '225, 29, 72' },
 }
 
 const GRADE_STYLES = {
-  MUKEMMEL: { label: 'Mükemmel', rgb: '0, 201, 138' },
-  GUCLU:    { label: 'Güçlü',    rgb: '56, 189, 248' },
-  ORTA:     { label: 'Orta',     rgb: '212, 175, 55' },
+  MUKEMMEL: { label: 'Mükemmel', rgb: '16, 185, 129' },
+  GUCLU:    { label: 'Güçlü',    rgb: '2, 132, 199' },
+  ORTA:     { label: 'Orta',     rgb: '16, 185, 129' },
   ZAYIF:    { label: 'Zayıf',    rgb: '148, 163, 184' },
 }
 
@@ -130,9 +130,9 @@ export default function OpportunityListModal({ snapshot, onClose, onPick }) {
         {/* Filter satırı */}
         <div className="px-4 sm:px-5 py-3 flex flex-wrap items-center gap-2 border-b flex-shrink-0" style={{ borderColor: 'var(--border-main)' }}>
           {[
-            { id: 'all',   label: 'Tümü',    rgb: '212, 175, 55' },
-            { id: 'long',  label: 'AL',      rgb: '0, 201, 138' },
-            { id: 'short', label: 'SAT',     rgb: '255, 59, 70' },
+            { id: 'all',   label: 'Tümü',    rgb: '16, 185, 129' },
+            { id: 'long',  label: 'AL',      rgb: '16, 185, 129' },
+            { id: 'short', label: 'SAT',     rgb: '225, 29, 72' },
           ].map(t => {
             const active = filter === t.id
             return (

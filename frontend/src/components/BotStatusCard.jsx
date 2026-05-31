@@ -58,10 +58,10 @@ export default function BotStatusCard({ active, onStop, onAdvanced }) {
   const openCount = (portfolio?.openPositions?.length ?? portfolio?.positions?.length ?? 0)
 
   const palette = profile.risk === 'high'
-    ? { rgb: '255, 59, 70', cssVar: 'var(--ember)' }
+    ? { rgb: '225, 29, 72', cssVar: 'var(--ember)' }
     : profile.risk === 'low'
-      ? { rgb: '0, 201, 138', cssVar: 'var(--jade)' }
-      : { rgb: '212, 175, 55', cssVar: 'var(--gold-400)' }
+      ? { rgb: '16, 185, 129', cssVar: 'var(--jade)' }
+      : { rgb: '16, 185, 129', cssVar: 'var(--gold-400)' }
 
   const handleStop = () => {
     if (!window.confirm('Botu durdurmak istediğine emin misin? Açık pozisyonlar kapatılır.')) return

@@ -33,10 +33,10 @@ export default function BotSetupWizard({ profileId, onCancel, onStarted }) {
   }
 
   const palette = profile.risk === 'high'
-    ? { rgb: '255, 59, 70', cssVar: 'var(--ember)' }
+    ? { rgb: '225, 29, 72', cssVar: 'var(--ember)' }
     : profile.risk === 'low'
-      ? { rgb: '0, 201, 138', cssVar: 'var(--jade)' }
-      : { rgb: '212, 175, 55', cssVar: 'var(--gold-400)' }
+      ? { rgb: '16, 185, 129', cssVar: 'var(--jade)' }
+      : { rgb: '16, 185, 129', cssVar: 'var(--gold-400)' }
 
   return (
     <div

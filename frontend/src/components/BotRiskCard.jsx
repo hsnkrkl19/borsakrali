@@ -8,9 +8,9 @@
 import { ArrowRight } from 'lucide-react'
 
 const RISK_COLOR = {
-  low:  { rgb: '0, 201, 138', text: 'var(--jade)' },
-  mid:  { rgb: '212, 175, 55', text: 'var(--gold-400)' },
-  high: { rgb: '255, 59, 70', text: 'var(--ember)' },
+  low:  { rgb: '16, 185, 129', text: 'var(--jade)' },
+  mid:  { rgb: '16, 185, 129', text: 'var(--gold-400)' },
+  high: { rgb: '225, 29, 72', text: 'var(--ember)' },
 }
 
 export default function BotRiskCard({ profile, onSelect }) {

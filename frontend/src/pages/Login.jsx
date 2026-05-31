@@ -322,7 +322,7 @@ export default function Login() {
       title: 'Gerçek Zamanlı BIST',
       stat: '510+ Hisse',
       subtitle: 'canlı fiyat akışı · heatmap',
-      accent: '212, 175, 55',
+      accent: '16, 185, 129',
       accentLight: '180, 83, 9',
     },
     {
@@ -338,7 +338,7 @@ export default function Login() {
       title: 'Otomatik Trading Bot',
       stat: 'Backtest + Canlı',
       subtitle: 'strateji motoru · sanal portföy',
-      accent: '0, 201, 138',
+      accent: '16, 185, 129',
       accentLight: '4, 120, 87',
       isNew: true,
     },

@@ -32,16 +32,16 @@ const GROUP_LABELS = {
 }
 
 const GRADE_STYLES = {
-  MUKEMMEL: { label: 'Mükemmel', rgb: '0, 201, 138' },
-  GUCLU:    { label: 'Güçlü',    rgb: '56, 189, 248' },
-  ORTA:     { label: 'Orta',     rgb: '212, 175, 55' },
+  MUKEMMEL: { label: 'Mükemmel', rgb: '16, 185, 129' },
+  GUCLU:    { label: 'Güçlü',    rgb: '2, 132, 199' },
+  ORTA:     { label: 'Orta',     rgb: '16, 185, 129' },
   ZAYIF:    { label: 'Zayıf',    rgb: '148, 163, 184' },
 }
 
 const CONFIDENCE_STYLES = {
-  high:    { label: 'Yüksek geçmiş başarı', icon: '✓', rgb: '0, 201, 138' },
-  mid:     { label: 'Orta geçmiş başarı',   icon: '~', rgb: '212, 175, 55' },
-  low:     { label: 'Düşük geçmiş başarı',  icon: '!', rgb: '255, 59, 70' },
+  high:    { label: 'Yüksek geçmiş başarı', icon: '✓', rgb: '16, 185, 129' },
+  mid:     { label: 'Orta geçmiş başarı',   icon: '~', rgb: '16, 185, 129' },
+  low:     { label: 'Düşük geçmiş başarı',  icon: '!', rgb: '225, 29, 72' },
   unknown: { label: 'Veri toplanıyor',      icon: '?', rgb: '148, 163, 184' },
 }
 
@@ -59,8 +59,8 @@ const STRATEGY_META = {
 }
 
 const DIRECTION_LABEL = {
-  long:  { label: 'AL yönü',  rgb: '0, 201, 138' },
-  short: { label: 'SAT yönü', rgb: '255, 59, 70' },
+  long:  { label: 'AL yönü',  rgb: '16, 185, 129' },
+  short: { label: 'SAT yönü', rgb: '225, 29, 72' },
 }
 
 // ── ESC ile kapat ─────────────────────────────────────────────────────────
@@ -178,10 +178,10 @@ export default function DecisionDetailModal({ signal, tone = 'long', cardTitle, 
   const dir = DIRECTION_LABEL[sig.direction] || DIRECTION_LABEL.long
   const conf = CONFIDENCE_STYLES[sig.confidence] || CONFIDENCE_STYLES.unknown
   const palette = tone === 'long'
-    ? { rgb: '0, 201, 138' }
+    ? { rgb: '16, 185, 129' }
     : tone === 'short'
-      ? { rgb: '255, 59, 70' }
-      : { rgb: '212, 175, 55' }
+      ? { rgb: '225, 29, 72' }
+      : { rgb: '16, 185, 129' }
 
   // Koşulları grup grup ayır
   const conditionsByGroup = {}
@@ -439,8 +439,8 @@ export default function DecisionDetailModal({ signal, tone = 'long', cardTitle, 
                 <div
                   className="rounded-xl p-2.5 text-center border"
                   style={{
-                    background: 'rgba(56, 189, 248, 0.08)',
-                    borderColor: 'rgba(56, 189, 248, 0.25)',
+                    background: 'rgba(2, 132, 199, 0.08)',
+                    borderColor: 'rgba(2, 132, 199, 0.25)',
                   }}
                 >
                   <p className="text-[9px] uppercase tracking-wider" style={{ color: 'var(--text-faint)' }}>Giriş</p>
