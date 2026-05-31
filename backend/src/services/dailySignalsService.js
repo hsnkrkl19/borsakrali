@@ -40,27 +40,43 @@ function calcATR(candles, period = 14) {
   return slice.reduce((a, b) => a + b, 0) / slice.length;
 }
 
-// ── ADX hesabı (basit DMI versiyonu, 14-bar) ──────────────────────────────
+// ── ADX hesabı (Wilder smoothing, 14-bar) ─────────────────────────────────
+// +DM/-DM/TR 14-periyot Wilder yumuşatması, ADX = DX'in 14-periyot Wilder ortalaması.
+// (Önceki sürüm tüm seri üzerinde tek DX hesaplıyordu → gerçek ADX değildi.)
 function calcADX(candles, period = 14) {
-  if (!candles || candles.length < period + 1) return 0;
-  let plusDM = 0, minusDM = 0, trSum = 0;
+  if (!candles || candles.length < period * 2 + 1) return 0;
+  const trs = [], plusDMs = [], minusDMs = [];
   for (let i = 1; i < candles.length; i++) {
     const upMove = candles[i].high - candles[i - 1].high;
     const downMove = candles[i - 1].low - candles[i].low;
-    plusDM  += (upMove > downMove && upMove > 0) ? upMove : 0;
-    minusDM += (downMove > upMove && downMove > 0) ? downMove : 0;
-    const tr = Math.max(
+    plusDMs.push((upMove > downMove && upMove > 0) ? upMove : 0);
+    minusDMs.push((downMove > upMove && downMove > 0) ? downMove : 0);
+    trs.push(Math.max(
       candles[i].high - candles[i].low,
       Math.abs(candles[i].high - candles[i - 1].close),
       Math.abs(candles[i].low - candles[i - 1].close),
-    );
-    trSum += tr;
+    ));
   }
-  if (trSum === 0) return 0;
-  const plusDI = (plusDM / trSum) * 100;
-  const minusDI = (minusDM / trSum) * 100;
-  const dx = Math.abs(plusDI - minusDI) / (plusDI + minusDI || 1) * 100;
-  return +dx.toFixed(1);
+  let smTR = trs.slice(0, period).reduce((a, b) => a + b, 0);
+  let smPlusDM = plusDMs.slice(0, period).reduce((a, b) => a + b, 0);
+  let smMinusDM = minusDMs.slice(0, period).reduce((a, b) => a + b, 0);
+  const dxs = [];
+  for (let i = period; i < trs.length; i++) {
+    smTR = smTR - (smTR / period) + trs[i];
+    smPlusDM = smPlusDM - (smPlusDM / period) + plusDMs[i];
+    smMinusDM = smMinusDM - (smMinusDM / period) + minusDMs[i];
+    if (smTR === 0) { dxs.push(0); continue; }
+    const plusDI = (smPlusDM / smTR) * 100;
+    const minusDI = (smMinusDM / smTR) * 100;
+    const sumDI = plusDI + minusDI;
+    dxs.push(sumDI === 0 ? 0 : (Math.abs(plusDI - minusDI) / sumDI) * 100);
+  }
+  if (dxs.length < period) return 0;
+  let adxVal = dxs.slice(0, period).reduce((a, b) => a + b, 0) / period;
+  for (let i = period; i < dxs.length; i++) {
+    adxVal = (adxVal * (period - 1) + dxs[i]) / period;
+  }
+  return +adxVal.toFixed(1);
 }
 
 // ── Tek hisse için tüm veri kaynaklarını topla ────────────────────────────
