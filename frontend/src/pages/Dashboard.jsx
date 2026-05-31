@@ -1,10 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, Link } from 'react-router-dom'
 import {
   ArrowRight, ChevronRight, RefreshCw, TrendingUp, TrendingDown,
-  Search, Crown, Eye, Clock, AlertTriangle, Database, Percent, Landmark, Globe,
+  Search, Crown, Eye, Clock, AlertTriangle, Activity, Minus,
 } from 'lucide-react'
-import { Link } from 'react-router-dom'
 import apiClient from '../services/api'
 import GuestCTA from '../components/GuestCTA'
 import HelpBubble from '../components/HelpBubble'
@@ -15,6 +14,10 @@ import OpportunityListModal from '../components/OpportunityListModal'
 import { Button, Card, Badge, Skeleton } from '../components/ui'
 import { useAuthStore } from '../store/authStore'
 import { useScrollReveal } from '../hooks/useAnime'
+
+/* ─── Sayı biçimi — Türkçe binlik/ondalık ────────────────────────────── */
+const nf = (n, dec = 2) =>
+  Number(n).toLocaleString('tr-TR', { minimumFractionDigits: dec, maximumFractionDigits: dec })
 
 /* ─── Borsa açık/kapalı durumu ─────────────────────────────────────────── */
 function getMarketStatus(now = new Date()) {
@@ -212,64 +215,80 @@ function DashboardStockSearch() {
   )
 }
 
-/* ─── Makro Snapshot — politika faizi + USD + 10Y bono ──────────────── */
-function MakroSnapshot() {
-  const [data, setData] = useState({ policy: null, bonds: null, usd: null })
+/* ─── Piyasa Nabzı — BIST 100 · BIST 30 · USD/TRY · TCMB Faizi ────────── */
+function PulseCell({ label, quote, value, suffix = '', decimals = 2, isStatic = false, note }) {
+  const has = isStatic ? value != null : quote?.price != null
+  const price = isStatic ? value : quote?.price
+  const cp = quote?.changePercent
+  const up = cp != null && cp > 0
+  const down = cp != null && cp < 0
+  const deltaColor = cp == null ? 'var(--text-faint)' : up ? 'var(--jade)' : down ? 'var(--ember)' : 'var(--text-muted)'
+  const DeltaIcon = up ? TrendingUp : down ? TrendingDown : Minus
+
+  return (
+    <div className="px-3.5 py-3.5 sm:px-4" style={{ background: 'var(--bg-card)' }}>
+      <div className="text-[10px] font-semibold uppercase tracking-[0.1em]" style={{ color: 'var(--text-faint)' }}>
+        {label}
+      </div>
+      <div
+        className="num-tabular mt-1.5 text-[19px] font-bold leading-none tracking-tight sm:text-[21px]"
+        style={{ color: has ? 'var(--text-primary)' : 'var(--text-faint)' }}
+      >
+        {has ? `${nf(price, decimals)}${suffix}` : '—'}
+      </div>
+      {isStatic ? (
+        <div className="mt-2 text-[11px]" style={{ color: 'var(--text-faint)' }}>{note || ''}</div>
+      ) : (
+        <div className="num-tabular mt-2 inline-flex items-center gap-1 text-[12px] font-semibold" style={{ color: deltaColor }}>
+          {has && cp != null && <DeltaIcon className="h-3.5 w-3.5" strokeWidth={2.4} />}
+          {has && cp != null ? `${up ? '+' : ''}${nf(cp, 2)}%` : '—'}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function MarketPulse() {
+  const [macro, setMacro] = useState(null)
+  const [policyRate, setPolicyRate] = useState(null)
 
   useEffect(() => {
     let active = true
     Promise.allSettled([
+      apiClient.get('/market/macro'),
       apiClient.get('/borsapy/tcmb/policy-rate'),
-      apiClient.get('/borsapy/bonds/yields'),
-      apiClient.get('/borsapy/banks/rates?currency=USD'),
-    ]).then(([p, b, u]) => {
+    ]).then(([m, p]) => {
       if (!active) return
-      setData({
-        policy: p.status === 'fulfilled' ? p.value.data?.rates : null,
-        bonds:  b.status === 'fulfilled' ? b.value.data?.yields : null,
-        usd:    u.status === 'fulfilled' ? u.value.data : null,
-      })
+      if (m.status === 'fulfilled') setMacro(m.value.data)
+      if (p.status === 'fulfilled') setPolicyRate(p.value.data?.rates?.policyRate ?? null)
     })
     return () => { active = false }
   }, [])
 
-  const usdRate = data.usd?.banks?.[0]?.sell ?? data.usd?.bestForBuying?.sell ?? null
-
   return (
-    <Link
-      to="/borsapy"
-      className="group flex items-stretch gap-3 rounded-xl border p-3 transition-all hover:border-gold-500/50 overflow-x-auto"
-      style={{ background: 'rgba(212, 175, 55, 0.04)', borderColor: 'var(--border-gold)' }}
-      title="Borsapy Veri Merkezi'ne git"
-    >
-      <div className="flex items-center gap-2 flex-shrink-0 pr-2 border-r border-dark-800/60">
-        <Database className="w-4 h-4 text-gold-400" />
-        <div>
-          <div className="text-[10px] uppercase tracking-wider font-semibold text-gold-400">Makro</div>
-          <div className="text-[11px] text-gray-400">Borsapy</div>
+    <Card padding="none" className="overflow-hidden">
+      <div className="flex items-center justify-between px-4 pb-2.5 pt-3">
+        <div className="flex items-center gap-2">
+          <Activity size={15} strokeWidth={2.3} style={{ color: 'var(--gold-400)' }} aria-hidden="true" />
+          <span className="text-[11px] font-bold uppercase tracking-[0.13em]" style={{ color: 'var(--text-muted)' }}>
+            Piyasa Nabzı
+          </span>
         </div>
+        <Link
+          to="/borsapy"
+          className="inline-flex items-center gap-0.5 text-[11.5px] font-semibold transition-opacity hover:opacity-80"
+          style={{ color: 'var(--gold-400)' }}
+        >
+          Veri merkezi <ChevronRight className="h-3.5 w-3.5" />
+        </Link>
       </div>
-      <MakroChip icon={Percent}  label="TCMB Faiz" value={data.policy?.policyRate} suffix="%" />
-      <MakroChip icon={Landmark} label="10Y Bono"  value={data.bonds?.['10Y']}      suffix="%" />
-      <MakroChip icon={Globe}    label="USD/TRY"   value={usdRate}                  suffix=" TL" decimals={3} />
-      <div className="hidden sm:flex items-center pl-2 ml-auto text-xs text-gold-400 group-hover:translate-x-0.5 transition-transform">
-        Detay <ChevronRight className="w-3 h-3" />
+      <div className="grid grid-cols-2 sm:grid-cols-4" style={{ gap: 1, background: 'var(--border-main)' }}>
+        <PulseCell label="BIST 100" quote={macro?.bist100} decimals={0} />
+        <PulseCell label="BIST 30"  quote={macro?.bist30}  decimals={0} />
+        <PulseCell label="USD/TRY"  quote={macro?.usdtry}  decimals={2} />
+        <PulseCell label="TCMB Faizi" value={policyRate} suffix="%" decimals={2} isStatic note="Politika faizi" />
       </div>
-    </Link>
-  )
-}
-
-function MakroChip({ icon: Icon, label, value, suffix = '', decimals = 2 }) {
-  return (
-    <div className="flex items-center gap-2 px-2 min-w-fit">
-      <Icon className="w-3.5 h-3.5 text-gold-400/70" />
-      <div>
-        <div className="text-[10px] uppercase text-gray-500 tracking-wider">{label}</div>
-        <div className="text-sm font-bold text-gray-200 font-mono">
-          {value != null ? `${Number(value).toFixed(decimals)}${suffix}` : '—'}
-        </div>
-      </div>
-    </div>
+    </Card>
   )
 }
 
@@ -291,7 +310,7 @@ function DecisionCard({ tone, icon: Icon, title, symbol, label, badgeTone, sente
       padding="lg"
       interactive={clickable}
       className="flex flex-col"
-      style={{ minHeight: 204 }}
+      style={{ minHeight: 208 }}
       {...(clickable ? {
         role: 'button',
         tabIndex: 0,
@@ -321,10 +340,17 @@ function DecisionCard({ tone, icon: Icon, title, symbol, label, badgeTone, sente
           <Skeleton count={2} />
         </div>
       ) : empty ? (
-        <div className="flex flex-1 items-center">
+        <div className="flex flex-1 flex-col justify-center gap-3">
           <p className="text-[13px] leading-relaxed" style={{ color: 'var(--text-muted)' }}>
-            Henüz uygun fırsat yok. Borsa açılınca burada görünecek.
+            Şu an uygun aday yok. Borsa açılınca yapay zekâ taraması burada görünecek.
           </p>
+          <Link
+            to="/sinyaller"
+            className="inline-flex items-center gap-1 text-[12px] font-semibold transition-opacity hover:opacity-80"
+            style={{ color: palette.fg }}
+          >
+            Tüm sinyalleri gör <ChevronRight className="h-3.5 w-3.5" />
+          </Link>
         </div>
       ) : (
         <>
@@ -338,17 +364,29 @@ function DecisionCard({ tone, icon: Icon, title, symbol, label, badgeTone, sente
           <p className="mt-2.5 flex-1 text-[13px] leading-snug" style={{ color: 'var(--text-secondary)' }}>
             {sentence}
           </p>
-          {onDetail && (
-            <span
-              className="mt-3 inline-flex items-center gap-1 text-[12px] font-semibold"
-              style={{ color: palette.fg }}
-            >
-              Detayı gör <ChevronRight className="h-3.5 w-3.5" />
-            </span>
-          )}
+          <span
+            className="mt-3 inline-flex items-center gap-1 text-[12px] font-semibold"
+            style={{ color: palette.fg }}
+          >
+            Detayı gör <ChevronRight className="h-3.5 w-3.5" />
+          </span>
         </>
       )}
     </Card>
+  )
+}
+
+/* ─── Sayaç çipi — güçlü / riskli / takipte ──────────────────────────── */
+function CountStat({ value, label, color, title }) {
+  return (
+    <span
+      title={title}
+      className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1"
+      style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-main)' }}
+    >
+      <strong className="num-tabular text-[13px]" style={{ color }}>{value}</strong>
+      <span className="text-[11.5px]" style={{ color: 'var(--text-muted)' }}>{label}</span>
+    </span>
   )
 }
 
@@ -387,7 +425,6 @@ function pickDecisionCards(snapshot) {
 
 export default function Dashboard() {
   const user = useAuthStore((s) => s.user)
-  const [bist100, setBist100] = useState(null)
   const [dailySnapshot, setDailySnapshot] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -400,17 +437,10 @@ export default function Dashboard() {
     let active = true
     setLoading(true)
 
-    Promise.allSettled([
-      apiClient.get('/market/bist100'),
-      apiClient.get('/daily-signals/today'),
-    ]).then(([b100, ds]) => {
-      if (!active) return
-      if (b100.status === 'fulfilled') setBist100(b100.value.data)
-      if (ds.status   === 'fulfilled') setDailySnapshot(ds.value.data)
-      const allRejected = [b100, ds].every((r) => r.status === 'rejected')
-      if (allRejected) setError('Veriler şu an yüklenemedi. Birkaç saniye sonra tekrar deneyin.')
-      else setError(null)
-    }).finally(() => active && setLoading(false))
+    apiClient.get('/daily-signals/today')
+      .then((ds) => { if (active) { setDailySnapshot(ds.data); setError(null) } })
+      .catch(() => { if (active) setError('Veriler şu an yüklenemedi. Birkaç saniye sonra tekrar deneyin.') })
+      .finally(() => { if (active) setLoading(false) })
 
     return () => { active = false }
   }, [refreshTick])
@@ -435,39 +465,35 @@ export default function Dashboard() {
 
   const cockpitRef = useScrollReveal({ selector: '> *', stagger: 80, y: 22, duration: 800, delay: 50 })
 
-  const bistChange = bist100?.changePercent
-  const bistChangeStr = bistChange != null
-    ? `${bistChange >= 0 ? '+' : ''}${bistChange.toFixed(2)}%`
-    : null
-
   return (
-    <div className="space-y-10 sm:space-y-14 lg:space-y-16">
-      <div ref={cockpitRef} className="space-y-6 scroll-mt-20">
+    <div className="space-y-10 sm:space-y-12">
+      <div ref={cockpitRef} className="space-y-6 scroll-mt-20 sm:space-y-7">
         <GuestCTA />
 
         {/* HERO — selamlama + tarih + borsa durumu */}
-        <div className="flex flex-wrap items-start justify-between gap-4">
+        <header className="flex flex-wrap items-start justify-between gap-x-4 gap-y-3">
           <div className="min-w-0 flex-1">
             <div
-              className="mb-1.5 text-[11px] font-bold uppercase tracking-[0.16em]"
+              className="mb-2 inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.16em]"
               style={{ color: 'var(--gold-400)' }}
             >
+              <Crown size={12} strokeWidth={2.5} aria-hidden="true" />
               {dateLabel}
             </div>
             <h1
-              className="text-2xl font-bold leading-tight tracking-tight sm:text-[28px]"
+              className="text-[26px] font-bold leading-[1.08] tracking-tight sm:text-[34px]"
               style={{ color: 'var(--text-primary)' }}
             >
               {greeting}, <span className="text-gold">{firstName}</span>.
               <HelpBubble text="Bugün ne yapacağını tek bakışta görürsün." />
             </h1>
-            <p className="mt-1.5 text-sm sm:text-[15px]" style={{ color: 'var(--text-secondary)' }}>
+            <p className="mt-2 max-w-2xl text-[14px] leading-relaxed sm:text-[15px]" style={{ color: 'var(--text-secondary)' }}>
               {loading
                 ? 'Bugünün fırsatları hazırlanıyor…'
                 : total > 0
                   ? (
                     <>
-                      Bugün{' '}
+                      Yapay zekâ bugün{' '}
                       <button
                         onClick={() => setListOpen(true)}
                         className="font-bold underline-offset-2 transition-opacity hover:underline hover:opacity-80"
@@ -476,18 +502,10 @@ export default function Dashboard() {
                       >
                         {total} fırsat
                       </button>
-                      {' '}bulduk —{' '}
-                      <button
-                        onClick={() => setListOpen(true)}
-                        className="inline-flex items-center gap-0.5 text-[12.5px] font-semibold hover:opacity-80"
-                        style={{ color: 'var(--text-muted)' }}
-                      >
-                        listeyi aç
-                        <ChevronRight className="h-3 w-3" />
-                      </button>
+                      {' '}çıkardı. Aşağıdaki kararlara göz at.
                     </>
                   )
-                  : 'Bugün henüz fırsat hazır değil — birazdan tekrar bak.'}
+                  : 'Bugün henüz fırsat hazır değil — borsa açılınca kararlar burada belirir.'}
             </p>
           </div>
           <div className="flex flex-shrink-0 items-center gap-2">
@@ -507,13 +525,13 @@ export default function Dashboard() {
               <span className="hidden sm:inline">Yenile</span>
             </Button>
           </div>
-        </div>
+        </header>
 
-        {/* Hisse Merkezi araması — herhangi bir hisseyi yaz, tek çatı altında detaya git */}
+        {/* PİYASA NABZI — BIST 100 · BIST 30 · USD/TRY · TCMB Faizi */}
+        <MarketPulse />
+
+        {/* HİSSE MERKEZİ — herhangi bir hisseyi yaz, tek çatı altında detaya git */}
         <DashboardStockSearch />
-
-        {/* Makro Snapshot — politika faizi + USD + 10Y bono — /borsapy linki */}
-        <MakroSnapshot />
 
         {error && (
           <div
@@ -529,94 +547,72 @@ export default function Dashboard() {
           </div>
         )}
 
-        {/* 3 BÜYÜK KARAR KARTI */}
-        <div className="grid grid-cols-1 gap-3 sm:gap-4 md:grid-cols-3" data-tour="dashboard-card">
-          <DecisionCard
-            tone="jade"
-            icon={TrendingUp}
-            title="Bugünün Güçlü Hissesi"
-            symbol={topLong?.symbol}
-            label="AL"
-            badgeTone="jade"
-            sentence={topLong ? 'Yükseliş başladı. Alıcılar güçleniyor.' : ''}
-            empty={!loading && !topLong}
-            loading={loading && !dailySnapshot}
-            onDetail={topLong ? () => setDetail({ signal: topLong, tone: 'long', title: 'Bugünün Güçlü Hissesi' }) : null}
-          />
-          <DecisionCard
-            tone="ember"
-            icon={TrendingDown}
-            title="Riskli Bölge"
-            symbol={topShort?.symbol}
-            label="ŞİMDİ GİRME"
-            badgeTone="ember"
-            sentence={topShort ? 'Düşüş baskısı sürüyor.' : ''}
-            empty={!loading && !topShort}
-            loading={loading && !dailySnapshot}
-            onDetail={topShort ? () => setDetail({ signal: topShort, tone: 'short', title: 'Riskli Bölge' }) : null}
-          />
-          <DecisionCard
-            tone="gold"
-            icon={Eye}
-            title="Takip Et"
-            symbol={watch?.symbol}
-            label="HAREKET BEKLENİYOR"
-            badgeTone="gold"
-            sentence={watch ? 'Yatay seyir, çıkış yakın.' : ''}
-            empty={!loading && !watch}
-            loading={loading && !dailySnapshot}
-            onDetail={watch ? () => setDetail({ signal: watch, tone: 'watch', title: 'Takip Et' }) : null}
-          />
-        </div>
-
-        {/* ÖZET ŞERİDİ — piyasa nabzı tek bakışta */}
-        <Card padding="none" className="flex flex-col gap-y-3 px-4 py-3 sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-5">
-          {bistChangeStr != null ? (
-            <span className="flex items-center gap-2 text-[13px]">
-              <span style={{ color: 'var(--text-muted)' }}>BIST 100</span>
-              <strong
-                className="num-tabular flex items-center gap-1 text-[13.5px]"
-                style={{ color: bistChange >= 0 ? 'var(--jade)' : 'var(--ember)' }}
-              >
-                {bistChange >= 0 ? <TrendingUp className="h-3.5 w-3.5" /> : <TrendingDown className="h-3.5 w-3.5" />}
-                {bistChangeStr}
-              </strong>
-              <span style={{ color: 'var(--text-faint)' }}>{bistChange >= 0 ? 'yükselişte' : 'düşüşte'}</span>
-            </span>
-          ) : (
-            <span className="text-[12.5px]" style={{ color: 'var(--text-faint)' }}>BIST 100 verisi bekleniyor…</span>
-          )}
-
-          <span aria-hidden="true" className="hidden h-4 w-px sm:block" style={{ background: 'var(--border-main)' }} />
-
-          <div className="flex flex-wrap items-center gap-1.5">
-            {[
-              { v: counts.strong,   l: 'güçlü',   c: 'var(--jade)',     t: 'Anlık AL fırsatları (trend takibi)' },
-              { v: counts.risky,    l: 'riskli',  c: 'var(--ember)',    t: 'Anlık SAT uyarıları (kaçınılması önerilen)' },
-              { v: counts.watching, l: 'takipte', c: 'var(--gold-400)', t: 'Zone\'a gelmesini bekleyen reversion fırsatları' },
-            ].map((x) => (
-              <span
-                key={x.l}
-                title={x.t}
-                className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1"
-                style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-main)' }}
-              >
-                <strong className="num-tabular text-[13px]" style={{ color: x.c }}>{x.v}</strong>
-                <span className="text-[11.5px]" style={{ color: 'var(--text-muted)' }}>{x.l}</span>
-              </span>
-            ))}
+        {/* BUGÜNÜN KARARLARI — başlık + sayaçlar + 3 büyük kart */}
+        <section className="space-y-4">
+          <div className="flex flex-wrap items-end justify-between gap-x-4 gap-y-3">
+            <div className="min-w-0">
+              <div className="mb-0.5 text-[11px] font-bold uppercase tracking-[0.14em]" style={{ color: 'var(--gold-400)' }}>
+                Bugünün Kararları
+              </div>
+              <h2 className="text-[17px] font-bold tracking-tight sm:text-[19px]" style={{ color: 'var(--text-primary)' }}>
+                Yapay zekâ taraması
+              </h2>
+            </div>
+            <div className="flex flex-wrap items-center gap-1.5">
+              <CountStat value={counts.strong}   label="güçlü"   color="var(--jade)"     title="Anlık AL fırsatları (trend takibi)" />
+              <CountStat value={counts.risky}    label="riskli"  color="var(--ember)"    title="Anlık SAT uyarıları (kaçınılması önerilen)" />
+              <CountStat value={counts.watching} label="takipte" color="var(--gold-400)" title="Zone'a gelmesini bekleyen reversion fırsatları" />
+              <Button variant="subtle" size="sm" iconRight={ArrowRight} onClick={() => setListOpen(true)}>
+                Tam liste
+              </Button>
+            </div>
           </div>
 
-          <div className="flex items-center gap-3 sm:ml-auto">
-            <Button variant="subtle" size="sm" iconRight={ArrowRight} onClick={() => setListOpen(true)}>
-              Tam listeyi gör
-            </Button>
-            <span className="hidden items-center gap-1.5 text-[11px] sm:flex" style={{ color: 'var(--text-faint)' }}>
-              <Clock className="h-3 w-3" />
-              {now.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })}
-            </span>
+          <div className="grid grid-cols-1 gap-3 sm:gap-4 md:grid-cols-3" data-tour="dashboard-card">
+            <DecisionCard
+              tone="jade"
+              icon={TrendingUp}
+              title="Bugünün Güçlü Hissesi"
+              symbol={topLong?.symbol}
+              label="AL"
+              badgeTone="jade"
+              sentence={topLong ? 'Yükseliş başladı. Alıcılar güçleniyor.' : ''}
+              empty={!loading && !topLong}
+              loading={loading && !dailySnapshot}
+              onDetail={topLong ? () => setDetail({ signal: topLong, tone: 'long', title: 'Bugünün Güçlü Hissesi' }) : null}
+            />
+            <DecisionCard
+              tone="ember"
+              icon={TrendingDown}
+              title="Riskli Bölge"
+              symbol={topShort?.symbol}
+              label="ŞİMDİ GİRME"
+              badgeTone="ember"
+              sentence={topShort ? 'Düşüş baskısı sürüyor.' : ''}
+              empty={!loading && !topShort}
+              loading={loading && !dailySnapshot}
+              onDetail={topShort ? () => setDetail({ signal: topShort, tone: 'short', title: 'Riskli Bölge' }) : null}
+            />
+            <DecisionCard
+              tone="gold"
+              icon={Eye}
+              title="Takip Et"
+              symbol={watch?.symbol}
+              label="HAREKET BEKLENİYOR"
+              badgeTone="gold"
+              sentence={watch ? 'Yatay seyir, çıkış yakın.' : ''}
+              empty={!loading && !watch}
+              loading={loading && !dailySnapshot}
+              onDetail={watch ? () => setDetail({ signal: watch, tone: 'watch', title: 'Takip Et' }) : null}
+            />
           </div>
-        </Card>
+
+          {/* Alt bilgi — son güncelleme saati */}
+          <div className="flex items-center justify-end gap-1.5 text-[11px]" style={{ color: 'var(--text-faint)' }}>
+            <Clock className="h-3 w-3" />
+            Son güncelleme {now.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })}
+          </div>
+        </section>
       </div>
 
       <LazyOnScroll rootMargin="600px" fallback={<div style={{ minHeight: 400 }} />}>
