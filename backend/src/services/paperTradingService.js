@@ -159,7 +159,9 @@ function calcUnrealizedPnl(pos, currentPrice) {
   if (!currentPrice) return { pnl: 0, pnlPct: 0 };
   const isLong = pos.direction === 'long';
   const diff = isLong ? (currentPrice - pos.entry) : (pos.entry - currentPrice);
-  const pnlPct = (diff / pos.entry) * 100 * (pos.leverage || 1);
+  // İzole marj: kaldıraçlı pozisyonda kayıp yatırılan marjı (notional) aşamaz → likidasyon
+  let pnlPct = (diff / pos.entry) * 100 * (pos.leverage || 1);
+  if (pnlPct < -100) pnlPct = -100;
   const pnl = (pos.notional * pnlPct) / 100;
   return { pnl: +pnl.toFixed(2), pnlPct: +pnlPct.toFixed(2) };
 }
@@ -173,7 +175,9 @@ async function closePositionWithPrice(userId, posId, exitPrice, exitReason) {
   const pos = portfolio.positions[idx];
   const isLong = pos.direction === 'long';
   const diff = isLong ? (exitPrice - pos.entry) : (pos.entry - exitPrice);
-  const pnlPct = (diff / pos.entry) * 100 * (pos.leverage || 1);
+  // İzole marj: kaldıraçlı pozisyonda kayıp yatırılan marjı (notional) aşamaz → likidasyon
+  let pnlPct = (diff / pos.entry) * 100 * (pos.leverage || 1);
+  if (pnlPct < -100) pnlPct = -100;
   const pnl = +((pos.notional * pnlPct) / 100).toFixed(2);
 
   const closed = {
