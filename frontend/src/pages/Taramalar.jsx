@@ -8,6 +8,7 @@ import { createChart } from 'lightweight-charts'
 
 import { getApiBase } from '../config'
 import { fetchCommodityHistory } from '../utils/commodityHistory'
+import { getChartTheme, getStoredTheme } from '../utils/theme'
 import { Button } from '../components/ui'
 const API_BASE = getApiBase() + '/api'
 
@@ -21,17 +22,29 @@ const COMM_ANALYSIS_LIST = [
 
 function CommAnalysisChart({ commKey, color }) {
   const ref = useRef(null)
+  const [theme, setTheme] = useState(() => getStoredTheme())
+
+  useEffect(() => {
+    const syncTheme = (event) => setTheme(event?.detail?.theme || getStoredTheme())
+    window.addEventListener('bk-theme-change', syncTheme)
+    window.addEventListener('storage', syncTheme)
+    return () => {
+      window.removeEventListener('bk-theme-change', syncTheme)
+      window.removeEventListener('storage', syncTheme)
+    }
+  }, [])
 
   useEffect(() => {
     if (!ref.current) return
+    const palette = getChartTheme(theme)
     const chart = createChart(ref.current, {
       width: ref.current.clientWidth,
       height: 200,
-      layout: { background: { type: 'solid', color: '#0d0d14' }, textColor: '#9ca3af' },
-      grid: { vertLines: { color: 'rgba(255,255,255,0.04)' }, horzLines: { color: 'rgba(255,255,255,0.04)' } },
+      layout: { background: { type: 'solid', color: palette.background }, textColor: palette.textColor },
+      grid: { vertLines: { color: palette.gridColor }, horzLines: { color: palette.gridColor } },
       crosshair: { mode: 1 },
-      rightPriceScale: { borderColor: 'rgba(255,255,255,0.1)' },
-      timeScale: { borderColor: 'rgba(255,255,255,0.1)', timeVisible: false },
+      rightPriceScale: { borderColor: palette.borderColor },
+      timeScale: { borderColor: palette.borderColor, timeVisible: false },
       handleScroll: false,
       handleScale: false,
     })
@@ -54,7 +67,7 @@ function CommAnalysisChart({ commKey, color }) {
       .catch(() => {})
 
     return () => chart.remove()
-  }, [commKey, color])
+  }, [commKey, color, theme])
 
   return <div ref={ref} className="w-full" style={{ height: 200 }} />
 }

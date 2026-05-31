@@ -5,6 +5,7 @@ import { createChart, LineStyle } from 'lightweight-charts'
 import api from '../services/api'
 import InfoTooltip from '../components/InfoTooltip'
 import { fetchCommodityHistory } from '../utils/commodityHistory'
+import { getChartTheme, getStoredTheme } from '../utils/theme'
 import { PageHeader, Button } from '../components/ui'
 
 // ─── lightweight-charts SNR Grafiği ──────────────────────────────────────────
@@ -35,6 +36,17 @@ function SnrChart({ symbol, assetType, data }) {
   const chartRef = useRef(null)
   const [candles, setCandles] = useState([])
   const [tf, setTf] = useState(CHART_TIMEFRAMES[2]) // Günlük default
+  const [theme, setTheme] = useState(() => getStoredTheme())
+
+  useEffect(() => {
+    const syncTheme = (event) => setTheme(event?.detail?.theme || getStoredTheme())
+    window.addEventListener('bk-theme-change', syncTheme)
+    window.addEventListener('storage', syncTheme)
+    return () => {
+      window.removeEventListener('bk-theme-change', syncTheme)
+      window.removeEventListener('storage', syncTheme)
+    }
+  }, [])
 
   const fetchCandles = useCallback(async (timeframe) => {
     if (!symbol) return
@@ -79,13 +91,14 @@ function SnrChart({ symbol, assetType, data }) {
     if (!containerRef.current || candles.length === 0) return
     if (chartRef.current) { chartRef.current.remove(); chartRef.current = null }
 
+    const palette = getChartTheme(theme)
     const chart = createChart(containerRef.current, {
-      layout: { background: { type: 'solid', color: '#0d0d14' }, textColor: '#9ca3af' },
-      grid: { vertLines: { color: 'rgba(255,255,255,0.04)' }, horzLines: { color: 'rgba(255,255,255,0.04)' } },
+      layout: { background: { type: 'solid', color: palette.background }, textColor: palette.textColor },
+      grid: { vertLines: { color: palette.gridColor }, horzLines: { color: palette.gridColor } },
       autoSize: true,
       crosshair: { mode: 1 },
-      rightPriceScale: { borderColor: 'rgba(255,255,255,0.1)' },
-      timeScale: { borderColor: 'rgba(255,255,255,0.1)', timeVisible: true, secondsVisible: false },
+      rightPriceScale: { borderColor: palette.borderColor },
+      timeScale: { borderColor: palette.borderColor, timeVisible: true, secondsVisible: false },
     })
 
     const cs = chart.addCandlestickSeries({
@@ -144,7 +157,7 @@ function SnrChart({ symbol, assetType, data }) {
     chartRef.current = chart
 
     return () => { if (chartRef.current) { chartRef.current.remove(); chartRef.current = null } }
-  }, [candles, data])
+  }, [candles, data, theme])
 
   return (
     <div className="card p-0 overflow-hidden">

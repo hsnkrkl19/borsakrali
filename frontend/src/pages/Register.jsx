@@ -137,7 +137,15 @@ export default function Register() {
   return (
     <div className="min-h-screen bg-dark-950">
       <div className="grid min-h-screen lg:grid-cols-[0.95fr_1.05fr]">
-        <aside className="relative hidden overflow-hidden border-r border-gold-500/10 bg-[radial-gradient(circle_at_top_left,rgba(234,179,8,0.18),transparent_35%),radial-gradient(circle_at_bottom_right,rgba(245,158,11,0.16),transparent_30%),linear-gradient(180deg,#09090b_0%,#111217_100%)] p-12 lg:flex lg:flex-col">
+        <aside
+          className="relative hidden overflow-hidden border-r border-gold-500/10 p-12 lg:flex lg:flex-col"
+          style={{
+            background:
+              'radial-gradient(circle at top left, rgba(16,185,129,0.16), transparent 38%),' +
+              'radial-gradient(circle at bottom right, rgba(5,150,105,0.13), transparent 33%),' +
+              'linear-gradient(180deg, var(--bg-canvas) 0%, var(--bg-elevated) 100%)',
+          }}
+        >
           <div className="mb-12 flex items-center gap-3">
             <BrandMark size="lg" />
             <div>
