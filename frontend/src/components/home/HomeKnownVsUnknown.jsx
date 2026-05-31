@@ -164,10 +164,10 @@ function ComparisonRow({ pair, idx }) {
           style={{ opacity: 0 }}>
           <div className="flex flex-col items-center gap-1">
             <div className="w-px h-6"
-              style={{ background: 'linear-gradient(180deg, transparent, rgba(212,175,55,0.45))' }} />
+              style={{ background: 'linear-gradient(180deg, transparent, rgba(16,185,129,0.45))' }} />
             <ArrowRight className="w-5 h-5" style={{ color: 'var(--gold-400)' }} />
             <div className="w-px h-6"
-              style={{ background: 'linear-gradient(180deg, rgba(212,175,55,0.45), transparent)' }} />
+              style={{ background: 'linear-gradient(180deg, rgba(16,185,129,0.45), transparent)' }} />
           </div>
         </div>
 
@@ -176,15 +176,15 @@ function ComparisonRow({ pair, idx }) {
           ref={unknownTilt}
           className="side-unknown rounded-2xl p-5 relative overflow-hidden"
           style={{
-            background: 'linear-gradient(135deg, rgba(212,175,55,0.06), rgba(212,175,55,0.02))',
+            background: 'linear-gradient(135deg, rgba(16,185,129,0.06), rgba(16,185,129,0.02))',
             border: '1px solid var(--border-gold)',
-            boxShadow: 'var(--shadow-card), 0 0 0 1px rgba(212,175,55,0.08) inset',
+            boxShadow: 'var(--shadow-card), 0 0 0 1px rgba(16,185,129,0.08) inset',
             transformStyle: 'preserve-3d',
             opacity: 0,
           }}>
           {/* arka glow */}
           <div aria-hidden className="absolute -top-12 -right-12 w-32 h-32 rounded-full opacity-50 pointer-events-none"
-            style={{ background: 'radial-gradient(circle, rgba(212,175,55,0.25), transparent 65%)' }} />
+            style={{ background: 'radial-gradient(circle, rgba(16,185,129,0.25), transparent 65%)' }} />
 
           <div className="flex items-center gap-2 mb-2 relative">
             <Icon className="w-4 h-4" style={{ color: 'var(--gold-400)' }} />
@@ -225,7 +225,7 @@ export default function HomeKnownVsUnknown() {
       <div ref={headRef} className="text-center max-w-2xl mx-auto mb-10">
         <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border text-[11px] font-semibold tracking-wide uppercase mb-3"
           style={{
-            background: 'rgba(212,175,55,0.08)',
+            background: 'rgba(16,185,129,0.08)',
             borderColor: 'var(--border-gold)',
             color: 'var(--gold-400)',
           }}>

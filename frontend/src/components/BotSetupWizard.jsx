@@ -191,8 +191,8 @@ export default function BotSetupWizard({ profileId, onCancel, onStarted }) {
             <div
               className="rounded-xl border p-3 text-[13px]"
               style={{
-                background: 'rgba(255, 59, 70, 0.08)',
-                borderColor: 'rgba(255, 59, 70, 0.4)',
+                background: 'rgba(225, 29, 72, 0.08)',
+                borderColor: 'rgba(225, 29, 72, 0.4)',
                 color: 'var(--ember)',
               }}
             >

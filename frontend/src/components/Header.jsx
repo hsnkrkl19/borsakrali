@@ -117,12 +117,12 @@ export default function Header() {
       style={{
         background: 'linear-gradient(180deg, var(--bg-card) 0%, color-mix(in srgb, var(--bg-card) 80%, var(--bg-canvas) 20%) 100%)',
         borderBottom: '1px solid var(--border-main)',
-        boxShadow: '0 1px 0 rgba(212, 175, 55, 0.08), 0 6px 24px rgba(0, 0, 0, 0.18)',
+        boxShadow: '0 1px 0 rgba(16, 185, 129, 0.08), 0 6px 24px rgba(0, 0, 0, 0.18)',
       }}
     >
       {/* Bottom hairline accent */}
       <div className="absolute bottom-0 left-0 right-0 h-px pointer-events-none"
-        style={{ background: 'linear-gradient(90deg, transparent, rgba(212, 175, 55, 0.35), transparent)' }}
+        style={{ background: 'linear-gradient(90deg, transparent, rgba(16, 185, 129, 0.35), transparent)' }}
       />
 
       {/* ─── TEK SATIR — MAIN HEADER ───────────────────────────────────── */}
@@ -202,8 +202,8 @@ export default function Header() {
                     background: announcementUnread > 0 ? 'var(--ember)' : 'var(--gold-400)',
                     color: announcementUnread > 0 ? '#fff' : '#1a1208',
                     boxShadow: announcementUnread > 0
-                      ? '0 0 8px rgba(255, 59, 70, 0.7)'
-                      : '0 0 8px rgba(212, 175, 55, 0.6)',
+                      ? '0 0 8px rgba(225, 29, 72, 0.7)'
+                      : '0 0 8px rgba(16, 185, 129, 0.6)',
                   }}
                 >
                   {announcementUnread > 0 ? announcementUnread : signals.length}
@@ -228,7 +228,7 @@ export default function Header() {
                     style={{
                       color: notifTab === 'announcements' ? 'var(--gold-400)' : 'var(--text-muted)',
                       borderBottom: notifTab === 'announcements' ? '2px solid var(--gold-400)' : '2px solid transparent',
-                      background: notifTab === 'announcements' ? 'rgba(212, 175, 55, 0.06)' : 'transparent',
+                      background: notifTab === 'announcements' ? 'rgba(16, 185, 129, 0.06)' : 'transparent',
                     }}
                   >
                     <Megaphone className="w-3.5 h-3.5" />
@@ -246,7 +246,7 @@ export default function Header() {
                     style={{
                       color: notifTab === 'signals' ? 'var(--gold-400)' : 'var(--text-muted)',
                       borderBottom: notifTab === 'signals' ? '2px solid var(--gold-400)' : '2px solid transparent',
-                      background: notifTab === 'signals' ? 'rgba(212, 175, 55, 0.06)' : 'transparent',
+                      background: notifTab === 'signals' ? 'rgba(16, 185, 129, 0.06)' : 'transparent',
                     }}
                   >
                     <Target className="w-3.5 h-3.5" />
@@ -289,7 +289,7 @@ export default function Header() {
                               }
                             }}
                             className="notif-row w-full text-left"
-                            style={isUnread ? { background: 'rgba(212, 175, 55, 0.06)' } : undefined}
+                            style={isUnread ? { background: 'rgba(16, 185, 129, 0.06)' } : undefined}
                           >
                             <div className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 text-base"
                               style={{
@@ -342,7 +342,7 @@ export default function Header() {
                           >
                             <div className="w-9 h-9 rounded-lg flex items-center justify-center text-[10px] font-bold flex-shrink-0"
                               style={{
-                                background: isBuy ? 'rgba(0, 201, 138, 0.12)' : isSell ? 'rgba(255, 59, 70, 0.12)' : 'rgba(212, 175, 55, 0.12)',
+                                background: isBuy ? 'rgba(16, 185, 129, 0.12)' : isSell ? 'rgba(225, 29, 72, 0.12)' : 'rgba(16, 185, 129, 0.12)',
                                 color,
                                 border: `1px solid ${color}30`,
                               }}
@@ -379,7 +379,7 @@ export default function Header() {
                   className="px-3.5 py-2.5 border-t text-[12px] font-semibold flex items-center justify-center gap-1.5 hover:opacity-80 transition-opacity"
                   style={{
                     borderColor: 'var(--border-main)',
-                    background: 'rgba(212, 175, 55, 0.06)',
+                    background: 'rgba(16, 185, 129, 0.06)',
                     color: 'var(--gold-400)',
                   }}
                 >
@@ -468,7 +468,7 @@ export default function Header() {
                     onClick={handleLogout}
                     className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg transition-colors text-left text-[13px]"
                     style={{ color: 'var(--ember)' }}
-                    onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255, 59, 70, 0.10)'}
+                    onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(225, 29, 72, 0.10)'}
                     onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
                   >
                     <LogOut className="w-4 h-4" />

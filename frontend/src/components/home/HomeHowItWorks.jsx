@@ -9,7 +9,7 @@ const STEPS = [
     headline: 'Anlık piyasa verisi toplanır',
     body: 'Yahoo Finance fiyat akışı, KAP duyuruları ve makro ekonomik takvim 7/24 izlenir. BIST 100 + ilk 100 kripto için 7 farklı zaman dilimi (1d → 1h → 1g → 1h) anında alınır.',
     tone: 'gold',
-    accent: 'rgba(212,175,55,0.55)',
+    accent: 'rgba(16,185,129,0.55)',
   },
   {
     icon: Brain,
@@ -17,7 +17,7 @@ const STEPS = [
     headline: 'Veriler çoklu modelle yorumlanır',
     body: 'RSI · MACD · EMA34 · Bollinger · ATR · destek-direnç · mum formasyonları. Bayesçi öncül + backtest sonrası güncelleme ile her sinyale olasılık atanır.',
     tone: 'jade',
-    accent: 'rgba(0,201,138,0.5)',
+    accent: 'rgba(16,185,129,0.5)',
   },
   {
     icon: Target,
@@ -25,7 +25,7 @@ const STEPS = [
     headline: '16 koşul puanlanır, en güçlüler seçilir',
     body: 'Her hisse 16 farklı kritere göre puanlanır (long & short). BIST 100 taranır, top 10 sinyal bildirim olarak gelir. Confluence motoru 7 zaman çerçevesini ağırlıklandırır.',
     tone: 'gold',
-    accent: 'rgba(212,175,55,0.55)',
+    accent: 'rgba(16,185,129,0.55)',
   },
   {
     icon: GraduationCap,
@@ -129,7 +129,7 @@ export default function HomeHowItWorks() {
         <div
           className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border text-[11px] font-semibold tracking-wide uppercase mb-4"
           style={{
-            background: 'rgba(212,175,55,0.08)',
+            background: 'rgba(16,185,129,0.08)',
             borderColor: 'var(--border-gold)',
             color: 'var(--gold-400)',
           }}
@@ -165,7 +165,7 @@ export default function HomeHowItWorks() {
           style={{
             height: `${(progress * 100).toFixed(2)}%`,
             background: 'linear-gradient(180deg, var(--gold-300), var(--gold-500))',
-            boxShadow: '0 0 18px rgba(212,175,55,0.55)',
+            boxShadow: '0 0 18px rgba(16,185,129,0.55)',
             transform: 'translateX(-1px)',
             transition: 'height 60ms linear',
           }}

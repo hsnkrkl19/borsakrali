@@ -102,7 +102,7 @@ export default function OpportunityListModal({ snapshot, onClose, onPick }) {
         <div
           aria-hidden="true"
           className="h-[3px] w-full flex-shrink-0"
-          style={{ background: 'linear-gradient(90deg, transparent, rgba(212, 175, 55, 0.85) 50%, transparent)' }}
+          style={{ background: 'linear-gradient(90deg, transparent, rgba(16, 185, 129, 0.85) 50%, transparent)' }}
         />
 
         {/* Header */}

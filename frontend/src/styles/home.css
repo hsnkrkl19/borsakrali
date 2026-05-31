@@ -19,15 +19,15 @@
   width: 8px;
   height: 8px;
   background: var(--gold-400);
-  box-shadow: 0 0 10px rgba(212, 175, 55, 0.75);
+  box-shadow: 0 0 10px rgba(16, 185, 129, 0.75);
   mix-blend-mode: screen;
 }
 
 .cursor-ring {
   width: 36px;
   height: 36px;
-  border: 1px solid rgba(212, 175, 55, 0.45);
-  background: rgba(212, 175, 55, 0.04);
+  border: 1px solid rgba(16, 185, 129, 0.45);
+  background: rgba(16, 185, 129, 0.04);
   transition: width 240ms ease, height 240ms ease,
               border-color 240ms ease, background-color 240ms ease;
 }
@@ -95,8 +95,8 @@
 
 /* === Timeline center line (scroll-driven fill) ============================= */
 .tl-line-fill {
-  background: linear-gradient(180deg, var(--gold-300) 0%, var(--gold-400) 45%, rgba(212,175,55,0) 100%);
-  box-shadow: 0 0 14px rgba(212, 175, 55, 0.40);
+  background: linear-gradient(180deg, var(--gold-300) 0%, var(--gold-400) 45%, rgba(16,185,129,0) 100%);
+  box-shadow: 0 0 14px rgba(16, 185, 129, 0.40);
   transition: height 160ms linear;
 }
 

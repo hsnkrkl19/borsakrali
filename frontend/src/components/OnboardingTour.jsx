@@ -190,9 +190,9 @@ export default function OnboardingTour() {
               left: spotlight.ring.left,
               width: spotlight.ring.width,
               height: spotlight.ring.height,
-              border: '2px solid rgba(212, 175, 55, 0.85)',
+              border: '2px solid rgba(16, 185, 129, 0.85)',
               borderRadius: 14,
-              boxShadow: '0 0 0 6px rgba(212, 175, 55, 0.25)',
+              boxShadow: '0 0 0 6px rgba(16, 185, 129, 0.25)',
               pointerEvents: 'none',
               transition: 'all 200ms ease',
             }}

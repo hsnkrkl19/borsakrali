@@ -57,7 +57,7 @@ export default function Hesabim() {
               onClick={() => switchSection(s.id)}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12.5px] font-semibold transition-all"
               style={{
-                background: isActive ? 'rgba(212, 175, 55, 0.12)' : 'var(--bg-card)',
+                background: isActive ? 'rgba(16, 185, 129, 0.12)' : 'var(--bg-card)',
                 border: `1px solid ${isActive ? 'var(--border-gold)' : 'var(--border-main)'}`,
                 color: isActive ? 'var(--gold-400)' : 'var(--text-secondary)',
               }}

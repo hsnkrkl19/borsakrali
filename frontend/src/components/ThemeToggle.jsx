@@ -112,7 +112,7 @@ export default function ThemeToggle({ variant = 'inline', className = '' }) {
         style={{
           background: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(15,23,42,0.05)',
           border: isDark
-            ? '1px solid rgba(212,175,55,0.30)'
+            ? '1px solid rgba(16,185,129,0.30)'
             : '1px solid rgba(15,23,42,0.15)',
           color: isDark ? '#fde68a' : '#0f172a',
         }}
@@ -137,7 +137,7 @@ export default function ThemeToggle({ variant = 'inline', className = '' }) {
       style={{
         background: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(15,23,42,0.05)',
         border: isDark
-          ? '1px solid rgba(212,175,55,0.30)'
+          ? '1px solid rgba(16,185,129,0.30)'
           : '1px solid rgba(15,23,42,0.15)',
         color: isDark ? '#fde68a' : '#0f172a',
       }}
@@ -307,10 +307,10 @@ function FloatingToggle({ theme, isDark, label, onToggle, className }) {
       style={{
         ...positionStyle,
         background: isDark
-          ? 'linear-gradient(135deg, rgba(212,175,55,0.18), rgba(255,255,255,0.04))'
+          ? 'linear-gradient(135deg, rgba(16,185,129,0.18), rgba(255,255,255,0.04))'
           : 'linear-gradient(135deg, rgba(15,23,42,0.06), rgba(15,23,42,0.02))',
         border: isDark
-          ? '1px solid rgba(212,175,55,0.35)'
+          ? '1px solid rgba(16,185,129,0.35)'
           : '1px solid rgba(15,23,42,0.18)',
         color: isDark ? '#fde68a' : '#0f172a',
         touchAction: 'none', // mobil: dikey scroll yerine drag yakala

@@ -86,9 +86,9 @@ export default function BotStatusCard({ active, onStop, onAdvanced }) {
           <span
             className="inline-flex items-center gap-1.5 text-[12px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full"
             style={{
-              background: 'rgba(0, 201, 138, 0.12)',
+              background: 'rgba(16, 185, 129, 0.12)',
               color: 'var(--jade)',
-              border: '1px solid rgba(0, 201, 138, 0.3)',
+              border: '1px solid rgba(16, 185, 129, 0.3)',
             }}
           >
             <span className="inline-block w-1.5 h-1.5 rounded-full" style={{ background: 'var(--jade)' }} />
@@ -162,9 +162,9 @@ export default function BotStatusCard({ active, onStop, onAdvanced }) {
           onClick={handleStop}
           className="inline-flex items-center justify-center gap-1.5 rounded-xl px-3 py-2.5 text-sm font-semibold"
           style={{
-            background: 'rgba(255, 59, 70, 0.10)',
+            background: 'rgba(225, 29, 72, 0.10)',
             color: 'var(--ember)',
-            border: '1px solid rgba(255, 59, 70, 0.4)',
+            border: '1px solid rgba(225, 29, 72, 0.4)',
           }}
         >
           <Square className="w-4 h-4" />
@@ -187,7 +187,7 @@ export default function BotStatusCard({ active, onStop, onAdvanced }) {
           onClick={onAdvanced}
           className="inline-flex items-center justify-center gap-1.5 rounded-xl px-3 py-2.5 text-sm font-semibold"
           style={{
-            background: 'rgba(212, 175, 55, 0.10)',
+            background: 'rgba(16, 185, 129, 0.10)',
             color: 'var(--gold-400)',
             border: '1px solid var(--border-gold)',
           }}

@@ -322,9 +322,9 @@ export default function CommandPalette() {
                   >
                     <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0"
                       style={{
-                        background: item.isCrypto ? 'rgba(245, 158, 11, 0.15)' : 'rgba(212, 175, 55, 0.13)',
+                        background: item.isCrypto ? 'rgba(245, 158, 11, 0.15)' : 'rgba(16, 185, 129, 0.13)',
                         color: 'var(--gold-400)',
-                        border: '1px solid rgba(212, 175, 55, 0.25)',
+                        border: '1px solid rgba(16, 185, 129, 0.25)',
                       }}
                     >
                       {item.isCrypto ? <span className="text-[10px] font-bold">{(item.symbol || '').slice(0, 2)}</span>

@@ -142,8 +142,8 @@ export default function AdminBroadcastFAB() {
           color: '#1a1208',
           border: '1px solid rgba(255, 255, 255, 0.25)',
           boxShadow: dragging
-            ? '0 14px 36px rgba(212, 175, 55, 0.55), inset 0 1px 0 rgba(255,255,255,0.45)'
-            : '0 8px 24px rgba(212, 175, 55, 0.40), inset 0 1px 0 rgba(255,255,255,0.45)',
+            ? '0 14px 36px rgba(16, 185, 129, 0.55), inset 0 1px 0 rgba(255,255,255,0.45)'
+            : '0 8px 24px rgba(16, 185, 129, 0.40), inset 0 1px 0 rgba(255,255,255,0.45)',
           touchAction: 'none', // mobile scroll yerine drag
           cursor: dragging ? 'grabbing' : 'grab',
           transform: dragging ? 'scale(1.04)' : 'scale(1)',

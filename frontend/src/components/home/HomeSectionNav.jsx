@@ -123,7 +123,7 @@ export default function HomeSectionNav() {
                 background: isActive
                   ? 'linear-gradient(135deg, var(--gold-300), var(--gold-500))'
                   : isHover ? 'var(--gold-400)' : 'var(--text-faint)',
-                boxShadow: isActive ? '0 0 0 3px rgba(212,175,55,0.18), 0 0 12px rgba(212,175,55,0.45)' : 'none',
+                boxShadow: isActive ? '0 0 0 3px rgba(16,185,129,0.18), 0 0 12px rgba(16,185,129,0.45)' : 'none',
                 transform: isActive ? 'scale(1.05)' : 'scale(1)',
               }}
             />

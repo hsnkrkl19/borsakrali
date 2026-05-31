@@ -26,7 +26,7 @@ function Proof({ p }) {
       <div className="flex items-center gap-2.5">
         <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center flex-shrink-0"
           style={{
-            background: 'rgba(212,175,55,0.10)',
+            background: 'rgba(16,185,129,0.10)',
             border: '1px solid var(--border-gold)',
           }}
         >
@@ -72,17 +72,17 @@ export default function HomeGuestProof() {
         className="rounded-2xl border p-4 sm:p-5 relative overflow-hidden flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-5"
         style={{
           background: `
-            radial-gradient(600px 240px at 0% 50%, rgba(212,175,55,0.08), transparent 60%),
-            linear-gradient(135deg, rgba(212,175,55,0.04), rgba(0,201,138,0.03))
+            radial-gradient(600px 240px at 0% 50%, rgba(16,185,129,0.08), transparent 60%),
+            linear-gradient(135deg, rgba(16,185,129,0.04), rgba(16,185,129,0.03))
           `,
           borderColor: 'var(--border-gold)',
-          boxShadow: '0 0 0 1px rgba(212,175,55,0.06) inset',
+          boxShadow: '0 0 0 1px rgba(16,185,129,0.06) inset',
         }}
       >
         <div className="min-w-0 flex-1">
           <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full border text-[9.5px] font-bold tracking-[0.18em] uppercase mb-2"
             style={{
-              background: 'rgba(212,175,55,0.12)',
+              background: 'rgba(16,185,129,0.12)',
               borderColor: 'var(--border-gold)',
               color: 'var(--gold-400)',
             }}
@@ -108,7 +108,7 @@ export default function HomeGuestProof() {
               style={{
                 background: 'linear-gradient(135deg, var(--gold-300) 0%, var(--gold-500) 100%)',
                 color: '#1a1208',
-                boxShadow: '0 8px 22px -6px rgba(212,175,55,0.45), inset 0 1px 0 rgba(255,255,255,0.4)',
+                boxShadow: '0 8px 22px -6px rgba(16,185,129,0.45), inset 0 1px 0 rgba(255,255,255,0.4)',
               }}
             >
               <span

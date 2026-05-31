@@ -41,7 +41,7 @@ function PillarCard({ pillar }) {
       <div
         className="w-11 h-11 rounded-xl flex items-center justify-center mb-3"
         style={{
-          background: 'rgba(212,175,55,0.10)',
+          background: 'rgba(16,185,129,0.10)',
           border: '1px solid var(--border-gold)',
         }}
       >

@@ -141,7 +141,7 @@ export default function Layout({ children }) {
                 aria-label="Ara"
                 className="flex h-9 w-9 items-center justify-center rounded-xl transition-all"
                 style={{
-                  background: 'rgba(212, 175, 55, 0.10)',
+                  background: 'rgba(16, 185, 129, 0.10)',
                   border: '1px solid var(--border-gold)',
                   color: 'var(--gold-400)',
                 }}

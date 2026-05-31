@@ -1110,7 +1110,7 @@ function ScannerTab() {
           {loading ? <Spinner size={14} /> : <Filter size={14} />}
           Tarama Başlat
         </Button>
-        {loading && <div className="mt-2 text-xs text-gray-400 text-center">Yahoo Finance'ten her sembol için 100 günlük tarihçe çekiliyor — 20-60 saniye sürebilir.</div>}
+        {loading && <div className="mt-2 text-xs text-gray-400 text-center">{universe === 'all' ? 'Tüm BIST (~510 hisse) canlı quote + (varsa) historical çekiliyor — 30-90 sn.' : 'Canlı quote + (varsa) historical çekiliyor — 5-20 sn.'}</div>}
       </Card>
 
       {error && (
@@ -1122,7 +1122,7 @@ function ScannerTab() {
       {result && (
         <Card padding="none">
           <div className="p-3 text-xs text-gray-400 border-b border-dark-800 flex items-center justify-between flex-wrap gap-2">
-            <span><strong className="text-gold-300">{result.matches?.length || 0}</strong> sonuç · {result.scanned} sembol tarandı · {result.universe}</span>
+            <span><strong className="text-gold-300">{result.matches?.length || 0}</strong> sonuç · {result.scanned} sembol tarandı{result.quoted != null && result.quoted !== result.scanned ? ` (${result.quoted} canlı quote)` : ''} · {result.universe}</span>
             <span className="text-gray-500">{new Date(result.timestamp).toLocaleTimeString('tr-TR')}</span>
           </div>
           {result.matches?.length === 0 ? (

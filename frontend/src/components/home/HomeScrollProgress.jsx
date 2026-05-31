@@ -38,7 +38,7 @@ export default function HomeScrollProgress() {
         className="h-full origin-left transition-opacity duration-300"
         style={{
           background: 'linear-gradient(90deg, var(--gold-200) 0%, var(--gold-400) 50%, var(--gold-600) 100%)',
-          boxShadow: '0 0 10px rgba(212,175,55,0.5), 0 0 2px rgba(212,175,55,0.8)',
+          boxShadow: '0 0 10px rgba(16,185,129,0.5), 0 0 2px rgba(16,185,129,0.8)',
           transform: 'scaleX(0)',
           opacity: 0,
         }}

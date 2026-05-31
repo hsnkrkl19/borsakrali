@@ -65,7 +65,7 @@ function downloadCsv(rows, headers, fileName) {
 
 // ── Mini grafik (kapanış area series) ────────────────────────────────────
 // `series` = [{ date: 'YYYY-MM-DD', value: number }] — düzenli (eski→yeni)
-function MiniChart({ series, title, color = '#d4af37', height = 200 }) {
+function MiniChart({ series, title, color = '#10b981', height = 200 }) {
   const containerRef = useRef(null)
   const chartRef = useRef(null)
   const seriesRef = useRef(null)

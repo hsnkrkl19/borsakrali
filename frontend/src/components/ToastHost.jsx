@@ -12,9 +12,9 @@ import { TOAST_EVENT } from '../utils/toast'
 const VISIBLE_MS = 4000
 
 const STYLE = {
-  success: { color: 'var(--jade)',     bg: 'rgba(0, 201, 138, 0.12)', border: 'rgba(0, 201, 138, 0.45)',  Icon: CheckCircle2 },
-  error:   { color: 'var(--ember)',    bg: 'rgba(255, 59, 70, 0.12)', border: 'rgba(255, 59, 70, 0.45)',  Icon: AlertTriangle },
-  info:    { color: 'var(--gold-400)', bg: 'rgba(212, 175, 55, 0.12)', border: 'rgba(212, 175, 55, 0.45)', Icon: Info },
+  success: { color: 'var(--jade)',     bg: 'rgba(16, 185, 129, 0.12)', border: 'rgba(16, 185, 129, 0.45)',  Icon: CheckCircle2 },
+  error:   { color: 'var(--ember)',    bg: 'rgba(225, 29, 72, 0.12)', border: 'rgba(225, 29, 72, 0.45)',  Icon: AlertTriangle },
+  info:    { color: 'var(--gold-400)', bg: 'rgba(16, 185, 129, 0.12)', border: 'rgba(16, 185, 129, 0.45)', Icon: Info },
 }
 
 export default function ToastHost() {

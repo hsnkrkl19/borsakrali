@@ -148,7 +148,7 @@ function showExitToast(message = 'Çıkmak için tekrar geri tuşuna basın') {
       'transform:translateX(-50%) translateY(8px)',
       'background:rgba(15,23,42,0.92)',
       'color:#fde68a',
-      'border:1px solid rgba(212,175,55,0.35)',
+      'border:1px solid rgba(16,185,129,0.35)',
       'padding:10px 16px',
       'border-radius:12px',
       'font-size:13px',

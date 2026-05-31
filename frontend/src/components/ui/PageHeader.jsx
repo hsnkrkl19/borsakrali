@@ -21,7 +21,7 @@ export default function PageHeader({ icon: Icon, eyebrow, title, description, ac
             style={{
               width: 44,
               height: 44,
-              background: 'rgba(212, 175, 55, 0.10)',
+              background: 'rgba(16, 185, 129, 0.10)',
               border: '1px solid var(--border-gold)',
             }}
           >

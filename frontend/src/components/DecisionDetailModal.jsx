@@ -451,8 +451,8 @@ export default function DecisionDetailModal({ signal, tone = 'long', cardTitle, 
                 <div
                   className="rounded-xl p-2.5 text-center border"
                   style={{
-                    background: 'rgba(255, 59, 70, 0.08)',
-                    borderColor: 'rgba(255, 59, 70, 0.25)',
+                    background: 'rgba(225, 29, 72, 0.08)',
+                    borderColor: 'rgba(225, 29, 72, 0.25)',
                   }}
                 >
                   <p className="text-[9px] uppercase tracking-wider" style={{ color: 'var(--text-faint)' }}>Stop</p>
@@ -463,8 +463,8 @@ export default function DecisionDetailModal({ signal, tone = 'long', cardTitle, 
                 <div
                   className="rounded-xl p-2.5 text-center border"
                   style={{
-                    background: 'rgba(0, 201, 138, 0.08)',
-                    borderColor: 'rgba(0, 201, 138, 0.25)',
+                    background: 'rgba(16, 185, 129, 0.08)',
+                    borderColor: 'rgba(16, 185, 129, 0.25)',
                   }}
                 >
                   <p className="text-[9px] uppercase tracking-wider" style={{ color: 'var(--text-faint)' }}>Hedef</p>
@@ -475,8 +475,8 @@ export default function DecisionDetailModal({ signal, tone = 'long', cardTitle, 
                 <div
                   className="rounded-xl p-2.5 text-center border"
                   style={{
-                    background: 'rgba(212, 175, 55, 0.08)',
-                    borderColor: 'rgba(212, 175, 55, 0.25)',
+                    background: 'rgba(16, 185, 129, 0.08)',
+                    borderColor: 'rgba(16, 185, 129, 0.25)',
                   }}
                   title="Reward / Risk — kazanç potansiyeli stop riskinin kaç katı"
                 >
@@ -494,7 +494,7 @@ export default function DecisionDetailModal({ signal, tone = 'long', cardTitle, 
             <div
               className="rounded-xl p-3 border"
               style={{
-                background: 'rgba(212, 175, 55, 0.06)',
+                background: 'rgba(16, 185, 129, 0.06)',
                 borderColor: 'var(--border-gold)',
               }}
             >
@@ -532,8 +532,8 @@ export default function DecisionDetailModal({ signal, tone = 'long', cardTitle, 
           <div
             className="rounded-xl p-3 border flex gap-2 items-start"
             style={{
-              background: 'rgba(255, 59, 70, 0.05)',
-              borderColor: 'rgba(255, 59, 70, 0.18)',
+              background: 'rgba(225, 29, 72, 0.05)',
+              borderColor: 'rgba(225, 29, 72, 0.18)',
             }}
           >
             <AlertTriangle className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" style={{ color: 'var(--ember)' }} />

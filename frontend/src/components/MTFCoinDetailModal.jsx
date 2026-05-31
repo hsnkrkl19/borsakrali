@@ -359,7 +359,7 @@ function SimpleView({ confluence, symbol, onClose }) {
           onClick={() => { onClose?.(); window.location.href = '/botlar' }}
           className="rounded-xl px-4 py-2.5 text-sm font-semibold transition-colors"
           style={{
-            background: 'rgba(212, 175, 55, 0.15)',
+            background: 'rgba(16, 185, 129, 0.15)',
             color: 'var(--gold-400)',
             border: '1px solid var(--border-gold)',
           }}

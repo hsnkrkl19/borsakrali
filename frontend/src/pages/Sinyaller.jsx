@@ -23,10 +23,10 @@ import { Button, Card, Badge, Spinner, EmptyState, PageHeader } from '../compone
 // ── Tasarım tonları — design-system renkleriyle (jade/gold/azure/ember) ────
 // fg: metin/ikon · bg: dolgu · bd: aktif kenarlık · line: yumuşak kenarlık
 const TONE = {
-  jade:  { fg: 'var(--jade)',     bg: 'rgba(0, 201, 138, 0.12)', bd: 'rgba(0, 201, 138, 0.45)', line: 'rgba(0, 201, 138, 0.22)' },
-  gold:  { fg: 'var(--gold-400)', bg: 'rgba(212, 175, 55, 0.12)', bd: 'rgba(212, 175, 55, 0.45)', line: 'rgba(212, 175, 55, 0.22)' },
+  jade:  { fg: 'var(--jade)',     bg: 'rgba(16, 185, 129, 0.12)', bd: 'rgba(16, 185, 129, 0.45)', line: 'rgba(16, 185, 129, 0.22)' },
+  gold:  { fg: 'var(--gold-400)', bg: 'rgba(16, 185, 129, 0.12)', bd: 'rgba(16, 185, 129, 0.45)', line: 'rgba(16, 185, 129, 0.22)' },
   azure: { fg: 'var(--azure)',    bg: 'rgba(59, 130, 246, 0.12)', bd: 'rgba(59, 130, 246, 0.45)', line: 'rgba(59, 130, 246, 0.22)' },
-  ember: { fg: 'var(--ember)',    bg: 'rgba(255, 59, 70, 0.12)',  bd: 'rgba(255, 59, 70, 0.45)',  line: 'rgba(255, 59, 70, 0.22)' },
+  ember: { fg: 'var(--ember)',    bg: 'rgba(225, 29, 72, 0.12)',  bd: 'rgba(225, 29, 72, 0.45)',  line: 'rgba(225, 29, 72, 0.22)' },
 }
 
 const GRADE_TONE = { MUKEMMEL: 'jade', GUCLU: 'azure', ORTA: 'gold', ZAYIF: 'neutral' }

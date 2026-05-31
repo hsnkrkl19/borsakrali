@@ -294,9 +294,9 @@ function MarketPulse() {
 
 /* ─── Karar Kartı — 3 büyük slot ──────────────────────────────────────── */
 const DECISION_TONE = {
-  jade:  { fg: 'var(--jade)',     bg: 'rgba(0, 201, 138, 0.12)', bd: 'rgba(0, 201, 138, 0.30)' },
-  ember: { fg: 'var(--ember)',    bg: 'rgba(255, 59, 70, 0.12)', bd: 'rgba(255, 59, 70, 0.30)' },
-  gold:  { fg: 'var(--gold-400)', bg: 'rgba(212, 175, 55, 0.12)', bd: 'var(--border-gold)' },
+  jade:  { fg: 'var(--jade)',     bg: 'rgba(16, 185, 129, 0.12)', bd: 'rgba(16, 185, 129, 0.30)' },
+  ember: { fg: 'var(--ember)',    bg: 'rgba(225, 29, 72, 0.12)',  bd: 'rgba(225, 29, 72, 0.30)' },
+  azure: { fg: 'var(--azure)',    bg: 'rgba(37, 99, 235, 0.12)',  bd: 'rgba(37, 99, 235, 0.30)' },
 }
 
 function DecisionCard({ tone, icon: Icon, title, symbol, label, badgeTone, sentence, onDetail, loading, empty }) {
@@ -537,8 +537,8 @@ export default function Dashboard() {
           <div
             className="flex items-start gap-2.5 rounded-xl p-3.5 text-[13px]"
             style={{
-              background: 'rgba(255, 59, 70, 0.08)',
-              border: '1px solid rgba(255, 59, 70, 0.28)',
+              background: 'rgba(225, 29, 72, 0.08)',
+              border: '1px solid rgba(225, 29, 72, 0.28)',
               color: 'var(--ember)',
             }}
           >
@@ -594,12 +594,12 @@ export default function Dashboard() {
               onDetail={topShort ? () => setDetail({ signal: topShort, tone: 'short', title: 'Riskli Bölge' }) : null}
             />
             <DecisionCard
-              tone="gold"
+              tone="azure"
               icon={Eye}
               title="Takip Et"
               symbol={watch?.symbol}
               label="HAREKET BEKLENİYOR"
-              badgeTone="gold"
+              badgeTone="azure"
               sentence={watch ? 'Yatay seyir, çıkış yakın.' : ''}
               empty={!loading && !watch}
               loading={loading && !dailySnapshot}

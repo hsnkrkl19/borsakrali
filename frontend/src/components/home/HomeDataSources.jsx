@@ -59,7 +59,7 @@ function SourceCard({ s }) {
         <div
           className="w-10 h-10 rounded-xl flex items-center justify-center"
           style={{
-            background: 'rgba(212,175,55,0.10)',
+            background: 'rgba(16,185,129,0.10)',
             border: '1px solid var(--border-gold)',
           }}
         >
@@ -68,7 +68,7 @@ function SourceCard({ s }) {
         <span
           className="text-[9px] font-bold uppercase tracking-[0.18em] px-2 py-1 rounded-full whitespace-nowrap"
           style={{
-            background: 'rgba(212,175,55,0.10)',
+            background: 'rgba(16,185,129,0.10)',
             border: '1px solid var(--border-gold)',
             color: 'var(--gold-400)',
           }}
@@ -98,7 +98,7 @@ export default function HomeDataSources() {
         <div
           className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border text-[11px] font-semibold tracking-wide uppercase mb-3"
           style={{
-            background: 'rgba(212,175,55,0.08)',
+            background: 'rgba(16,185,129,0.08)',
             borderColor: 'var(--border-gold)',
             color: 'var(--gold-400)',
           }}

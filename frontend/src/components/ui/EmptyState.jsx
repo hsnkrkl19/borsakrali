@@ -9,9 +9,9 @@ import clsx from 'clsx'
  * tone: gold (default) | jade | ember
  */
 const TONE = {
-  gold: { fg: 'var(--gold-400)', bg: 'rgba(212, 175, 55, 0.10)', bd: 'var(--border-gold)' },
-  jade: { fg: 'var(--jade)', bg: 'rgba(0, 201, 138, 0.10)', bd: 'rgba(0, 201, 138, 0.30)' },
-  ember: { fg: 'var(--ember)', bg: 'rgba(255, 59, 70, 0.10)', bd: 'rgba(255, 59, 70, 0.30)' },
+  gold: { fg: 'var(--gold-400)', bg: 'rgba(16, 185, 129, 0.10)', bd: 'var(--border-gold)' },
+  jade: { fg: 'var(--jade)', bg: 'rgba(16, 185, 129, 0.10)', bd: 'rgba(16, 185, 129, 0.30)' },
+  ember: { fg: 'var(--ember)', bg: 'rgba(225, 29, 72, 0.10)', bd: 'rgba(225, 29, 72, 0.30)' },
 }
 
 export default function EmptyState({

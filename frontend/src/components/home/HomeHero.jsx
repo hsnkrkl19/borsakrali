@@ -151,8 +151,8 @@ export default function HomeHero() {
       className="relative overflow-hidden rounded-3xl border isolate"
       style={{
         background: `
-          radial-gradient(1100px 600px at 12% -10%, rgba(212,175,55,0.10), transparent 55%),
-          radial-gradient(900px 500px at 95% 110%, rgba(0,201,138,0.06), transparent 60%),
+          radial-gradient(1100px 600px at 12% -10%, rgba(16,185,129,0.10), transparent 55%),
+          radial-gradient(900px 500px at 95% 110%, rgba(16,185,129,0.06), transparent 60%),
           linear-gradient(180deg, var(--bg-card) 0%, var(--bg-canvas) 100%)
         `,
         borderColor: 'var(--border-gold)',
@@ -165,7 +165,7 @@ export default function HomeHero() {
         aria-hidden="true"
         className="pointer-events-none absolute left-0 top-0 w-[480px] h-[480px] rounded-full mix-blend-screen opacity-0"
         style={{
-          background: 'radial-gradient(circle, rgba(212,175,55,0.22) 0%, rgba(212,175,55,0.06) 35%, transparent 65%)',
+          background: 'radial-gradient(circle, rgba(16,185,129,0.22) 0%, rgba(16,185,129,0.06) 35%, transparent 65%)',
           filter: 'blur(2px)',
           zIndex: 0,
         }}
@@ -199,7 +199,7 @@ export default function HomeHero() {
             <div
               className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border w-fit text-[11px] font-semibold tracking-wide uppercase"
               style={{
-                background: 'rgba(212,175,55,0.10)',
+                background: 'rgba(16,185,129,0.10)',
                 borderColor: 'var(--border-gold)',
                 color: 'var(--gold-400)',
               }}
@@ -245,7 +245,7 @@ export default function HomeHero() {
                 style={{
                   background: 'linear-gradient(135deg, var(--gold-300) 0%, var(--gold-500) 100%)',
                   color: '#1a1208',
-                  boxShadow: '0 10px 30px -6px rgba(212, 175, 55, 0.45), inset 0 1px 0 rgba(255,255,255,0.4)',
+                  boxShadow: '0 10px 30px -6px rgba(16, 185, 129, 0.45), inset 0 1px 0 rgba(255,255,255,0.4)',
                 }}
               >
                 <span
@@ -386,7 +386,7 @@ export default function HomeHero() {
                   style={{
                     left: `${left}%`,
                     top: `${top}%`,
-                    background: d.tone === 'jade' ? 'rgba(0,201,138,0.15)' : 'rgba(212,175,55,0.15)',
+                    background: d.tone === 'jade' ? 'rgba(16,185,129,0.15)' : 'rgba(16,185,129,0.15)',
                     color: colorVar,
                     border: `1px solid ${colorVar}`,
                     opacity: 0,

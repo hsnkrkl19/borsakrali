@@ -3,9 +3,9 @@ import InfoTooltip from './InfoTooltip'
 import { buildTradePlan, formatRelativeTime } from '../lib/strategyMeta'
 
 const ACTION_STYLE = {
-  AL:  { color: 'var(--jade)',     bg: 'rgba(0, 201, 138, 0.12)', border: 'rgba(0, 201, 138, 0.30)', Icon: TrendingUp },
-  SAT: { color: 'var(--ember)',    bg: 'rgba(255, 59, 70, 0.12)', border: 'rgba(255, 59, 70, 0.30)', Icon: TrendingDown },
-  TUT: { color: 'var(--gold-400)', bg: 'rgba(212, 175, 55, 0.12)', border: 'rgba(212, 175, 55, 0.30)', Icon: Clock },
+  AL:  { color: 'var(--jade)',     bg: 'rgba(16, 185, 129, 0.12)', border: 'rgba(16, 185, 129, 0.30)', Icon: TrendingUp },
+  SAT: { color: 'var(--ember)',    bg: 'rgba(225, 29, 72, 0.12)', border: 'rgba(225, 29, 72, 0.30)', Icon: TrendingDown },
+  TUT: { color: 'var(--gold-400)', bg: 'rgba(16, 185, 129, 0.12)', border: 'rgba(16, 185, 129, 0.30)', Icon: Clock },
 }
 
 /**
@@ -96,7 +96,7 @@ export default function TradePlanCard({ signal, compact = false, showWhy = true,
           <div
             className="text-[11px] font-bold px-2 py-1 rounded-lg flex-shrink-0"
             style={{
-              background: 'rgba(212, 175, 55, 0.10)',
+              background: 'rgba(16, 185, 129, 0.10)',
               color: 'var(--gold-400)',
               border: '1px solid var(--border-gold)',
             }}
@@ -138,8 +138,8 @@ export default function TradePlanCard({ signal, compact = false, showWhy = true,
         <div
           className="rounded-lg p-2.5"
           style={{
-            background: 'rgba(255, 59, 70, 0.07)',
-            border: '1px solid rgba(255, 59, 70, 0.25)',
+            background: 'rgba(225, 29, 72, 0.07)',
+            border: '1px solid rgba(225, 29, 72, 0.25)',
           }}
         >
           <div className="flex items-center gap-1 text-[10px] uppercase tracking-wider font-bold mb-1"
@@ -165,8 +165,8 @@ export default function TradePlanCard({ signal, compact = false, showWhy = true,
         <div
           className="rounded-lg p-2.5"
           style={{
-            background: 'rgba(0, 201, 138, 0.07)',
-            border: '1px solid rgba(0, 201, 138, 0.25)',
+            background: 'rgba(16, 185, 129, 0.07)',
+            border: '1px solid rgba(16, 185, 129, 0.25)',
           }}
         >
           <div className="flex items-center gap-1 text-[10px] uppercase tracking-wider font-bold mb-1"
@@ -195,8 +195,8 @@ export default function TradePlanCard({ signal, compact = false, showWhy = true,
         <div
           className="rounded-lg p-2.5 text-[11.5px] leading-snug"
           style={{
-            background: 'rgba(0, 201, 138, 0.05)',
-            border: '1px solid rgba(0, 201, 138, 0.18)',
+            background: 'rgba(16, 185, 129, 0.05)',
+            border: '1px solid rgba(16, 185, 129, 0.18)',
             color: 'var(--text-secondary)',
           }}
         >
@@ -211,8 +211,8 @@ export default function TradePlanCard({ signal, compact = false, showWhy = true,
         <div
           className="rounded-lg p-2.5 text-[11.5px] leading-snug"
           style={{
-            background: 'rgba(255, 59, 70, 0.05)',
-            border: '1px solid rgba(255, 59, 70, 0.18)',
+            background: 'rgba(225, 29, 72, 0.05)',
+            border: '1px solid rgba(225, 29, 72, 0.18)',
             color: 'var(--text-secondary)',
           }}
         >

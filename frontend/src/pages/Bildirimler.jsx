@@ -67,7 +67,7 @@ function NotifCard({ entry, isUnread, onOpen, onToggleRead, onHide }) {
     <div
       className="group flex gap-3 p-3 rounded-xl transition-all"
       style={{
-        background: isUnread ? 'rgba(212, 175, 55, 0.05)' : 'var(--bg-card)',
+        background: isUnread ? 'rgba(16, 185, 129, 0.05)' : 'var(--bg-card)',
         border: `1px solid ${isUnread ? 'var(--border-gold)' : 'var(--border-main)'}`,
       }}
     >
@@ -149,7 +149,7 @@ function PreferencesPanel({ preferences, onToggle, onClose }) {
       style={{
         background: 'var(--bg-card)',
         border: '1px solid var(--border-gold)',
-        boxShadow: '0 4px 16px rgba(212, 175, 55, 0.08)',
+        boxShadow: '0 4px 16px rgba(16, 185, 129, 0.08)',
       }}
     >
       <div className="flex items-start justify-between gap-3 mb-3">
@@ -378,9 +378,9 @@ export default function Bildirimler() {
           onClick={() => setShowHidden((v) => !v)}
           className="flex items-center gap-1.5 px-3 h-10 rounded-xl text-[12px] font-semibold transition-colors"
           style={{
-            background: showHidden ? 'rgba(255, 59, 70, 0.10)' : 'var(--bg-card)',
+            background: showHidden ? 'rgba(225, 29, 72, 0.10)' : 'var(--bg-card)',
             color: showHidden ? 'var(--ember)' : 'var(--text-muted)',
-            border: `1px solid ${showHidden ? 'rgba(255, 59, 70, 0.4)' : 'var(--border-main)'}`,
+            border: `1px solid ${showHidden ? 'rgba(225, 29, 72, 0.4)' : 'var(--border-main)'}`,
           }}
         >
           <Trash2 className="w-3.5 h-3.5" />
@@ -415,7 +415,7 @@ export default function Bildirimler() {
           onClick={() => setActiveCategory('all')}
           className="flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11.5px] font-bold whitespace-nowrap transition-all"
           style={{
-            background: activeCategory === 'all' ? 'rgba(212, 175, 55, 0.18)' : 'var(--bg-card)',
+            background: activeCategory === 'all' ? 'rgba(16, 185, 129, 0.18)' : 'var(--bg-card)',
             color: activeCategory === 'all' ? 'var(--gold-400)' : 'var(--text-muted)',
             border: `1px solid ${activeCategory === 'all' ? 'var(--border-gold)' : 'var(--border-main)'}`,
           }}

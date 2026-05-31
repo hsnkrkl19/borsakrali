@@ -115,8 +115,8 @@ export default function Sidebar({ isOpen, onToggle }) {
           aria-label={isOpen ? 'Menüyü daralt' : 'Menüyü genişlet'}
           style={{ color: 'var(--gold-400)' }}
           onMouseEnter={(e) => {
-            e.currentTarget.style.background = 'rgba(212, 175, 55, 0.12)'
-            e.currentTarget.style.borderColor = 'rgba(212, 175, 55, 0.30)'
+            e.currentTarget.style.background = 'rgba(16, 185, 129, 0.12)'
+            e.currentTarget.style.borderColor = 'rgba(16, 185, 129, 0.30)'
           }}
           onMouseLeave={(e) => {
             e.currentTarget.style.background = 'transparent'
@@ -228,13 +228,13 @@ export default function Sidebar({ isOpen, onToggle }) {
           aria-label="Profil menüsü"
           className={`relative overflow-hidden rounded-xl p-3 w-full text-left transition-all hover:brightness-105 ${isOpen ? '' : 'flex items-center justify-center'}`}
           style={{
-            background: 'linear-gradient(135deg, rgba(212, 175, 55, 0.10), rgba(212, 175, 55, 0.02))',
+            background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.10), rgba(16, 185, 129, 0.02))',
             border: '1px solid var(--border-gold)',
           }}
         >
           {/* Subtle shimmer overlay */}
           <div className="absolute inset-0 pointer-events-none"
-            style={{ background: 'linear-gradient(90deg, transparent, rgba(212, 175, 55, 0.06), transparent)' }}
+            style={{ background: 'linear-gradient(90deg, transparent, rgba(16, 185, 129, 0.06), transparent)' }}
           />
 
           {isOpen ? (
@@ -305,7 +305,7 @@ export default function Sidebar({ isOpen, onToggle }) {
                 onClick={handleLogout}
                 className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg transition-colors text-left text-[13px] font-medium"
                 style={{ color: 'var(--ember)' }}
-                onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255, 59, 70, 0.10)'}
+                onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(225, 29, 72, 0.10)'}
                 onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
               >
                 <LogOut className="w-4 h-4" />

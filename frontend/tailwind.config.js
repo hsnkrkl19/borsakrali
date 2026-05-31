@@ -22,17 +22,19 @@ export default {
           900: '#713f12',
           950: '#422006'
         },
+        // NOT: palet adı 'gold' olarak korundu (yüzlerce text-gold-*/bg-gold-* kullanımı
+        // değişmesin diye) ama değerler artık EMERALD — "Aydınlık & Ferah" yeniden tasarımı.
         gold: {
-          50: '#fffbeb',
-          100: '#fef3c7',
-          200: '#fde68a',
-          300: '#fcd34d',
-          400: '#fbbf24',
-          500: '#f59e0b',
-          600: '#d97706',
-          700: '#b45309',
-          800: '#92400e',
-          900: '#78350f'
+          50: '#ecfdf5',
+          100: '#d1fae5',
+          200: '#a7f3d0',
+          300: '#6ee7b7',
+          400: '#10b981',
+          500: '#059669',
+          600: '#047857',
+          700: '#065f46',
+          800: '#064e3b',
+          900: '#022c22'
         },
         bronze: {
           50: '#fdf4f3',
@@ -116,19 +118,19 @@ export default {
         mono: ['JetBrains Mono', 'monospace']
       },
       boxShadow: {
-        'glow': '0 0 20px rgba(245, 158, 11, 0.3)',
-        'glow-gold': '0 0 30px rgba(251, 191, 36, 0.4)',
-        'glow-green': '0 0 20px rgba(34, 197, 94, 0.3)',
+        'glow': '0 0 20px rgba(16, 185, 129, 0.3)',
+        'glow-gold': '0 0 30px rgba(16, 185, 129, 0.4)',
+        'glow-green': '0 0 20px rgba(16, 185, 129, 0.3)',
         'glow-red': '0 0 20px rgba(239, 68, 68, 0.3)',
-        'premium': '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
-        'card': '0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -1px rgba(0, 0, 0, 0.2)',
-        'card-hover': '0 10px 15px -3px rgba(0, 0, 0, 0.4), 0 4px 6px -2px rgba(0, 0, 0, 0.3)'
+        'premium': '0 25px 50px -12px rgba(16, 24, 40, 0.18)',
+        'card': '0 1px 2px rgba(16, 24, 40, 0.04), 0 4px 12px rgba(16, 24, 40, 0.06)',
+        'card-hover': '0 1px 2px rgba(16, 24, 40, 0.05), 0 12px 28px rgba(16, 24, 40, 0.12)'
       },
       backgroundImage: {
         'gradient-radial': 'radial-gradient(var(--tw-gradient-stops))',
-        'gradient-premium': 'linear-gradient(135deg, #1f1f23 0%, #0f172a 50%, #1f1f23 100%)',
-        'gradient-gold': 'linear-gradient(135deg, #fbbf24 0%, #f59e0b 50%, #d97706 100%)',
-        'gradient-card': 'linear-gradient(180deg, rgba(251, 191, 36, 0.05) 0%, rgba(0, 0, 0, 0) 100%)'
+        'gradient-premium': 'linear-gradient(135deg, #ecfdf5 0%, #d1fae5 50%, #ecfdf5 100%)',
+        'gradient-gold': 'linear-gradient(135deg, #34d399 0%, #10b981 50%, #059669 100%)',
+        'gradient-card': 'linear-gradient(180deg, rgba(16, 185, 129, 0.05) 0%, rgba(255, 255, 255, 0) 100%)'
       },
       animation: {
         'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
@@ -138,8 +140,8 @@ export default {
       },
       keyframes: {
         glow: {
-          '0%': { boxShadow: '0 0 5px rgba(251, 191, 36, 0.2)' },
-          '100%': { boxShadow: '0 0 20px rgba(251, 191, 36, 0.6)' }
+          '0%': { boxShadow: '0 0 5px rgba(16, 185, 129, 0.2)' },
+          '100%': { boxShadow: '0 0 20px rgba(16, 185, 129, 0.6)' }
         },
         float: {
           '0%, 100%': { transform: 'translateY(0)' },

@@ -81,11 +81,11 @@ export default function HomeEducation() {
       className="relative overflow-hidden rounded-3xl border isolate"
       style={{
         background:
-          'radial-gradient(900px 540px at 12% -10%, rgba(212,175,55,0.10), transparent 55%),' +
-          'radial-gradient(700px 460px at 95% 110%, rgba(0,201,138,0.06), transparent 60%),' +
+          'radial-gradient(900px 540px at 12% -10%, rgba(16,185,129,0.10), transparent 55%),' +
+          'radial-gradient(700px 460px at 95% 110%, rgba(16,185,129,0.06), transparent 60%),' +
           'linear-gradient(180deg, var(--bg-card) 0%, var(--bg-canvas) 100%)',
         borderColor: 'var(--border-gold)',
-        boxShadow: 'var(--shadow-card), 0 0 0 1px rgba(212,175,55,0.08) inset',
+        boxShadow: 'var(--shadow-card), 0 0 0 1px rgba(16,185,129,0.08) inset',
       }}>
 
       {/* Arka plan SVG dalga — scroll'la çizilir */}
@@ -97,9 +97,9 @@ export default function HomeEducation() {
         viewBox="0 0 1200 500">
         <defs>
           <linearGradient id="cta-wave-grad" x1="0" y1="0" x2="1" y2="0">
-            <stop offset="0%"  stopColor="rgba(212,175,55,0)" />
-            <stop offset="50%" stopColor="rgba(212,175,55,0.5)" />
-            <stop offset="100%" stopColor="rgba(212,175,55,0)" />
+            <stop offset="0%"  stopColor="rgba(16,185,129,0)" />
+            <stop offset="50%" stopColor="rgba(16,185,129,0.5)" />
+            <stop offset="100%" stopColor="rgba(16,185,129,0)" />
           </linearGradient>
         </defs>
         <path
@@ -115,7 +115,7 @@ export default function HomeEducation() {
         <path
           data-cta-wave
           d="M0,440 Q260,420 520,430 T1040,410 T1200,400"
-          fill="none" stroke="rgba(212,175,55,0.16)" strokeWidth="1"
+          fill="none" stroke="rgba(16,185,129,0.16)" strokeWidth="1"
         />
       </svg>
 
@@ -126,7 +126,7 @@ export default function HomeEducation() {
             <div
               className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border text-[11px] font-semibold tracking-[0.2em] uppercase w-fit mb-4"
               style={{
-                background: 'rgba(212,175,55,0.10)',
+                background: 'rgba(16,185,129,0.10)',
                 borderColor: 'var(--border-gold)',
                 color: 'var(--gold-400)',
               }}>
@@ -170,7 +170,7 @@ export default function HomeEducation() {
                 style={{
                   background: 'linear-gradient(135deg, var(--gold-300) 0%, var(--gold-500) 100%)',
                   color: '#1a1208',
-                  boxShadow: '0 10px 30px -6px rgba(212, 175, 55, 0.45), inset 0 1px 0 rgba(255,255,255,0.4)',
+                  boxShadow: '0 10px 30px -6px rgba(16, 185, 129, 0.45), inset 0 1px 0 rgba(255,255,255,0.4)',
                 }}>
                 <span aria-hidden="true"
                   className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-[1100ms] ease-out"

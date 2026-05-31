@@ -156,19 +156,19 @@ function CinematicChartBackdrop({ theme = 'dark' }) {
     >
       <defs>
         <linearGradient id="bk-line" x1="0" y1="0" x2="1" y2="0">
-          <stop offset="0%" stopColor={isLight ? '#b45309' : '#d4af37'} stopOpacity={isLight ? '0.2' : '0.15'} />
-          <stop offset="50%" stopColor={isLight ? '#d4af37' : '#f0c75a'} stopOpacity={isLight ? '0.65' : '0.85'} />
+          <stop offset="0%" stopColor={isLight ? '#b45309' : '#10b981'} stopOpacity={isLight ? '0.2' : '0.15'} />
+          <stop offset="50%" stopColor={isLight ? '#10b981' : '#f0c75a'} stopOpacity={isLight ? '0.65' : '0.85'} />
           <stop offset="100%" stopColor={isLight ? '#92400e' : '#fef3c7'} stopOpacity={isLight ? '0.85' : '1'} />
         </linearGradient>
         <linearGradient id="bk-area" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#d4af37" stopOpacity={isLight ? '0.20' : '0.35'} />
-          <stop offset="100%" stopColor="#d4af37" stopOpacity="0" />
+          <stop offset="0%" stopColor="#10b981" stopOpacity={isLight ? '0.20' : '0.35'} />
+          <stop offset="100%" stopColor="#10b981" stopOpacity="0" />
         </linearGradient>
         <pattern id="bk-grid" width="40" height="40" patternUnits="userSpaceOnUse">
           <path
             d="M 40 0 L 0 0 0 40"
             fill="none"
-            stroke={isLight ? 'rgba(146, 64, 14, 0.05)' : 'rgba(212,175,55,0.06)'}
+            stroke={isLight ? 'rgba(146, 64, 14, 0.05)' : 'rgba(16,185,129,0.06)'}
             strokeWidth="1"
           />
         </pattern>
@@ -182,13 +182,13 @@ function CinematicChartBackdrop({ theme = 'dark' }) {
       {/* Candles */}
       {candles.slice(0, Math.floor(candles.length * progress)).map((c, i) => (
         <g key={i} opacity="0.35">
-          <line x1={c.x} y1={c.yH} x2={c.x} y2={c.yL} stroke={c.up ? '#00c98a' : '#ff3b46'} strokeWidth="1" />
+          <line x1={c.x} y1={c.yH} x2={c.x} y2={c.yL} stroke={c.up ? '#10b981' : '#e11d48'} strokeWidth="1" />
           <rect
             x={c.x - 3}
             y={Math.min(c.yO, c.yC)}
             width="6"
             height={Math.max(2, Math.abs(c.yC - c.yO))}
-            fill={c.up ? '#00c98a' : '#ff3b46'}
+            fill={c.up ? '#10b981' : '#e11d48'}
             rx="0.5"
           />
         </g>
@@ -204,7 +204,7 @@ function CinematicChartBackdrop({ theme = 'dark' }) {
           cy={H - pad - (points[visibleCount - 1] / 100) * (H - pad * 2)}
           r="4"
           fill="#fef3c7"
-          stroke="#d4af37"
+          stroke="#10b981"
           strokeWidth="1.5"
         >
           <animate attributeName="r" values="4;7;4" dur="1.2s" repeatCount="indefinite" />
@@ -225,7 +225,7 @@ function HeroTickerChip({ label, value, change, theme = 'dark' }) {
       className="flex items-center gap-2.5 px-3 py-2 rounded-xl"
       style={{
         background: isLight ? 'rgba(255, 255, 255, 0.85)' : 'rgba(255, 255, 255, 0.04)',
-        border: `1px solid ${up ? 'rgba(0, 201, 138, 0.30)' : 'rgba(255, 59, 70, 0.30)'}`,
+        border: `1px solid ${up ? 'rgba(16, 185, 129, 0.30)' : 'rgba(225, 29, 72, 0.30)'}`,
         backdropFilter: 'blur(6px)',
         boxShadow: isLight ? '0 1px 3px rgba(15, 23, 42, 0.06)' : 'none',
       }}
@@ -389,7 +389,7 @@ export default function Login() {
           style={{
             background: 'linear-gradient(135deg, var(--gold-300) 0%, var(--gold-500) 100%)',
             color: '#1a1208',
-            boxShadow: '0 8px 24px -6px rgba(212, 175, 55, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.45)',
+            boxShadow: '0 8px 24px -6px rgba(16, 185, 129, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.45)',
           }}
         >
           <span
@@ -428,8 +428,8 @@ export default function Login() {
         {error && (
           <div className="mb-5 p-3.5 rounded-xl flex items-start gap-2.5 text-[13px]"
             style={{
-              background: 'rgba(255, 59, 70, 0.08)',
-              border: '1px solid rgba(255, 59, 70, 0.25)',
+              background: 'rgba(225, 29, 72, 0.08)',
+              border: '1px solid rgba(225, 29, 72, 0.25)',
               color: '#fca5a5',
             }}
           >
@@ -441,8 +441,8 @@ export default function Login() {
         {waking && !error && (
           <div className="mb-5 p-3.5 rounded-xl flex items-center gap-2.5 text-[13px]"
             style={{
-              background: 'rgba(212, 175, 55, 0.08)',
-              border: '1px solid rgba(212, 175, 55, 0.25)',
+              background: 'rgba(16, 185, 129, 0.08)',
+              border: '1px solid rgba(16, 185, 129, 0.25)',
               color: '#fcd34d',
             }}
           >
@@ -660,7 +660,7 @@ export default function Login() {
               style={{
                 background: 'linear-gradient(135deg, var(--gold-300) 0%, var(--gold-500) 100%)',
                 color: '#1a1208',
-                boxShadow: '0 8px 26px -6px rgba(212, 175, 55, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.45)',
+                boxShadow: '0 8px 26px -6px rgba(16, 185, 129, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.45)',
               }}
             >
               <span
@@ -843,11 +843,11 @@ export default function Login() {
           className="absolute top-[12%] right-0 bottom-[12%] w-px pointer-events-none z-30"
           style={{
             background: isLight
-              ? 'linear-gradient(180deg, transparent 0%, rgba(212, 175, 55, 0.55) 30%, rgba(212, 175, 55, 0.55) 70%, transparent 100%)'
-              : 'linear-gradient(180deg, transparent 0%, rgba(212, 175, 55, 0.45) 30%, rgba(212, 175, 55, 0.45) 70%, transparent 100%)',
+              ? 'linear-gradient(180deg, transparent 0%, rgba(16, 185, 129, 0.55) 30%, rgba(16, 185, 129, 0.55) 70%, transparent 100%)'
+              : 'linear-gradient(180deg, transparent 0%, rgba(16, 185, 129, 0.45) 30%, rgba(16, 185, 129, 0.45) 70%, transparent 100%)',
             boxShadow: isLight
-              ? '0 0 24px rgba(212, 175, 55, 0.20)'
-              : '0 0 32px rgba(212, 175, 55, 0.25)',
+              ? '0 0 24px rgba(16, 185, 129, 0.20)'
+              : '0 0 32px rgba(16, 185, 129, 0.25)',
           }}
         />
       </div>
@@ -863,7 +863,7 @@ export default function Login() {
           style={{
             background: isLight
               ? 'radial-gradient(ellipse 80% 60% at 0% 50%, rgba(254, 243, 199, 0.55) 0%, rgba(254, 243, 199, 0.18) 35%, transparent 70%)'
-              : 'radial-gradient(ellipse 80% 60% at 0% 50%, rgba(212, 175, 55, 0.10) 0%, rgba(212, 175, 55, 0.04) 35%, transparent 70%)',
+              : 'radial-gradient(ellipse 80% 60% at 0% 50%, rgba(16, 185, 129, 0.10) 0%, rgba(16, 185, 129, 0.04) 35%, transparent 70%)',
           }}
         />
 

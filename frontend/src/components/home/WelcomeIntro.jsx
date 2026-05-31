@@ -42,7 +42,7 @@ export default function WelcomeIntro({
         className="relative overflow-hidden rounded-3xl border p-6 sm:p-10 text-center"
         style={{
           background: `
-            radial-gradient(800px 320px at 50% 0%, rgba(212,175,55,0.18), transparent 60%),
+            radial-gradient(800px 320px at 50% 0%, rgba(16,185,129,0.18), transparent 60%),
             linear-gradient(180deg, var(--bg-card) 0%, var(--bg-canvas) 100%)
           `,
           borderColor: 'var(--border-gold)',
@@ -57,7 +57,7 @@ export default function WelcomeIntro({
 
         <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border text-[11px] font-semibold tracking-wide uppercase mb-5"
           style={{
-            background: 'rgba(212,175,55,0.08)',
+            background: 'rgba(16,185,129,0.08)',
             borderColor: 'var(--border-gold)',
             color: 'var(--gold-400)',
           }}
@@ -92,7 +92,7 @@ export default function WelcomeIntro({
           style={{
             background: 'linear-gradient(135deg, var(--gold-300) 0%, var(--gold-500) 100%)',
             color: '#1a1208',
-            boxShadow: '0 10px 30px -6px rgba(212, 175, 55, 0.45), inset 0 1px 0 rgba(255,255,255,0.4)',
+            boxShadow: '0 10px 30px -6px rgba(16, 185, 129, 0.45), inset 0 1px 0 rgba(255,255,255,0.4)',
           }}
         >
           <span

@@ -73,7 +73,7 @@ function CardModal({ card, onClose }) {
 
         {card.example && (
           <p className="rounded-lg p-3 text-[13px] leading-relaxed"
-            style={{ background: 'rgba(0, 201, 138, 0.07)', color: 'var(--text-secondary)' }}>
+            style={{ background: 'rgba(16, 185, 129, 0.07)', color: 'var(--text-secondary)' }}>
             <span className="font-semibold" style={{ color: 'var(--jade)' }}>Örnek: </span>
             {card.example.replace(/^Örnek:\s*/, '')}
           </p>
@@ -81,7 +81,7 @@ function CardModal({ card, onClose }) {
 
         {card.warning && (
           <p className="rounded-lg p-3 text-[13px] leading-relaxed"
-            style={{ background: 'rgba(212, 175, 55, 0.07)', color: 'var(--text-secondary)' }}>
+            style={{ background: 'rgba(16, 185, 129, 0.07)', color: 'var(--text-secondary)' }}>
             <span className="font-semibold" style={{ color: 'var(--gold-400)' }}>Dikkat: </span>
             {card.warning.replace(/^Dikkat:\s*/, '')}
           </p>

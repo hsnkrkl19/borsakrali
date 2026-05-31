@@ -33,14 +33,14 @@ export default function RiskAcknowledgeModal({ open, onClose, onAcknowledge, tit
     >
       <div
         className="w-full max-w-md rounded-2xl border p-5 sm:p-6 space-y-4"
-        style={{ background: 'var(--bg-card)', borderColor: 'rgba(255, 59, 70, 0.45)' }}
+        style={{ background: 'var(--bg-card)', borderColor: 'rgba(225, 29, 72, 0.45)' }}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-start justify-between gap-3">
           <div className="flex items-center gap-2.5">
             <div
               className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
-              style={{ background: 'rgba(255, 59, 70, 0.15)' }}
+              style={{ background: 'rgba(225, 29, 72, 0.15)' }}
             >
               <AlertTriangle className="w-5 h-5" style={{ color: 'var(--ember)' }} />
             </div>
@@ -85,7 +85,7 @@ export default function RiskAcknowledgeModal({ open, onClose, onAcknowledge, tit
             spellCheck="false"
             className="w-full rounded-lg px-3 py-2.5 text-sm font-mono tracking-widest text-center"
             style={{
-              background: 'rgba(255, 59, 70, 0.05)',
+              background: 'rgba(225, 29, 72, 0.05)',
               border: `1px solid ${matches ? 'var(--jade)' : 'var(--border-main)'}`,
               color: 'var(--text-primary)',
             }}
@@ -111,7 +111,7 @@ export default function RiskAcknowledgeModal({ open, onClose, onAcknowledge, tit
             disabled={!matches}
             className="flex-1 rounded-lg px-4 py-2.5 text-sm font-semibold transition-opacity"
             style={{
-              background: matches ? 'rgba(255, 59, 70, 0.18)' : 'var(--bg-base)',
+              background: matches ? 'rgba(225, 29, 72, 0.18)' : 'var(--bg-base)',
               color: matches ? 'var(--ember)' : 'var(--text-faint)',
               border: `1px solid ${matches ? 'var(--ember)' : 'var(--border-main)'}`,
               opacity: matches ? 1 : 0.6,

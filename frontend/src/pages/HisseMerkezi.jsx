@@ -96,7 +96,7 @@ function CategoryHeader({ icon: Icon, title, sub }) {
       <div
         className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0"
         style={{
-          background: 'rgba(212, 175, 55, 0.12)',
+          background: 'rgba(16, 185, 129, 0.12)',
           border: '1px solid var(--border-gold)',
           color: 'var(--gold-400)',
         }}
@@ -495,8 +495,8 @@ export default function HisseMerkezi() {
               <div className="space-y-2 text-[12px]">
                 {topSig ? (
                   <div className="rounded-lg p-2 border" style={{
-                    background: topSig.direction === 'long' ? 'rgba(0, 201, 138, 0.08)' : 'rgba(255, 59, 70, 0.08)',
-                    borderColor: topSig.direction === 'long' ? 'rgba(0, 201, 138, 0.3)' : 'rgba(255, 59, 70, 0.3)',
+                    background: topSig.direction === 'long' ? 'rgba(16, 185, 129, 0.08)' : 'rgba(225, 29, 72, 0.08)',
+                    borderColor: topSig.direction === 'long' ? 'rgba(16, 185, 129, 0.3)' : 'rgba(225, 29, 72, 0.3)',
                   }}>
                     <div className="font-bold text-[12.5px]" style={{
                       color: topSig.direction === 'long' ? 'var(--jade)' : 'var(--ember)'

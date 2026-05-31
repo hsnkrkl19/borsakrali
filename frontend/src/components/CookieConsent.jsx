@@ -95,7 +95,7 @@ export default function CookieConsent() {
     >
       <div
         className="mx-auto max-w-xl overflow-hidden rounded-xl border border-gold-500/30 bg-dark-900/95 shadow-2xl backdrop-blur-xl"
-        style={{ boxShadow: '0 12px 40px rgba(0,0,0,0.5), 0 0 0 1px rgba(212,175,55,0.15)' }}
+        style={{ boxShadow: '0 12px 40px rgba(0,0,0,0.5), 0 0 0 1px rgba(16,185,129,0.15)' }}
       >
         <div className="flex items-center gap-2.5 p-3">
           <div className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg bg-gold-500/15 text-gold-400">

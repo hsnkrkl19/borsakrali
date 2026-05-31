@@ -41,7 +41,7 @@ function TestimonialCard({ t, index }) {
     >
       {/* Üst altın çizgi */}
       <span aria-hidden="true" className="absolute inset-x-0 top-0 h-px"
-        style={{ background: 'linear-gradient(90deg, transparent, rgba(212,175,55,0.6), transparent)' }}
+        style={{ background: 'linear-gradient(90deg, transparent, rgba(16,185,129,0.6), transparent)' }}
       />
 
       {/* Tırnak ikonu — sol üst, dekoratif */}
@@ -62,7 +62,7 @@ function TestimonialCard({ t, index }) {
         ))}
         <span className="text-[10px] uppercase tracking-wider font-bold ml-2 px-2 py-0.5 rounded-full"
           style={{
-            background: 'rgba(212,175,55,0.10)',
+            background: 'rgba(16,185,129,0.10)',
             border: '1px solid var(--border-gold)',
             color: 'var(--gold-400)',
           }}
@@ -113,7 +113,7 @@ export default function HomeTestimonials() {
         <div
           className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border text-[11px] font-semibold tracking-wide uppercase mb-3"
           style={{
-            background: 'rgba(212,175,55,0.08)',
+            background: 'rgba(16,185,129,0.08)',
             borderColor: 'var(--border-gold)',
             color: 'var(--gold-400)',
           }}

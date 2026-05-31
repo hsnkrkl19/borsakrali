@@ -106,7 +106,7 @@ export default function SignalRow({
               className="inline-flex items-center gap-0.5 text-[11px] font-semibold rounded-md px-2 py-1"
               style={{
                 color: 'var(--gold-400)',
-                background: 'rgba(212, 175, 55, 0.08)',
+                background: 'rgba(16, 185, 129, 0.08)',
               }}
             >
               Detay {expanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}

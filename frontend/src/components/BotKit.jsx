@@ -235,9 +235,9 @@ export function EquityChart({ data, height = 200 }) {
       rightPriceScale: { borderColor: 'rgba(148,163,184,0.14)' },
     })
     const series = chart.addAreaSeries({
-      lineColor: '#d4af37',
-      topColor: 'rgba(212,175,55,0.28)',
-      bottomColor: 'rgba(212,175,55,0.02)',
+      lineColor: '#10b981',
+      topColor: 'rgba(16,185,129,0.28)',
+      bottomColor: 'rgba(16,185,129,0.02)',
       lineWidth: 2,
     })
     chartRef.current = { chart, series }

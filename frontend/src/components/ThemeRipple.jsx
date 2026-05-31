@@ -25,7 +25,7 @@ export default function ThemeRipple() {
 
       // Gold tonu — dark'a geçişte daha sıcak, light'a geçişte daha soğuk
       const color = theme === 'light'
-        ? 'rgba(212,175,55,0.55)'   // light: daha yumuşak gold
+        ? 'rgba(16,185,129,0.55)'   // light: daha yumuşak gold
         : 'rgba(255,215,90,0.50)'   // dark: parlak gold
 
       // Ekran köşeleri arası maksimum mesafe

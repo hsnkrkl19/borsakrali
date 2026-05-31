@@ -14,9 +14,9 @@ const STRATEGIES_TO_SHOW = [
 ]
 
 const ACTION_STYLE = {
-  AL:  { color: 'var(--jade)',  bg: 'rgba(0, 201, 138, 0.12)',  border: 'rgba(0, 201, 138, 0.30)' },
-  SAT: { color: 'var(--ember)', bg: 'rgba(255, 59, 70, 0.12)',  border: 'rgba(255, 59, 70, 0.30)' },
-  TUT: { color: 'var(--gold-400)', bg: 'rgba(212, 175, 55, 0.12)', border: 'rgba(212, 175, 55, 0.30)' },
+  AL:  { color: 'var(--jade)',  bg: 'rgba(16, 185, 129, 0.12)',  border: 'rgba(16, 185, 129, 0.30)' },
+  SAT: { color: 'var(--ember)', bg: 'rgba(225, 29, 72, 0.12)',  border: 'rgba(225, 29, 72, 0.30)' },
+  TUT: { color: 'var(--gold-400)', bg: 'rgba(16, 185, 129, 0.12)', border: 'rgba(16, 185, 129, 0.30)' },
 }
 
 function ConceptCard({ icon: Icon, title, color, children }) {
@@ -150,7 +150,7 @@ export default function SignalGuide({ open, onClose }) {
             <div
               className="w-9 h-9 rounded-lg flex items-center justify-center"
               style={{
-                background: 'rgba(212, 175, 55, 0.15)',
+                background: 'rgba(16, 185, 129, 0.15)',
                 color: 'var(--gold-400)',
                 border: '1px solid var(--border-gold)',
               }}
@@ -180,8 +180,8 @@ export default function SignalGuide({ open, onClose }) {
           <div
             className="rounded-xl p-3 flex items-start gap-2.5"
             style={{
-              background: 'rgba(255, 59, 70, 0.07)',
-              border: '1px solid rgba(255, 59, 70, 0.25)',
+              background: 'rgba(225, 29, 72, 0.07)',
+              border: '1px solid rgba(225, 29, 72, 0.25)',
             }}
           >
             <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5" style={{ color: 'var(--ember)' }} />
@@ -199,13 +199,13 @@ export default function SignalGuide({ open, onClose }) {
               Sinyal Türleri
             </h3>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-              <ConceptCard icon={TrendingUp} title="AL (Buy)" color="#00c98a">
+              <ConceptCard icon={TrendingUp} title="AL (Buy)" color="#10b981">
                 <p>Algoritma <strong>alım fırsatı</strong> tespit etti. Genelde teknik göstergeler aşırı satım, momentum yukarı dönüş, destek sıçraması gibi durumlarda gelir.</p>
               </ConceptCard>
-              <ConceptCard icon={TrendingDown} title="SAT (Sell)" color="#ff3b46">
+              <ConceptCard icon={TrendingDown} title="SAT (Sell)" color="#e11d48">
                 <p>Algoritma <strong>satım sinyali</strong> üretti. Aşırı alım, momentum kaybı, direnç teması veya negatif kesişimde gelir. Kâr alımı veya açığa satış için.</p>
               </ConceptCard>
-              <ConceptCard icon={Info} title="TUT (Hold)" color="#d4af37">
+              <ConceptCard icon={Info} title="TUT (Hold)" color="#10b981">
                 <p>Net yön yok — pozisyon koruyun, yeni işlem önerilmez. "İşlem yapmamak" da bir karardır; sinyal beklemeye geçin.</p>
               </ConceptCard>
             </div>
@@ -221,7 +221,7 @@ export default function SignalGuide({ open, onClose }) {
                 <p>İşleme başlama fiyatı. Sinyalin tespit edildiği fiyat veya ona çok yakın bir limit emir.</p>
                 <p className="text-[11px]" style={{ color: 'var(--text-faint)' }}>Varsayılan: tespit fiyatı.</p>
               </ConceptCard>
-              <ConceptCard icon={Shield} title="Zarar Durdur" color="#ff3b46">
+              <ConceptCard icon={Shield} title="Zarar Durdur" color="#e11d48">
                 <p>Fiyat çok düşerse sistem burada çıkış yapar. <strong>Sermayeni korur</strong>; sınırı sabit tut.</p>
                 <p className="text-[11px]" style={{ color: 'var(--text-faint)' }}>Varsayılan: girişin %3 altı.</p>
               </ConceptCard>
@@ -282,7 +282,7 @@ export default function SignalGuide({ open, onClose }) {
             <div
               className="rounded-xl p-4 space-y-2 text-[12.5px] leading-relaxed"
               style={{
-                background: 'rgba(212, 175, 55, 0.06)',
+                background: 'rgba(16, 185, 129, 0.06)',
                 border: '1px solid var(--border-gold)',
                 color: 'var(--text-secondary)',
               }}

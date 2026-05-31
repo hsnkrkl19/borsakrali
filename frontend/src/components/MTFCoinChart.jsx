@@ -67,16 +67,16 @@ export default function MTFCoinChart({ symbol, timeframe = '4h', levels = {}, di
     })
 
     const candleSeries = chart.addCandlestickSeries({
-      upColor: '#00c98a',
-      downColor: '#ff3b46',
-      borderUpColor: '#00c98a',
-      borderDownColor: '#ff3b46',
-      wickUpColor: '#00c98a',
-      wickDownColor: '#ff3b46',
+      upColor: '#10b981',
+      downColor: '#e11d48',
+      borderUpColor: '#10b981',
+      borderDownColor: '#e11d48',
+      wickUpColor: '#10b981',
+      wickDownColor: '#e11d48',
     })
 
     const volSeries = chart.addHistogramSeries({
-      color: 'rgba(212, 175, 55, 0.3)',
+      color: 'rgba(16, 185, 129, 0.3)',
       priceFormat: { type: 'volume' },
       priceScaleId: '',
       scaleMargins: { top: 0.8, bottom: 0 },
@@ -123,7 +123,7 @@ export default function MTFCoinChart({ symbol, timeframe = '4h', levels = {}, di
         const volBars = candles.map(c => ({
           time: c.time,
           value: c.volume,
-          color: c.close >= c.open ? 'rgba(0, 201, 138, 0.35)' : 'rgba(255, 59, 70, 0.35)',
+          color: c.close >= c.open ? 'rgba(16, 185, 129, 0.35)' : 'rgba(225, 29, 72, 0.35)',
         }))
         volSeriesRef.current.setData(volBars)
         chartRef.current?.timeScale().fitContent()
@@ -160,8 +160,8 @@ export default function MTFCoinChart({ symbol, timeframe = '4h', levels = {}, di
     }
 
     add(levels.entry,   'Giriş',   direction === 'long' ? '#fbbf24' : '#fbbf24', 0)
-    add(levels.stop,    'Stop',    '#ff3b46', 2)
-    add(levels.target1, 'T1',      '#00c98a', 2)
+    add(levels.stop,    'Stop',    '#e11d48', 2)
+    add(levels.target1, 'T1',      '#10b981', 2)
     add(levels.target2, 'T2',      '#34d399', 1)
   }, [levels.entry, levels.stop, levels.target1, levels.target2, direction])
 

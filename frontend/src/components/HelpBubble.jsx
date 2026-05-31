@@ -58,7 +58,7 @@ export default function HelpBubble({ text, placement = 'bottom', className = '' 
         aria-expanded={open}
         className="inline-flex items-center justify-center w-5 h-5 rounded-full transition-colors"
         style={{
-          background: open ? 'rgba(212, 175, 55, 0.18)' : 'transparent',
+          background: open ? 'rgba(16, 185, 129, 0.18)' : 'transparent',
           color: 'var(--gold-400)',
         }}
       >

@@ -43,10 +43,10 @@ function FaqItem({ item, isOpen, onToggle, index }) {
       className="rounded-2xl border overflow-hidden transition-all duration-400"
       style={{
         background: isOpen
-          ? 'linear-gradient(135deg, rgba(212,175,55,0.04), rgba(212,175,55,0.01))'
+          ? 'linear-gradient(135deg, rgba(16,185,129,0.04), rgba(16,185,129,0.01))'
           : 'var(--bg-card)',
         borderColor: isOpen ? 'var(--border-gold)' : 'var(--border-main)',
-        boxShadow: isOpen ? '0 0 0 1px rgba(212,175,55,0.08) inset, var(--shadow-md)' : 'var(--shadow-sm)',
+        boxShadow: isOpen ? '0 0 0 1px rgba(16,185,129,0.08) inset, var(--shadow-md)' : 'var(--shadow-sm)',
       }}
     >
       <button
@@ -71,7 +71,7 @@ function FaqItem({ item, isOpen, onToggle, index }) {
         <div
           className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 transition-all duration-300"
           style={{
-            background: isOpen ? 'rgba(212,175,55,0.15)' : 'var(--bg-input)',
+            background: isOpen ? 'rgba(16,185,129,0.15)' : 'var(--bg-input)',
             border: `1px solid ${isOpen ? 'var(--border-gold-strong)' : 'var(--border-main)'}`,
             transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)',
           }}
@@ -118,7 +118,7 @@ export default function HomeFAQ() {
         <div
           className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border text-[11px] font-semibold tracking-wide uppercase mb-3"
           style={{
-            background: 'rgba(212,175,55,0.08)',
+            background: 'rgba(16,185,129,0.08)',
             borderColor: 'var(--border-gold)',
             color: 'var(--gold-400)',
           }}

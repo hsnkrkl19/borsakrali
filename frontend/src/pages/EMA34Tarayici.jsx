@@ -377,8 +377,8 @@ export default function EMA34Tarayici() {
                             title="Hisse merkezinde aç"
                             className="px-2 py-1 rounded text-[11px] font-semibold flex items-center gap-1 transition-colors"
                             style={{
-                              background: 'rgba(212, 175, 55, 0.10)',
-                              border: '1px solid rgba(212, 175, 55, 0.30)',
+                              background: 'rgba(16, 185, 129, 0.10)',
+                              border: '1px solid rgba(16, 185, 129, 0.30)',
                               color: 'var(--gold-400)',
                             }}
                           >

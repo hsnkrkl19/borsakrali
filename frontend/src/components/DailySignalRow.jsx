@@ -28,10 +28,10 @@ export default function DailySignalRow({
 }) {
   const meta = getStrategyMeta(signal.strategy)
   const actionStyle = meta.action === 'AL'
-    ? { color: 'var(--jade)',  bg: 'rgba(0, 201, 138, 0.12)', border: 'rgba(0, 201, 138, 0.30)' }
+    ? { color: 'var(--jade)',  bg: 'rgba(16, 185, 129, 0.12)', border: 'rgba(16, 185, 129, 0.30)' }
     : meta.action === 'SAT'
-      ? { color: 'var(--ember)', bg: 'rgba(255, 59, 70, 0.12)', border: 'rgba(255, 59, 70, 0.30)' }
-      : { color: 'var(--gold-400)', bg: 'rgba(212, 175, 55, 0.12)', border: 'rgba(212, 175, 55, 0.30)' }
+      ? { color: 'var(--ember)', bg: 'rgba(225, 29, 72, 0.12)', border: 'rgba(225, 29, 72, 0.30)' }
+      : { color: 'var(--gold-400)', bg: 'rgba(16, 185, 129, 0.12)', border: 'rgba(16, 185, 129, 0.30)' }
   const isAdding = addingToWatchlist === signal.stockSymbol
   const ts = signal.detectionDate || signal.detectedAt || signal.timestamp
   const price = signal.currentPrice?.toFixed(2) || signal.detectionPrice?.toFixed(2)
@@ -70,7 +70,7 @@ export default function DailySignalRow({
             <div className="flex items-center space-x-2">
               <div
                 className="w-8 h-8 rounded flex items-center justify-center text-xs font-bold"
-                style={{ background: 'rgba(212, 175, 55, 0.15)', color: 'var(--gold-400)', border: '1px solid var(--border-gold)' }}
+                style={{ background: 'rgba(16, 185, 129, 0.15)', color: 'var(--gold-400)', border: '1px solid var(--border-gold)' }}
               >
                 {signal.stockSymbol?.slice(0, 2)}
               </div>
@@ -134,7 +134,7 @@ export default function DailySignalRow({
               className="text-[10.5px] font-medium px-2 py-1 rounded"
               style={
                 signal.status === 'active'
-                  ? { background: 'rgba(0, 201, 138, 0.12)', color: 'var(--jade)', border: '1px solid rgba(0, 201, 138, 0.28)' }
+                  ? { background: 'rgba(16, 185, 129, 0.12)', color: 'var(--jade)', border: '1px solid rgba(16, 185, 129, 0.28)' }
                   : { background: 'var(--bg-input)', color: 'var(--text-faint)', border: '1px solid var(--border-main)' }
               }
             >
@@ -148,7 +148,7 @@ export default function DailySignalRow({
               title={isExpanded ? 'Planı gizle' : 'İşlem planını göster'}
               className="inline-flex items-center justify-center w-7 h-7 rounded-lg transition-all"
               style={{
-                background: isExpanded ? 'rgba(212, 175, 55, 0.18)' : 'var(--bg-input)',
+                background: isExpanded ? 'rgba(16, 185, 129, 0.18)' : 'var(--bg-input)',
                 color: 'var(--gold-400)',
                 border: '1px solid var(--border-gold)',
               }}
@@ -178,7 +178,7 @@ export default function DailySignalRow({
         <div className="flex items-center gap-2">
           <div
             className="w-8 h-8 rounded flex items-center justify-center text-xs font-bold"
-            style={{ background: 'rgba(212, 175, 55, 0.15)', color: 'var(--gold-400)', border: '1px solid var(--border-gold)' }}
+            style={{ background: 'rgba(16, 185, 129, 0.15)', color: 'var(--gold-400)', border: '1px solid var(--border-gold)' }}
           >
             {signal.stockSymbol?.slice(0, 2)}
           </div>
@@ -222,7 +222,7 @@ export default function DailySignalRow({
             type="button"
             onClick={onToggleExpand}
             className="text-[10px] font-semibold px-2 py-0.5 rounded inline-flex items-center gap-1"
-            style={{ background: 'rgba(212, 175, 55, 0.12)', color: 'var(--gold-400)', border: '1px solid var(--border-gold)' }}
+            style={{ background: 'rgba(16, 185, 129, 0.12)', color: 'var(--gold-400)', border: '1px solid var(--border-gold)' }}
           >
             Plan {isExpanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
           </button>

@@ -76,7 +76,7 @@ export default function MobileBottomNav() {
     >
       {/* Üst kenarda altın çizgi */}
       <span aria-hidden="true" className="absolute inset-x-0 top-0 h-px"
-        style={{ background: 'linear-gradient(90deg, transparent 5%, rgba(212,175,55,0.55) 50%, transparent 95%)' }}
+        style={{ background: 'linear-gradient(90deg, transparent 5%, rgba(16,185,129,0.55) 50%, transparent 95%)' }}
       />
 
       <div className="grid grid-cols-5 gap-1 px-2 pt-2 pb-2">
@@ -99,7 +99,7 @@ export default function MobileBottomNav() {
                 <span aria-hidden="true"
                   className="absolute inset-0 rounded-xl"
                   style={{
-                    background: 'radial-gradient(closest-side, rgba(212,175,55,0.18), transparent 80%)',
+                    background: 'radial-gradient(closest-side, rgba(16,185,129,0.18), transparent 80%)',
                   }}
                 />
               )}
@@ -121,7 +121,7 @@ export default function MobileBottomNav() {
                   className="absolute bottom-0 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full"
                   style={{
                     background: 'linear-gradient(135deg, var(--gold-300), var(--gold-500))',
-                    boxShadow: '0 0 8px rgba(212,175,55,0.6)',
+                    boxShadow: '0 0 8px rgba(16,185,129,0.6)',
                   }}
                 />
               )}

@@ -1,22 +1,26 @@
+// v2: "Aydınlık & Ferah" emerald yeniden tasarımı — yeni varsayılan light.
+// Anahtar bump'landı ki eski 'bk-theme=dark' tercihleri yeni UI'da sıfırlansın.
+const THEME_KEY = 'bk-theme-v2'
+
 export function getStoredTheme() {
   try {
-    // Yeni kullanıcılar için varsayılan: dark (premium tema)
+    // Yeni varsayılan: light (ferah emerald tema)
     const explicitTheme =
-      localStorage.getItem('bk-theme') ||
+      localStorage.getItem(THEME_KEY) ||
       document.documentElement.getAttribute('data-theme') ||
-      'dark'
+      'light'
 
-    return explicitTheme === 'light' ? 'light' : 'dark'
+    return explicitTheme === 'dark' ? 'dark' : 'light'
   } catch {
-    return 'dark'
+    return 'light'
   }
 }
 
 export function applyTheme(theme) {
-  const resolvedTheme = theme === 'light' ? 'light' : 'dark'
+  const resolvedTheme = theme === 'dark' ? 'dark' : 'light'
 
   try {
-    localStorage.setItem('bk-theme', resolvedTheme)
+    localStorage.setItem(THEME_KEY, resolvedTheme)
   } catch {
     // noop
   }

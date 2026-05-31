@@ -76,7 +76,7 @@ export default function QuickBroadcastModal({ open, onClose }) {
           <div className="flex items-center gap-2.5">
             <div
               className="w-9 h-9 rounded-lg flex items-center justify-center"
-              style={{ background: 'rgba(212, 175, 55, 0.15)', color: 'var(--gold-400)', border: '1px solid var(--border-gold)' }}
+              style={{ background: 'rgba(16, 185, 129, 0.15)', color: 'var(--gold-400)', border: '1px solid var(--border-gold)' }}
             >
               <Megaphone className="w-4 h-4" />
             </div>
@@ -102,7 +102,7 @@ export default function QuickBroadcastModal({ open, onClose }) {
           <div
             className="rounded-lg p-2.5 text-[11.5px] flex items-start gap-2"
             style={{
-              background: 'rgba(212, 175, 55, 0.07)',
+              background: 'rgba(16, 185, 129, 0.07)',
               border: '1px solid var(--border-gold)',
               color: 'var(--text-secondary)',
             }}
@@ -133,7 +133,7 @@ export default function QuickBroadcastModal({ open, onClose }) {
                     border: '1px solid var(--border-main)',
                     color: 'var(--text-secondary)',
                   }}
-                  onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(212, 175, 55, 0.10)'; e.currentTarget.style.borderColor = 'var(--border-gold)' }}
+                  onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(16, 185, 129, 0.10)'; e.currentTarget.style.borderColor = 'var(--border-gold)' }}
                   onMouseLeave={(e) => { e.currentTarget.style.background = 'var(--bg-input)'; e.currentTarget.style.borderColor = 'var(--border-main)' }}
                 >
                   {t.label}
@@ -211,7 +211,7 @@ export default function QuickBroadcastModal({ open, onClose }) {
             {error && (
               <div
                 className="rounded-lg p-2.5 text-[12px] flex items-start gap-2"
-                style={{ background: 'rgba(255, 59, 70, 0.08)', border: '1px solid rgba(255, 59, 70, 0.30)', color: 'var(--ember)' }}
+                style={{ background: 'rgba(225, 29, 72, 0.08)', border: '1px solid rgba(225, 29, 72, 0.30)', color: 'var(--ember)' }}
               >
                 <AlertTriangle className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" />
                 <span>{error}</span>
@@ -222,8 +222,8 @@ export default function QuickBroadcastModal({ open, onClose }) {
               <div
                 className="rounded-lg p-3 text-[12px]"
                 style={{
-                  background: 'rgba(0, 201, 138, 0.08)',
-                  border: '1px solid rgba(0, 201, 138, 0.30)',
+                  background: 'rgba(16, 185, 129, 0.08)',
+                  border: '1px solid rgba(16, 185, 129, 0.30)',
                   color: 'var(--text-secondary)',
                 }}
               >

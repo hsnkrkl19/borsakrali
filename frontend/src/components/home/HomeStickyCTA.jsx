@@ -52,18 +52,18 @@ export default function HomeStickyCTA() {
       <div className="mx-auto mt-3 max-w-5xl pointer-events-auto rounded-2xl border overflow-hidden relative"
         style={{
           background: `
-            radial-gradient(380px 120px at 0% 50%, rgba(212,175,55,0.18), transparent 60%),
+            radial-gradient(380px 120px at 0% 50%, rgba(16,185,129,0.18), transparent 60%),
             linear-gradient(135deg, rgba(10,16,32,0.92) 0%, rgba(15,23,42,0.94) 100%)
           `,
           borderColor: 'var(--border-gold)',
           backdropFilter: 'blur(20px)',
           WebkitBackdropFilter: 'blur(20px)',
-          boxShadow: '0 12px 40px -10px rgba(0,0,0,0.6), 0 0 0 1px rgba(212,175,55,0.10) inset',
+          boxShadow: '0 12px 40px -10px rgba(0,0,0,0.6), 0 0 0 1px rgba(16,185,129,0.10) inset',
         }}
       >
         {/* Üst altın çizgi */}
         <span aria-hidden="true" className="absolute inset-x-0 top-0 h-px"
-          style={{ background: 'linear-gradient(90deg, transparent, rgba(212,175,55,0.7), transparent)' }}
+          style={{ background: 'linear-gradient(90deg, transparent, rgba(16,185,129,0.7), transparent)' }}
         />
 
         <div className="flex items-center gap-3 sm:gap-4 px-3 sm:px-4 py-2.5 sm:py-3 relative">
@@ -71,7 +71,7 @@ export default function HomeStickyCTA() {
             style={{
               background: 'linear-gradient(135deg, var(--gold-300), var(--gold-500))',
               color: '#1a1208',
-              boxShadow: '0 4px 12px -2px rgba(212,175,55,0.4)',
+              boxShadow: '0 4px 12px -2px rgba(16,185,129,0.4)',
             }}
           >
             <Sparkles className="w-4 h-4 sm:w-5 sm:h-5" strokeWidth={2.5} />
@@ -91,7 +91,7 @@ export default function HomeStickyCTA() {
               style={{
                 background: 'linear-gradient(135deg, var(--gold-300) 0%, var(--gold-500) 100%)',
                 color: '#1a1208',
-                boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.4), 0 4px 12px -2px rgba(212,175,55,0.4)',
+                boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.4), 0 4px 12px -2px rgba(16,185,129,0.4)',
               }}
             >
               <span

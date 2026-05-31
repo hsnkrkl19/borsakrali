@@ -260,7 +260,7 @@ export default function HomeStrategyShowcase() {
       <div ref={headRef} className="max-w-2xl mb-8 sm:mb-10">
         <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border text-[11px] font-semibold tracking-wide uppercase mb-3"
           style={{
-            background: 'rgba(212,175,55,0.08)',
+            background: 'rgba(16,185,129,0.08)',
             borderColor: 'var(--border-gold)',
             color: 'var(--gold-400)',
           }}>

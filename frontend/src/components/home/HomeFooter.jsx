@@ -64,7 +64,7 @@ function TrustBadge({ badge }) {
       }}
     >
       <div className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0"
-        style={{ background: 'rgba(212,175,55,0.10)', border: '1px solid var(--border-gold)' }}
+        style={{ background: 'rgba(16,185,129,0.10)', border: '1px solid var(--border-gold)' }}
       >
         <Icon className="w-5 h-5" style={{ color: 'var(--gold-400)' }} />
       </div>

@@ -8,26 +8,28 @@
    Inspiration: Bloomberg Terminal × Apple Vision × Tesla cockpit
    ============================================================================ */
 
-/* ─── DARK THEME (default) ─────────────────────────────────────────────────── */
-:root,
+/* ─── DARK THEME (emerald companion to the light default) ──────────────────── */
+/* Selector specificity (:root[...]) > :root so dark always overrides the light
+   default block regardless of source order. */
+:root[data-theme="dark"],
 [data-theme="dark"] {
   color-scheme: dark;
 
-  /* Surfaces — deep obsidian to midnight */
-  --bg-base:        #03060d;
-  --bg-canvas:      #060a14;
-  --bg-card:        #0a1020;
-  --bg-elevated:    #0f172a;
-  --bg-input:       #131c33;
-  --bg-subtle:      #1b2541;
-  --bg-hover:       #25324f;
+  /* Surfaces — cool ink to midnight slate */
+  --bg-base:        #070b14;
+  --bg-canvas:      #0a0f1a;
+  --bg-card:        #111827;
+  --bg-elevated:    #161f30;
+  --bg-input:       #1b2436;
+  --bg-subtle:      #232e44;
+  --bg-hover:       #2c384f;
 
   /* Borders */
-  --border-main:    rgba(148, 163, 184, 0.10);
-  --border-subtle:  rgba(148, 163, 184, 0.18);
-  --border-strong:  rgba(148, 163, 184, 0.28);
-  --border-gold:    rgba(212, 175, 55, 0.22);
-  --border-gold-strong: rgba(212, 175, 55, 0.45);
+  --border-main:    rgba(148, 163, 184, 0.12);
+  --border-subtle:  rgba(148, 163, 184, 0.20);
+  --border-strong:  rgba(148, 163, 184, 0.30);
+  --border-gold:    rgba(16, 185, 129, 0.30);
+  --border-gold-strong: rgba(16, 185, 129, 0.55);
 
   /* Text */
   --text-primary:   #f1f5f9;
@@ -35,119 +37,126 @@
   --text-muted:     #94a3b8;
   --text-faint:     #64748b;
 
-  /* Brand — antique gold spectrum */
-  --gold-50:  #fff8e1;
-  --gold-100: #fcecb6;
-  --gold-200: #f9dc83;
-  --gold-300: #f0c75a;
-  --gold-400: #d4af37;   /* primary */
-  --gold-500: #b8901e;
-  --gold-600: #92710c;
-  --gold-700: #6b5108;
-  --champagne: #e6c66f;
-  --bronze:    #8b6510;
+  /* Brand — emerald spectrum (token name 'gold' kept for compat) */
+  --gold-50:  #ecfdf5;
+  --gold-100: #d1fae5;
+  --gold-200: #a7f3d0;
+  --gold-300: #6ee7b7;
+  --gold-400: #10b981;   /* primary */
+  --gold-500: #34d399;
+  --gold-600: #059669;
+  --gold-700: #047857;
+  --champagne: #6ee7b7;
+  --bronze:    #059669;
 
   /* Semantic */
-  --jade:    #00c98a;
-  --jade-dim:#0aa672;
-  --ember:   #ff3b46;
-  --ember-dim:#d52b35;
-  --azure:   #3b82f6;
+  --jade:    #34d399;
+  --jade-dim:#10b981;
+  --ember:   #fb7185;
+  --ember-dim:#f43f5e;
+  --azure:   #60a5fa;
 
   /* RGB pieces (for alpha) */
-  --bg-base-rgb:    3, 6, 13;
-  --bg-canvas-rgb:  6, 10, 20;
-  --bg-card-rgb:    10, 16, 32;
-  --bg-elev-rgb:    15, 23, 42;
-  --bg-input-rgb:   19, 28, 51;
+  --bg-base-rgb:    7, 11, 20;
+  --bg-canvas-rgb:  10, 15, 26;
+  --bg-card-rgb:    17, 24, 39;
+  --bg-elev-rgb:    22, 31, 48;
+  --bg-input-rgb:   27, 36, 54;
 
   /* Shadows (dimensional depth) */
-  --shadow-sm:   0 1px 2px rgba(0, 0, 0, 0.45);
-  --shadow-md:   0 4px 12px rgba(0, 0, 0, 0.55), 0 2px 4px rgba(0, 0, 0, 0.4);
-  --shadow-lg:   0 12px 32px rgba(0, 0, 0, 0.65), 0 4px 12px rgba(0, 0, 0, 0.45);
-  --shadow-xl:   0 24px 64px rgba(0, 0, 0, 0.75), 0 12px 24px rgba(0, 0, 0, 0.55);
-  --shadow-card: 0 1px 0 rgba(212, 175, 55, 0.06) inset, 0 8px 24px rgba(0, 0, 0, 0.45);
-  --shadow-hover:0 1px 0 rgba(212, 175, 55, 0.12) inset, 0 16px 40px rgba(0, 0, 0, 0.55);
+  --shadow-sm:   0 1px 2px rgba(0, 0, 0, 0.40);
+  --shadow-md:   0 4px 12px rgba(0, 0, 0, 0.50), 0 2px 4px rgba(0, 0, 0, 0.35);
+  --shadow-lg:   0 12px 32px rgba(0, 0, 0, 0.60), 0 4px 12px rgba(0, 0, 0, 0.40);
+  --shadow-xl:   0 24px 64px rgba(0, 0, 0, 0.70), 0 12px 24px rgba(0, 0, 0, 0.50);
+  --shadow-card: 0 1px 0 rgba(16, 185, 129, 0.06) inset, 0 8px 24px rgba(0, 0, 0, 0.40);
+  --shadow-hover:0 1px 0 rgba(16, 185, 129, 0.12) inset, 0 16px 40px rgba(0, 0, 0, 0.50);
 
-  /* Glow */
-  --glow-gold:   0 0 0 1px rgba(212, 175, 55, 0.25), 0 8px 32px rgba(212, 175, 55, 0.18);
-  --glow-jade:   0 0 0 1px rgba(0, 201, 138, 0.30), 0 6px 24px rgba(0, 201, 138, 0.25);
-  --glow-ember:  0 0 0 1px rgba(255, 59, 70, 0.30),  0 6px 24px rgba(255, 59, 70, 0.25);
+  /* Glow — emerald */
+  --glow-gold:   0 0 0 1px rgba(16, 185, 129, 0.28), 0 8px 32px rgba(16, 185, 129, 0.20);
+  --glow-jade:   0 0 0 1px rgba(52, 211, 153, 0.30), 0 6px 24px rgba(52, 211, 153, 0.25);
+  --glow-ember:  0 0 0 1px rgba(251, 113, 133, 0.30), 0 6px 24px rgba(251, 113, 133, 0.25);
 
-  /* Gradients */
+  /* Gradients — emerald */
   --grad-gold-flat: linear-gradient(135deg, var(--gold-300) 0%, var(--gold-400) 50%, var(--gold-600) 100%);
-  --grad-gold-rich: linear-gradient(135deg, #fef3c7 0%, var(--champagne) 25%, var(--gold-400) 50%, var(--bronze) 100%);
-  --grad-card:      linear-gradient(180deg, rgba(255,255,255,0.025) 0%, rgba(255,255,255,0) 60%);
-  --grad-canvas:    radial-gradient(ellipse 1400px 800px at 18% -8%, rgba(212, 175, 55, 0.06), transparent 55%),
-                    radial-gradient(ellipse 1100px 700px at 90% 110%, rgba(212, 175, 55, 0.04), transparent 60%),
-                    radial-gradient(ellipse 800px 600px at 60% 50%, rgba(59, 130, 246, 0.025), transparent 60%);
+  --grad-gold-rich: linear-gradient(135deg, #a7f3d0 0%, #6ee7b7 25%, #10b981 60%, #059669 100%);
+  --grad-card:      linear-gradient(180deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0) 60%);
+  --grad-canvas:    radial-gradient(ellipse 1400px 800px at 18% -8%, rgba(16, 185, 129, 0.07), transparent 55%),
+                    radial-gradient(ellipse 1100px 700px at 90% 110%, rgba(16, 185, 129, 0.05), transparent 60%),
+                    radial-gradient(ellipse 800px 600px at 60% 50%, rgba(37, 99, 235, 0.03), transparent 60%);
 }
 
-/* ─── LIGHT THEME (refined ivory + gold) ───────────────────────────────────── */
+/* ─── LIGHT THEME — "Aydınlık & Ferah" emerald (DEFAULT) ────────────────────── */
+:root,
 [data-theme="light"] {
   color-scheme: light;
 
-  /* Warm paper backgrounds — slight warmth so it doesn't feel sterile */
-  --bg-base:        #f4efe4;
-  --bg-canvas:      #fbf8f1;
+  /* Surfaces — cool airy white & mist (lots of breathing room) */
+  --bg-base:        #eef1f6;
+  --bg-canvas:      #f6f8fb;
   --bg-card:        #ffffff;
-  --bg-elevated:    #fdfbf6;
-  --bg-input:       #f1ece0;
-  --bg-subtle:      #e9e3d3;
-  --bg-hover:       #d9d2bf;
+  --bg-elevated:    #f8fafc;
+  --bg-input:       #f1f4f9;
+  --bg-subtle:      #e9edf4;
+  --bg-hover:       #e2e8f1;
 
-  /* Borders — slightly warmer + more visible for separation */
-  --border-main:    rgba(60, 45, 15, 0.10);
-  --border-subtle:  rgba(60, 45, 15, 0.18);
-  --border-strong:  rgba(60, 45, 15, 0.28);
-  --border-gold:    rgba(184, 144, 30, 0.30);
-  --border-gold-strong: rgba(184, 144, 30, 0.60);
+  /* Borders — subtle cool gray for crisp separation */
+  --border-main:    rgba(15, 23, 42, 0.08);
+  --border-subtle:  rgba(15, 23, 42, 0.12);
+  --border-strong:  rgba(15, 23, 42, 0.20);
+  --border-gold:    rgba(16, 185, 129, 0.28);
+  --border-gold-strong: rgba(16, 185, 129, 0.55);
 
-  /* Text — high contrast on warm paper */
+  /* Text — high contrast on white */
   --text-primary:   #0b1220;
-  --text-secondary: #1e293b;
-  --text-muted:     #475569;
-  --text-faint:     #6b7589;
+  --text-secondary: #334155;
+  --text-muted:     #64748b;
+  --text-faint:     #94a3b8;
 
-  /* Gold spectrum — darker / richer in light to keep contrast */
-  --gold-50:  #fff8e1;
-  --gold-100: #f5e7a8;
-  --gold-200: #e6c66f;
-  --gold-300: #c9a14a;
-  --gold-400: #a8801a;   /* primary on light */
-  --gold-500: #8a6810;
-  --gold-600: #6b5108;
-  --gold-700: #4d3a05;
-  --champagne: #b8901e;
-  --bronze:    #6b5108;
+  /* Brand — emerald spectrum (token name 'gold' kept for compat) */
+  --gold-50:  #ecfdf5;
+  --gold-100: #d1fae5;
+  --gold-200: #a7f3d0;
+  --gold-300: #6ee7b7;
+  --gold-400: #10b981;   /* primary */
+  --gold-500: #059669;
+  --gold-600: #047857;
+  --gold-700: #065f46;
+  --champagne: #34d399;
+  --bronze:    #047857;
 
-  --jade:    #047857;
-  --jade-dim:#065f46;
-  --ember:   #b91c1c;
-  --ember-dim:#991b1b;
-  --azure:   #1d4ed8;
+  /* Semantic */
+  --jade:    #059669;
+  --jade-dim:#047857;
+  --ember:   #e11d48;
+  --ember-dim:#be123c;
+  --azure:   #2563eb;
 
-  --bg-base-rgb:    244, 239, 228;
-  --bg-canvas-rgb:  251, 248, 241;
+  --bg-base-rgb:    238, 241, 246;
+  --bg-canvas-rgb:  246, 248, 251;
   --bg-card-rgb:    255, 255, 255;
-  --bg-elev-rgb:    253, 251, 246;
-  --bg-input-rgb:   241, 236, 224;
+  --bg-elev-rgb:    248, 250, 252;
+  --bg-input-rgb:   241, 244, 249;
 
-  --shadow-sm:   0 1px 2px rgba(60, 45, 15, 0.06);
-  --shadow-md:   0 4px 14px rgba(60, 45, 15, 0.08), 0 2px 4px rgba(60, 45, 15, 0.05);
-  --shadow-lg:   0 14px 36px rgba(60, 45, 15, 0.11), 0 4px 12px rgba(60, 45, 15, 0.07);
-  --shadow-xl:   0 24px 56px rgba(60, 45, 15, 0.15), 0 10px 22px rgba(60, 45, 15, 0.09);
-  --shadow-card: 0 1px 2px rgba(60, 45, 15, 0.05), 0 8px 22px rgba(60, 45, 15, 0.07);
-  --shadow-hover:0 1px 2px rgba(60, 45, 15, 0.07), 0 18px 40px rgba(60, 45, 15, 0.12);
+  /* Shadows — soft, cool, airy */
+  --shadow-sm:   0 1px 2px rgba(16, 24, 40, 0.05);
+  --shadow-md:   0 4px 12px rgba(16, 24, 40, 0.08), 0 1px 3px rgba(16, 24, 40, 0.05);
+  --shadow-lg:   0 12px 28px rgba(16, 24, 40, 0.10), 0 4px 10px rgba(16, 24, 40, 0.06);
+  --shadow-xl:   0 24px 52px rgba(16, 24, 40, 0.14), 0 10px 20px rgba(16, 24, 40, 0.08);
+  --shadow-card: 0 1px 2px rgba(16, 24, 40, 0.04), 0 4px 12px rgba(16, 24, 40, 0.06);
+  --shadow-hover:0 1px 2px rgba(16, 24, 40, 0.05), 0 12px 28px rgba(16, 24, 40, 0.12);
 
-  /* Light-mode glow tokens — gold halos must be visible on cream */
-  --glow-gold:   0 0 0 1px rgba(184, 144, 30, 0.35), 0 8px 28px rgba(184, 144, 30, 0.22);
-  --glow-jade:   0 0 0 1px rgba(4, 120, 87, 0.35),  0 6px 22px rgba(4, 120, 87, 0.18);
-  --glow-ember:  0 0 0 1px rgba(185, 28, 28, 0.35), 0 6px 22px rgba(185, 28, 28, 0.18);
+  /* Glow — emerald halos on white */
+  --glow-gold:   0 0 0 1px rgba(16, 185, 129, 0.30), 0 8px 24px rgba(16, 185, 129, 0.18);
+  --glow-jade:   0 0 0 1px rgba(5, 150, 105, 0.30), 0 6px 20px rgba(5, 150, 105, 0.18);
+  --glow-ember:  0 0 0 1px rgba(225, 29, 72, 0.30), 0 6px 20px rgba(225, 29, 72, 0.18);
 
-  --grad-canvas:    radial-gradient(ellipse 1200px 700px at 12% -8%, rgba(212, 175, 55, 0.16), transparent 55%),
-                    radial-gradient(ellipse 1000px 700px at 95% 105%, rgba(212, 175, 55, 0.08), transparent 60%),
-                    radial-gradient(ellipse 700px 500px at 60% 50%, rgba(59, 130, 246, 0.04), transparent 60%);
+  /* Gradients — emerald */
+  --grad-gold-flat: linear-gradient(135deg, #34d399 0%, #10b981 50%, #059669 100%);
+  --grad-gold-rich: linear-gradient(135deg, #10b981 0%, #059669 55%, #047857 100%);
+  --grad-card:      linear-gradient(180deg, rgba(255,255,255,0.7) 0%, rgba(255,255,255,0) 60%);
+  --grad-canvas:    radial-gradient(ellipse 1200px 700px at 12% -8%, rgba(16, 185, 129, 0.08), transparent 55%),
+                    radial-gradient(ellipse 1000px 700px at 95% 105%, rgba(16, 185, 129, 0.05), transparent 60%),
+                    radial-gradient(ellipse 700px 500px at 60% 50%, rgba(37, 99, 235, 0.03), transparent 60%);
 }
 
 /* ─── BASE ─────────────────────────────────────────────────────────────────── */
@@ -180,13 +189,13 @@
   }
   /* Theme-specific body bg/color — using hardcoded values because the
      var(--bg-base) cascade was being shadowed somewhere in the resolved style. */
-  :root body, [data-theme="dark"] body {
-    background-color: #03060d;
-    color: #f1f5f9;
-  }
-  [data-theme="light"] body {
-    background-color: #f4efe4;
+  :root body, [data-theme="light"] body {
+    background-color: #eef1f6;
     color: #0b1220;
+  }
+  [data-theme="dark"] body {
+    background-color: #070b14;
+    color: #f1f5f9;
   }
 
   #root { min-height: 100%; width: 100%; overflow-x: hidden; }
@@ -270,8 +279,8 @@
 
   /* Selection */
   ::selection {
-    background: rgba(212, 175, 55, 0.30);
-    color: #fef3c7;
+    background: rgba(16, 185, 129, 0.30);
+    color: #ecfdf5;
   }
 
   /* Scrollbar — thinner, gold-on-hover */
@@ -303,14 +312,14 @@
   100% { background-position: 200% 0; }
 }
 @keyframes pulse-ring {
-  0%   { box-shadow: 0 0 0 0 rgba(0, 201, 138, 0.55); }
-  70%  { box-shadow: 0 0 0 8px rgba(0, 201, 138, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(0, 201, 138, 0); }
+  0%   { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.55); }
+  70%  { box-shadow: 0 0 0 8px rgba(16, 185, 129, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
 }
 @keyframes pulse-ring-gold {
-  0%   { box-shadow: 0 0 0 0 rgba(212, 175, 55, 0.55); }
-  70%  { box-shadow: 0 0 0 8px rgba(212, 175, 55, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(212, 175, 55, 0); }
+  0%   { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.55); }
+  70%  { box-shadow: 0 0 0 8px rgba(16, 185, 129, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
 }
 @keyframes float-slow {
   0%, 100% { transform: translateY(0); }
@@ -320,11 +329,11 @@
   to { transform: rotate(360deg); }
 }
 @keyframes ticker-flash-up {
-  0%   { background-color: rgba(0, 201, 138, 0.20); }
+  0%   { background-color: rgba(16, 185, 129, 0.20); }
   100% { background-color: transparent; }
 }
 @keyframes ticker-flash-down {
-  0%   { background-color: rgba(255, 59, 70, 0.20); }
+  0%   { background-color: rgba(225, 29, 72, 0.20); }
   100% { background-color: transparent; }
 }
 @keyframes scan-line {
@@ -333,8 +342,8 @@
   100% { transform: translateY(2000%); opacity: 0; }
 }
 @keyframes glow-breath {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(212, 175, 55, 0.25); }
-  50%      { box-shadow: 0 0 24px 4px rgba(212, 175, 55, 0.35); }
+  0%, 100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.25); }
+  50%      { box-shadow: 0 0 24px 4px rgba(16, 185, 129, 0.35); }
 }
 
 /* ─── SECTOR PICKER ANIMATIONS ──────────────────────────────────────────────── */
@@ -387,7 +396,7 @@
 .sector-pill:hover {
   transform: translateY(-2px) scale(1.03);
   border-color: rgba(251, 191, 36, 0.45);
-  color: #fde68a;
+  color: #6ee7b7;
   box-shadow: 0 6px 18px -8px rgba(251, 191, 36, 0.55);
 }
 .sector-pill:active { animation: pill-pop 320ms ease; }
@@ -402,7 +411,7 @@
   background: rgba(15, 23, 42, 0.55);
   font-size: 0.65rem;
   font-weight: 700;
-  color: #fbbf24;
+  color: #10b981;
 }
 .sector-pill .pill-change {
   font-size: 0.65rem;
@@ -412,7 +421,7 @@
 .sector-pill.is-active {
   color: #0a0e27;
   border-color: rgba(251, 191, 36, 0.85);
-  background: linear-gradient(120deg, #fcd34d 0%, #f59e0b 50%, #fbbf24 100%);
+  background: linear-gradient(120deg, #34d399 0%, #059669 50%, #10b981 100%);
   background-size: 200% 200%;
   animation: sector-bg-shift 4s ease-in-out infinite, pulse-ring-gold 2.4s ease-out infinite;
   box-shadow: 0 8px 24px -8px rgba(251, 191, 36, 0.6);
@@ -420,7 +429,7 @@
 }
 .sector-pill.is-active .pill-count {
   background: rgba(10, 14, 39, 0.85);
-  color: #fde68a;
+  color: #6ee7b7;
 }
 .sector-pill.is-active .pill-change { color: #0a0e27; }
 
@@ -465,7 +474,7 @@
   border-radius: 9999px;
   border: 1px solid rgba(251, 191, 36, 0.35);
   background: rgba(15, 23, 42, 0.85);
-  color: #fde68a;
+  color: #6ee7b7;
   backdrop-filter: blur(6px);
   -webkit-backdrop-filter: blur(6px);
   box-shadow: 0 6px 18px -8px rgba(0, 0, 0, 0.6);
@@ -544,7 +553,7 @@
   height: 2px;
   transform: scaleX(0);
   transform-origin: left;
-  background: linear-gradient(90deg, #fcd34d, #f59e0b);
+  background: linear-gradient(90deg, #34d399, #059669);
   transition: transform 320ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 .sector-stock-tile:hover::after { transform: scaleX(1); }
@@ -617,7 +626,7 @@
 [data-theme="light"] .bg-dark-900\/50 {
   background-color: rgba(255, 255, 255, 0.92) !important;
   box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
-  border: 1px solid rgba(212, 175, 55, 0.18);
+  border: 1px solid rgba(16, 185, 129, 0.18);
 }
 /* Düşük opacity (40/30): kart-içi alt bölmeler — krem zemin, gri yıkama yapma */
 [data-theme="light"] .bg-dark-900\/40 {
@@ -656,18 +665,18 @@
 [data-theme="light"] .border-gold-500\/10,
 [data-theme="light"] .border-gold-500\/15,
 [data-theme="light"] .border-gold-500\/20 {
-  border-color: rgba(212, 175, 55, 0.30) !important;
+  border-color: rgba(16, 185, 129, 0.30) !important;
 }
 [data-theme="light"] .border-gold-500\/30 {
-  border-color: rgba(212, 175, 55, 0.45) !important;
+  border-color: rgba(16, 185, 129, 0.45) !important;
 }
 
 /* Pro Analiz hero kartı — tema uyumlu altın aksanlı gradient */
 .pro-hero-card {
   background: linear-gradient(125deg,
-    color-mix(in srgb, var(--bg-card) 92%, #fbbf24 8%) 0%,
+    color-mix(in srgb, var(--bg-card) 92%, #10b981 8%) 0%,
     var(--bg-card) 55%,
-    color-mix(in srgb, var(--bg-card) 88%, #f59e0b 12%) 100%) !important;
+    color-mix(in srgb, var(--bg-card) 88%, #059669 12%) 100%) !important;
   border: 1px solid color-mix(in srgb, var(--border-main) 70%, rgba(251, 191, 36, 0.35) 30%) !important;
   position: relative;
   overflow: hidden;
@@ -731,18 +740,18 @@
 [data-theme="light"] .text-amber-400\/60 { color: #92400ec0 !important; }
 [data-theme="light"] .text-amber-500  { color: #92400e !important; }
 [data-theme="light"] .text-amber-600  { color: #78350f !important; }
-[data-theme="light"] .text-gold-400   { color: #92400e !important; }
+[data-theme="light"] .text-gold-400   { color: #047857 !important; }
 
 /* Amber background tints — açık zeminde çok soluk kalmasın */
 [data-theme="light"] .bg-amber-500\/8,
 [data-theme="light"] .bg-amber-500\/10,
 [data-theme="light"] .bg-amber-500\/12,
-[data-theme="light"] .bg-amber-500\/15 { background-color: rgba(180, 83, 9, 0.13) !important; }
-[data-theme="light"] .bg-amber-500\/20 { background-color: rgba(180, 83, 9, 0.18) !important; }
+[data-theme="light"] .bg-amber-500\/15 { background-color: rgba(5, 150, 105, 0.13) !important; }
+[data-theme="light"] .bg-amber-500\/20 { background-color: rgba(5, 150, 105, 0.18) !important; }
 [data-theme="light"] .border-amber-500\/15,
 [data-theme="light"] .border-amber-500\/20,
-[data-theme="light"] .border-amber-500\/25 { border-color: rgba(180, 83, 9, 0.32) !important; }
-[data-theme="light"] .border-amber-500\/30 { border-color: rgba(180, 83, 9, 0.42) !important; }
+[data-theme="light"] .border-amber-500\/25 { border-color: rgba(5, 150, 105, 0.32) !important; }
+[data-theme="light"] .border-amber-500\/30 { border-color: rgba(5, 150, 105, 0.42) !important; }
 
 /* Hover states — light için koyu beyaz/5 görünmüyordu, krem ton ekliyoruz */
 [data-theme="light"] .hover\:bg-white\/5:hover    { background-color: rgba(60, 45, 15, 0.06) !important; }
@@ -848,7 +857,7 @@
 [data-theme="light"] .bg-gradient-to-br.from-amber-500\/10,
 [data-theme="light"] .bg-gradient-to-br.from-amber-500\/15,
 [data-theme="light"] .bg-gradient-to-br.from-amber-500\/20 {
-  box-shadow: inset 0 0 0 1px rgba(184, 144, 30, 0.18), 0 1px 3px rgba(60, 45, 15, 0.06);
+  box-shadow: inset 0 0 0 1px rgba(5, 150, 105, 0.18), 0 1px 3px rgba(60, 45, 15, 0.06);
 }
 
 /* Tables shell */
@@ -949,7 +958,7 @@
 }
 
 .popup-version {
-  background: linear-gradient(90deg, #f59e0b 0%, #fde68a 25%, #f59e0b 50%, #fde68a 75%, #f59e0b 100%);
+  background: linear-gradient(90deg, #059669 0%, #6ee7b7 25%, #059669 50%, #6ee7b7 75%, #059669 100%);
   background-size: 200% auto;
   animation: popup-shimmer 3s linear infinite;
 }
@@ -1014,10 +1023,10 @@
   border-radius: inherit;
   padding: 1px;
   background: linear-gradient(135deg,
-    rgba(212, 175, 55, 0.40) 0%,
-    rgba(212, 175, 55, 0.05) 35%,
-    rgba(212, 175, 55, 0.05) 65%,
-    rgba(212, 175, 55, 0.40) 100%);
+    rgba(16, 185, 129, 0.40) 0%,
+    rgba(16, 185, 129, 0.05) 35%,
+    rgba(16, 185, 129, 0.05) 65%,
+    rgba(16, 185, 129, 0.40) 100%);
   -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
           mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
   -webkit-mask-composite: xor;
@@ -1039,7 +1048,7 @@
   background: linear-gradient(90deg,
     var(--gold-500) 0%,
     var(--gold-300) 25%,
-    #fef3c7 50%,
+    #ecfdf5 50%,
     var(--gold-300) 75%,
     var(--gold-500) 100%);
   background-size: 200% auto;
@@ -1064,13 +1073,13 @@
   border-radius: 0.75rem;
   background: var(--grad-gold-rich);
   background-size: 200% 200%;
-  color: #1a1208;
+  color: #ffffff;
   border: 1px solid rgba(255, 255, 255, 0.2);
   transition: transform 180ms cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 220ms ease, background-position 400ms ease;
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.45),
     inset 0 -1px 0 rgba(0, 0, 0, 0.18),
-    0 4px 16px rgba(212, 175, 55, 0.35);
+    0 4px 16px rgba(16, 185, 129, 0.35);
   overflow: hidden;
   isolation: isolate;
   cursor: pointer;
@@ -1091,7 +1100,7 @@
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.55),
     inset 0 -1px 0 rgba(0, 0, 0, 0.18),
-    0 8px 24px rgba(212, 175, 55, 0.50);
+    0 8px 24px rgba(16, 185, 129, 0.50);
 }
 .btn-gold:hover::after { left: 150%; }
 .btn-gold:active { transform: translateY(0); }
@@ -1140,7 +1149,7 @@
   outline: none;
   border-color: var(--gold-400);
   background: rgba(var(--bg-input-rgb), 0.95);
-  box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.18);
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.18);
 }
 
 /* Pills */
@@ -1156,14 +1165,14 @@
   border-radius: 999px;
   border: 1px solid transparent;
 }
-.pill-gold  { background: rgba(212, 175, 55, 0.12); color: var(--gold-300); border-color: rgba(212, 175, 55, 0.30); }
-.pill-jade  { background: rgba(0, 201, 138, 0.12);  color: var(--jade);     border-color: rgba(0, 201, 138, 0.30); }
-.pill-ember { background: rgba(255, 59, 70, 0.12);  color: var(--ember);    border-color: rgba(255, 59, 70, 0.30); }
+.pill-gold  { background: rgba(16, 185, 129, 0.12); color: var(--gold-300); border-color: rgba(16, 185, 129, 0.30); }
+.pill-jade  { background: rgba(16, 185, 129, 0.12);  color: var(--jade);     border-color: rgba(16, 185, 129, 0.30); }
+.pill-ember { background: rgba(225, 29, 72, 0.12);  color: var(--ember);    border-color: rgba(225, 29, 72, 0.30); }
 .pill-azure { background: rgba(59, 130, 246, 0.12); color: var(--azure);    border-color: rgba(59, 130, 246, 0.30); }
 .pill-neutral { background: var(--bg-subtle); color: var(--text-muted); border-color: var(--border-subtle); }
 
 /* Aydınlık modda pill renkleri — açık zeminde okunabilir koyu tonlar */
-[data-theme="light"] .pill-gold  { background: rgba(212, 175, 55, 0.18); color: #92400e; border-color: rgba(212, 175, 55, 0.45); }
+[data-theme="light"] .pill-gold  { background: rgba(16, 185, 129, 0.16); color: #047857; border-color: rgba(16, 185, 129, 0.42); }
 [data-theme="light"] .pill-jade  { background: rgba(5, 150, 105, 0.14);  color: #047857; border-color: rgba(5, 150, 105, 0.40); }
 [data-theme="light"] .pill-ember { background: rgba(220, 38, 38, 0.12);  color: #b91c1c; border-color: rgba(220, 38, 38, 0.40); }
 [data-theme="light"] .pill-azure { background: rgba(37, 99, 235, 0.12);  color: #1e40af; border-color: rgba(37, 99, 235, 0.40); }
@@ -1175,8 +1184,8 @@
   height: 6px;
   border-radius: 999px;
 }
-.status-dot-live  { background: var(--jade);  box-shadow: 0 0 8px rgba(0, 201, 138, 0.7); animation: pulse-ring 2s infinite; }
-.status-dot-gold  { background: var(--gold-400); box-shadow: 0 0 8px rgba(212, 175, 55, 0.6); animation: pulse-ring-gold 2.4s infinite; }
+.status-dot-live  { background: var(--jade);  box-shadow: 0 0 8px rgba(16, 185, 129, 0.7); animation: pulse-ring 2s infinite; }
+.status-dot-gold  { background: var(--gold-400); box-shadow: 0 0 8px rgba(16, 185, 129, 0.6); animation: pulse-ring-gold 2.4s infinite; }
 .status-dot-off   { background: var(--text-faint); }
 
 /* Divider gold */
@@ -1199,7 +1208,7 @@
 
 /* Glow accents */
 .glow-gold        { box-shadow: var(--glow-gold); }
-.glow-gold-strong { box-shadow: 0 0 0 1px rgba(212, 175, 55, 0.45), 0 12px 48px rgba(212, 175, 55, 0.35); }
+.glow-gold-strong { box-shadow: 0 0 0 1px rgba(16, 185, 129, 0.45), 0 12px 48px rgba(16, 185, 129, 0.35); }
 .glow-jade        { box-shadow: var(--glow-jade); }
 .glow-ember       { box-shadow: var(--glow-ember); }
 .glow-breath      { animation: glow-breath 3.6s ease-in-out infinite; }
@@ -1215,7 +1224,7 @@ select.premium {
   color: var(--text-primary);
   padding: 0.55rem 2.25rem 0.55rem 0.9rem;
   border-radius: 0.65rem;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23d4af37' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2310b981' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
   background-position: right 0.65rem center;
   background-size: 12px;
@@ -1232,16 +1241,16 @@ select.premium:hover, select.premium:focus { border-color: var(--border-gold-str
 /* Custom scrollbars on specific containers */
 .custom-scrollbar::-webkit-scrollbar { width: 4px; }
 .custom-scrollbar::-webkit-scrollbar-thumb {
-  background: rgba(212, 175, 55, 0.20);
+  background: rgba(16, 185, 129, 0.20);
   border-radius: 999px;
 }
-.custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(212, 175, 55, 0.50); }
+.custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(16, 185, 129, 0.50); }
 
 /* Grid pattern (subtle backdrop) */
 .grid-pattern {
   background-image:
-    linear-gradient(rgba(212, 175, 55, 0.05) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(212, 175, 55, 0.05) 1px, transparent 1px);
+    linear-gradient(rgba(16, 185, 129, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(16, 185, 129, 0.05) 1px, transparent 1px);
   background-size: 48px 48px;
 }
 
@@ -1271,22 +1280,22 @@ select.premium:hover, select.premium:focus { border-color: var(--border-gold-str
 .auth-backdrop::before {
   top: -25%; left: -10%;
   width: 720px; height: 720px;
-  background: radial-gradient(circle, rgba(212, 175, 55, 0.35) 0%, transparent 70%);
+  background: radial-gradient(circle, rgba(16, 185, 129, 0.35) 0%, transparent 70%);
   animation: float-slow 9s ease-in-out infinite;
 }
 .auth-backdrop::after {
   bottom: -25%; right: -10%;
   width: 720px; height: 720px;
-  background: radial-gradient(circle, rgba(184, 144, 30, 0.25) 0%, transparent 70%);
+  background: radial-gradient(circle, rgba(5, 150, 105, 0.25) 0%, transparent 70%);
   animation: float-slow 11s ease-in-out infinite reverse;
 }
 /* Aydınlık temada altın halolar daha narin, krem zemin üstünde abartılı
    görünmesin diye düşük opaklık */
 [data-theme="light"] .auth-backdrop::before {
-  background: radial-gradient(circle, rgba(212, 175, 55, 0.18) 0%, transparent 70%);
+  background: radial-gradient(circle, rgba(16, 185, 129, 0.18) 0%, transparent 70%);
 }
 [data-theme="light"] .auth-backdrop::after {
-  background: radial-gradient(circle, rgba(184, 144, 30, 0.12) 0%, transparent 70%);
+  background: radial-gradient(circle, rgba(5, 150, 105, 0.12) 0%, transparent 70%);
 }
 
 /* Active nav indicator */
@@ -1297,7 +1306,7 @@ select.premium:hover, select.premium:focus { border-color: var(--border-gold-str
   width: 3px; height: 70%;
   background: linear-gradient(180deg, var(--gold-300), var(--gold-500));
   border-radius: 0 3px 3px 0;
-  box-shadow: 0 0 12px rgba(212, 175, 55, 0.6);
+  box-shadow: 0 0 12px rgba(16, 185, 129, 0.6);
 }
 
 /* Tab underline */
@@ -1406,22 +1415,22 @@ img[alt="Borsa Krali"] {
   color: var(--gold-400);
 }
 .sb-link-highlight:hover {
-  background: rgba(212, 175, 55, 0.10);
+  background: rgba(16, 185, 129, 0.10);
   color: var(--gold-300);
 }
 [data-theme="light"] .sb-link-highlight:hover {
-  background: rgba(180, 83, 9, 0.12);
+  background: rgba(5, 150, 105, 0.12);
   color: var(--gold-500);
 }
 .sb-link-active {
-  background: linear-gradient(135deg, #fcd34d 0%, #f59e0b 50%, #d4940a 100%);
-  color: #1a1208;
+  background: linear-gradient(135deg, #34d399 0%, #059669 50%, #047857 100%);
+  color: #ffffff;
   box-shadow: 0 4px 14px rgba(245, 158, 11, 0.35);
 }
 [data-theme="light"] .sb-link-active {
-  background: linear-gradient(135deg, #f0c94f 0%, #c98911 50%, #8a6810 100%);
-  color: #1a1208;
-  box-shadow: 0 4px 14px rgba(184, 144, 30, 0.35);
+  background: linear-gradient(135deg, #34d399 0%, #059669 50%, #047857 100%);
+  color: #ffffff;
+  box-shadow: 0 4px 14px rgba(5, 150, 105, 0.35);
 }
 .sb-tooltip {
   background: var(--bg-card);
@@ -1465,10 +1474,10 @@ img[alt="Borsa Krali"] {
   animation: cmdk-in 220ms cubic-bezier(0.22, 1, 0.36, 1);
   background: var(--bg-card);
   border: 1px solid var(--border-subtle);
-  box-shadow: var(--shadow-xl), 0 0 0 1px rgba(212, 175, 55, 0.20);
+  box-shadow: var(--shadow-xl), 0 0 0 1px rgba(16, 185, 129, 0.20);
 }
 [data-theme="light"] .cmdk-panel {
-  box-shadow: var(--shadow-xl), 0 0 0 1px rgba(184, 144, 30, 0.30);
+  box-shadow: var(--shadow-xl), 0 0 0 1px rgba(5, 150, 105, 0.30);
 }
 .cmdk-input {
   background: transparent;
@@ -1491,13 +1500,13 @@ img[alt="Borsa Krali"] {
   transition: background 120ms ease, border-color 120ms ease;
 }
 .cmdk-row:hover, .cmdk-row.is-active {
-  background: rgba(212, 175, 55, 0.10);
-  border-color: rgba(212, 175, 55, 0.25);
+  background: rgba(16, 185, 129, 0.10);
+  border-color: rgba(16, 185, 129, 0.25);
 }
 [data-theme="light"] .cmdk-row:hover,
 [data-theme="light"] .cmdk-row.is-active {
-  background: rgba(180, 83, 9, 0.10);
-  border-color: rgba(180, 83, 9, 0.30);
+  background: rgba(5, 150, 105, 0.10);
+  border-color: rgba(5, 150, 105, 0.30);
 }
 .cmdk-kbd {
   display: inline-flex;
@@ -1531,8 +1540,8 @@ img[alt="Borsa Krali"] {
   100% { transform: scaleX(0); }
 }
 @keyframes broadcast-toast-pulse {
-  0%, 100% { box-shadow: 0 12px 32px rgba(212, 175, 55, 0.30), 0 0 0 1px rgba(212, 175, 55, 0.45); }
-  50%      { box-shadow: 0 16px 40px rgba(212, 175, 55, 0.45), 0 0 0 1px rgba(212, 175, 55, 0.70); }
+  0%, 100% { box-shadow: 0 12px 32px rgba(16, 185, 129, 0.30), 0 0 0 1px rgba(16, 185, 129, 0.45); }
+  50%      { box-shadow: 0 16px 40px rgba(16, 185, 129, 0.45), 0 0 0 1px rgba(16, 185, 129, 0.70); }
 }
 
 .broadcast-toast {
@@ -1566,7 +1575,7 @@ img[alt="Borsa Krali"] {
   content: '';
   position: absolute;
   inset: 0;
-  background: linear-gradient(135deg, rgba(212, 175, 55, 0.10), transparent 60%);
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.10), transparent 60%);
   pointer-events: none;
   z-index: -1;
 }
@@ -1579,12 +1588,12 @@ img[alt="Borsa Krali"] {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(212, 175, 55, 0.15);
+  background: rgba(16, 185, 129, 0.15);
   color: var(--gold-400);
   border: 1px solid var(--border-gold);
 }
 [data-theme="light"] .broadcast-toast-icon {
-  background: rgba(180, 83, 9, 0.13);
+  background: rgba(5, 150, 105, 0.13);
 }
 
 .broadcast-toast-body {
@@ -1686,8 +1695,8 @@ img[alt="Borsa Krali"] {
   box-shadow: var(--shadow-sm);
 }
 .market-status.is-open {
-  background: linear-gradient(135deg, rgba(0, 201, 138, 0.12), rgba(0, 201, 138, 0.04));
-  border-color: rgba(0, 201, 138, 0.30);
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.12), rgba(16, 185, 129, 0.04));
+  border-color: rgba(16, 185, 129, 0.30);
   color: var(--jade);
 }
 [data-theme="light"] .market-status.is-open {
@@ -1827,18 +1836,18 @@ summary:focus-visible,
 .bk-btn--gold {
   background-image: var(--grad-gold-rich);
   background-size: 200% 200%;
-  color: #1a1208;
+  color: #ffffff;
   border-color: rgba(255, 255, 255, 0.20);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45),
               inset 0 -1px 0 rgba(0, 0, 0, 0.16),
-              0 4px 16px rgba(212, 175, 55, 0.30);
+              0 4px 16px rgba(16, 185, 129, 0.30);
 }
 .bk-btn--gold:hover {
   background-position: 100% 0;
   transform: translateY(-1px);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55),
               inset 0 -1px 0 rgba(0, 0, 0, 0.16),
-              0 8px 26px rgba(212, 175, 55, 0.48);
+              0 8px 26px rgba(16, 185, 129, 0.48);
 }
 .bk-btn--gold:active { transform: translateY(0); }
 
@@ -1854,12 +1863,12 @@ summary:focus-visible,
 }
 
 .bk-btn--outline {
-  background-color: rgba(212, 175, 55, 0.06);
+  background-color: rgba(16, 185, 129, 0.06);
   color: var(--gold-300);
   border-color: var(--border-gold-strong);
 }
 .bk-btn--outline:hover {
-  background-color: rgba(212, 175, 55, 0.15);
+  background-color: rgba(16, 185, 129, 0.15);
   border-color: var(--gold-400);
   color: var(--gold-200);
 }
@@ -1875,13 +1884,13 @@ summary:focus-visible,
 }
 
 .bk-btn--danger {
-  background-color: rgba(255, 59, 70, 0.12);
+  background-color: rgba(225, 29, 72, 0.12);
   color: var(--ember);
-  border-color: rgba(255, 59, 70, 0.30);
+  border-color: rgba(225, 29, 72, 0.30);
 }
 .bk-btn--danger:hover {
-  background-color: rgba(255, 59, 70, 0.20);
-  border-color: rgba(255, 59, 70, 0.55);
+  background-color: rgba(225, 29, 72, 0.20);
+  border-color: rgba(225, 29, 72, 0.55);
 }
 
 /* ─── Card (.bk-card) ─────────────────────────────────────────────────────── */
@@ -1903,12 +1912,14 @@ summary:focus-visible,
   border-color: var(--border-gold);
   box-shadow: var(--shadow-hover);
 }
-.bk-card--gold  { border-color: rgba(212, 175, 55, 0.38);
-  background-image: linear-gradient(135deg, rgba(212, 175, 55, 0.09), transparent 62%); }
-.bk-card--jade  { border-color: rgba(0, 201, 138, 0.40);
-  background-image: linear-gradient(135deg, rgba(0, 201, 138, 0.11), transparent 60%); }
-.bk-card--ember { border-color: rgba(255, 59, 70, 0.42);
-  background-image: linear-gradient(135deg, rgba(255, 59, 70, 0.11), transparent 60%); }
+.bk-card--gold  { border-color: rgba(16, 185, 129, 0.38);
+  background-image: linear-gradient(135deg, rgba(16, 185, 129, 0.09), transparent 62%); }
+.bk-card--jade  { border-color: rgba(16, 185, 129, 0.40);
+  background-image: linear-gradient(135deg, rgba(16, 185, 129, 0.11), transparent 60%); }
+.bk-card--ember { border-color: rgba(225, 29, 72, 0.42);
+  background-image: linear-gradient(135deg, rgba(225, 29, 72, 0.11), transparent 60%); }
+.bk-card--azure { border-color: rgba(37, 99, 235, 0.40);
+  background-image: linear-gradient(135deg, rgba(37, 99, 235, 0.10), transparent 60%); }
 
 .bk-card__accent {
   position: absolute;
@@ -1917,9 +1928,10 @@ summary:focus-visible,
   border-radius: 16px 16px 0 0;
   pointer-events: none;
 }
-.bk-card__accent--gold  { background: linear-gradient(90deg, transparent, rgba(212, 175, 55, 0.75) 50%, transparent); }
-.bk-card__accent--jade  { background: linear-gradient(90deg, transparent, rgba(0, 201, 138, 0.75) 50%, transparent); }
-.bk-card__accent--ember { background: linear-gradient(90deg, transparent, rgba(255, 59, 70, 0.75) 50%, transparent); }
+.bk-card__accent--gold  { background: linear-gradient(90deg, transparent, rgba(16, 185, 129, 0.75) 50%, transparent); }
+.bk-card__accent--jade  { background: linear-gradient(90deg, transparent, rgba(16, 185, 129, 0.75) 50%, transparent); }
+.bk-card__accent--ember { background: linear-gradient(90deg, transparent, rgba(225, 29, 72, 0.75) 50%, transparent); }
+.bk-card__accent--azure { background: linear-gradient(90deg, transparent, rgba(37, 99, 235, 0.75) 50%, transparent); }
 
 /* ─── Badge dot ───────────────────────────────────────────────────────────── */
 .bk-badge-dot {
