@@ -214,8 +214,9 @@ function StockTab({ initialSymbol }) {
           <Button type="submit" icon={Search} loading={loading} block>Getir</Button>
         </div>
       </form>
-      <div className="text-[11px] text-gray-500 mb-3 flex items-center gap-1">
-        <Info size={12} /> Tarih biçimi <code className="text-amber-300">gg-aa-yyyy</code>. Tek sembol veya virgülle ayrılmış birden fazla (örn. THYAO,ASELS).
+      <div className="text-[11px] text-gray-500 mb-3 flex items-start gap-1">
+        <Info size={12} className="flex-shrink-0 mt-0.5" />
+        <span>Tarih biçimi <code className="text-amber-300">gg-aa-yyyy</code>. Tek sembol veya virgülle ayrılmış birden fazla (örn. THYAO,ASELS).</span>
       </div>
 
       {error && (

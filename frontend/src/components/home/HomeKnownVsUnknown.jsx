@@ -204,7 +204,7 @@ function ComparisonRow({ pair, idx }) {
           <div className="inline-flex items-center gap-1.5 text-[11px] font-mono px-2 py-1 rounded-md relative"
             style={{
               background: 'var(--bg-input)',
-              color: 'var(--gold-300)',
+              color: 'var(--gold-600)',
               border: '1px solid var(--border-gold)',
             }}>
             <span className="opacity-70">→</span>

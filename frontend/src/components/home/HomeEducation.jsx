@@ -11,8 +11,8 @@ import {
 
 /* ─── 6 eğitim köprüsü — site'deki gerçek /egitim/* sayfaları ────────── */
 const LESSONS = [
-  { to: '/egitim/teknik-analiz-giris', label: 'Teknik Analize Giriş', icon: Activity,    tone: '212,175,55' },
-  { to: '/egitim/temel-gostergeler',   label: 'Temel Göstergeler',    icon: BarChart3,   tone: '0,201,138'   },
+  { to: '/egitim/teknik-analiz-giris', label: 'Teknik Analize Giriş', icon: Activity,    tone: '16,185,129' },
+  { to: '/egitim/temel-gostergeler',   label: 'Temel Göstergeler',    icon: BarChart3,   tone: '16,185,129'   },
   { to: '/egitim/destek-direnc',       label: 'Destek & Direnç',      icon: Compass,     tone: '59,130,246'  },
   { to: '/egitim/bist100-rehberi',     label: 'BIST 100 Rehberi',     icon: TrendingUp,  tone: '139,92,246'  },
   { to: '/egitim/bilanco-okuma',       label: 'Bilanço Okuma',        icon: FileText,    tone: '244,114,182' },
@@ -26,7 +26,7 @@ function Kpi({ target, suffix = '', prefix = '', label }) {
     <div className="kpi rounded-xl px-3 py-2.5"
       style={{ background: 'var(--bg-input)', border: '1px solid var(--border-main)' }}>
       <div ref={ref} className="text-xl sm:text-2xl font-bold font-mono tracking-tight"
-        style={{ color: 'var(--gold-300)' }}>{text}</div>
+        style={{ color: 'var(--gold-600)' }}>{text}</div>
       <div className="text-[10px] uppercase tracking-[0.18em] mt-0.5"
         style={{ color: 'var(--text-faint)' }}>{label}</div>
     </div>

@@ -22,7 +22,7 @@ const RELEASES = [
     icon: GitBranch,
     description: '7 zaman çerçevesi (1d → 1h → 1g → 1h) eş zamanlı ağırlıklı agregasyon. Bayesian olasılık modeli + 12 mum formasyonu × ATR rejim filtresi.',
     highlights: ['7 TF Confluence', 'Bayesian P(win)', '4 mod (Tarayıcı · Confluence · Kalibrasyon · Backtest)'],
-    accent: '212,175,55',
+    accent: '16,185,129',
     badge: '',
   },
   {
@@ -32,7 +32,7 @@ const RELEASES = [
     icon: Bitcoin,
     description: 'Top 100 coin için 3 strateji: SPOT_LONG, FUTURES_LONG, FUTURES_SHORT. Funding rate + Binance USDT klines entegrasyonu. Doğrulanmış backtest +%102.',
     highlights: ['10 koşul × 3 strateji', '09/13/19/01 push', 'Backtest +%102 spot net'],
-    accent: '0,201,138',
+    accent: '16,185,129',
     badge: '',
   },
   {

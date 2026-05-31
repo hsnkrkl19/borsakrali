@@ -396,15 +396,17 @@ export default function Taramalar() {
               <button
                 key={a.id}
                 onClick={() => setAssets(a.id)}
-                className={`flex-1 min-w-[120px] flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl text-sm font-semibold transition-all ${
+                className={`flex-1 min-w-[96px] flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-2 px-2.5 py-2 sm:py-2.5 rounded-xl text-sm font-semibold transition-all ${
                   isActive
                     ? 'bg-gradient-to-r from-amber-500 to-amber-600 text-dark-950 shadow-lg shadow-amber-500/25'
                     : 'text-gray-400 hover:text-white hover:bg-dark-800'
                 }`}
               >
-                <span className="text-base">{a.emoji}</span>
-                {a.label}
-                <span className={`text-[10px] font-medium ${isActive ? 'text-dark-900/80' : 'text-gray-500'}`}>
+                <span className="flex items-center gap-1.5">
+                  <span className="text-base">{a.emoji}</span>
+                  <span className="whitespace-nowrap">{a.label}</span>
+                </span>
+                <span className={`text-[10px] font-medium whitespace-nowrap ${isActive ? 'text-dark-900/80' : 'text-gray-500'}`}>
                   {a.desc}
                 </span>
               </button>

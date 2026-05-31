@@ -215,7 +215,7 @@ function CalibrationHeatmap({ direction, snapshot, tfs, allBuckets }) {
                   const samples = bucket.samples ?? 0
                   // Confidence intensity: samples log scale → 0-1
                   const intensity = Math.min(1, Math.log10(1 + samples) / 1.7)  // 50 sample ≈ 1.0
-                  const baseColor = direction === 'long' ? '0,201,138' : '255,90,90'
+                  const baseColor = direction === 'long' ? '16,185,129' : '255,90,90'
                   // Background opacity: prob × intensity
                   const bg = `rgba(${baseColor}, ${0.15 + p * intensity * 0.55})`
                   const border = `rgba(${baseColor}, ${0.30 + intensity * 0.40})`
