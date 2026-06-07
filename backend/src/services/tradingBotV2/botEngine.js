@@ -105,6 +105,62 @@ function isSameDayDateKey(iso) {
   return iso.slice(0, 10);
 }
 
+function sameDayKey(dateLike) {
+  try { return new Date(dateLike).toISOString().slice(0, 10); } catch { return null; }
+}
+
+// Bir fiyat/OHLC değeri BIST günlük limiti içinde mi? Önceki kapanıştan ±%20'den
+// fazla sapan değer fiziksel olarak imkânsızdır (BIST limiti ±%10, istisnai ±%20)
+// → veri hatasıdır. Referans yoksa (prevClose=0) doğrula sayılır.
+function priceInBand(v, prevClose) {
+  if (!(v > 0)) return false;
+  if (!(prevClose > 0)) return true;
+  const r = v / prevClose;
+  return r >= 0.80 && r <= 1.20;
+}
+
+/**
+ * Açık (long) pozisyon için çıkış tespiti — bozuk/bayat canlı fiyat okumalarına
+ * dayanıklı. Tek bir hatalı "anlık fiyat" yüzünden sahte stop oluşmasını engeller
+ * (ör. tavandaki hissenin aniden stop'un altında okunması).
+ *
+ * Kurallar:
+ *   - Stop/hedef, günün GERÇEK işlem aralığıyla (low/high) doğrulanır — tek anlık
+ *     fiyatla değil. Long pozisyon tavandayken günün düşüğü stop'a değmez → stop yok.
+ *   - BIST ±%20 bandı dışındaki price/low/high veri hatası kabul edilir, yok sayılır.
+ *   - Giriş bugünse gün düşüğü/yükseği girişten önceki hareketi içerebilir → yalnız
+ *     geçerli anlık fiyat kullanılır.
+ *
+ * @param {object} live - { price, previousClose, low, high }
+ * @returns {{hit:'stop'|'target'|null, exitPrice?, ref?, lastGood:number|null}}
+ */
+function detectBistExit(pos, live) {
+  const prevClose = live?.previousClose;
+  const priceOk = priceInBand(live?.price, prevClose);
+  const lowOk   = priceInBand(live?.low, prevClose);
+  const highOk  = priceInBand(live?.high, prevClose);
+
+  const enteredToday = sameDayKey(pos.entryDate) === sameDayKey(new Date().toISOString());
+
+  // Stop referansı: çok-günlük pozisyonda günün gerçek düşüğü; aksi halde geçerli anlık fiyat
+  let stopRef = null;
+  if (!enteredToday && lowOk) stopRef = live.low;
+  else if (priceOk) stopRef = live.price;
+
+  let targetRef = null;
+  if (!enteredToday && highOk) targetRef = live.high;
+  else if (priceOk) targetRef = live.price;
+
+  const lastGood = priceOk ? live.price : null;
+
+  // Stop önce (tutucu)
+  if (stopRef != null && stopRef <= pos.currentStop)
+    return { hit: 'stop', exitPrice: pos.currentStop, ref: stopRef, lastGood };
+  if (targetRef != null && targetRef >= pos.currentTarget)
+    return { hit: 'target', exitPrice: pos.currentTarget, ref: targetRef, lastGood };
+  return { hit: null, lastGood };
+}
+
 // ── 1) ingestSnapshot ──────────────────────────────────────────────────────
 async function ingestSnapshot(snapshot) {
   if (!snapshot || !snapshot.generatedAt) {
@@ -296,6 +352,11 @@ async function tick(opts = {}) {
     result.checked++;
     const price = priceMap[pos.symbol];
     if (price == null) continue;
+    // Bozuk/bant-dışı fiyatla limit emrini doldurma — sahte tetiklemeyi önle
+    if (overridePrices[pos.symbol] == null) {
+      const liveP = liveDataService.getStock(pos.symbol);
+      if (liveP && !priceInBand(price, liveP.previousClose)) continue;
+    }
 
     let triggered = false;
     let fillPrice = null;
@@ -366,24 +427,39 @@ async function tick(opts = {}) {
   // ── Open: trailing + SL/TP/timeout ─────────────────────────────────────
   for (const pos of positionStore.listOpen()) {
     result.checked++;
-    const price = priceMap[pos.symbol];
-    if (price == null) continue;
 
-    // Snapshot için lastPrice güncelle
-    positionStore.updatePosition(pos.id, { lastPrice: price });
+    // Canlı veri (override test yolu sadece fiyat verir → prevClose/OHLC yok)
+    let live;
+    if (overridePrices[pos.symbol] != null) {
+      live = { price: overridePrices[pos.symbol], previousClose: null, low: null, high: null };
+    } else {
+      live = liveDataService.getStock(pos.symbol) || {};
+    }
 
-    // SL hit
-    if (price <= pos.currentStop) {
-      await closePosition({ ...pos, lastPrice: price }, price, 'stop',
-        `Fiyat ${price.toFixed(2)} ≤ SL ${pos.currentStop.toFixed(2)} — stop tetiklendi.`);
+    const ev = detectBistExit(pos, live);
+
+    // Geçerli fiyat varsa lastPrice güncelle; yoksa eski iyi fiyatı koru
+    if (ev.lastGood != null) {
+      positionStore.updatePosition(pos.id, { lastPrice: ev.lastGood });
+    } else if (ev.hit == null) {
+      // Hiç geçerli veri yok (bozuk okuma) — pozisyonu KORU, bu turu atla
+      result.errors++;
+      continue;
+    }
+    const price = ev.lastGood ?? pos.lastPrice ?? pos.entryPrice;
+
+    // SL — günün gerçek düşüğü stop'a değdiyse (tek bozuk fiyat değil)
+    if (ev.hit === 'stop') {
+      await closePosition({ ...pos, lastPrice: price }, ev.exitPrice, 'stop',
+        `Gün içi ${ev.ref.toFixed(2)} ≤ SL ${pos.currentStop.toFixed(2)} — stop tetiklendi.`);
       result.closed++;
       continue;
     }
 
-    // TP hit
-    if (price >= pos.currentTarget) {
-      await closePosition({ ...pos, lastPrice: price }, price, 'target',
-        `Fiyat ${price.toFixed(2)} ≥ TP ${pos.currentTarget.toFixed(2)} — hedef tetiklendi.`);
+    // TP — günün gerçek yükseği hedefe ulaştıysa
+    if (ev.hit === 'target') {
+      await closePosition({ ...pos, lastPrice: price }, ev.exitPrice, 'target',
+        `Gün içi ${ev.ref.toFixed(2)} ≥ TP ${pos.currentTarget.toFixed(2)} — hedef tetiklendi.`);
       result.closed++;
       continue;
     }
@@ -516,5 +592,7 @@ module.exports = {
   getStatus,
   closePosition,
   recomputeEquity,
+  detectBistExit,
+  priceInBand,
   CONFIG,
 };
