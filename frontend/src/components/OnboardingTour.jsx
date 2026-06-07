@@ -17,6 +17,7 @@
 
 import { useEffect, useLayoutEffect, useState } from 'react'
 import { useOnboardingStore } from '../store/onboardingStore'
+import { useAuthStore } from '../store/authStore'
 
 const STEPS = [
   {
@@ -97,11 +98,16 @@ export default function OnboardingTour() {
   const prev = useOnboardingStore((s) => s.prev)
   const skip = useOnboardingStore((s) => s.skip)
 
+  // Misafir (herkese açık ziyaretçi) için tanıtım turu auto-başlamaz —
+  // açılışta ekranı kaplayan tur, karşılama popup'ının altında kalıp
+  // "kapanmıyor" hissi veriyordu. Yalnızca gerçek kullanıcıya gösterilir.
+  const isGuest = useAuthStore((s) => s.user?.isGuest)
+
   const [rect, setRect] = useState(null)
   const [viewport, setViewport] = useState({ vw: 0, vh: 0 })
 
   const stepDef = STEPS[step - 1] || STEPS[0]
-  const visible = !completed
+  const visible = !completed && !isGuest
 
   // Klavye kısayolları
   useEffect(() => {

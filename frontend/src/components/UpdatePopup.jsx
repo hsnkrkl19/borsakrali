@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { X, ArrowRight, Sparkles } from 'lucide-react'
 import { createPortal } from 'react-dom'
+import { useAuthStore } from '../store/authStore'
 
 const VERSION = '4.4.0'
 
@@ -20,6 +21,11 @@ const INTERVAL_MS = 10 * 60 * 1000
 
 export default function UpdatePopup() {
   const [visible, setVisible] = useState(false)
+  // Misafir (herkese açık ziyaretçi) için karşılama popup'ı GÖSTERİLMEZ.
+  // Açılışta içerik üstüne binen popup hem rahatsız ediyor hem AdSense'in
+  // "araya giren reklam/interstitial" kuralına takılır. Sadece gerçek
+  // (giriş yapmış) kullanıcıya gösterilir.
+  const isGuest = useAuthStore((s) => s.user?.isGuest)
 
   // Kapat: pencereyi gizle + bir daha gösterilmesin diye kalıcı işaret bırak.
   // Böylece kullanıcı kapattıktan sonra popup ASLA tekrar açılmaz.
@@ -35,6 +41,7 @@ export default function UpdatePopup() {
   }, [])
 
   useEffect(() => {
+    if (isGuest) return                       // misafire gösterme
     try {
       const params = new URLSearchParams(window.location.search)
       if (params.get('playstorePreview') === '1') return
@@ -58,7 +65,7 @@ export default function UpdatePopup() {
       }, 1200)
       return () => clearTimeout(timer)
     } catch (_) {}
-  }, [])
+  }, [isGuest])
 
   // ESC ile de kapanabilsin.
   useEffect(() => {
@@ -68,7 +75,7 @@ export default function UpdatePopup() {
     return () => window.removeEventListener('keydown', onKey)
   }, [visible, close])
 
-  if (!visible) return null
+  if (isGuest || !visible) return null
 
   return createPortal(
     <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
