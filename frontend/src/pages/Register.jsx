@@ -49,7 +49,7 @@ const BENEFITS = [
 
 export default function Register() {
   const navigate = useNavigate()
-  const { login, isAuthenticated } = useAuthStore()
+  const { login, isAuthenticated, user } = useAuthStore()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [showPassword, setShowPassword] = useState(false)
@@ -65,7 +65,9 @@ export default function Register() {
     acceptPrivacy: false,
   })
 
-  if (isAuthenticated) {
+  // Misafir oturumdaki ziyaretçi gerçek hesap açabilsin diye kayıt sayfasına
+  // erişimine izin ver; yalnızca gerçek kullanıcı yönlenir.
+  if (isAuthenticated && !user?.isGuest) {
     return <Navigate to="/" replace />
   }
 

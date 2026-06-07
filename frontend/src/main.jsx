@@ -5,6 +5,7 @@ import './styles/index.css'
 import './styles/home.css'
 import { initAdMob } from './utils/adManager'
 import { getApiBase } from './config'
+import { useAuthStore } from './store/authStore'
 
 // === GLOBAL CRASH GUARD — Beyaz ekran yerine hata mesajı göster ===
 function showCrashScreen(message, stack) {
@@ -87,6 +88,20 @@ try {
   initAdMob().catch(() => {})
 } catch (e) {
   console.warn('[AdMob init outer] hata:', e?.message)
+}
+
+// === MİSAFİR OTURUMU ÖNYÜKLEMESİ ===
+// Giriş duvarı kaldırıldı (AdSense + "herkes direkt giriş" modeli). Render'dan
+// ÖNCE senkron çalışır: oturum yoksa misafir oturumu açılır. Böylece ilk
+// paint'te bile user dolu olur, RequireAuth bekletmez, /login'e sıçrama olmaz.
+// Zaten gerçek bir oturum varsa (gerçek kullanıcı) dokunulmaz.
+try {
+  const auth = useAuthStore.getState()
+  if (!auth.isAuthenticated || !auth.token) {
+    auth.loginAsGuest()
+  }
+} catch (e) {
+  console.warn('[guest bootstrap] hata:', e?.message)
 }
 
 // === REACT MOUNT — try-catch içinde ===

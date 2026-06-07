@@ -1,4 +1,4 @@
-import { Bell, LogOut, Search, Zap, KeyRound, Settings, Activity, Sparkles, Crown, Target, TrendingUp, TrendingDown, Command, Megaphone } from 'lucide-react'
+import { Bell, LogOut, LogIn, UserPlus, Search, Zap, KeyRound, Settings, Activity, Sparkles, Crown, Target, TrendingUp, TrendingDown, Command, Megaphone } from 'lucide-react'
 import { useAuthStore } from '../store/authStore'
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
@@ -403,7 +403,8 @@ export default function Header() {
                 style={{ color: 'var(--gold-400)' }}
               >
                 <Crown className="w-2.5 h-2.5" />
-                {user?.plan === 'lifetime' ? 'Lifetime' :
+                {user?.isGuest ? 'Misafir' :
+                 user?.plan === 'lifetime' ? 'Lifetime' :
                  user?.plan === 'pro_monthly' ? 'Pro Üye' :
                  user?.isDemo ? 'Demo' : 'Premium'}
               </p>
@@ -427,12 +428,12 @@ export default function Header() {
               >
                 <div className="p-1.5">
                   <div className="px-3 py-2.5 mb-1 border-b" style={{ borderColor: 'var(--border-main)' }}>
-                    <div className="text-[12.5px] font-semibold truncate" style={{ color: 'var(--text-primary)' }}>{user?.email || 'demo@borsakrali.com'}</div>
+                    <div className="text-[12.5px] font-semibold truncate" style={{ color: 'var(--text-primary)' }}>{user?.email || (user?.isGuest ? 'Misafir oturumu' : 'demo@borsakrali.com')}</div>
                     <div className="text-[10px] font-bold mt-0.5 uppercase tracking-wider flex items-center gap-1"
                       style={{ color: 'var(--gold-400)' }}
                     >
                       <Crown className="w-2.5 h-2.5" />
-                      {user?.plan === 'lifetime' ? 'Lifetime' : user?.plan === 'pro_monthly' ? 'Pro Aylık' : user?.isDemo ? 'Demo Erişim' : 'Premium'}
+                      {user?.isGuest ? 'Misafir Erişim' : user?.plan === 'lifetime' ? 'Lifetime' : user?.plan === 'pro_monthly' ? 'Pro Aylık' : user?.isDemo ? 'Demo Erişim' : 'Premium'}
                     </div>
                   </div>
                   {[
@@ -463,17 +464,44 @@ export default function Header() {
                     )
                   })}
                   <div className="my-1 divider-gold" />
-                  <button
-                    role="menuitem"
-                    onClick={handleLogout}
-                    className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg transition-colors text-left text-[13px]"
-                    style={{ color: 'var(--ember)' }}
-                    onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(225, 29, 72, 0.10)'}
-                    onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
-                  >
-                    <LogOut className="w-4 h-4" />
-                    Çıkış Yap
-                  </button>
+                  {user?.isGuest ? (
+                    <>
+                      <button
+                        role="menuitem"
+                        onClick={() => { setUserMenuOpen(false); navigate('/login') }}
+                        className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg transition-colors text-left text-[13px]"
+                        style={{ color: 'var(--text-secondary)' }}
+                        onMouseEnter={(e) => e.currentTarget.style.background = 'var(--bg-hover)'}
+                        onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                      >
+                        <LogIn className="w-4 h-4" style={{ color: 'var(--gold-400)' }} />
+                        Giriş Yap
+                      </button>
+                      <button
+                        role="menuitem"
+                        onClick={() => { setUserMenuOpen(false); navigate('/register') }}
+                        className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg transition-colors text-left text-[13px]"
+                        style={{ color: 'var(--text-secondary)' }}
+                        onMouseEnter={(e) => e.currentTarget.style.background = 'var(--bg-hover)'}
+                        onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                      >
+                        <UserPlus className="w-4 h-4" style={{ color: 'var(--gold-400)' }} />
+                        Üye Ol
+                      </button>
+                    </>
+                  ) : (
+                    <button
+                      role="menuitem"
+                      onClick={handleLogout}
+                      className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg transition-colors text-left text-[13px]"
+                      style={{ color: 'var(--ember)' }}
+                      onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(225, 29, 72, 0.10)'}
+                      onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                    >
+                      <LogOut className="w-4 h-4" />
+                      Çıkış Yap
+                    </button>
+                  )}
                 </div>
               </div>
             )}

@@ -59,6 +59,9 @@ const ROUTES = [
   '/sinyaller',
   '/borsapy',
   '/is-yatirim-veri',
+  // Yasal sayfalar — AdSense gizlilik politikası şartı + güven sinyali.
+  '/privacy-policy',
+  '/terms-of-use',
 ]
 
 const MIME = {

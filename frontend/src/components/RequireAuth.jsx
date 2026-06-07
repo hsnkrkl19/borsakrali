@@ -1,26 +1,23 @@
-import { Navigate, useLocation } from 'react-router-dom'
-import { useAuthStore } from '../store/authStore'
-
 /**
- * Premium / oturum gerektiren rotalar icin sarmalayici.
+ * Premium / oturum gerektiren rotalar için sarmalayıcı.
  *
- * Kullanim:
- *   <Route path="/sinyaller" element={
- *     <RequireAuth>
- *       <GunlukTespitler />
- *     </RequireAuth>
- *   } />
+ * ⚠️ GİRİŞ DUVARI KALDIRILDI (AdSense + "üyelik pasif, herkes direkt giriş").
+ * Site artık herkese açık: gelen her ziyaretçi otomatik misafir oturumuyla
+ * açılır (bkz. main.jsx + authStore.loginAsGuest), bu yüzden bu sarmalayıcı
+ * şimdilik içeriği olduğu gibi geçirir — hiçbir rota /login'e yönlenmez.
  *
- * Login degilse /login'e yonlendirir, geldigi yeri state'te tutar
- * ki giristen sonra geri donebilelim.
+ * Üyelik zorunluluğunu geri getirmek için aşağıdaki yorumlu bloğu aç ve bu
+ * pass-through satırını kaldır:
+ *
+ *   import { Navigate, useLocation } from 'react-router-dom'
+ *   import { useAuthStore } from '../store/authStore'
+ *   const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
+ *   const location = useLocation()
+ *   if (!isAuthenticated) {
+ *     return <Navigate to="/login" state={{ from: location.pathname }} replace />
+ *   }
+ *   return children
  */
 export default function RequireAuth({ children }) {
-  const isAuthenticated = useAuthStore((state) => state.isAuthenticated)
-  const location = useLocation()
-
-  if (!isAuthenticated) {
-    return <Navigate to="/login" state={{ from: location.pathname }} replace />
-  }
-
   return children
 }

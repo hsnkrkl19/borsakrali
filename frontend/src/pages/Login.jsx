@@ -254,7 +254,7 @@ function HeroTickerChip({ label, value, change, theme = 'dark' }) {
 
 export default function Login() {
   const navigate = useNavigate()
-  const { login, isAuthenticated } = useAuthStore()
+  const { login, isAuthenticated, user } = useAuthStore()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
@@ -265,7 +265,9 @@ export default function Login() {
   const theme = useTheme()
   const isLight = theme === 'light'
 
-  if (isAuthenticated) {
+  // Misafir oturumdaki ziyaretçi gerçek hesabıyla giriş yapabilsin diye
+  // login sayfasına erişimine izin ver; yalnızca gerçek kullanıcı yönlenir.
+  if (isAuthenticated && !user?.isGuest) {
     return <Navigate to="/" replace />
   }
 

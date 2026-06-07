@@ -5,6 +5,7 @@ import UpdatePopup from './components/UpdatePopup'
 import PushNotificationManager from './components/PushNotificationManager'
 import ErrorBoundary from './components/ErrorBoundary'
 import BackButtonHandler from './components/BackButtonHandler'
+import RouteSeo from './components/RouteSeo'
 import CommandPalette from './components/CommandPalette'
 import OnboardingTour from './components/OnboardingTour'
 import ToastHost from './components/ToastHost'
@@ -144,7 +145,15 @@ function RedirectWithQuery({ to }) {
 }
 
 function App() {
-  const { isAuthenticated, token, updateUser, user } = useAuthStore()
+  const { isAuthenticated, token, updateUser, user, loginAsGuest } = useAuthStore()
+
+  // Giriş duvarı kaldırıldı: oturum herhangi bir sebeple düşerse (gerçek
+  // kullanıcı çıkışı, token süresi dolması, api.js interceptor logout'u)
+  // sessizce misafir oturumuna dön. Böylece login duvarı asla görünmez ve
+  // gateless rotalarda user null kalıp sayfa çökmesini engelleriz.
+  useEffect(() => {
+    if (!isAuthenticated) loginAsGuest()
+  }, [isAuthenticated, loginAsGuest])
 
   useEffect(() => {
     const saved = localStorage.getItem('bk-font-level')
@@ -184,6 +193,7 @@ function App() {
   return (
     <ErrorBoundary>
     <Router>
+      <RouteSeo />
       <BackButtonHandler />
       <PushNotificationManager />
       <ThemeRipple />

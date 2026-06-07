@@ -139,6 +139,18 @@
     <priority>0.7</priority>
   </url>
   <url>
+    <loc>https://www.borsakrali.com/borsapy</loc>
+    <lastmod>2026-05-22</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://www.borsakrali.com/is-yatirim-veri</loc>
+    <lastmod>2026-05-22</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
     <loc>https://www.borsakrali.com/abonelik</loc>
     <lastmod>2026-05-22</lastmod>
     <changefreq>monthly</changefreq>
