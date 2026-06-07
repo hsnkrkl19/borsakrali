@@ -1,100 +1,25 @@
 import { useState, useEffect } from 'react'
-import { X, Sparkles, Crown, ArrowRight, Flame } from 'lucide-react'
+import { X, ArrowRight, Sparkles } from 'lucide-react'
 import { createPortal } from 'react-dom'
-import { useNavigate } from 'react-router-dom'
 
 const VERSION = '4.4.0'
-const HOLD_SECONDS = 4
 
-const NEW_FEATURES = [
-  {
-    icon: '🤖',
-    title: 'Trading Bot Ailesi',
-    desc: '3 bot bir arada — Trading Bot · TEMA34 · Kağıt Üzerinde. Backtest, Walk-Forward ve Monte Carlo sınama katmanı',
-    tone: 'orange',
-    hot: true,
-  },
-  {
-    icon: '𝕏',
-    title: 'X Gündem Taraması',
-    desc: 'Gerçek X.com taraması — 549 BIST + kripto sembolünde canlı sosyal duygu radarı, sahte veri yok',
-    tone: 'cyan',
-    hot: true,
-  },
-  {
-    icon: '📊',
-    title: 'Kripto + MTF Konfluans',
-    desc: 'Top 100 coin, 7 zaman dilimi ağırlıklı agregasyon + Bayesian kazanç olasılığı',
-    tone: 'blue',
-    hot: true,
-  },
-  {
-    icon: '💥',
-    title: 'Likidasyon Haritası',
-    desc: 'Coinglass benzeri likidasyon yoğunluk haritası — heatmap + uzun/kısa cluster\'lar',
-    tone: 'orange',
-  },
-  {
-    icon: '🎯',
-    title: 'SMC Tarayıcı',
-    desc: 'Smart Money Concepts — order block, FVG, BOS/CHOCH otomatik tespiti',
-    tone: 'cyan',
-  },
-  {
-    icon: '🌊',
-    title: 'EMA34 Wave',
-    desc: 'BIST + kripto için EMA34 dalga tarayıcı — pullback ve trend dönüş yakalama',
-    tone: 'green',
-  },
-  {
-    icon: '🛢️',
-    title: 'Emtia + Ekonomik Takvim',
-    desc: 'Altın, gümüş, brent, doğal gaz günlük sinyalleri + TR/US ekonomik takvim',
-    tone: 'amber',
-  },
-  {
-    icon: '📅',
-    title: 'Günlük Tespitler',
-    desc: '09:55 pre-market taraması, 16 koşul evrensel skorlama, top 10 push bildirim',
-    tone: 'blue',
-  },
+// Kısa, etkileyici "siteyi tanıt" karşılama popup'ı. Eski uzun changelog
+// (8 kart + 4sn zorunlu bekleme) yerine tek bakışta etki bırakan vitrin.
+// Renkler tema token'larından gelir → açık temada emerald, koyu temada altın.
+const STATS = [
+  { icon: '📈', value: '510+', label: 'Canlı BIST hissesi' },
+  { icon: '₿',  value: '100+', label: 'Kripto · 7 zaman dilimi' },
+  { icon: '🤖', value: '3',    label: 'Otomatik trading botu' },
+  { icon: '🧠', value: 'AI',   label: '14 göstergeli hisse skoru' },
 ]
 
-const POPUP_KEY = 'bk-update-popup-v4.4'
+const POPUP_KEY = 'bk-welcome-popup-v4.4'
 const MAX_SHOWS = 2
 const INTERVAL_MS = 10 * 60 * 1000
 
-const TONE_BORDERS = {
-  amber:  'rgba(245, 158, 11, 0.40)',
-  orange: 'rgba(249, 115, 22, 0.40)',
-  cyan:   'rgba(6, 182, 212, 0.40)',
-  blue:   'rgba(59, 130, 246, 0.40)',
-  green:  'rgba(34, 197, 94, 0.40)',
-}
-const TONE_GLOWS = {
-  amber:  'rgba(245, 158, 11, 0.10)',
-  orange: 'rgba(249, 115, 22, 0.10)',
-  cyan:   'rgba(6, 182, 212, 0.10)',
-  blue:   'rgba(59, 130, 246, 0.10)',
-  green:  'rgba(34, 197, 94, 0.10)',
-}
-
-// Confetti renkleri (rastgele dağılım)
-const CONFETTI_COLORS = ['#f59e0b', '#fbbf24', '#fde68a', '#f97316', '#22c55e', '#06b6d4']
-
-// 14 confetti dot — pozisyon + delay'i deterministik üret
-const CONFETTI_DOTS = Array.from({ length: 14 }, (_, i) => ({
-  left: `${(i * 7.3) % 100}%`,
-  delay: `${(i * 0.13) % 1.6}s`,
-  color: CONFETTI_COLORS[i % CONFETTI_COLORS.length],
-  size: 4 + (i % 3) * 2,
-}))
-
 export default function UpdatePopup() {
-  const navigate = useNavigate()
-  const [visible, setVisible]     = useState(false)
-  const [canClose, setCanClose]   = useState(false)
-  const [countdown, setCountdown] = useState(HOLD_SECONDS)
+  const [visible, setVisible] = useState(false)
 
   useEffect(() => {
     try {
@@ -108,229 +33,128 @@ export default function UpdatePopup() {
       const lastShown = stored.lastShown || 0
 
       if (count >= MAX_SHOWS) return
-      const elapsed = Date.now() - lastShown
-      if (count > 0 && elapsed < INTERVAL_MS) return
+      if (count > 0 && Date.now() - lastShown < INTERVAL_MS) return
 
       const timer = setTimeout(() => {
         setVisible(true)
         localStorage.setItem(POPUP_KEY, JSON.stringify({
           count: count + 1,
-          lastShown: Date.now()
+          lastShown: Date.now(),
         }))
-      }, 1500)
+      }, 1200)
       return () => clearTimeout(timer)
     } catch (_) {}
   }, [])
 
-  useEffect(() => {
-    if (!visible) return
-    setCanClose(false)
-    setCountdown(HOLD_SECONDS)
-    const interval = setInterval(() => {
-      setCountdown(prev => {
-        if (prev <= 1) {
-          clearInterval(interval)
-          setCanClose(true)
-          return 0
-        }
-        return prev - 1
-      })
-    }, 1000)
-    return () => clearInterval(interval)
-  }, [visible])
-
   if (!visible) return null
+
+  const close = () => setVisible(false)
 
   return createPortal(
     <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
       {/* Backdrop */}
       <div
         className="absolute inset-0 backdrop-blur-md popup-backdrop"
-        style={{ background: 'rgba(0, 0, 0, 0.62)' }}
-        onClick={canClose ? () => setVisible(false) : undefined}
+        style={{ background: 'rgba(2, 6, 23, 0.55)' }}
+        onClick={close}
       />
 
-      {/* Modal — TEMA UYUMLU + ENTRANCE + GOLD PULSE */}
+      {/* Modal — kompakt, tema uyumlu, premium */}
       <div
-        className="popup-modal relative w-full max-w-md rounded-3xl overflow-hidden border"
+        className="popup-modal relative w-full max-w-sm rounded-3xl overflow-hidden border text-center"
         style={{
           background: 'var(--bg-card)',
-          borderColor: 'rgba(245, 158, 11, 0.55)',
-          maxHeight: '90vh',
-          overflowY: 'auto',
+          borderColor: 'var(--border-gold-strong)',
+          boxShadow: 'var(--shadow-xl)',
         }}
       >
-        {/* Confetti tepe — modal içinde, banner ile aynı seviyede */}
-        <div className="absolute top-0 left-0 right-0 h-12 pointer-events-none overflow-hidden">
-          {CONFETTI_DOTS.map((d, i) => (
-            <span
-              key={i}
-              className="popup-confetti-dot"
-              style={{
-                left: d.left,
-                animationDelay: d.delay,
-                background: d.color,
-                width: `${d.size}px`,
-                height: `${d.size}px`,
-                top: `${4 + (i % 4) * 2}px`,
-              }}
-            />
-          ))}
-        </div>
+        {/* Üstte yumuşak emerald/altın aydınlatma */}
+        <div
+          className="absolute -top-24 left-1/2 -translate-x-1/2 w-72 h-44 rounded-full pointer-events-none"
+          style={{ background: 'radial-gradient(circle, rgba(16,185,129,0.30), transparent 70%)', filter: 'blur(10px)' }}
+          aria-hidden="true"
+        />
+        {/* Marka şeridi */}
+        <div className="h-1.5 w-full" style={{ background: 'var(--grad-gold-rich)' }} />
 
-        {/* Altın üst çizgi — kalınlaştırıldı */}
-        <div className="h-1.5 w-full bg-gradient-to-r from-amber-300 via-amber-400 to-amber-500" />
+        {/* Kapat — her zaman erişilebilir (zorunlu bekleme YOK) */}
+        <button
+          onClick={close}
+          aria-label="Kapat"
+          className="absolute top-3 right-3 w-8 h-8 rounded-full flex items-center justify-center transition-transform hover:rotate-90 z-10"
+          style={{ background: 'var(--bg-elevated)', color: 'var(--text-muted)', border: '1px solid var(--border-subtle)' }}
+        >
+          <X className="w-4 h-4" />
+        </button>
 
-        <div className="p-5 sm:p-6 relative">
-          {/* Hero — Crown + version */}
-          <div className="flex items-start justify-between mb-4">
-            <div className="flex items-center gap-3">
-              <div className="relative">
-                <div className="popup-crown w-16 h-16 rounded-2xl overflow-hidden flex items-center justify-center shadow-lg shadow-amber-500/40 origin-center ring-2 ring-amber-400/60">
-                  <img
-                    src="/icon-master.png?v=4.3.0"
-                    alt="Borsa Kralı"
-                    className="w-full h-full object-cover"
-                    loading="eager"
-                  />
-                </div>
-                <Sparkles className="popup-sparkle absolute -top-1.5 -right-1.5 w-5 h-5 text-amber-300" />
-                <Sparkles className="popup-sparkle absolute -bottom-1 -left-1 w-3.5 h-3.5 text-amber-400" style={{ animationDelay: '1.2s' }} />
-              </div>
-              <div>
-                <div className="flex items-center gap-1.5 flex-wrap">
-                  <span
-                    className="text-[10px] font-bold uppercase tracking-[0.18em]"
-                    style={{ color: 'var(--gold-400)' }}
-                  >Borsa Kralı</span>
-                  <span className="popup-version px-2 py-0.5 text-[10px] font-bold rounded text-dark-950">
-                    v{VERSION}
-                  </span>
-                  <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-red-500/15 text-red-500 border border-red-500/40 flex items-center gap-1">
-                    <Flame className="w-2.5 h-2.5" /> HOT
-                  </span>
-                </div>
-                <h2
-                  className="font-bold text-xl leading-tight mt-1"
-                  style={{ color: 'var(--text-primary)' }}
-                >Krallık genişledi 👑</h2>
-                <p className="text-[11px] mt-0.5" style={{ color: 'var(--text-faint)' }}>
-                  Trading Bot, X taraması ve dahası tek güncellemede
-                </p>
-              </div>
-            </div>
-
-            {/* Kapat */}
-            <button
-              onClick={() => canClose && setVisible(false)}
-              className={`w-8 h-8 rounded-full flex items-center justify-center transition-all flex-shrink-0 ${
-                canClose ? 'cursor-pointer hover:opacity-80 hover:rotate-90' : 'cursor-not-allowed opacity-60'
-              }`}
-              style={{
-                background: 'var(--bg-elevated)',
-                color: canClose ? 'var(--text-primary)' : 'var(--text-faint)',
-                border: '1px solid var(--border-subtle)',
-                transition: 'transform 250ms ease, opacity 200ms ease',
-              }}
+        <div className="px-6 pt-6 pb-7 sm:px-7 relative">
+          {/* Logo + parıltı */}
+          <div className="relative inline-flex mb-4">
+            <div
+              className="popup-crown w-20 h-20 rounded-2xl overflow-hidden flex items-center justify-center"
+              style={{ boxShadow: 'var(--glow-gold)' }}
             >
-              {canClose ? <X className="w-4 h-4" /> : <span className="text-xs font-bold">{countdown}</span>}
-            </button>
-          </div>
-
-          {/* Hook metin — v4.3 launch */}
-          <div
-            className="text-sm mb-4 leading-relaxed p-3 rounded-xl border"
-            style={{
-              background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.10), rgba(249, 115, 22, 0.05))',
-              borderColor: 'rgba(245, 158, 11, 0.30)',
-              color: 'var(--text-secondary)',
-            }}
-          >
-            <span className="font-bold" style={{ color: 'var(--gold-400)' }}>Trading Bot</span> · <span className="font-bold" style={{ color: 'var(--gold-400)' }}>X Gündem taraması</span> · Kripto MTF konfluans · Likidasyon Haritası · SMC · EMA34 Wave · Emtia sinyalleri.
-            <div className="text-[11px] mt-1.5 opacity-80">
-              Gerçek X.com verisi · 3 bot bir arada · 549 sembol sosyal radar · v{VERSION} 🚀
+              <img
+                src="/icon-master.png?v=4.4.0"
+                alt="Borsa Kralı"
+                className="w-full h-full object-cover"
+                loading="eager"
+              />
             </div>
+            <Sparkles className="popup-sparkle absolute -top-1.5 -right-1.5 w-5 h-5" style={{ color: 'var(--gold-400)' }} />
           </div>
 
-          {/* Yeni Özellikler — stagger animasyonlu */}
-          <div className="space-y-2 mb-4">
-            {NEW_FEATURES.map((f, i) => (
+          {/* Marka + sürüm */}
+          <div className="flex items-center justify-center gap-2 mb-2">
+            <span
+              className="text-[11px] font-bold uppercase tracking-[0.2em]"
+              style={{ color: 'var(--gold-500)' }}
+            >Borsa Kralı</span>
+            <span className="popup-version px-2 py-0.5 text-[10px] font-bold rounded" style={{ color: '#fff' }}>
+              v{VERSION}
+            </span>
+          </div>
+
+          {/* Çarpıcı başlık */}
+          <h2 className="font-black text-2xl leading-tight mb-2" style={{ color: 'var(--text-primary)' }}>
+            Tahtın seni bekliyor 👑
+          </h2>
+          <p className="text-sm leading-relaxed mb-5" style={{ color: 'var(--text-secondary)' }}>
+            BIST ve kriptonun tek komuta merkezi. Canlı veri,{' '}
+            <b style={{ color: 'var(--gold-500)' }}>AI sinyaller</b> ve otomatik botlarla
+            profesyonel analiz artık avucunun içinde.
+          </p>
+
+          {/* Etkileyici sayılar — 2x2 kompakt vitrin */}
+          <div className="grid grid-cols-2 gap-2 mb-6">
+            {STATS.map((s, i) => (
               <div
                 key={i}
-                className="popup-card flex items-start gap-3 p-2.5 rounded-xl border relative"
+                className="popup-card flex items-center gap-2.5 p-2.5 rounded-xl border text-left"
                 style={{
                   background: 'var(--bg-elevated)',
-                  borderColor: TONE_BORDERS[f.tone] || 'var(--border-main)',
-                  animationDelay: `${300 + i * 90}ms`,
-                  boxShadow: f.hot ? `0 0 18px ${TONE_GLOWS[f.tone]}` : 'none',
+                  borderColor: 'var(--border-gold)',
+                  animationDelay: `${200 + i * 80}ms`,
                 }}
               >
-                <div className="text-2xl leading-none flex-shrink-0">{f.icon}</div>
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-1.5 flex-wrap">
-                    <div
-                      className="text-sm font-bold leading-tight"
-                      style={{ color: 'var(--text-primary)' }}
-                    >{f.title}</div>
-                    {f.hot && (
-                      <span className="text-[8px] font-bold px-1 py-0.5 rounded bg-red-500/15 text-red-500 border border-red-500/40 leading-none">
-                        ⚡ HOT
-                      </span>
-                    )}
-                  </div>
-                  <div
-                    className="text-[11px] mt-1 leading-snug"
-                    style={{ color: 'var(--text-muted)' }}
-                  >{f.desc}</div>
+                <span className="text-xl leading-none flex-shrink-0">{s.icon}</span>
+                <div className="min-w-0">
+                  <div className="text-sm font-extrabold leading-none" style={{ color: 'var(--gold-500)' }}>{s.value}</div>
+                  <div className="text-[10px] leading-tight mt-1" style={{ color: 'var(--text-muted)' }}>{s.label}</div>
                 </div>
               </div>
             ))}
           </div>
 
-          {/* "Tüm sayfalar / site haritası" linki */}
+          {/* Tek net CTA */}
           <button
-            onClick={() => {
-              if (!canClose) return
-              setVisible(false)
-              navigate('/site-haritasi')
-            }}
-            disabled={!canClose}
-            className={`popup-card w-full py-2.5 mb-2 rounded-xl font-semibold text-xs transition-all flex items-center justify-center gap-1.5 border ${
-              canClose ? 'cursor-pointer hover:bg-amber-500/10' : 'cursor-not-allowed opacity-60'
-            }`}
-            style={{
-              background: 'transparent',
-              borderColor: 'rgba(245, 158, 11, 0.5)',
-              color: 'var(--gold-400)',
-              animationDelay: '900ms',
-            }}
+            onClick={close}
+            className="w-full py-3 rounded-xl font-bold text-sm transition-transform hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-2"
+            style={{ background: 'var(--grad-gold-rich)', color: '#fff', boxShadow: 'var(--glow-gold)' }}
           >
-            <Sparkles className="w-3.5 h-3.5" />
-            Site haritasını gör
-            <ArrowRight className="w-3.5 h-3.5" />
+            Keşfetmeye başla
+            <ArrowRight className="w-4 h-4" />
           </button>
-
-          {/* CTA Buton */}
-          <button
-            onClick={() => canClose && setVisible(false)}
-            disabled={!canClose}
-            className={`popup-card w-full py-3 rounded-xl font-bold text-sm transition-all ${
-              canClose ? 'cursor-pointer hover:opacity-90 hover:scale-[1.01] active:scale-[0.98] shadow-lg shadow-amber-500/40' : 'cursor-not-allowed opacity-60'
-            }`}
-            style={canClose
-              ? { background: 'linear-gradient(135deg, #f59e0b, #fbbf24, #f59e0b)', color: '#0a0a0f', animationDelay: '1000ms' }
-              : { background: 'var(--bg-elevated)', color: 'var(--text-muted)', border: '1px solid var(--border-subtle)', animationDelay: '1000ms' }
-            }
-          >
-            {canClose ? 'Hemen keşfetmeye başla 🚀' : `Hazırlanıyor... (${countdown}s)`}
-          </button>
-
-          <div
-            className="text-[10px] text-center mt-3"
-            style={{ color: 'var(--text-faint)' }}
-          >
-            Borsa Kralı v{VERSION} · Premium Edition · {new Date().getFullYear()}
-          </div>
         </div>
       </div>
     </div>,
