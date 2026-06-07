@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { X, ArrowRight, Sparkles } from 'lucide-react'
 import { createPortal } from 'react-dom'
 
@@ -21,6 +21,19 @@ const INTERVAL_MS = 10 * 60 * 1000
 export default function UpdatePopup() {
   const [visible, setVisible] = useState(false)
 
+  // Kapat: pencereyi gizle + bir daha gösterilmesin diye kalıcı işaret bırak.
+  // Böylece kullanıcı kapattıktan sonra popup ASLA tekrar açılmaz.
+  const close = useCallback(() => {
+    setVisible(false)
+    try {
+      localStorage.setItem(POPUP_KEY, JSON.stringify({
+        count: MAX_SHOWS,
+        lastShown: Date.now(),
+        dismissed: true,
+      }))
+    } catch (_) {}
+  }, [])
+
   useEffect(() => {
     try {
       const params = new URLSearchParams(window.location.search)
@@ -32,6 +45,7 @@ export default function UpdatePopup() {
       const count = stored.count || 0
       const lastShown = stored.lastShown || 0
 
+      if (stored.dismissed) return          // kullanıcı kapattıysa bir daha gösterme
       if (count >= MAX_SHOWS) return
       if (count > 0 && Date.now() - lastShown < INTERVAL_MS) return
 
@@ -46,9 +60,15 @@ export default function UpdatePopup() {
     } catch (_) {}
   }, [])
 
-  if (!visible) return null
+  // ESC ile de kapanabilsin.
+  useEffect(() => {
+    if (!visible) return
+    const onKey = (e) => { if (e.key === 'Escape') close() }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [visible, close])
 
-  const close = () => setVisible(false)
+  if (!visible) return null
 
   return createPortal(
     <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
