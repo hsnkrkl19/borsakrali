@@ -17,8 +17,8 @@ android {
         applicationId "com.borsakrali.app"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 366
-        versionName "4.3.3"
+        versionCode 367
+        versionName "4.4.0"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
