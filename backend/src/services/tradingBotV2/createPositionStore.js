@@ -22,6 +22,7 @@
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
+const botPersistence = require('../botPersistence');
 
 // Veri kökü — env override edilebilir (kalıcı disk için). __dirname burada
 // services/tradingBotV2 → ../../data = backend/src/data.
@@ -56,6 +57,8 @@ function createPositionStore({ subdir, initialCapital = 100000, currency = 'TRY'
   function writeJSON(file, data) {
     ensureDir();
     fs.writeFileSync(file, JSON.stringify(data, null, 2), 'utf8');
+    // Supabase'e kalıcı write-through (debounce'lu; Supabase kapalıysa no-op)
+    try { botPersistence.save(subdir, path.basename(file), data); } catch (_) {}
   }
 
   function newId() {

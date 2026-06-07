@@ -2959,6 +2959,7 @@ app.get('/api/liquidation/stats', (_req, res) => {
 const dailySignalsService = require('./services/dailySignalsService');
 const snapshotStore = require('./services/snapshotStore');
 const cronJobsService = require('./services/cronJobs');
+const botPersistence = require('./services/botPersistence');
 const dailyPerformanceService = require('./services/dailyPerformanceService');
 
 // Gün sonu performans — son N tarih listesi
@@ -8079,15 +8080,24 @@ server.listen(PORT, () => {
   // Cron jobs — BIST sinyal (09:55/11:00/intraday), kripto (09/13/19/01), MTF (5m-1w),
   //   indikatör, KAP, push notifier, market open/close.
   //   ENV GATE (CRON_DISABLED=true): Tüm cron'ları kapat (Render fail debug için).
-  if (process.env.CRON_DISABLED !== 'true') {
+  // Önce botların kalıcı durumunu Supabase'ten geri yükle (cron'lar/ingest
+  // okumadan ÖNCE), sonra cron'ları başlat. Supabase kapalıysa loadAll no-op.
+  (async () => {
     try {
-      cronJobsService.start();
+      await botPersistence.loadAll();
     } catch (e) {
-      console.error('[Cron] Başlatma hata:', e.message);
+      console.error('[BotPersistence] loadAll hata:', e.message);
     }
-  } else {
-    console.log('[Cron] ENV CRON_DISABLED=true — cron jobs atlandı');
-  }
+    if (process.env.CRON_DISABLED !== 'true') {
+      try {
+        cronJobsService.start();
+      } catch (e) {
+        console.error('[Cron] Başlatma hata:', e.message);
+      }
+    } else {
+      console.log('[Cron] ENV CRON_DISABLED=true — cron jobs atlandı');
+    }
+  })();
 
   // Boot warmup — server restart sonrası snapshot'lar boşsa hemen doldur.
   //   Render ephemeral fs'de her deploy snapshot'ı siler; cron sonraki tetiklemeye
