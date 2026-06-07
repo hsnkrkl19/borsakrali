@@ -15,6 +15,7 @@ const socketService = require('./socketService');
 const pushNotificationService = require('./pushNotificationService');
 const economicCalendarService = require('./economicCalendarService');
 const botEngine = require('./tradingBotV2/botEngine');
+const cryptoBotEngine = require('./cryptoBotV2/cryptoBotEngine');
 const tema34Engine = require('./tema34Bot/tema34Engine');
 const logger = require('../utils/logger');
 
@@ -296,9 +297,36 @@ async function runCryptoPhase(phase, options = {}) {
     }
 
     logger.info(`✅ Crypto signals (${phase}) tamamlandı — Spot: ${spotCount}, Long: ${longCount}, Short: ${shortCount}`);
+
+    // Kripto bot: yeni snapshot'ı sanal portföye ingest et (long + short)
+    try {
+      const ingestResult = await cryptoBotEngine.ingestSnapshot({ ...result, phase });
+      logger.info(
+        `🪙🤖 Kripto bot ingest (${phase}) — logged: ${ingestResult.logged}, opened: ${ingestResult.opened}, skipped: ${ingestResult.skipped}`
+      );
+    } catch (botErr) {
+      logger.error(`[KriptoBot] ingest (${phase}) hata: ${botErr.message}`, botErr.stack);
+    }
+
     return result;
   } catch (e) {
     logger.error(`Crypto signals (${phase}) hata: ${e.message}`, e.stack);
+    return null;
+  }
+}
+
+// Kripto bot tick — açık pozisyonların TP/SL/trailing kontrolü (7/24)
+async function runCryptoBotTick() {
+  try {
+    const result = await cryptoBotEngine.tick();
+    if (result?.closed || result?.trailed) {
+      logger.info(
+        `🪙🤖 Kripto bot tick — checked: ${result.checked}, trailed: ${result.trailed}, closed: ${result.closed}`
+      );
+    }
+    return result;
+  } catch (e) {
+    logger.error(`[KriptoBot] tick hata: ${e.message}`, e.stack);
     return null;
   }
 }
@@ -628,6 +656,14 @@ class CronJobsService {
       { scheduled: false, ...TR_TZ }
     );
 
+    // 28. Kripto Bot tick — her 15 dk, 7/24 (kripto piyasası kapanmaz).
+    //     Açık long/short pozisyonların TP/SL/timeout/trailing kontrolü.
+    const cryptoBotTickJob = cron.schedule(
+      '*/15 * * * *',
+      () => runCryptoBotTick(),
+      { scheduled: false, ...TR_TZ }
+    );
+
     // Start jobs only during market hours (9 AM - 6 PM, Monday-Friday)
     const marketHoursJob = cron.schedule(
       '* 9-18 * * 1-5', // Mon-Fri, 9 AM - 6 PM
@@ -715,6 +751,7 @@ class CronJobsService {
       confidenceUpdateJob,
       botTickJob,
       tema34BotJob,
+      cryptoBotTickJob,
       marketHoursJob,
       afterHoursJob
     ];

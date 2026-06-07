@@ -1,0 +1,15 @@
+{
+  "currency": "USD",
+  "capital": 10000,
+  "cash": 10000,
+  "equity": 10000,
+  "totalRealizedPnL": 0,
+  "totalRealizedPnLPct": 0,
+  "openCount": 0,
+  "winCount": 0,
+  "lossCount": 0,
+  "winRate": 0,
+  "startedAt": "2026-06-07T18:51:17.363Z",
+  "resetAt": "2026-06-07T18:51:17.363Z",
+  "equityHistory": []
+}

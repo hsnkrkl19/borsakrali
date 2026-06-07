@@ -1,58 +1,111 @@
 import { useSearchParams } from 'react-router-dom'
-import { Bot, FlaskConical, LineChart } from 'lucide-react'
+import { Bot, Bitcoin, FlaskConical, LineChart, ArrowUpRight, ArrowUpDown } from 'lucide-react'
 import TradingBot from './TradingBot'
+import KriptoBot from './KriptoBot'
 import Tema34Bot from './Tema34Bot'
 import PaperTrading from './PaperTrading'
 import { PageHeader } from '../components/ui'
 
-// /botlar wrapper. Eski /trading-bot URL'i App.jsx REDIRECT_MAP üzerinden
-// buraya yönlenir. Child sayfalar ?tab okumadığı için wrapper routing yapar.
-const SECTIONS = [
-  { id: 'trading', label: 'Trading Bot',   short: 'Trading', icon: Bot,
-    help: 'Bugünün LONG sinyallerini sanal portföyle takip eden bot — tüm kararlar kayıt altında.' },
-  { id: 'tema34',  label: 'TEMA34 Bot',    short: 'TEMA34',  icon: LineChart,
-    help: 'Saf TEMA34 günlük-kapanış kesişim botu — ayrı bir sistem.' },
-  { id: 'paper',   label: 'Kağıt Üzerinde', short: 'Kağıt',  icon: FlaskConical,
-    help: 'Gerçek parayı riske atmadan, sinyallerle elle strateji denemesi.' },
+// /botlar — sanal botlar merkezi.
+// İki ana bot öne çıkar: BIST Botu (sadece long) + Kripto Botu (long+short).
+// TEMA34 ve Kağıt Üzerinde "gelişmiş" altında durur.
+const PRIMARY = [
+  {
+    id: 'trading', label: 'BIST Botu', icon: Bot, badge: 'Sadece AL', badgeIcon: ArrowUpRight,
+    desc: 'Günlük BIST sinyallerini sanal parayla işler. Hisselerde yalnızca LONG (alış) — her işlem ne zaman, neye göre alındı ve sonucu kayıt altında.',
+  },
+  {
+    id: 'kripto', label: 'Kripto Botu', icon: Bitcoin, badge: 'Long + Short', badgeIcon: ArrowUpDown,
+    desc: 'Kripto sinyallerini sanal USD parayla işler. Yükselişe LONG, düşüşe SHORT açar — her pozisyonun gerekçesi koşul koşul gösterilir.',
+  },
 ]
+const ADVANCED = [
+  { id: 'tema34', label: 'TEMA34 Botu', icon: LineChart, desc: 'Saf TEMA34 günlük-kapanış kesişim sistemi.' },
+  { id: 'paper', label: 'Kağıt Üzerinde', icon: FlaskConical, desc: 'Sinyallerle elle strateji denemesi.' },
+]
+const ALL = [...PRIMARY, ...ADVANCED]
 
 export default function Botlar() {
   const [searchParams, setSearchParams] = useSearchParams()
-  const tab = searchParams.get('tab') || 'trading'
-  const active = SECTIONS.find((s) => s.id === tab) ? tab : 'trading'
-  const meta = SECTIONS.find((s) => s.id === active) || SECTIONS[0]
+  const tabParam = searchParams.get('tab')
+  const active = ALL.find((s) => s.id === tabParam) ? tabParam : 'trading'
+  const meta = ALL.find((s) => s.id === active) || PRIMARY[0]
+  const select = (id) => setSearchParams({ tab: id })
 
   return (
     <div className="space-y-4">
-      <PageHeader icon={Bot} eyebrow="Sanal Botlar" title="Botlar" description={meta.help} />
+      <PageHeader icon={Bot} eyebrow="Sanal Botlar" title="Botlar" description={meta.desc} />
 
-      {/* Bot seçici — segmented kontrol; içerideki alt-çizgi sekmelerden
-          görsel olarak ayrışsın diye dolu-pill biçiminde. */}
-      <div className="flex gap-1 rounded-xl border border-dark-700 bg-dark-900/70 p-1">
-        {SECTIONS.map((s) => {
+      {/* İki ana bot — büyük seçim kartları */}
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        {PRIMARY.map((s) => {
           const on = active === s.id
+          const Badge = s.badgeIcon
           return (
             <button
               key={s.id}
               type="button"
-              onClick={() => setSearchParams({ tab: s.id })}
+              onClick={() => select(s.id)}
               aria-pressed={on}
-              className="flex flex-1 items-center justify-center gap-1.5 rounded-lg px-2 py-2 text-[13px] font-semibold transition-all"
+              className="group flex flex-col gap-2 rounded-2xl border p-4 text-left transition-all"
               style={{
-                background: on ? 'var(--bg-elevated)' : 'transparent',
-                color: on ? 'var(--gold-400)' : 'var(--text-muted)',
-                boxShadow: on ? 'var(--shadow-sm)' : 'none',
+                borderColor: on ? 'var(--gold-400)' : 'var(--border-subtle)',
+                background: on ? 'var(--bg-elevated)' : 'var(--bg-surface)',
+                boxShadow: on ? 'var(--shadow-md)' : 'none',
               }}
             >
-              <s.icon className="h-4 w-4 flex-shrink-0" aria-hidden="true" />
-              <span className="sm:hidden">{s.short}</span>
-              <span className="hidden sm:inline">{s.label}</span>
+              <div className="flex items-center gap-2.5">
+                <span
+                  className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl"
+                  style={{ background: on ? 'var(--gold-500-15, rgba(16,185,129,0.15))' : 'var(--bg-elevated)' }}
+                >
+                  <s.icon className="h-5 w-5" style={{ color: on ? 'var(--gold-400)' : 'var(--text-muted)' }} aria-hidden="true" />
+                </span>
+                <div className="min-w-0">
+                  <div className="flex items-center gap-1.5 text-[15px] font-bold" style={{ color: on ? 'var(--text-primary)' : 'var(--text-secondary)' }}>
+                    {s.label}
+                  </div>
+                  <span className="mt-0.5 inline-flex items-center gap-1 rounded-md bg-dark-700/60 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-gold-300">
+                    {Badge && <Badge className="h-3 w-3" aria-hidden="true" />}
+                    {s.badge}
+                  </span>
+                </div>
+              </div>
+              <p className="text-[12px] leading-snug text-gray-500">{s.desc}</p>
             </button>
           )
         })}
       </div>
 
-      {active === 'paper' ? <PaperTrading /> : active === 'tema34' ? <Tema34Bot /> : <TradingBot />}
+      {/* Gelişmiş botlar — küçük satır */}
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="text-[11px] font-semibold uppercase tracking-wider text-gray-500">Gelişmiş:</span>
+        {ADVANCED.map((s) => {
+          const on = active === s.id
+          return (
+            <button
+              key={s.id}
+              type="button"
+              onClick={() => select(s.id)}
+              aria-pressed={on}
+              className="inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-[12.5px] font-medium transition-all"
+              style={{
+                borderColor: on ? 'var(--gold-400)' : 'var(--border-subtle)',
+                background: on ? 'var(--bg-elevated)' : 'transparent',
+                color: on ? 'var(--gold-400)' : 'var(--text-muted)',
+              }}
+            >
+              <s.icon className="h-3.5 w-3.5" aria-hidden="true" />
+              {s.label}
+            </button>
+          )
+        })}
+      </div>
+
+      {active === 'kripto' ? <KriptoBot />
+        : active === 'tema34' ? <Tema34Bot />
+        : active === 'paper' ? <PaperTrading />
+        : <TradingBot />}
     </div>
   )
 }

@@ -29,36 +29,44 @@ function computeTrailing(position, currentPrice, atr) {
   if (!position || !currentPrice || !position.entryPrice || !position.originalStop) {
     return null;
   }
-  if (position.direction !== 'long') {
-    // Bu sürümde sadece LONG sinyalleri takip ediliyor — short'a göre simetrisi eklendiğinde değişir.
-    return null;
+  const isShort = position.direction === 'short';
+  if (position.direction && position.direction !== 'long' && !isShort) {
+    return null; // bilinmeyen yön
   }
 
   const entry = position.entryPrice;
   const origStop = position.originalStop;
   const currentStop = position.currentStop ?? origStop;
 
-  const riskPerShare = entry - origStop;
+  // risk = entry ile ilk stop arasındaki mesafe (yön farketmez, pozitif)
+  const riskPerShare = isShort ? (origStop - entry) : (entry - origStop);
   if (riskPerShare <= 0) return null;
 
-  const rMultiple = (currentPrice - entry) / riskPerShare;
+  // Kâr yönünde kat edilen R sayısı (long: fiyat yukarı, short: fiyat aşağı)
+  const rMultiple = isShort
+    ? (entry - currentPrice) / riskPerShare
+    : (currentPrice - entry) / riskPerShare;
 
-  // R basamağı SL
-  // +1R → entry, +2R → entry+1R, +3R → entry+2R ...
+  // R basamağı SL — long'da yukarı, short'ta aşağı taşınır
+  // +1R → entry (breakeven), +2R → +1R kilitle, +3R → +2R kilitle ...
   let rBasedStop = null;
   let rBasedNote = null;
   if (rMultiple >= 1) {
     const step = Math.floor(rMultiple); // 1, 2, 3, ...
-    rBasedStop = entry + (step - 1) * riskPerShare;
+    rBasedStop = isShort
+      ? entry - (step - 1) * riskPerShare
+      : entry + (step - 1) * riskPerShare;
     rBasedNote = step === 1
-      ? 'Breakeven (entry seviyesi)'
+      ? 'Breakeven (giriş seviyesi)'
       : `+${step - 1}R kilitle`;
   }
 
-  // ATR tabanlı SL
+  // ATR tabanlı SL — long'da fiyatın altında, short'ta üstünde
   let atrBasedStop = null;
   if (atr && atr > 0) {
-    atrBasedStop = currentPrice - ATR_TRAILING_MULTIPLE * atr;
+    atrBasedStop = isShort
+      ? currentPrice + ATR_TRAILING_MULTIPLE * atr
+      : currentPrice - ATR_TRAILING_MULTIPLE * atr;
   }
 
   const candidates = [];
@@ -66,12 +74,12 @@ function computeTrailing(position, currentPrice, atr) {
   if (atrBasedStop != null)  candidates.push({ stop: atrBasedStop,  src: `ATR×${ATR_TRAILING_MULTIPLE}` });
   if (candidates.length === 0) return null;
 
-  // En sıkı (yüksek) candidate'ı seç
-  candidates.sort((a, b) => b.stop - a.stop);
+  // En sıkı candidate: long'da en YÜKSEK stop, short'ta en DÜŞÜK stop
+  candidates.sort((a, b) => isShort ? a.stop - b.stop : b.stop - a.stop);
   const winner = candidates[0];
 
-  // Sadece mevcut SL'den büyükse uygula (monotonik)
-  if (winner.stop <= currentStop) return null;
+  // Monotonik: long'da sadece yükselirse, short'ta sadece düşerse uygula
+  if (isShort ? winner.stop >= currentStop : winner.stop <= currentStop) return null;
 
   const rounded = +winner.stop.toFixed(4);
 
