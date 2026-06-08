@@ -694,23 +694,22 @@ class CronJobsService {
       async () => {
         try {
           const svc = require('./borsapyDataService');
-          // Cache'i ısıt — UI hızlı açılsın
-          await Promise.allSettled([
+          // Cache'i ısıt — UI hızlı açılsın (politika faizi canlı fetch'i dahil)
+          const [, , , policyRes] = await Promise.allSettled([
             svc.getBondYields(),
             svc.getBankRates('USD'),
             svc.getBankRates('EUR'),
+            svc.getTcmbPolicyRate(),
           ]);
-          // PPK toplantısı geçtiyse log uyarısı
-          const policy = svc.getTcmbPolicyRate();
-          if (policy?.nextMeeting) {
-            const next = new Date(policy.nextMeeting);
-            const now = new Date();
-            const daysOverdue = Math.floor((now - next) / (1000 * 60 * 60 * 24));
-            if (daysOverdue > 1) {
-              logger.warn(`[Borsapy] ⚠️  TCMB PPK toplantısı ${daysOverdue} gün önce yapıldı (${policy.nextMeeting}). Politika faizini güncelleyin: backend/src/services/borsapyDataService.js getTcmbPolicyRate()`);
-            }
+          // Politika faizi teyit edilemediyse (canlı kaynak çöktü + yeni PPK geçti) uyar
+          const policy = policyRes?.status === 'fulfilled' ? policyRes.value : null;
+          if (policy?.stale) {
+            logger.warn(`[Borsapy] ⚠️  Politika faizi teyit edilemedi (stale). Son toplantı: ${policy.asOfDate}, gösterilen: %${policy.policyRate}. Canlı kaynak + POLICY_BASELINE'ı kontrol edin: borsapyDataService.getTcmbPolicyRate()`);
           }
-          logger.info('[Borsapy] Günlük makro cache warmup tamamlandı');
+          if (!policy?.nextMeeting) {
+            logger.warn('[Borsapy] ⚠️  PPK takvimi tükendi — borsapyDataService.PPK_MEETINGS listesine yeni dönem tarihlerini ekleyin.');
+          }
+          logger.info(`[Borsapy] Günlük makro cache warmup tamamlandı (faiz: %${policy?.policyRate ?? '?'}, kaynak: ${policy?.source ?? '?'})`);
         } catch (error) {
           logger.error('[Borsapy] Warmup job failed:', error.message);
         }

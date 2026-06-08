@@ -19,6 +19,8 @@ const cheerio = require('cheerio');
 
 const TEFAS_BASE = 'https://www.tefas.gov.tr/api/funds';
 const TCMB_CALC_URL = 'https://appg.tcmb.gov.tr/KIMENFH/enflasyon/hesapla';
+// Politika faizi canlı kaynağı — TCMB 1H repo değişiklik geçmişi tablosu
+const GLOBAL_RATES_TR_URL = 'https://www.global-rates.com/en/interest-rates/central-banks/5/turkish-tcmb-repo-rate/';
 
 const USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36';
 
@@ -268,31 +270,168 @@ async function getBondYields() {
 }
 
 /**
- * TCMB politika faizi.
+ * TCMB politika faizi (1 hafta vadeli repo) + gecelik borç verme/alma.
  *
- * Not: TCMB resmi sayfası HTML scrape için uygun değil (JS render + WCM CMS).
- * doviz.com'da da net bir endpoint yok. Bu yüzden en son MPK kararını
- * burada manuel tutuyoruz. PPK kararı çıktığında bu blok güncellenir.
- * (Ayda 1 toplanır — env.TCMB_POLICY_RATE override desteklenir.)
+ * Tasarım (2026-06-08 yeniden yazıldı — eski hardcoded değer ~1 yıl bayatlamış,
+ * %46 gösteriyordu; gerçeği %37):
+ *  1) Oran CANLI kaynaktan çekilir (global-rates.com, TCMB repo değişiklik
+ *     geçmişi) ve sıkı doğrulamadan geçer. Kaynak çökerse baz değere düşer.
+ *  2) Karar/sonraki toplantı tarihleri PPK takviminden OTOMATİK hesaplanır —
+ *     elle tarih güncellemesi yok, "sonraki toplantı geçmişte" hatası biter.
+ *  3) Canlı teyit yoksa ve baz değeri teyit eden toplantıdan sonra yeni bir PPK
+ *     yapılmışsa `stale:true` döner; UI bunu "teyit bekleniyor" gösterir,
+ *     yanlış değeri kesin gibi sunmaz.
+ *
+ * Acil elle müdahale: env TCMB_POLICY_RATE / TCMB_ON_LENDING / TCMB_ON_BORROWING.
  */
-function getTcmbPolicyRate() {
-  // Son MPK kararı — güncelle: https://www.tcmb.gov.tr/wps/wcm/connect/TR/TCMB+TR/Main+Menu/Para+Politikasi/PPK+Kararlari
-  const HARDCODED = {
-    policyRate: 46.00,           // 1 hafta vadeli repo
-    overnightLending: 49.00,     // gecelik borç verme
-    overnightBorrowing: 44.50,   // gecelik borç alma
-    asOfDate: '2026-04-24',
-    nextMeeting: '2026-05-29',
-    note: 'TCMB Para Politikası Kurulu kararı — son güncellenen değer. PPK toplantısı sonrası güncellenir.',
-  };
+
+// TCMB resmi PPK toplantı takvimi (2026 tam + 2027 ilk yarı).
+// Liste tükenmeden yeni dönemin tarihleri eklenmeli — cron buna uyarı verir.
+const PPK_MEETINGS = [
+  '2026-01-22', '2026-03-12', '2026-04-22', '2026-06-11',
+  '2026-07-23', '2026-09-10', '2026-10-22', '2026-12-10',
+  '2027-01-21', '2027-03-18', '2027-04-22', '2027-06-10',
+];
+
+// Bu seviyeyi teyit eden son PPK kararı — canlı kaynak çökerse yedek.
+// Faiz 22 Oca 2026'da %37'ye indi; 12 Mar ve 22 Nis toplantıları sabit tuttu.
+const POLICY_BASELINE = {
+  policyRate: 37.00,          // 1 hafta vadeli repo
+  overnightLending: 40.00,   // gecelik borç verme  (+300 bp)
+  overnightBorrowing: 35.50, // gecelik borç alma   (−150 bp)
+  asOfDate: '2026-04-22',    // bu oranı teyit eden son PPK kararı
+};
+
+function pickMeetingDates() {
+  const today = new Date().toISOString().slice(0, 10);
+  let last = null, next = null;
+  for (const d of PPK_MEETINGS) {
+    if (d <= today) last = d;
+    else if (next == null) next = d;
+  }
+  return { last, next, today };
+}
+
+/**
+ * global-rates.com'dan güncel 1H repo oranını çeker (değişiklik geçmişi
+ * tablosunun ilk satırı = güncel oran). 6 saat cache. Başarısızlıkta null
+ * döner ve cache'lenmez (sonraki istek tekrar dener).
+ * @returns {Promise<{rate:number, changeDate:string|null, source:string}|null>}
+ */
+async function fetchLivePolicyRate() {
+  const cached = getCache('tcmb-policy-live');
+  if (cached) return cached;
+  try {
+    const res = await axios.get(GLOBAL_RATES_TR_URL, {
+      headers: { 'User-Agent': USER_AGENT, 'Accept': 'text/html' },
+      timeout: 12000,
+      validateStatus: () => true,
+    });
+    if (res.status >= 400 || typeof res.data !== 'string') throw new Error(`HTTP ${res.status}`);
+    const $ = cheerio.load(res.data);
+    // Başlığı "Date | Rate" olan tabloyu bul (oran değişiklik geçmişi)
+    const table = $('table').filter((_, t) => {
+      const hdr = $(t).find('tr').first().find('th,td')
+        .map((_, c) => $(c).text().trim().toLowerCase()).get();
+      return hdr.includes('date') && hdr.includes('rate');
+    }).first();
+    if (!table.length) throw new Error('oran tablosu bulunamadı');
+
+    // İlk geçerli (tarih + oran) satır = en son değişiklik = güncel oran
+    let rate = null, changeDate = null;
+    table.find('tr').each((_, tr) => {
+      if (rate != null) return;
+      const tds = $(tr).find('td');
+      if (tds.length < 2) return;
+      const d = $(tds.get(0)).text().trim();
+      const r = $(tds.get(1)).text().trim();
+      const dm = d.match(/^(\d{1,2})-(\d{1,2})-(\d{4})$/);          // MM-DD-YYYY
+      const rv = parseFloat(r.replace('%', '').replace(',', '.').trim());
+      if (dm && Number.isFinite(rv)) {
+        rate = rv;
+        changeDate = `${dm[3]}-${dm[1].padStart(2, '0')}-${dm[2].padStart(2, '0')}`;
+      }
+    });
+
+    // Sıkı doğrulama: Türkiye faiz oranı makul bandda olmalı (yanlış hücre koruması)
+    if (!Number.isFinite(rate) || rate < 5 || rate > 60) {
+      throw new Error(`mantıksız oran: ${rate}`);
+    }
+    const out = { rate: +rate.toFixed(2), changeDate, source: 'global-rates.com' };
+    setCache('tcmb-policy-live', out, 6 * 60 * 60 * 1000); // 6 saat
+    return out;
+  } catch (err) {
+    console.warn('[borsapy] Canlı politika faizi alınamadı:', err.message);
+    return null;
+  }
+}
+
+async function getTcmbPolicyRate() {
+  const { last, next } = pickMeetingDates();
+
+  let policyRate = POLICY_BASELINE.policyRate;
+  let overnightLending = POLICY_BASELINE.overnightLending;
+  let overnightBorrowing = POLICY_BASELINE.overnightBorrowing;
+  let asOfDate = last || POLICY_BASELINE.asOfDate;
+  let source = 'TCMB PPK takvimi (baz değer)';
+  let liveConfirmed = false;
+  let corridorEstimated = false;
+
+  const envRate = parseFloat(process.env.TCMB_POLICY_RATE);
+  if (Number.isFinite(envRate)) {
+    // Acil elle müdahale — her şeyi ezer, teyitli sayılır
+    policyRate = envRate;
+    overnightLending = parseFloat(process.env.TCMB_ON_LENDING) || overnightLending;
+    overnightBorrowing = parseFloat(process.env.TCMB_ON_BORROWING) || overnightBorrowing;
+    asOfDate = process.env.TCMB_AS_OF || asOfDate;
+    source = 'env override';
+    liveConfirmed = true;
+  } else {
+    const live = await fetchLivePolicyRate();
+    if (live && Number.isFinite(live.rate)) {
+      liveConfirmed = true;
+      source = `canlı · ${live.source}`;
+      if (Math.abs(live.rate - POLICY_BASELINE.policyRate) > 0.001) {
+        // Oran baz değerden sapmış (kod henüz güncellenmemiş) → canlı oranı kullan,
+        // gecelik koridoru son bilinen ofsetlerle tahmin et
+        const lendOff = POLICY_BASELINE.overnightLending - POLICY_BASELINE.policyRate;   // +3.00
+        const borrowOff = POLICY_BASELINE.overnightBorrowing - POLICY_BASELINE.policyRate; // -1.50
+        policyRate = live.rate;
+        overnightLending = +(live.rate + lendOff).toFixed(2);
+        overnightBorrowing = +(live.rate + borrowOff).toFixed(2);
+        asOfDate = live.changeDate || asOfDate;
+        corridorEstimated = true;
+      }
+    }
+  }
+
+  // Bayatlık: canlı teyit yokken baz değeri teyit eden toplantıdan sonra yeni
+  // bir PPK yapılmışsa (ya da takvim tükenmişse) gösterdiğimiz değer eski olabilir.
+  const meetingPassedSinceBaseline = (!!last && last > POLICY_BASELINE.asOfDate) || next == null;
+  const stale = !liveConfirmed && meetingPassedSinceBaseline;
+
+  let note;
+  if (stale) {
+    note = `⚠️ ${last || 'son'} PPK kararından sonra güncel oran teyit edilemedi. Gösterilen, son bilinen orandır — TCMB'den doğrulayın.`;
+  } else if (corridorEstimated) {
+    note = 'Politika faizi canlı kaynaktan güncellendi. Gecelik koridor son resmi ofsetle tahmin edildi.';
+  } else if (liveConfirmed) {
+    note = 'TCMB Para Politikası Kurulu politika faizi — canlı teyitli.';
+  } else {
+    note = 'TCMB Para Politikası Kurulu politika faizi.';
+  }
+
   return {
-    policyRate: parseFloat(process.env.TCMB_POLICY_RATE) || HARDCODED.policyRate,
-    overnightLending: parseFloat(process.env.TCMB_ON_LENDING) || HARDCODED.overnightLending,
-    overnightBorrowing: parseFloat(process.env.TCMB_ON_BORROWING) || HARDCODED.overnightBorrowing,
-    asOfDate: process.env.TCMB_AS_OF || HARDCODED.asOfDate,
-    nextMeeting: process.env.TCMB_NEXT || HARDCODED.nextMeeting,
-    note: HARDCODED.note,
-    source: 'TCMB PPK (manuel güncellenir)',
+    policyRate,
+    overnightLending,
+    overnightBorrowing,
+    asOfDate,
+    nextMeeting: process.env.TCMB_NEXT || next,
+    stale,
+    liveConfirmed,
+    corridorEstimated,
+    note,
+    source,
   };
 }
 
@@ -340,7 +479,13 @@ async function getBankRates(currency = 'USD') {
       // Hariç tutulanlar (sayfa nav linkleri, başka döviz vb.)
       if (['dolar', 'euro', 'ingiliz-sterlini', 'isvicre-frangi'].includes(bankSlug)) return;
 
-      const bankName = $(el).text().trim();
+      // canlidoviz link metnine güncelleme saati/tarihi ekliyor
+      // ("DESTEKBANK 22:29:20", "ZİRAAT BANKASI 20/05/26") → sondaki bu
+      // artıkları temizle, yoksa banka adı rezil görünür
+      const bankName = $(el).text()
+        .replace(/\s+/g, ' ')
+        .replace(/(?:\s+(?:\d{1,2}:\d{2}(?::\d{2})?|\d{1,2}\/\d{1,2}\/\d{2,4}))+\s*$/g, '')
+        .trim();
       if (!bankName) return;
 
       // En yakın <tr> içinden alış/satış al
@@ -364,7 +509,7 @@ async function getBankRates(currency = 'USD') {
           if (!banks.find(b => b.slug === bankSlug)) {
             banks.push({
               slug: bankSlug,
-              name: bankName.replace(/\s+/g, ' ').slice(0, 60),
+              name: bankName.slice(0, 60),
               buy,
               sell,
               spread: +(sell - buy).toFixed(4),
@@ -702,65 +847,110 @@ function calcSMA(closes, period) {
 async function scanStocks(criteria = {}, universe = 'bist30') {
   const liveDataService = require('./liveDataService');
   const { bist30Stocks, bist100Stocks, allBistStocks } = require('../data/allBistStocks');
-  const yahooFinance = require('yahoo-finance2').default;
 
   const pool = universe === 'all' ? allBistStocks
     : universe === 'bist100' ? bist100Stocks
     : bist30Stocks;
 
-  const symbols = (Array.isArray(pool) ? pool : []).slice(0, 100).map(s => typeof s === 'string' ? s : s.symbol || s.code).filter(Boolean);
+  // Tüm evreni al (slice yok). 'all' ~510 hisse, 'bist100' ~100, 'bist30' 30.
+  const symbols = (Array.isArray(pool) ? pool : [])
+    .map(s => typeof s === 'string' ? s : s.symbol || s.code)
+    .filter(Boolean);
 
+  // Teknik filtre var mı? (RSI/SMA → historical fetch gerektirir)
+  const needsHistorical =
+    criteria.rsiBelow != null || criteria.rsiAbove != null ||
+    criteria.priceAboveSma != null || criteria.priceBelowSma != null ||
+    criteria.smaCross != null;
+
+  // ── Faz 1: Canlı quote (price/changePct/volume) — 15'li paralel ──
+  // liveDataService ham Yahoo chart endpoint'ini kullanıyor (Render'da çalışır).
+  // yahoo-finance2.quote() crumb 429 alır, o yüzden kullanmıyoruz.
+  const quotes = new Map(); // symbol -> { price, changePct, volume }
+  for (let i = 0; i < symbols.length; i += 15) {
+    const batch = symbols.slice(i, i + 15);
+    await Promise.all(batch.map(async (sym) => {
+      try {
+        const q = await liveDataService.fetchYahooData(sym);
+        if (q && q.price != null) {
+          quotes.set(sym, {
+            price: q.price,
+            changePct: q.changePercent,
+            volume: q.volume || 0,
+          });
+        }
+      } catch { /* sembol atla */ }
+    }));
+  }
+
+  // ── Faz 2: Ucuz filtre (changePct / volume) — quote'tan, ek fetch yok ──
+  const cheapMatches = symbols.filter(sym => {
+    const q = quotes.get(sym);
+    if (!q) return false; // canlı quote alamadıysak ele
+    if (criteria.changeMin != null && (q.changePct == null || q.changePct < Number(criteria.changeMin))) return false;
+    if (criteria.changeMax != null && (q.changePct == null || q.changePct > Number(criteria.changeMax))) return false;
+    if (criteria.volumeMin != null && q.volume < Number(criteria.volumeMin)) return false;
+    return true;
+  });
+
+  // ── Faz 3: Teknik filtre gerekiyorsa historical fetch (sadece ucuz filtreyi geçenler) ──
   const matches = [];
   const errors = [];
 
-  // Batch'ler halinde (5'erli)
-  for (let i = 0; i < symbols.length; i += 5) {
-    const batch = symbols.slice(i, i + 5);
-    await Promise.all(batch.map(async (sym) => {
-      try {
-        const yahooSym = sym.endsWith('.IS') ? sym : `${sym}.IS`;
-        const hist = await yahooFinance.historical(yahooSym, {
-          period1: new Date(Date.now() - 100 * 24 * 60 * 60 * 1000),
-          interval: '1d',
-        });
-        if (!Array.isArray(hist) || hist.length < 20) return;
-        const closes = hist.map(h => h.close).filter(Number.isFinite);
-        const volumes = hist.map(h => h.volume).filter(Number.isFinite);
-        const last = closes[closes.length - 1];
-        const prev = closes[closes.length - 2] || last;
-        const lastVolume = volumes[volumes.length - 1] || 0;
-        const changePct = prev > 0 ? ((last - prev) / prev) * 100 : 0;
+  if (!needsHistorical) {
+    // Sadece quote bazlı kriterler → direkt match
+    for (const sym of cheapMatches) {
+      const q = quotes.get(sym);
+      matches.push({
+        symbol: sym,
+        price: q.price,
+        changePct: q.changePct,
+        rsi: null, sma20: null, sma50: null,
+        volume: q.volume,
+      });
+    }
+  } else {
+    // 8'li paralel historical fetch (sadece ucuz filtreyi geçenler için)
+    for (let i = 0; i < cheapMatches.length; i += 8) {
+      const batch = cheapMatches.slice(i, i + 8);
+      await Promise.all(batch.map(async (sym) => {
+        try {
+          const q = quotes.get(sym);
+          // 6 ay (~125 günlük mum) → SMA50 + RSI14 için rahat yeter
+          const hist = await liveDataService.fetchHistoricalData(sym, '6mo', '1d');
+          if (!Array.isArray(hist) || hist.length < 20) return;
+          const closes = hist.map(h => h.close).filter(Number.isFinite);
+          if (closes.length < 20) return;
 
-        const rsi = calcRSI(closes, 14);
-        const sma20 = calcSMA(closes, 20);
-        const sma50 = calcSMA(closes, 50);
+          const rsi = calcRSI(closes, 14);
+          const sma20 = calcSMA(closes, 20);
+          const sma50 = calcSMA(closes, 50);
+          const last = q.price; // canlı fiyatı kullan, historical kapanış değil
 
-        let passes = true;
-        if (criteria.rsiBelow != null && (rsi == null || rsi >= criteria.rsiBelow)) passes = false;
-        if (criteria.rsiAbove != null && (rsi == null || rsi <= criteria.rsiAbove)) passes = false;
-        if (criteria.priceAboveSma === 20 && (sma20 == null || last <= sma20)) passes = false;
-        if (criteria.priceAboveSma === 50 && (sma50 == null || last <= sma50)) passes = false;
-        if (criteria.priceBelowSma === 20 && (sma20 == null || last >= sma20)) passes = false;
-        if (criteria.priceBelowSma === 50 && (sma50 == null || last >= sma50)) passes = false;
-        if (criteria.volumeMin != null && lastVolume < Number(criteria.volumeMin)) passes = false;
-        if (criteria.changeMin != null && changePct < Number(criteria.changeMin)) passes = false;
-        if (criteria.changeMax != null && changePct > Number(criteria.changeMax)) passes = false;
-        if (criteria.smaCross === 'golden' && (sma20 == null || sma50 == null || sma20 <= sma50)) passes = false;
-        if (criteria.smaCross === 'death' && (sma20 == null || sma50 == null || sma20 >= sma50)) passes = false;
+          let passes = true;
+          if (criteria.rsiBelow != null && (rsi == null || rsi >= criteria.rsiBelow)) passes = false;
+          if (criteria.rsiAbove != null && (rsi == null || rsi <= criteria.rsiAbove)) passes = false;
+          if (criteria.priceAboveSma === 20 && (sma20 == null || last <= sma20)) passes = false;
+          if (criteria.priceAboveSma === 50 && (sma50 == null || last <= sma50)) passes = false;
+          if (criteria.priceBelowSma === 20 && (sma20 == null || last >= sma20)) passes = false;
+          if (criteria.priceBelowSma === 50 && (sma50 == null || last >= sma50)) passes = false;
+          if (criteria.smaCross === 'golden' && (sma20 == null || sma50 == null || sma20 <= sma50)) passes = false;
+          if (criteria.smaCross === 'death' && (sma20 == null || sma50 == null || sma20 >= sma50)) passes = false;
 
-        if (passes) {
-          matches.push({
-            symbol: sym, price: last, changePct,
-            rsi: rsi != null ? +rsi.toFixed(2) : null,
-            sma20: sma20 != null ? +sma20.toFixed(2) : null,
-            sma50: sma50 != null ? +sma50.toFixed(2) : null,
-            volume: lastVolume,
-          });
+          if (passes) {
+            matches.push({
+              symbol: sym, price: last, changePct: q.changePct,
+              rsi: rsi != null ? +rsi.toFixed(2) : null,
+              sma20: sma20 != null ? +sma20.toFixed(2) : null,
+              sma50: sma50 != null ? +sma50.toFixed(2) : null,
+              volume: q.volume,
+            });
+          }
+        } catch (e) {
+          errors.push({ symbol: sym, error: e.message });
         }
-      } catch (e) {
-        errors.push({ symbol: sym, error: e.message });
-      }
-    }));
+      }));
+    }
   }
 
   matches.sort((a, b) => (b.changePct || 0) - (a.changePct || 0));
@@ -769,6 +959,7 @@ async function scanStocks(criteria = {}, universe = 'bist30') {
     matches,
     count: matches.length,
     scanned: symbols.length,
+    quoted: quotes.size, // kaç sembol için canlı quote alındı
     errors: errors.slice(0, 5),
     timestamp: new Date().toISOString(),
   };

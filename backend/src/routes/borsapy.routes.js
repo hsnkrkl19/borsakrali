@@ -56,9 +56,9 @@ router.get('/tefas/:code/history', async (req, res) => {
 });
 
 // ─── TCMB & Makro ───────────────────────────────────────────────────
-router.get('/tcmb/policy-rate', (req, res) => {
+router.get('/tcmb/policy-rate', async (req, res) => {
   try {
-    const data = svc.getTcmbPolicyRate();
+    const data = await svc.getTcmbPolicyRate();
     ok(res, { rates: data });
   } catch (err) {
     fail(res, 500, err.message);
