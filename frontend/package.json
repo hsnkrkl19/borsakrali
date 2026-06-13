@@ -20,7 +20,7 @@
     "@capgo/capacitor-social-login": "^8.3.20",
     "@supabase/supabase-js": "^2.105.3",
     "animejs": "^3.2.2",
-    "axios": "^1.6.5",
+    "axios": "^1.17.0",
     "clsx": "^2.1.0",
     "date-fns": "^3.0.6",
     "lightweight-charts": "^4.2.3",
