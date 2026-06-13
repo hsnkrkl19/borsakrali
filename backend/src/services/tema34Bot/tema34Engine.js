@@ -18,6 +18,7 @@
 const liveDataService = require('../liveDataService');
 const { allBistStocks } = require('../../data/allBistStocks');
 const store = require('./tema34Store');
+const riskGuard = require('../botRiskGuard');
 
 const CONFIG = {
   TEMA_PERIOD: 34,
@@ -27,6 +28,8 @@ const CONFIG = {
   COMMISSION_PCT: 0.002,          // BIST tipik %0.2 (alış + satış ayrı uygulanır)
   MIN_CANDLES: 100,               // TEMA34 warmup için gereken en az mum sayısı
   FETCH_BATCH: 10,                // paralel veri çekim batch boyutu
+  MAX_DRAWDOWN_PCT: 25,           // kill-switch: tepe-noktasından %25 düşüşte yeni giriş durur
+  DAILY_LOSS_LIMIT_PCT: 10,       // kill-switch: günlük gerçekleşen zarar capital'in %10'unu aşınca durur
 };
 
 let _running = false;
@@ -276,12 +279,25 @@ async function runDaily(opts = {}) {
       }
     }
 
+    // Kill-switch / risk devre kesici — halt ise YENİ giriş yapılmaz (çıkışlar zaten yapıldı).
+    const ksToday = new Date().toISOString().slice(0, 10);
+    const ksTodayPnL = riskGuard.sumTodayRealizedPnL(store.listTrades(300), ksToday);
+    const halt = riskGuard.shouldHaltEntries(
+      store.getPortfolio(),
+      { maxDrawdownPct: CONFIG.MAX_DRAWDOWN_PCT, dailyLossLimitPct: CONFIG.DAILY_LOSS_LIMIT_PCT },
+      ksTodayPnL,
+    );
+    result.halted = halt.halt;
+    result.haltReason = halt.reason;
+    result.skippedHalted = 0;
+
     // 5) GİRİŞLER — TEMA34 üzerine yeni çıkan (kesişim) ve elde olmayan hisseler.
     //    Nakit kısıtlıysa TEMA34'e en yakın kesişimler (en taze) önceliklidir.
     const entryCandidates = analyses
       .filter(a => a.signal === 'cross_above' && !store.findBySymbol(a.symbol))
       .sort((x, y) => x.distancePct - y.distancePct);
     for (const a of entryCandidates) {
+      if (halt.halt) { result.skippedHalted++; continue; } // kill-switch: yeni giriş yok
       if (store.listOpen().length >= CONFIG.MAX_CONCURRENT_POSITIONS) {
         result.skippedMaxPos++;
         continue;
@@ -321,6 +337,13 @@ function getStatus() {
     const last = p.lastPrice || p.entryPrice;
     return s + (last - p.entryPrice) * p.shares;
   }, 0);
+  const today = new Date().toISOString().slice(0, 10);
+  const todayPnL = riskGuard.sumTodayRealizedPnL(store.listTrades(300), today);
+  const risk = riskGuard.shouldHaltEntries(
+    portfolio,
+    { maxDrawdownPct: CONFIG.MAX_DRAWDOWN_PCT, dailyLossLimitPct: CONFIG.DAILY_LOSS_LIMIT_PCT },
+    todayPnL,
+  );
   return {
     portfolio,
     openCount: open.length,
@@ -328,6 +351,7 @@ function getStatus() {
     unrealizedPnL: +unrealizedPnL.toFixed(2),
     equity: +(portfolio.cash + openValue).toFixed(2),
     running: _running,
+    risk: { tradingEnabled: portfolio.tradingEnabled !== false, ...risk },
     config: CONFIG,
   };
 }

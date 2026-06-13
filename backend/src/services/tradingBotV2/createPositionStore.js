@@ -82,6 +82,8 @@ function createPositionStore({ subdir, initialCapital = 100000, currency = 'TRY'
       winCount: 0,
       lossCount: 0,
       winRate: 0,
+      tradingEnabled: true,   // kill-switch: false → bot yeni giriş açmaz
+      haltReason: null,
       startedAt: nowISO(),
       resetAt: null,
       equityHistory: [], // [{ date: ISO, equity }]
@@ -96,12 +98,22 @@ function createPositionStore({ subdir, initialCapital = 100000, currency = 'TRY'
       return def;
     }
     if (!p.currency) p.currency = currency; // eski dosyalara currency ekle
+    if (p.tradingEnabled === undefined) p.tradingEnabled = true; // eski dosyalar varsayılan aktif
     return p;
   }
 
   function savePortfolio(p) {
     writeJSON(PORTFOLIO_FILE, p);
     return p;
+  }
+
+  // Kill-switch — yeni giriş açmayı durdur/sürdür (mevcut pozisyon yönetimi/çıkış etkilenmez).
+  function setTradingEnabled(enabled, reason = null) {
+    const p = getPortfolio();
+    p.tradingEnabled = !!enabled;
+    p.haltReason = enabled ? null : (reason || 'manual_pause');
+    savePortfolio(p);
+    return { tradingEnabled: p.tradingEnabled, haltReason: p.haltReason };
   }
 
   function recordEquityPoint(equity) {
@@ -265,6 +277,7 @@ function createPositionStore({ subdir, initialCapital = 100000, currency = 'TRY'
     // Portfolio
     getPortfolio,
     savePortfolio,
+    setTradingEnabled,
     recordEquityPoint,
     // Positions
     listPositions,

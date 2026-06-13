@@ -27,6 +27,7 @@
 const positionStore = require('./positionStore');
 const trailingManager = require('../tradingBotV2/trailingManager');
 const cryptoKlines = require('../cryptoKlines');
+const riskGuard = require('../botRiskGuard');
 
 // ── Konfig ─────────────────────────────────────────────────────────────────
 const CONFIG = {
@@ -37,6 +38,8 @@ const CONFIG = {
   SLIPPAGE_PCT: 0.0005,           // %0.05 slip
   TIMEOUT_DAYS: 7,                // 7 takvim günü (kripto 7/24)
   MIN_SCORE: 6,
+  MAX_DRAWDOWN_PCT: 25,           // kill-switch: tepe-noktasından %25 düşüşte yeni giriş durur
+  DAILY_LOSS_LIMIT_PCT: 10,       // kill-switch: günlük gerçekleşen zarar capital'in %10'unu aşınca durur
 };
 
 const STRATEGIES = [
@@ -89,6 +92,19 @@ async function ingestSnapshot(snapshot) {
     logged: 0, opened: 0, skipped: 0,
   };
 
+  // Kill-switch / risk devre kesici — halt ise YENİ giriş açılmaz (sinyaller yine
+  // loglanır; mevcut pozisyon yönetimi/çıkış tick'te etkilenmez).
+  const _pf = positionStore.getPortfolio();
+  const _today = new Date().toISOString().slice(0, 10);
+  const _todayPnL = riskGuard.sumTodayRealizedPnL(positionStore.listTrades(300), _today);
+  const halt = riskGuard.shouldHaltEntries(
+    _pf,
+    { maxDrawdownPct: CONFIG.MAX_DRAWDOWN_PCT, dailyLossLimitPct: CONFIG.DAILY_LOSS_LIMIT_PCT },
+    _todayPnL,
+  );
+  result.halted = halt.halt;
+  result.haltReason = halt.reason;
+
   for (const { key, direction } of STRATEGIES) {
     const payload = snapshot[key];
     if (!payload) continue;
@@ -122,6 +138,9 @@ async function ingestSnapshot(snapshot) {
         });
         result.logged++;
       }
+
+      // Kill-switch: halt iken sinyal loglanır ama YENİ pozisyon açılmaz.
+      if (halt.halt) { result.skipped++; continue; }
 
       // 2. Aynı sembolde zaten pozisyon var mı?
       if (positionStore.findBySymbol(s.symbol, ['open'])) continue;
@@ -391,6 +410,13 @@ async function getStatus() {
     openValue += margin + unreal;
     unrealized += unreal;
   }
+  const today = new Date().toISOString().slice(0, 10);
+  const todayPnL = riskGuard.sumTodayRealizedPnL(positionStore.listTrades(300), today);
+  const risk = riskGuard.shouldHaltEntries(
+    portfolio,
+    { maxDrawdownPct: CONFIG.MAX_DRAWDOWN_PCT, dailyLossLimitPct: CONFIG.DAILY_LOSS_LIMIT_PCT },
+    todayPnL,
+  );
   return {
     portfolio,
     openCount: open.length,
@@ -398,6 +424,7 @@ async function getStatus() {
     openValue: +openValue.toFixed(2),
     unrealizedPnL: +unrealized.toFixed(2),
     equity: +(portfolio.cash + openValue).toFixed(2),
+    risk: { tradingEnabled: portfolio.tradingEnabled !== false, ...risk },
     config: CONFIG,
     strategyLabels: STRAT_LABEL,
   };

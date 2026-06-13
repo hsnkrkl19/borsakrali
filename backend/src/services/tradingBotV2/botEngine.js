@@ -29,6 +29,7 @@
 const positionStore = require('./positionStore');
 const trailingManager = require('./trailingManager');
 const liveDataService = require('../liveDataService');
+const riskGuard = require('../botRiskGuard');
 
 // ── Konfig ─────────────────────────────────────────────────────────────────
 const CONFIG = {
@@ -39,6 +40,8 @@ const CONFIG = {
   TIMEOUT_BUSINESS_DAYS: 10,
   MIN_TREND_SCORE: 6,
   MIN_REVERSION_SCORE: 7,
+  MAX_DRAWDOWN_PCT: 25,        // kill-switch: tepe-noktasından %25 düşüşte yeni giriş durur
+  DAILY_LOSS_LIMIT_PCT: 10,    // kill-switch: günlük gerçekleşen zarar capital'in %10'unu aşınca durur
 };
 
 function nowISO() { return new Date().toISOString(); }
@@ -186,6 +189,19 @@ async function ingestSnapshot(snapshot) {
     skipped: 0,
   };
 
+  // Kill-switch / risk devre kesici — halt ise YENİ giriş açılmaz (sinyaller yine
+  // loglanır, mevcut pozisyon yönetimi + 'dropped' kapanışları etkilenmez).
+  const _pf = positionStore.getPortfolio();
+  const _today = new Date().toISOString().slice(0, 10);
+  const _todayPnL = riskGuard.sumTodayRealizedPnL(positionStore.listTrades(300), _today);
+  const halt = riskGuard.shouldHaltEntries(
+    _pf,
+    { maxDrawdownPct: CONFIG.MAX_DRAWDOWN_PCT, dailyLossLimitPct: CONFIG.DAILY_LOSS_LIMIT_PCT },
+    _todayPnL,
+  );
+  result.halted = halt.halt;
+  result.haltReason = halt.reason;
+
   for (const { strategy, payload } of groups) {
     if (!payload) continue;
     const signals = Array.isArray(payload.signals) ? payload.signals : [];
@@ -209,6 +225,9 @@ async function ingestSnapshot(snapshot) {
         logEntry = positionStore.appendSignalLog(buildLogEntry(s, signalDate, phase, strategy));
         result.logged++;
       }
+
+      // Kill-switch: halt iken sinyal loglanır ama YENİ pozisyon açılmaz.
+      if (halt.halt) { result.skipped++; continue; }
 
       // 2. Açık veya pending pozisyon var mı?
       const existingPos = positionStore.findBySymbol(s.symbol, ['open', 'pending']);
@@ -329,6 +348,18 @@ async function tick(opts = {}) {
     return result;
   }
 
+  // Kill-switch — halt iken pending→open fill yapılmaz (yeni market exposure açmak
+  // bir giriştir). Açık pozisyon yönetimi/çıkış (SL/TP/timeout/trailing) halt'tan
+  // bağımsız çalışmaya devam eder; risk yalnızca azaltılır, kilitlenmez.
+  const _tpf = positionStore.getPortfolio();
+  const _tToday = new Date().toISOString().slice(0, 10);
+  const _tTodayPnL = riskGuard.sumTodayRealizedPnL(positionStore.listTrades(300), _tToday);
+  const tickHalt = riskGuard.shouldHaltEntries(
+    _tpf,
+    { maxDrawdownPct: CONFIG.MAX_DRAWDOWN_PCT, dailyLossLimitPct: CONFIG.DAILY_LOSS_LIMIT_PCT },
+    _tTodayPnL,
+  );
+
   // Eşsiz sembol seti
   const symbols = [...new Set(all.map(p => p.symbol))];
 
@@ -350,6 +381,7 @@ async function tick(opts = {}) {
   // ── Pending: triggerZone'a değiş kontrolü ───────────────────────────────
   for (const pos of pending) {
     result.checked++;
+    if (tickHalt.halt) continue; // kill-switch: pending→open fill (yeni giriş) yapma
     const price = priceMap[pos.symbol];
     if (price == null) continue;
     // Bozuk/bant-dışı fiyatla limit emrini doldurma — sahte tetiklemeyi önle
@@ -575,6 +607,13 @@ async function getStatus() {
     const last = p.lastPrice || p.entryPrice;
     return sum + (last - p.entryPrice) * p.shares;
   }, 0);
+  const today = new Date().toISOString().slice(0, 10);
+  const todayPnL = riskGuard.sumTodayRealizedPnL(positionStore.listTrades(300), today);
+  const risk = riskGuard.shouldHaltEntries(
+    portfolio,
+    { maxDrawdownPct: CONFIG.MAX_DRAWDOWN_PCT, dailyLossLimitPct: CONFIG.DAILY_LOSS_LIMIT_PCT },
+    todayPnL,
+  );
   return {
     portfolio,
     openCount: open.length,
@@ -582,6 +621,7 @@ async function getStatus() {
     openValue: +openValue.toFixed(2),
     unrealizedPnL: +unrealized.toFixed(2),
     equity: +(portfolio.cash + openValue).toFixed(2),
+    risk: { tradingEnabled: portfolio.tradingEnabled !== false, ...risk },
     config: CONFIG,
   };
 }

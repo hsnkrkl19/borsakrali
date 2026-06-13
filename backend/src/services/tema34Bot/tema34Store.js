@@ -72,6 +72,8 @@ function defaultPortfolio() {
     winCount: 0,
     lossCount: 0,
     winRate: 0,
+    tradingEnabled: true,   // kill-switch: false → bot yeni giriş açmaz
+    haltReason: null,
     startedAt: nowISO(),
     resetAt: null,
     lastCandleDate: null,   // işlenen son günlük mumun tarihi (YYYY-MM-DD)
@@ -87,12 +89,22 @@ function getPortfolio() {
     writeJSON(PORTFOLIO_FILE, def);
     return def;
   }
+  if (p.tradingEnabled === undefined) p.tradingEnabled = true; // eski dosyalar varsayılan aktif
   return p;
 }
 
 function savePortfolio(p) {
   writeJSON(PORTFOLIO_FILE, p);
   return p;
+}
+
+// Kill-switch — yeni giriş açmayı durdur/sürdür (mevcut pozisyon yönetimi/çıkış etkilenmez).
+function setTradingEnabled(enabled, reason = null) {
+  const p = getPortfolio();
+  p.tradingEnabled = !!enabled;
+  p.haltReason = enabled ? null : (reason || 'manual_pause');
+  savePortfolio(p);
+  return { tradingEnabled: p.tradingEnabled, haltReason: p.haltReason };
 }
 
 function recordEquityPoint(equity, dateKey) {
@@ -182,6 +194,7 @@ function reset() {
 module.exports = {
   getPortfolio,
   savePortfolio,
+  setTradingEnabled,
   recordEquityPoint,
   listPositions,
   listOpen,

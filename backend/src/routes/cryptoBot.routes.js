@@ -92,6 +92,25 @@ router.post('/reset', requireAdmin, (_req, res) => {
   }
 });
 
+// Kill-switch — botu duraklat/sürdür (yeni giriş durur; açık pozisyon yönetimi sürer).
+router.post('/pause', requireAdmin, (req, res) => {
+  try {
+    const r = positionStore.setTradingEnabled(false, (req.body && req.body.reason) || 'admin_pause');
+    res.json({ ok: true, ...r });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+router.post('/resume', requireAdmin, (_req, res) => {
+  try {
+    const r = positionStore.setTradingEnabled(true);
+    res.json({ ok: true, ...r });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
 router.post('/ingest', requireAdmin, async (req, res) => {
   try {
     const { date, phase } = req.body || {};
