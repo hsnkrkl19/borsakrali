@@ -9,6 +9,7 @@ module.exports = {
   testMatch: ['**/*.test.js'],
   collectCoverageFrom: [
     'src/services/formulaService.js',
+    'src/services/fundamentalScoresService.js',
   ],
   coverageDirectory: '<rootDir>/coverage',
   clearMocks: true,
