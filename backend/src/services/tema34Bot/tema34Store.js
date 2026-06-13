@@ -17,8 +17,14 @@
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
+const botPersistence = require('../botPersistence');
 
-const BOT_DIR = path.join(__dirname, '..', '..', 'data', 'tema34-bot');
+// Veri kökü — BOT_DATA_DIR ile override edilebilir (BIST/kripto botlarıyla aynı
+// kök; kalıcı disk eklenince tek env değişikliğiyle taşınır). __dirname burada
+// services/tema34Bot → ../../data = backend/src/data.
+const SUBDIR = 'tema34-bot';
+const DATA_ROOT = process.env.BOT_DATA_DIR || path.join(__dirname, '..', '..', 'data');
+const BOT_DIR = path.join(DATA_ROOT, SUBDIR);
 const PORTFOLIO_FILE = path.join(BOT_DIR, 'portfolio.json');
 const POSITIONS_FILE = path.join(BOT_DIR, 'positions.json');
 const TRADES_FILE    = path.join(BOT_DIR, 'trades.json');
@@ -45,6 +51,10 @@ function readJSON(file, fallback) {
 function writeJSON(file, data) {
   ensureDir();
   fs.writeFileSync(file, JSON.stringify(data, null, 2), 'utf8');
+  // Supabase'e kalıcı write-through (debounce'lu; Supabase kapalıysa no-op).
+  // Render ephemeral diskte her deploy'da sıfırlanmayı önler — BIST/kripto botu
+  // ile aynı 'bot-state' bucket'ı, alt-dizin SUBDIR.
+  try { botPersistence.save(SUBDIR, path.basename(file), data); } catch (_) {}
 }
 
 function newId() { return crypto.randomBytes(6).toString('hex'); }

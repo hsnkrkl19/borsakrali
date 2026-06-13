@@ -21,8 +21,10 @@ const { supabaseAdmin, isSupabaseEnabled } = require('../lib/supabase');
 
 const BUCKET = 'bot-state';
 const DATA_ROOT = process.env.BOT_DATA_DIR || path.join(__dirname, '..', 'data');
-const SUBDIRS = ['bot', 'crypto-bot'];
-const FILES = ['portfolio.json', 'positions.json', 'trades.json', 'signal-log.json'];
+const SUBDIRS = ['bot', 'crypto-bot', 'tema34-bot'];
+// signal-log.json → BIST/kripto botları; runs.json → TEMA34 botu. Liste tüm
+// alt-dizinlere uygulanır; olmayan dosyalar loadAll'da sessizce atlanır.
+const FILES = ['portfolio.json', 'positions.json', 'trades.json', 'signal-log.json', 'runs.json'];
 const DEBOUNCE_MS = 2500;
 
 let bucketReady = false;

@@ -1,0 +1,20 @@
+[
+  {
+    "id": "6c7426d98cc6",
+    "recordedAt": "2026-06-13T20:36:27.464Z",
+    "ok": true,
+    "runDate": "2026-06-13",
+    "candleDate": "2026-06-12",
+    "startedAt": "2026-06-13T20:36:11.400Z",
+    "scanned": 504,
+    "fetchErrors": 6,
+    "crossAbove": 58,
+    "crossBelow": 17,
+    "opened": 30,
+    "closed": 0,
+    "skippedNoData": 0,
+    "skippedMaxPos": 28,
+    "skippedNoCash": 0,
+    "finishedAt": "2026-06-13T20:36:27.462Z"
+  }
+]

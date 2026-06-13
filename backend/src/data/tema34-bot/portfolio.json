@@ -1,0 +1,21 @@
+{
+  "capital": 100000,
+  "cash": 21396.16,
+  "equity": 99843.09,
+  "totalRealizedPnL": 0,
+  "totalRealizedPnLPct": 0,
+  "openCount": 30,
+  "winCount": 0,
+  "lossCount": 0,
+  "winRate": 0,
+  "startedAt": "2026-06-13T20:36:11.383Z",
+  "resetAt": "2026-06-13T20:36:11.386Z",
+  "lastCandleDate": "2026-06-12",
+  "lastRunAt": "2026-06-13T20:36:27.459Z",
+  "equityHistory": [
+    {
+      "date": "2026-06-12",
+      "equity": 99843.09
+    }
+  ]
+}
