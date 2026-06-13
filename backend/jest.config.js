@@ -12,6 +12,11 @@ module.exports = {
     'src/services/fundamentalScoresService.js',
   ],
   coverageDirectory: '<rootDir>/coverage',
+  // Kritik finansal modül için ≥%90 kapsam zorunlu (kabul kriteri kilidi).
+  // Düşerse `npm test` (CI) kırmızı olur.
+  coverageThreshold: {
+    './src/services/formulaService.js': { statements: 90, lines: 90, functions: 90 },
+  },
   clearMocks: true,
   verbose: true,
 };
