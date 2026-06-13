@@ -25,9 +25,8 @@
   "dependencies": {
     "@supabase/supabase-js": "^2.105.3",
     "@the-convocation/twitter-scraper": "^0.22.3",
-    "axios": "^1.6.5",
+    "axios": "^1.17.0",
     "axios-cookiejar-support": "^6.0.5",
-    "bcrypt": "^5.1.1",
     "bcryptjs": "^3.0.3",
     "cheerio": "^1.2.0",
     "cors": "^2.8.5",
@@ -35,7 +34,7 @@
     "dotenv": "^16.3.1",
     "express": "^4.18.2",
     "express-rate-limit": "^7.1.5",
-    "fast-xml-parser": "^4.3.4",
+    "fast-xml-parser": "^5.8.0",
     "firebase-admin": "^13.6.0",
     "helmet": "^7.1.0",
     "joi": "^17.11.0",
@@ -58,6 +57,12 @@
     "nodemon": "^3.0.2",
     "sequelize-cli": "^6.6.2",
     "supertest": "^6.3.3"
+  },
+  "overrides": {
+    "protobufjs": "7.6.4",
+    "node-telegram-bot-api": {
+      "form-data": "2.5.5"
+    }
   },
   "engines": {
     "node": ">=18.0.0",
