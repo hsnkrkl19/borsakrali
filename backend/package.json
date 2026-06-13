@@ -41,7 +41,6 @@
     "jsonwebtoken": "^9.0.3",
     "morgan": "^1.10.0",
     "node-cron": "^3.0.3",
-    "node-telegram-bot-api": "^0.64.0",
     "pg": "^8.11.3",
     "pg-hstore": "^2.3.4",
     "redis": "^4.6.12",
@@ -59,10 +58,7 @@
     "supertest": "^6.3.3"
   },
   "overrides": {
-    "protobufjs": "7.6.4",
-    "node-telegram-bot-api": {
-      "form-data": "2.5.5"
-    }
+    "protobufjs": "7.6.4"
   },
   "engines": {
     "node": ">=18.0.0",
