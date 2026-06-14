@@ -23,18 +23,23 @@ export default defineConfig({
     }
   },
   build: {
-    minify: 'esbuild',
+    // vite 8 (rolldown) varsayılan minifier oxc'tir; 'esbuild' ayrı paket gerektirir
+    // (ve esbuild = kaldırılan dev açığının kaynağı). true → oxc.
+    minify: true,
     sourcemap: false,
     target: 'es2018',
     cssCodeSplit: true,
     chunkSizeWarningLimit: 2000,
     rollupOptions: {
       output: {
-        manualChunks: {
-          react: ['react', 'react-dom', 'react-router-dom'],
-          charts: ['lightweight-charts', 'recharts'],
-          icons: ['lucide-react'],
-        }
+        // Fonksiyon biçimi — hem rollup hem rolldown (vite 8) ile uyumlu.
+        manualChunks(id) {
+          if (!id.includes('node_modules')) return undefined;
+          if (/[\\/]node_modules[\\/](react|react-dom|react-router-dom)[\\/]/.test(id)) return 'react';
+          if (/[\\/]node_modules[\\/](lightweight-charts|recharts)[\\/]/.test(id)) return 'charts';
+          if (/[\\/]node_modules[\\/]lucide-react[\\/]/.test(id)) return 'icons';
+          return undefined;
+        },
       }
     }
   }
