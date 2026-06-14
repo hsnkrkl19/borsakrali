@@ -294,12 +294,13 @@ const PPK_MEETINGS = [
 ];
 
 // Bu seviyeyi teyit eden son PPK kararı — canlı kaynak çökerse yedek.
-// Faiz 22 Oca 2026'da %37'ye indi; 12 Mar ve 22 Nis toplantıları sabit tuttu.
+// Faiz 22 Oca 2026'da %37'ye indi; 12 Mar / 22 Nis / 11 Haz toplantıları sabit tuttu
+// (11 Haz 2026 PPK: politika %37, koridor 40/35.5 — TCMB ile teyitli, 2026-06-14).
 const POLICY_BASELINE = {
   policyRate: 37.00,          // 1 hafta vadeli repo
   overnightLending: 40.00,   // gecelik borç verme  (+300 bp)
   overnightBorrowing: 35.50, // gecelik borç alma   (−150 bp)
-  asOfDate: '2026-04-22',    // bu oranı teyit eden son PPK kararı
+  asOfDate: '2026-06-11',    // bu oranı teyit eden son PPK kararı
 };
 
 function pickMeetingDates() {

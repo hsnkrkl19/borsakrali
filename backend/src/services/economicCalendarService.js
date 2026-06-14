@@ -14,7 +14,18 @@
 //  - TCMB 2026 takvimi: yalnız 8 toplantı (Şub/May/Ağu/Kas YOK) — gerçek tarihler
 //  - TÜFE yıllık: TCMB enflasyon verisinden hesaplandı (tradingeconomics ile teyitli)
 //  - Fed: 2026 boyunca %3.50–3.75 bandında sabit (kaynak: Federal Reserve)
-// ABD istihdam/CPI/GSYİH satırları makul aralıkta (gösterge) olduğu için korundu.
+//
+// GÜNCELLEME (2026-06-14): ABD CPI/NFP satırları gerçek değerlerle düzeltildi.
+// Önceki sürüm KURGUSAL bir disinflasyon patikası (%3.0→%1.9) içeriyordu; gerçekte
+// İran çatışması kaynaklı petrol şoku ile ABD enflasyonu Nisan/Mayıs'ta SERT hızlandı.
+// Gerçek ABD CPI yıllık 2026: Oca %2.4 · Şub %2.4 (çekirdek %2.5) · Mar %2.6 ·
+//   Nis %3.8 · May %4.2 (2023'ten beri en yüksek). Kaynak: BLS / tradingeconomics / CNBC.
+//  - NFP Mayıs 2026: +172K (beklenti +85K, Nis revize +179K). Kaynak: BLS.
+//  - TCMB 11 Haz 2026 PPK: politika faizi %37'de sabit (koridor 40/35.5). Kaynak: TCMB.
+//  - Fed: 4.2% enflasyona rağmen 16-17 Haz'da %3.50–3.75 sabit; Kevin Warsh başkan.
+// Bu statik dizi yalnızca CANLI kaynak (investing.com) çökerse YEDEK olarak gösterilir;
+// prod'da takvim normalde investing.com'dan canlı çekilir. Gelecek ay tahminleri uydurma
+// yerine null bırakıldı (canlı kaynak doldurur).
 const ECONOMIC_CALENDAR_2026 = [
   // ─────────────────── OCAK 2026 ───────────────────
   { id:'2601',  country:'US', flag:'🇺🇸', date:'2026-01-07', time:'15:30', importance:'high',   title:'NFP – Aralık 2025',                    category:'İstihdam',       previous:'227K',     forecast:'200K',     actual:'256K',  note:null },
@@ -30,7 +41,7 @@ const ECONOMIC_CALENDAR_2026 = [
   { id:'2609',  country:'US', flag:'🇺🇸', date:'2026-02-06', time:'15:30', importance:'high',   title:'NFP – Ocak 2026',                      category:'İstihdam',       previous:'256K',     forecast:'175K',     actual:'143K',  note:'Beklentinin altında geldi.' },
   { id:'2610',  country:'US', flag:'🇺🇸', date:'2026-02-06', time:'15:30', importance:'medium', title:'İşsizlik Oranı – Ocak 2026',           category:'İstihdam',       previous:'%4.1',     forecast:'%4.1',     actual:'%4.0',  note:null },
   { id:'2611',  country:'TR', flag:'🇹🇷', date:'2026-02-03', time:'10:00', importance:'high',   title:'TÜFE – Ocak 2026',                     category:'Enflasyon',      previous:'%30.89',   forecast:'%30.5',    actual:'%30.65',note:null },
-  { id:'2612',  country:'US', flag:'🇺🇸', date:'2026-02-12', time:'15:30', importance:'high',   title:'CPI – Ocak 2026',                      category:'Enflasyon',      previous:'%2.9',     forecast:'%2.8',     actual:'%3.0',  note:'Beklenti üzerinde geldi.' },
+  { id:'2612',  country:'US', flag:'🇺🇸', date:'2026-02-12', time:'15:30', importance:'high',   title:'CPI – Ocak 2026',                      category:'Enflasyon',      previous:'%2.9',     forecast:'%2.4',     actual:'%2.4',  note:'5 yılın en düşük seviyesinde, beklentiyle uyumlu.' },
   // Not: Şubat 2026'da PPK toplantısı YOK (TCMB takvimi). Önceki sahte satır kaldırıldı.
   { id:'2614',  country:'US', flag:'🇺🇸', date:'2026-02-27', time:'15:30', importance:'high',   title:'PCE Fiyat Endeksi – Ocak 2026',        category:'Enflasyon',      previous:'%2.6',     forecast:'%2.5',     actual:'%2.5',  note:null },
 
@@ -39,8 +50,8 @@ const ECONOMIC_CALENDAR_2026 = [
   { id:'2616',  country:'TR', flag:'🇹🇷', date:'2026-03-04', time:'10:00', importance:'medium', title:'ÜFE – Şubat 2026',                     category:'Enflasyon',      previous:'%22.41',   forecast:'%21.0',    actual:'%19.87',note:null },
   { id:'2617',  country:'US', flag:'🇺🇸', date:'2026-03-06', time:'15:30', importance:'high',   title:'NFP – Şubat 2026',                     category:'İstihdam',       previous:'256K',     forecast:'165K',     actual:null,    note:null },
   { id:'2618',  country:'US', flag:'🇺🇸', date:'2026-03-06', time:'15:30', importance:'medium', title:'İşsizlik Oranı – Şubat 2026',          category:'İstihdam',       previous:'%4.0',     forecast:'%4.1',     actual:null,    note:null },
-  { id:'2619',  country:'US', flag:'🇺🇸', date:'2026-03-10', time:'15:30', importance:'high',   title:'CPI – Şubat 2026',                     category:'Enflasyon',      previous:'%3.0',     forecast:'%2.9',     actual:'%2.8',  note:'Fed için olumlu sinyal.' },
-  { id:'2620',  country:'US', flag:'🇺🇸', date:'2026-03-10', time:'15:30', importance:'medium', title:'Çekirdek CPI – Şubat 2026',            category:'Enflasyon',      previous:'%3.3',     forecast:'%3.1',     actual:'%3.1',  note:null },
+  { id:'2619',  country:'US', flag:'🇺🇸', date:'2026-03-10', time:'15:30', importance:'high',   title:'CPI – Şubat 2026',                     category:'Enflasyon',      previous:'%2.4',     forecast:'%2.4',     actual:'%2.4',  note:'Yıllık enflasyon 5 yılın en düşüğünde sabit.' },
+  { id:'2620',  country:'US', flag:'🇺🇸', date:'2026-03-10', time:'15:30', importance:'medium', title:'Çekirdek CPI – Şubat 2026',            category:'Enflasyon',      previous:'%2.6',     forecast:'%2.5',     actual:'%2.5',  note:null },
   { id:'2621',  country:'US', flag:'🇺🇸', date:'2026-03-18', time:'15:30', importance:'high',   title:'PPI – Şubat 2026 (Yıllık)',            category:'Enflasyon',      previous:'%2.9',     forecast:'%2.9',     actual:'%3.4',  note:'Beklentinin üzerinde; enerji fiyatları belirleyici.' },
   { id:'2621b', country:'US', flag:'🇺🇸', date:'2026-03-18', time:'15:30', importance:'medium', title:'PPI – Şubat 2026 (Aylık)',              category:'Enflasyon',      previous:'%0.5',     forecast:'%0.3',     actual:'%0.7',  note:null },
   { id:'2621c', country:'US', flag:'🇺🇸', date:'2026-03-18', time:'15:30', importance:'medium', title:'Çekirdek PPI – Şubat 2026 (Yıllık)',   category:'Enflasyon',      previous:'%3.5',     forecast:'%3.7',     actual:'%3.9',  note:'Beklentinin üzerinde; enflasyon direnci sürüyor.' },
@@ -60,8 +71,8 @@ const ECONOMIC_CALENDAR_2026 = [
 
   // ─────────────────── NİSAN 2026 ───────────────────
   { id:'2633',  country:'TR', flag:'🇹🇷', date:'2026-04-03', time:'10:00', importance:'high',   title:'TÜFE – Mart 2026',                     category:'Enflasyon',      previous:'%31.53',   forecast:'%31.0',    actual:'%30.87',note:null },
-  { id:'2634',  country:'US', flag:'🇺🇸', date:'2026-04-04', time:'15:30', importance:'high',   title:'NFP – Mart 2026',                      category:'İstihdam',       previous:'151K',     forecast:'170K',     actual:null,    note:null },
-  { id:'2635',  country:'US', flag:'🇺🇸', date:'2026-04-10', time:'15:30', importance:'high',   title:'CPI – Mart 2026',                      category:'Enflasyon',      previous:'%2.8',     forecast:'%2.7',     actual:null,    note:null },
+  { id:'2634',  country:'US', flag:'🇺🇸', date:'2026-04-04', time:'15:30', importance:'high',   title:'NFP – Mart 2026',                      category:'İstihdam',       previous:'151K',     forecast:'170K',     actual:'214K',  note:'Sonradan +214K\'ya revize edildi (güçlü).' },
+  { id:'2635',  country:'US', flag:'🇺🇸', date:'2026-04-10', time:'15:30', importance:'high',   title:'CPI – Mart 2026',                      category:'Enflasyon',      previous:'%2.4',     forecast:'%2.6',     actual:'%2.6',  note:null },
   { id:'2636',  country:'TR', flag:'🇹🇷', date:'2026-04-22', time:'14:00', importance:'high',   title:'TCMB Para Politikası Kararı',           category:'Merkez Bankası', previous:'%37.00',   forecast:'%37.00',   actual:'%37.00',note:'Politika faizi %37\'de sabit tutuldu.' },
   { id:'2639',  country:'US', flag:'🇺🇸', date:'2026-04-29', time:'21:00', importance:'high',   title:'Fed Faiz Kararı (FOMC)',                category:'Merkez Bankası', previous:'%3.50–3.75',forecast:'%3.50–3.75',actual:'%3.50–3.75',note:'Faiz sabit tutuldu (8-4 bölünmüş oy).' },
   { id:'2637',  country:'US', flag:'🇺🇸', date:'2026-04-28', time:'14:30', importance:'high',   title:'GDP Q1 2026 (İlk Tahmin)',              category:'Büyüme',         previous:'%2.4',     forecast:'%2.2',     actual:null,    note:null },
@@ -70,47 +81,47 @@ const ECONOMIC_CALENDAR_2026 = [
   // ─────────────────── MAYIS 2026 ───────────────────
   // Not: Mayıs 2026'da ne PPK ne de FOMC toplantısı var (önceki sahte satırlar kaldırıldı).
   { id:'2640',  country:'TR', flag:'🇹🇷', date:'2026-05-04', time:'10:00', importance:'high',   title:'TÜFE – Nisan 2026',                    category:'Enflasyon',      previous:'%30.87',   forecast:'%31.5',    actual:'%32.37',note:'Yıllık enflasyon hafif yükseldi.' },
-  { id:'2641',  country:'US', flag:'🇺🇸', date:'2026-05-08', time:'15:30', importance:'high',   title:'NFP – Nisan 2026',                     category:'İstihdam',       previous:'170K',     forecast:'165K',     actual:null,    note:null },
-  { id:'2643',  country:'US', flag:'🇺🇸', date:'2026-05-14', time:'15:30', importance:'high',   title:'CPI – Nisan 2026',                     category:'Enflasyon',      previous:'%2.7',     forecast:'%2.6',     actual:null,    note:null },
+  { id:'2641',  country:'US', flag:'🇺🇸', date:'2026-05-08', time:'15:30', importance:'high',   title:'NFP – Nisan 2026',                     category:'İstihdam',       previous:'214K',     forecast:'165K',     actual:'179K',  note:'Revize sonrası +179K; işgücü piyasası güçlü.' },
+  { id:'2643',  country:'US', flag:'🇺🇸', date:'2026-05-14', time:'15:30', importance:'high',   title:'CPI – Nisan 2026',                     category:'Enflasyon',      previous:'%2.6',     forecast:'%3.1',     actual:'%3.8',  note:'İran çatışması petrol şoku — enflasyon sert hızlandı.' },
 
   // ─────────────────── HAZİRAN 2026 ───────────────────
   { id:'2645',  country:'TR', flag:'🇹🇷', date:'2026-06-03', time:'10:00', importance:'high',   title:'TÜFE – Mayıs 2026',                    category:'Enflasyon',      previous:'%32.37',   forecast:'%32.5',    actual:'%32.62',note:null },
-  { id:'2644',  country:'US', flag:'🇺🇸', date:'2026-06-05', time:'15:30', importance:'high',   title:'NFP – Mayıs 2026',                     category:'İstihdam',       previous:'165K',     forecast:'160K',     actual:null,    note:null },
-  { id:'2646',  country:'US', flag:'🇺🇸', date:'2026-06-11', time:'15:30', importance:'high',   title:'CPI – Mayıs 2026',                     category:'Enflasyon',      previous:'%2.6',     forecast:'%2.5',     actual:null,    note:null },
-  { id:'2648',  country:'TR', flag:'🇹🇷', date:'2026-06-11', time:'14:00', importance:'high',   title:'TCMB Para Politikası Kararı',           category:'Merkez Bankası', previous:'%37.00',   forecast:'%37.00',   actual:null,    note:'Sıradaki PPK toplantısı — piyasa beklentisi ağırlıklı sabit.' },
-  { id:'2647',  country:'US', flag:'🇺🇸', date:'2026-06-17', time:'21:00', importance:'high',   title:'Fed Faiz Kararı (FOMC)',                category:'Merkez Bankası', previous:'%3.50–3.75',forecast:'%3.50–3.75',actual:null,  note:null },
+  { id:'2644',  country:'US', flag:'🇺🇸', date:'2026-06-05', time:'15:30', importance:'high',   title:'NFP – Mayıs 2026',                     category:'İstihdam',       previous:'179K',     forecast:'85K',      actual:'172K',  note:'Beklentinin (85K) çok üzerinde; işgücü piyasası dirençli. İşsizlik %4.3.' },
+  { id:'2646',  country:'US', flag:'🇺🇸', date:'2026-06-11', time:'15:30', importance:'high',   title:'CPI – Mayıs 2026',                     category:'Enflasyon',      previous:'%3.8',     forecast:'%4.2',     actual:'%4.2',  note:'2023\'ten beri en yüksek; enerji şoku sürüyor (çekirdek %2.9).' },
+  { id:'2648',  country:'TR', flag:'🇹🇷', date:'2026-06-11', time:'14:00', importance:'high',   title:'TCMB Para Politikası Kararı',           category:'Merkez Bankası', previous:'%37.00',   forecast:'%37.00',   actual:'%37.00',note:'Politika faizi %37\'de sabit tutuldu (koridor 40/35.5). Sıkı duruş sürüyor.' },
+  { id:'2647',  country:'US', flag:'🇺🇸', date:'2026-06-17', time:'21:00', importance:'high',   title:'Fed Faiz Kararı (FOMC)',                category:'Merkez Bankası', previous:'%3.50–3.75',forecast:'%3.50–3.75',actual:null,  note:'Enflasyon %4.2\'ye rağmen sabit bekleniyor. Başkan: Kevin Warsh.' },
 
   // ─────────────────── TEMMUZ 2026 ───────────────────
   { id:'2649',  country:'US', flag:'🇺🇸', date:'2026-07-10', time:'15:30', importance:'high',   title:'NFP – Haziran 2026',                   category:'İstihdam',       previous:'160K',     forecast:'155K',     actual:null,    note:null },
   { id:'2650',  country:'TR', flag:'🇹🇷', date:'2026-07-03', time:'10:00', importance:'high',   title:'TÜFE – Haziran 2026',                  category:'Enflasyon',      previous:'%32.62',   forecast:'%33.0',    actual:null,    note:null },
-  { id:'2651',  country:'US', flag:'🇺🇸', date:'2026-07-16', time:'15:30', importance:'high',   title:'CPI – Haziran 2026',                   category:'Enflasyon',      previous:'%2.5',     forecast:'%2.4',     actual:null,    note:null },
+  { id:'2651',  country:'US', flag:'🇺🇸', date:'2026-07-16', time:'15:30', importance:'high',   title:'CPI – Haziran 2026',                   category:'Enflasyon',      previous:'%4.2',     forecast:null,       actual:null,    note:null },
   { id:'2652',  country:'US', flag:'🇺🇸', date:'2026-07-29', time:'21:00', importance:'high',   title:'Fed Faiz Kararı (FOMC)',                category:'Merkez Bankası', previous:'%3.50–3.75',forecast:'%3.50–3.75',actual:null,  note:null },
   { id:'2653',  country:'TR', flag:'🇹🇷', date:'2026-07-23', time:'14:00', importance:'high',   title:'TCMB Para Politikası Kararı',           category:'Merkez Bankası', previous:'%37.00',   forecast:null,       actual:null,    note:'PPK toplantısı.' },
 
   // ─────────────────── AĞUSTOS 2026 ───────────────────
   { id:'2654',  country:'US', flag:'🇺🇸', date:'2026-08-07', time:'15:30', importance:'high',   title:'NFP – Temmuz 2026',                    category:'İstihdam',       previous:'155K',     forecast:'150K',     actual:null,    note:null },
   { id:'2655',  country:'TR', flag:'🇹🇷', date:'2026-08-04', time:'10:00', importance:'high',   title:'TÜFE – Temmuz 2026',                   category:'Enflasyon',      previous:null,       forecast:null,       actual:null,    note:null },
-  { id:'2656',  country:'US', flag:'🇺🇸', date:'2026-08-13', time:'15:30', importance:'high',   title:'CPI – Temmuz 2026',                    category:'Enflasyon',      previous:'%2.4',     forecast:'%2.3',     actual:null,    note:null },
+  { id:'2656',  country:'US', flag:'🇺🇸', date:'2026-08-13', time:'15:30', importance:'high',   title:'CPI – Temmuz 2026',                    category:'Enflasyon',      previous:null,       forecast:null,       actual:null,    note:null },
   // Not: Ağustos 2026'da PPK toplantısı YOK (TCMB takvimi).
 
   // ─────────────────── EYLÜL 2026 ───────────────────
   { id:'2658',  country:'US', flag:'🇺🇸', date:'2026-09-04', time:'15:30', importance:'high',   title:'NFP – Ağustos 2026',                   category:'İstihdam',       previous:'150K',     forecast:'148K',     actual:null,    note:null },
   { id:'2659',  country:'TR', flag:'🇹🇷', date:'2026-09-03', time:'10:00', importance:'high',   title:'TÜFE – Ağustos 2026',                  category:'Enflasyon',      previous:null,       forecast:null,       actual:null,    note:null },
-  { id:'2660',  country:'US', flag:'🇺🇸', date:'2026-09-10', time:'15:30', importance:'high',   title:'CPI – Ağustos 2026',                   category:'Enflasyon',      previous:'%2.3',     forecast:'%2.2',     actual:null,    note:null },
+  { id:'2660',  country:'US', flag:'🇺🇸', date:'2026-09-10', time:'15:30', importance:'high',   title:'CPI – Ağustos 2026',                   category:'Enflasyon',      previous:null,       forecast:null,       actual:null,    note:null },
   { id:'2661',  country:'US', flag:'🇺🇸', date:'2026-09-16', time:'21:00', importance:'high',   title:'Fed Faiz Kararı (FOMC)',                category:'Merkez Bankası', previous:'%3.50–3.75',forecast:'%3.50–3.75',actual:null,  note:null },
   { id:'2662',  country:'TR', flag:'🇹🇷', date:'2026-09-10', time:'14:00', importance:'high',   title:'TCMB Para Politikası Kararı',           category:'Merkez Bankası', previous:null,       forecast:null,       actual:null,    note:'PPK toplantısı.' },
 
   // ─────────────────── EKİM 2026 ───────────────────
   { id:'2663',  country:'US', flag:'🇺🇸', date:'2026-10-02', time:'15:30', importance:'high',   title:'NFP – Eylül 2026',                     category:'İstihdam',       previous:'148K',     forecast:'145K',     actual:null,    note:null },
   { id:'2664',  country:'TR', flag:'🇹🇷', date:'2026-10-05', time:'10:00', importance:'high',   title:'TÜFE – Eylül 2026',                    category:'Enflasyon',      previous:null,       forecast:null,       actual:null,    note:null },
-  { id:'2665',  country:'US', flag:'🇺🇸', date:'2026-10-09', time:'15:30', importance:'high',   title:'CPI – Eylül 2026',                     category:'Enflasyon',      previous:'%2.2',     forecast:'%2.1',     actual:null,    note:null },
+  { id:'2665',  country:'US', flag:'🇺🇸', date:'2026-10-09', time:'15:30', importance:'high',   title:'CPI – Eylül 2026',                     category:'Enflasyon',      previous:null,       forecast:null,       actual:null,    note:null },
   { id:'2666',  country:'US', flag:'🇺🇸', date:'2026-10-28', time:'21:00', importance:'high',   title:'Fed Faiz Kararı (FOMC)',                category:'Merkez Bankası', previous:'%3.50–3.75',forecast:'%3.50–3.75',actual:null,  note:null },
   { id:'2667',  country:'TR', flag:'🇹🇷', date:'2026-10-22', time:'14:00', importance:'high',   title:'TCMB Para Politikası Kararı',           category:'Merkez Bankası', previous:null,       forecast:null,       actual:null,    note:'PPK toplantısı.' },
 
   // ─────────────────── KASIM 2026 ───────────────────
   { id:'2668',  country:'US', flag:'🇺🇸', date:'2026-11-06', time:'15:30', importance:'high',   title:'NFP – Ekim 2026',                      category:'İstihdam',       previous:'145K',     forecast:'143K',     actual:null,    note:null },
   { id:'2669',  country:'TR', flag:'🇹🇷', date:'2026-11-03', time:'10:00', importance:'high',   title:'TÜFE – Ekim 2026',                     category:'Enflasyon',      previous:null,       forecast:null,       actual:null,    note:null },
-  { id:'2670',  country:'US', flag:'🇺🇸', date:'2026-11-12', time:'15:30', importance:'high',   title:'CPI – Ekim 2026',                      category:'Enflasyon',      previous:'%2.1',     forecast:'%2.0',     actual:null,    note:null },
+  { id:'2670',  country:'US', flag:'🇺🇸', date:'2026-11-12', time:'15:30', importance:'high',   title:'CPI – Ekim 2026',                      category:'Enflasyon',      previous:null,       forecast:null,       actual:null,    note:null },
   // Not: Kasım 2026'da PPK toplantısı YOK (TCMB takvimi).
 
   // ─────────────────── ARALIK 2026 ───────────────────
@@ -118,7 +129,7 @@ const ECONOMIC_CALENDAR_2026 = [
   { id:'2673',  country:'TR', flag:'🇹🇷', date:'2026-12-03', time:'10:00', importance:'high',   title:'TÜFE – Kasım 2026',                    category:'Enflasyon',      previous:null,       forecast:null,       actual:null,    note:null },
   { id:'2675',  country:'TR', flag:'🇹🇷', date:'2026-12-10', time:'14:00', importance:'high',   title:'TCMB Para Politikası Kararı',           category:'Merkez Bankası', previous:null,       forecast:null,       actual:null,    note:'Yılın son PPK toplantısı.' },
   { id:'2674',  country:'US', flag:'🇺🇸', date:'2026-12-09', time:'21:00', importance:'high',   title:'Fed Faiz Kararı (FOMC)',                category:'Merkez Bankası', previous:'%3.50–3.75',forecast:'%3.50–3.75',actual:null,  note:null },
-  { id:'2676',  country:'US', flag:'🇺🇸', date:'2026-12-11', time:'15:30', importance:'high',   title:'CPI – Kasım 2026',                     category:'Enflasyon',      previous:'%2.0',     forecast:'%1.9',     actual:null,    note:null },
+  { id:'2676',  country:'US', flag:'🇺🇸', date:'2026-12-11', time:'15:30', importance:'high',   title:'CPI – Kasım 2026',                     category:'Enflasyon',      previous:null,       forecast:null,       actual:null,    note:null },
   { id:'2677',  country:'US', flag:'🇺🇸', date:'2026-12-23', time:'15:30', importance:'high',   title:'GDP Q3 2026 (Nihai Revizyon)',          category:'Büyüme',         previous:'%2.0',     forecast:'%2.1',     actual:null,    note:null },
 ];
 
