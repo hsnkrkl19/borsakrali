@@ -19,7 +19,7 @@ import api from '../services/api'
 import { Button, Card, EmptyState, Spinner } from '../components/ui'
 import {
   TabHeader, BotTabs, StatCard, Chip, TableShell, HowItWorks,
-  TradeLedger, PortfolioSummary, BuyDetail,
+  TradeLedger, PortfolioSummary, BuyDetail, exitOutcome,
 } from '../components/BotKit'
 
 function formatUsd(v, digits = 2) {
@@ -53,11 +53,7 @@ function formatDate(iso) {
 
 // ── Yardımcılar — işlem defteri & alış-detayı ─────────────────────────────
 function toLedgerTrade(h) {
-  const outcome = h.exitReason === 'hit_target'
-    ? { tone: 'good', label: 'Hedef' }
-    : h.exitReason === 'hit_stop'
-    ? { tone: 'bad', label: 'Stop' }
-    : { tone: 'neutral', label: 'Manuel' }
+  const outcome = exitOutcome(h.exitReason, h.pnl)
   return {
     id: h.id,
     symbol: h.symbol,

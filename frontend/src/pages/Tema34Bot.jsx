@@ -20,7 +20,7 @@ import { Button, Card, EmptyState } from '../components/ui'
 import {
   fmtMoney, fmtPct, fmtDate, fmtDateShort,
   TabHeader, BotTabs, StatCard, Chip, TableShell, HowItWorks, NotesList, EquityChart,
-  TradeLedger, PortfolioSummary, BuyDetail,
+  TradeLedger, PortfolioSummary, BuyDetail, exitOutcome,
 } from '../components/BotKit'
 
 const TABS = [
@@ -44,7 +44,7 @@ function toLedgerTrade(t) {
   return {
     id: t.id,
     symbol: t.symbol,
-    outcome: { tone: 'neutral', label: 'TEMA34 altı' },
+    outcome: exitOutcome('tema_exit', t.realizedPnL),
     buyAt: t.entryAt || t.entryDate,
     sellAt: t.exitAt || t.exitDate,
     buyText: `${fmtMoney(t.entryPrice)} ₺`,

@@ -14,8 +14,8 @@ import { formatUsd, TF_LIST } from './utils'
  */
 
 const OUTCOME_STYLES = {
-  hit_target:     { label: '🎯 Hedef',  color: 'text-emerald-300', bg: 'bg-emerald-500/15', border: 'border-emerald-500/30' },
-  hit_stop:       { label: '🛑 Stop',   color: 'text-rose-300',    bg: 'bg-rose-500/15',    border: 'border-rose-500/30' },
+  hit_target:     { label: '🎯 Hedef · kâr',  color: 'text-emerald-300', bg: 'bg-emerald-500/15', border: 'border-emerald-500/30' },
+  hit_stop:       { label: '🛑 Stop · zarar',  color: 'text-rose-300',    bg: 'bg-rose-500/15',    border: 'border-rose-500/30' },
   still_running: { label: '⏳ Açık',    color: 'text-amber-300',   bg: 'bg-amber-500/10',   border: 'border-amber-500/30' },
   no_future_data: { label: '⊘ Veri',    color: 'text-gray-400',    bg: 'bg-gray-500/10',    border: 'border-gray-500/20' },
   no_levels:      { label: '⊘ Seviye',  color: 'text-gray-400',    bg: 'bg-gray-500/10',    border: 'border-gray-500/20' },

@@ -20,7 +20,7 @@ import { Button, Card, EmptyState } from '../components/ui'
 import {
   fmtPct, fmtDate, fmtDateShort,
   TabHeader, BotTabs, StatCard, Chip, TableShell, HowItWorks, NotesList,
-  EquityChart, TradeLedger,
+  EquityChart, TradeLedger, exitOutcome, signalOutcome,
 } from '../components/BotKit'
 
 // ── USD formatlayıcılar ────────────────────────────────────────────────────
@@ -53,15 +53,6 @@ const STRAT_DESC = {
 const DIR_META = {
   long: { label: 'LONG', tone: 'good', icon: ArrowUpRight, word: 'Yükseliş' },
   short: { label: 'SHORT', tone: 'bad', icon: ArrowDownRight, word: 'Düşüş' },
-}
-
-function exitOutcome(reason) {
-  const m = {
-    target: { tone: 'good', label: 'Hedef tuttu' },
-    stop: { tone: 'bad', label: 'Stop oldu' },
-    timeout: { tone: 'warn', label: 'Süre doldu' },
-  }
-  return m[reason] || { tone: 'neutral', label: reason || 'Kapandı' }
 }
 
 function FragmentRow({ children }) { return <>{children}</> }
@@ -141,7 +132,7 @@ function PositionDetail({ pos, closed }) {
               <div className={`text-sm font-semibold ${(pos.realizedPnL || 0) >= 0 ? 'text-emerald-300' : 'text-rose-300'}`}>
                 {fmtPct(pos.realizedPnLPct)} · {usd(pos.realizedPnL)}
               </div>
-              <Chip tone={exitOutcome(pos.exitReason).tone}>{exitOutcome(pos.exitReason).label}</Chip>
+              {(() => { const o = exitOutcome(pos.exitReason, pos.realizedPnL); return <Chip tone={o.tone}>{o.label}</Chip> })()}
             </>
           ) : (
             <>
@@ -300,7 +291,7 @@ function TradesTab({ trades, onRefresh, loading }) {
   const ledger = useMemo(() => trades.map((t) => ({
     id: t.id,
     symbol: t.symbol,
-    outcome: exitOutcome(t.exitReason),
+    outcome: exitOutcome(t.exitReason, t.realizedPnL),
     buyAt: t.entryDate,
     sellAt: t.exitDate,
     buyText: `${(DIR_META[t.direction] || DIR_META.long).label} ${px(t.entryPrice)}`,
@@ -340,15 +331,6 @@ function TradesTab({ trades, onRefresh, loading }) {
 }
 
 // ── Sinyal Kaydı ───────────────────────────────────────────────────────────
-const OUTCOME = {
-  signaled: { tone: 'neutral', label: 'Verildi' },
-  triggered: { tone: 'info', label: 'Açıldı' },
-  closed_target: { tone: 'good', label: 'Hedef tuttu' },
-  closed_stop: { tone: 'bad', label: 'Stop oldu' },
-  closed_timeout: { tone: 'warn', label: 'Süre doldu' },
-  closed_other: { tone: 'neutral', label: 'Kapandı' },
-}
-
 function FilterField({ label, children }) {
   return (
     <label className="flex flex-col gap-1">
@@ -385,7 +367,7 @@ function SignalLogTab({ entries, onRefresh, loading, filters, setFilters }) {
               <option value="">Hepsi</option>
               <option value="triggered">Açık</option>
               <option value="closed_target">Hedef tuttu</option>
-              <option value="closed_stop">Stop oldu</option>
+              <option value="closed_stop">Stop (kâr/zarar)</option>
               <option value="closed_timeout">Süre doldu</option>
             </select>
           </FilterField>
@@ -413,7 +395,7 @@ function SignalLogTab({ entries, onRefresh, loading, filters, setFilters }) {
               <tr><td colSpan={10} className="px-3 py-10 text-center text-xs text-gray-500">Filtrelere uyan kayıt yok.</td></tr>
             )}
             {entries.map((e) => {
-              const o = OUTCOME[e.outcome] || OUTCOME.signaled
+              const o = signalOutcome(e.outcome, e.finalPnL)
               const dir = DIR_META[e.direction] || DIR_META.long
               return (
                 <tr key={e.id} className="border-t border-dark-700/60">

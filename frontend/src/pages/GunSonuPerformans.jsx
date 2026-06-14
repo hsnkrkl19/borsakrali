@@ -106,8 +106,8 @@ function phaseBadge(phase) {
 }
 
 function outcomeBadge(o) {
-  if (o === 'hit_target') return { icon: <CheckCircle2 className="w-3.5 h-3.5" />, label: 'T1 Vuruldu', cls: 'text-emerald-300 bg-emerald-500/10 border-emerald-500/30' }
-  if (o === 'hit_stop')   return { icon: <XCircle className="w-3.5 h-3.5" />,      label: 'Stop',       cls: 'text-red-300 bg-red-500/10 border-red-500/30' }
+  if (o === 'hit_target') return { icon: <CheckCircle2 className="w-3.5 h-3.5" />, label: 'Hedef · kâr',  cls: 'text-emerald-300 bg-emerald-500/10 border-emerald-500/30' }
+  if (o === 'hit_stop')   return { icon: <XCircle className="w-3.5 h-3.5" />,      label: 'Stop · zarar', cls: 'text-red-300 bg-red-500/10 border-red-500/30' }
   if (o === 'open')       return { icon: <Clock className="w-3.5 h-3.5" />,        label: 'Açık',       cls: 'text-gray-300 bg-gray-500/10 border-gray-500/30' }
   return { icon: <Clock className="w-3.5 h-3.5" />, label: '—', cls: 'text-gray-300 bg-gray-500/10 border-gray-500/30' }
 }

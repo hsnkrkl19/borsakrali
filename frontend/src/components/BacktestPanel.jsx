@@ -14,8 +14,8 @@ import { Calendar, Play, RefreshCw, TrendingUp, TrendingDown, Minus, CheckCircle
 import api from '../services/api'
 
 const OUTCOME_STYLES = {
-  hit_target:    { label: 'Hedef Vurdu',    color: 'emerald', icon: CheckCircle2 },
-  hit_stop:      { label: 'Stop Oldu',      color: 'red',     icon: XCircle },
+  hit_target:    { label: 'Hedef · kâr',    color: 'emerald', icon: CheckCircle2 },
+  hit_stop:      { label: 'Stop · zarar',   color: 'red',     icon: XCircle },
   no_trigger:    { label: 'Tetiklenmedi',   color: 'gray',    icon: Minus },
   still_running: { label: 'Açık Pozisyon',  color: 'blue',    icon: Clock },
   no_levels:     { label: 'Veri Yok',       color: 'gray',    icon: AlertCircle },

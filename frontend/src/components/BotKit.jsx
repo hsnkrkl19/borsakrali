@@ -134,6 +134,72 @@ export function Chip({ tone = 'neutral', icon: Icon, className = '', children })
   )
 }
 
+// ── Çıkış sonucu etiketi (kâr/zarar farkındalıklı) ─────────────────────────
+// Bir pozisyon kapanırken İKİ ayrı bilgi vardır:
+//   1) NEDEN kapandı  → stop / hedef / süre / sinyal kaynaklı
+//   2) SONUÇ ne oldu  → kâr / zarar / başabaş
+// Trailing stop kârı kilitleyince exitReason HÂLÂ 'stop' kalır; sadece nedene
+// bakan eski etiket bu yüzden kârlı işlemlere de kırmızı "Stop oldu" yazıyordu.
+// Burada renk DAİMA gerçek sonuca (kâr=yeşil, zarar=kırmızı) göre belirlenir;
+// etiket "neden · sonuç" formatındadır. Sinyal kaynaklı çıkışlar ise gerçek
+// sebepleri ayırt edilsin diye ayrı (mavi/info) renkle işaretlenir.
+function pnlResult(pnl) {
+  const n = typeof pnl === 'number' && isFinite(pnl) ? pnl : null
+  if (n == null)  return { word: null,      tone: 'neutral' }
+  if (n > 1e-9)   return { word: 'kâr',      tone: 'good' }
+  if (n < -1e-9)  return { word: 'zarar',    tone: 'bad' }
+  return            { word: 'başabaş', tone: 'neutral' }
+}
+
+// reason: stop | target | timeout | signal_dropped | signal | manual_close |
+//         tema_exit | hit_stop | hit_target | ...
+export function exitOutcome(reason, pnl) {
+  const r = pnlResult(pnl)
+  const suf = r.word ? ` · ${r.word}` : ''
+  const win = r.word === 'kâr'
+  const flat = r.word === 'başabaş'
+  switch (reason) {
+    case 'target':
+    case 'hit_target':
+      // Hedef tuttu → normalde kâr; komisyonla zarara dönerse kırmızı göster.
+      return { tone: r.word === 'zarar' ? 'bad' : 'good', label: `Hedef${suf}` }
+    case 'stop':
+    case 'hit_stop':
+      // Kârla kapandıysa trailing stop kârı kilitlemiştir → yeşil, "Stop · kâr".
+      if (win)  return { tone: 'good',    label: 'Stop · kâr' }
+      if (flat) return { tone: 'neutral', label: 'Stop · başabaş' }
+      return { tone: 'bad', label: r.word ? 'Stop · zarar' : 'Stop' }
+    case 'timeout':
+      return { tone: r.tone, label: `Süre doldu${suf}` }
+    case 'signal_dropped':
+    case 'signal':
+    case 'signal_exit':
+      return { tone: 'info', label: `Sinyal çıkışı${suf}` }
+    case 'manual_close':
+      return { tone: 'info', label: `Manuel${suf}` }
+    case 'tema_exit':
+      return { tone: 'info', label: `TEMA34 altı${suf}` }
+    default:
+      return { tone: r.tone, label: r.word ? `Kapandı${suf}` : (reason || 'Kapandı') }
+  }
+}
+
+// Sinyal kaydı yaşam-döngüsü durumları → kâr/zarar farkındalıklı etiket.
+// Kapanmış (closed_*) durumlar gerçek P&L'e göre exitOutcome'a delege edilir.
+export function signalOutcome(outcome, pnl) {
+  switch (outcome) {
+    case 'signaled':       return { tone: 'neutral', label: 'Verildi' }
+    case 'triggered':      return { tone: 'info',    label: 'Açık' }
+    case 'no_trigger':     return { tone: 'neutral', label: 'Tetiklenmedi' }
+    case 'closed_target':  return exitOutcome('target', pnl)
+    case 'closed_stop':    return exitOutcome('stop', pnl)
+    case 'closed_timeout': return exitOutcome('timeout', pnl)
+    case 'closed_dropped': return exitOutcome('signal_dropped', pnl)
+    case 'closed_other':   return exitOutcome('other', pnl)
+    default:               return { tone: 'neutral', label: outcome || 'Kapandı' }
+  }
+}
+
 // ── Tablo sarmalayıcı ──────────────────────────────────────────────────────
 export function TableShell({ title, action, children }) {
   return (

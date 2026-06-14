@@ -19,7 +19,7 @@ import { Button, Card, EmptyState } from '../components/ui'
 import {
   fmtMoney, fmtPct, fmtDate, fmtDateShort,
   TabHeader, BotTabs, StatCard, Chip, TableShell, HowItWorks, NotesList, EquityChart,
-  TradeLedger, PortfolioSummary, BuyDetail,
+  TradeLedger, PortfolioSummary, BuyDetail, exitOutcome, signalOutcome,
 } from '../components/BotKit'
 
 const TABS = [
@@ -35,16 +35,6 @@ function FragmentRow({ children }) { return <>{children}</> }
 // ── Yardımcılar — maliyet, sonuç etiketi, alış-detay props'ları ───────────
 const STRAT_LABEL = { trend: 'Trend takip', reversion: 'Reversion (dipten dönüş)' }
 
-function exitOutcome(reason) {
-  const m = {
-    target:         { tone: 'good',    label: 'Hedef' },
-    stop:           { tone: 'bad',     label: 'Stop' },
-    timeout:        { tone: 'warn',    label: 'Süre doldu' },
-    signal_dropped: { tone: 'neutral', label: 'Sinyal düştü' },
-  }
-  return m[reason] || { tone: 'neutral', label: reason || 'Kapandı' }
-}
-
 // Maliyet = giriş fiyatı × adet + alış komisyonu
 function lotCost(entryPrice, shares, commission) {
   if (entryPrice != null && shares != null) return entryPrice * shares + (commission || 0)
@@ -56,7 +46,7 @@ function toLedgerTrade(t) {
   return {
     id: t.id,
     symbol: t.symbol,
-    outcome: exitOutcome(t.exitReason),
+    outcome: exitOutcome(t.exitReason, t.realizedPnL),
     buyAt: t.entryDate,
     sellAt: t.exitDate,
     buyText: `${fmtMoney(t.entryPrice)} ₺`,
@@ -389,17 +379,6 @@ function TradesTab({ trades, onRefresh, loading }) {
 }
 
 // ── Sinyal Kaydı ──────────────────────────────────────────────────────────
-const OUTCOME = {
-  signaled:       { tone: 'neutral', label: 'Verildi' },
-  triggered:      { tone: 'info',    label: 'Tetiklendi' },
-  closed_target:  { tone: 'good',    label: 'Hedef tuttu' },
-  closed_stop:    { tone: 'bad',     label: 'Stop oldu' },
-  closed_timeout: { tone: 'warn',    label: 'Süre doldu' },
-  closed_dropped: { tone: 'neutral', label: 'Sinyal düştü' },
-  closed_other:   { tone: 'neutral', label: 'Kapandı' },
-  no_trigger:     { tone: 'neutral', label: 'Tetiklenmedi' },
-}
-
 function FilterField({ label, children }) {
   return (
     <label className="flex flex-col gap-1">
@@ -447,11 +426,11 @@ function SignalLogTab({ entries, onRefresh, loading, filters, setFilters }) {
             >
               <option value="">Hepsi</option>
               <option value="signaled">Verildi</option>
-              <option value="triggered">Tetiklendi (açık)</option>
+              <option value="triggered">Açık</option>
               <option value="closed_target">Hedef tuttu</option>
-              <option value="closed_stop">Stop oldu</option>
+              <option value="closed_stop">Stop (kâr/zarar)</option>
               <option value="closed_timeout">Süre doldu</option>
-              <option value="closed_dropped">Sinyal düştü</option>
+              <option value="closed_dropped">Sinyal çıkışı</option>
               <option value="no_trigger">Tetiklenmedi</option>
             </select>
           </FilterField>
@@ -492,7 +471,7 @@ function SignalLogTab({ entries, onRefresh, loading, filters, setFilters }) {
               </tr>
             )}
             {entries.map((e) => {
-              const o = OUTCOME[e.outcome] || OUTCOME.signaled
+              const o = signalOutcome(e.outcome, e.finalPnL)
               return (
                 <tr key={e.id} className="border-t border-dark-700/60">
                   <td className="px-3 py-2.5 text-xs text-gray-400">{fmtDateShort(e.signalDate)}</td>
