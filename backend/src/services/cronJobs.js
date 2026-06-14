@@ -48,6 +48,46 @@ function tomorrowKeyTR() {
   return t.toLocaleDateString('en-CA', { timeZone: 'Europe/Istanbul' });
 }
 
+// ── BIST işlem saatleri (TR) ───────────────────────────────────────────────
+// Tanım: borsa 09:45'te başlar, 18:30'da biter. Bu pencere dışında (ve hafta
+// sonu / resmi tatil) BIST sinyal üretimi + bot tick YAPILMAZ. Kripto/altın
+// 7/24 işlem gördüğü için bu kapıdan geçmez (her zaman çalışır).
+const BIST_OPEN_MIN  = 9 * 60 + 45;   // 09:45 → 585
+const BIST_CLOSE_MIN = 18 * 60 + 30;  // 18:30 → 1110
+
+// TR saat diliminde gün-içi dakika (0–1439).
+function trMinutesNow() {
+  const parts = new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Europe/Istanbul', hour: '2-digit', minute: '2-digit', hour12: false,
+  }).formatToParts(new Date());
+  const hh = parseInt(parts.find(p => p.type === 'hour')?.value || '0', 10);
+  const mm = parseInt(parts.find(p => p.type === 'minute')?.value || '0', 10);
+  return hh * 60 + mm;
+}
+
+// TR saat diliminde haftanın günü (0=Pazar … 6=Cumartesi).
+function trWeekday() {
+  const s = new Intl.DateTimeFormat('en-US', { timeZone: 'Europe/Istanbul', weekday: 'short' }).format(new Date());
+  const map = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
+  return map[s] != null ? map[s] : new Date().getDay();
+}
+
+// BIST şu an açık mı? Hafta içi + resmi tatil değil + 09:45–18:30 penceresi.
+function isBistOpen() {
+  if (TR_HOLIDAYS_2026.has(todayKeyTR())) return false;
+  const wd = trWeekday();
+  if (wd === 0 || wd === 6) return false;          // hafta sonu
+  const m = trMinutesNow();
+  return m >= BIST_OPEN_MIN && m <= BIST_CLOSE_MIN;
+}
+
+// Aynı taramanın üst üste binmesini engelleyen basit kilit. Bir 15 dk turu hâlâ
+// çalışırken yeni tetik gelirse atlanır; kilit 14 dk sonra bayatlamış sayılır
+// (önceki tur ölmüşse sistem kilitli kalmasın diye serbest bırakılır).
+const CADENCE_STALE_MS = 14 * 60 * 1000;
+let _bistCadenceLockAt = 0;
+let _cryptoCadenceLockAt = 0;
+
 // Borsa açılış bildirimi — TR resmi tatil günlerinde sessiz.
 async function runMarketOpen() {
   try {
@@ -171,7 +211,7 @@ async function runDailyPhase(phase, options = {}) {
       const trendTop     = (result.trend?.signals     || []).slice(0, 3).map(s => s.symbol).join(', ');
       const reversionTop = (result.reversion?.signals || []).slice(0, 3).map(s => s.symbol).join(', ');
       const title = phase === 'premarket'
-        ? '📊 Bugünün fırsat listesi hazır (09:55)'
+        ? '📊 Bugünün fırsat listesi hazır (09:45)'
         : '🔄 Fırsat listesi güncellendi (11:00)';
       const body = phase === 'premarket'
         ? `Güçlü hisseler: ${trendTop || '—'} · Dönüş bölgesi: ${reversionTop || '—'}`
@@ -206,11 +246,46 @@ async function runDailyPhase(phase, options = {}) {
   }
 }
 
-// Trading bot tick — açık pozisyonların TP/SL/trailing kontrolü
+// BIST 15-dk sinyal kadansı — işlem saatlerinde (09:45–18:30) her 15 dk üretir.
+//   Faz içeride seçilir: günün ilk turu 'premarket' (push), 11:00+ ilk tur
+//   'revision' (push), aradakiler 'intraday' (sessiz). Her turda bot snapshot'ı
+//   ingest eder. Faz seçimi bugünkü snapshot'tan okunur → restart sonrası
+//   mükerrer push olmaz. Pencere dışı/hafta sonu/tatil tetikleri sessizce eler.
+async function runBistSignalCadence() {
+  const now = Date.now();
+  if (_bistCadenceLockAt && now - _bistCadenceLockAt < CADENCE_STALE_MS) {
+    logger.info('⏭️ BIST sinyal turu hâlâ çalışıyor — bu 15 dk tetiği atlandı');
+    return null;
+  }
+  if (!isBistOpen()) return null;
+
+  _bistCadenceLockAt = now;
+  try {
+    const snapshotStore = require('./snapshotStore');
+    const snap = snapshotStore.read(snapshotStore.dateKey());
+    const hasAny = snap && (snap.premarket || snap.revision ||
+      (Array.isArray(snap.intraday) && snap.intraday.length > 0));
+    const m = trMinutesNow();
+
+    let phase, silent;
+    if (!hasAny) {
+      phase = 'premarket'; silent = false;          // günün ilk listesi → push
+    } else if (!snap.revision && m >= 11 * 60) {
+      phase = 'revision';  silent = false;          // 11:00 sonrası ilk revize → push
+    } else {
+      phase = 'intraday';  silent = true;           // ara tazeleme → sessiz, bot ingest eder
+    }
+    return await runDailyPhase(phase, { silent });
+  } finally {
+    _bistCadenceLockAt = 0;
+  }
+}
+
+// Trading bot tick — açık pozisyonların TP/SL/trailing kontrolü.
+// Sadece BIST açıkken (09:45–18:30, hafta içi, tatil değil) çalışır.
 async function runBotTick() {
   try {
-    const dateKey = todayKeyTR();
-    if (TR_HOLIDAYS_2026.has(dateKey)) return null;
+    if (!isBistOpen()) return null;
     const result = await botEngine.tick();
     if (result?.closed || result?.trailed || result?.triggered) {
       logger.info(
@@ -312,6 +387,32 @@ async function runCryptoPhase(phase, options = {}) {
   } catch (e) {
     logger.error(`Crypto signals (${phase}) hata: ${e.message}`, e.stack);
     return null;
+  }
+}
+
+// Kripto/altın 15-dk sinyal kadansı — 7/24 her 15 dk üretir (piyasa kapanmaz).
+//   4 sabit saatte (09:00/13:00/19:00/01:00) push'lu faz, diğer turlar sessiz
+//   intraday. Tek iş + kilit → eski 4 ayrı push job'u ile intraday'in aynı
+//   anda çalışıp çift tarama yapması da ortadan kalkar.
+const CRYPTO_PUSH_SLOTS = {
+  [9 * 60]:  'morning',  // 09:00
+  [13 * 60]: 'midday',   // 13:00
+  [19 * 60]: 'evening',  // 19:00
+  [1 * 60]:  'night',    // 01:00
+};
+async function runCryptoSignalCadence() {
+  const now = Date.now();
+  if (_cryptoCadenceLockAt && now - _cryptoCadenceLockAt < CADENCE_STALE_MS) {
+    logger.info('⏭️ Kripto sinyal turu hâlâ çalışıyor — bu 15 dk tetiği atlandı');
+    return null;
+  }
+  _cryptoCadenceLockAt = now;
+  try {
+    const slotPhase = CRYPTO_PUSH_SLOTS[trMinutesNow()];
+    if (slotPhase) return await runCryptoPhase(slotPhase);          // push'lu faz
+    return await runCryptoPhase('intraday', { silent: true });      // sessiz tazeleme, bot ingest eder
+  } finally {
+    _cryptoCadenceLockAt = 0;
   }
 }
 
@@ -494,64 +595,22 @@ class CronJobsService {
       { scheduled: false }
     );
 
-    // 7. Pre-market top-10 sinyal üretimi — 09:55 (BIST açılmadan 5 dk önce)
-    //    Pazartesi-Cuma. Türkiye saat dilimi.
-    const preMarketJob = cron.schedule(
-      '55 9 * * 1-5',
-      () => runDailyPhase('premarket'),
+    // 7. BIST sinyal kadansı — işlem saatlerinde (09:45–18:30, Pzt-Cuma) HER 15 DK.
+    //    Faz içeride seçilir: günün ilki premarket (push), 11:00+ ilk tur revision
+    //    (push), aradakiler intraday (sessiz). Her turda bot snapshot'ı ingest eder.
+    //    Tetik her 15 dk gelir; isBistOpen() pencere/hafta sonu/tatil dışını eler.
+    const bistSignalJob = cron.schedule(
+      '*/15 * * * *',
+      () => runBistSignalCadence(),
       { scheduled: false, ...TR_TZ }
     );
 
-    // 8. Revize taraması — 11:00 (borsa açıldıktan 1 saat sonra)
-    //    Pazartesi-Cuma. 09:55 snapshot ile diff alır.
-    const revisionJob = cron.schedule(
-      '0 11 * * 1-5',
-      () => runDailyPhase('revision'),
-      { scheduled: false, ...TR_TZ }
-    );
-
-    // 9. Intraday refresh — borsa saatlerinde 30 dk'da bir sessiz güncelleme
-    //    Bildirim atmaz; UI canlı veri göstersin diye snapshot tazelenir.
-    const intradayJob = cron.schedule(
-      '15,45 10-17 * * 1-5',
-      () => runDailyPhase('intraday', { silent: true }),
-      { scheduled: false, ...TR_TZ }
-    );
-
-    // 10. Crypto morning — 09:00 (UTC+3). Asya kapanışı + Avrupa açılışı geçişi.
-    //     Push bildirimli, 7 gün.
-    const cryptoMorningJob = cron.schedule(
-      '0 9 * * *',
-      () => runCryptoPhase('morning'),
-      { scheduled: false, ...TR_TZ }
-    );
-
-    // 11. Crypto midday — 13:00 (UTC+3). Avrupa öğlen, US futures açılış öncesi.
-    const cryptoMiddayJob = cron.schedule(
-      '0 13 * * *',
-      () => runCryptoPhase('midday'),
-      { scheduled: false, ...TR_TZ }
-    );
-
-    // 12. Crypto evening — 19:00 (UTC+3). Avrupa kapanışı + US prime time.
-    const cryptoEveningJob = cron.schedule(
-      '0 19 * * *',
-      () => runCryptoPhase('evening'),
-      { scheduled: false, ...TR_TZ }
-    );
-
-    // 13. Crypto night — 01:00 (UTC+3). Asya açılış geçişi.
-    const cryptoNightJob = cron.schedule(
-      '0 1 * * *',
-      () => runCryptoPhase('night'),
-      { scheduled: false, ...TR_TZ }
-    );
-
-    // 14. Crypto intraday — her 30 dk'da bir sessiz refresh (kripto 7/24).
-    //     Push atmaz; UI canlı veri için snapshot tazelenir.
-    const cryptoIntradayJob = cron.schedule(
-      '*/30 * * * *',
-      () => runCryptoPhase('intraday', { silent: true }),
+    // 10. Kripto/altın sinyal kadansı — 7/24 HER 15 DK (piyasa kapanmaz).
+    //     4 sabit saatte (09:00/13:00/19:00/01:00) push'lu faz, diğer turlar
+    //     sessiz intraday. Her turda kripto botu snapshot'ı ingest eder (long+short).
+    const cryptoSignalJob = cron.schedule(
+      '*/15 * * * *',
+      () => runCryptoSignalCadence(),
       { scheduled: false, ...TR_TZ }
     );
 
@@ -605,18 +664,18 @@ class CronJobsService {
       { scheduled: false, ...TR_TZ }
     );
 
-    // 22. Borsa açılış bildirimi — 10:00 (BIST seans başlangıcı). Pzt-Cuma.
+    // 22. Borsa açılış bildirimi — 09:45 (BIST seans başlangıcı). Pzt-Cuma.
     //     Resmi tatil günlerinde fonksiyon kendi içinde atlatır.
     const marketOpenJob = cron.schedule(
-      '0 10 * * 1-5',
+      '45 9 * * 1-5',
       () => runMarketOpen(),
       { scheduled: false, ...TR_TZ }
     );
 
-    // 23. Borsa kapanış bildirimi — 18:00 (BIST seans sonu). Pzt-Cuma.
+    // 23. Borsa kapanış bildirimi — 18:30 (BIST seans sonu). Pzt-Cuma.
     //     Resmi tatil günlerinde fonksiyon kendi içinde atlatır.
     const marketCloseJob = cron.schedule(
-      '0 18 * * 1-5',
+      '30 18 * * 1-5',
       () => runMarketClose(),
       { scheduled: false, ...TR_TZ }
     );
@@ -638,11 +697,12 @@ class CronJobsService {
       { scheduled: false, ...TR_TZ }
     );
 
-    // 26. Trading Bot v6 tick — BIST açık saatlerinde her 5 dk bir.
+    // 26. Trading Bot v6 tick — BIST açık saatlerinde (09:45–18:30) her 5 dk bir.
     //     Açık pozisyonların TP/SL/trailing kontrolü; pending pozisyonların
     //     triggerZone'a değiş kontrolü; pozisyon kapanışlarında portföy update.
+    //     runBotTick() içindeki isBistOpen() kapısı kesin pencereyi uygular.
     const botTickJob = cron.schedule(
-      '*/5 10-18 * * 1-5',
+      '*/5 9-18 * * 1-5',
       () => runBotTick(),
       { scheduled: false, ...TR_TZ }
     );
@@ -729,14 +789,8 @@ class CronJobsService {
       signalDetectionJob,
       kapUpdateJob,
       signalUpdateJob,
-      preMarketJob,
-      revisionJob,
-      intradayJob,
-      cryptoMorningJob,
-      cryptoMiddayJob,
-      cryptoEveningJob,
-      cryptoNightJob,
-      cryptoIntradayJob,
+      bistSignalJob,
+      cryptoSignalJob,
       mtf1mJob,
       mtf5mJob,
       mtf15mJob,

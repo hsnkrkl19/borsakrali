@@ -8077,8 +8077,8 @@ server.listen(PORT, () => {
   // Otomatik guncellemeyi baslat (1 dakika = 60000ms)
   liveDataService.startAutoUpdate(60 * 1000);
 
-  // Cron jobs — BIST sinyal (09:55/11:00/intraday), kripto (09/13/19/01), MTF (5m-1w),
-  //   indikatör, KAP, push notifier, market open/close.
+  // Cron jobs — BIST sinyal kadansı (09:45–18:30, her 15 dk), kripto/altın
+  //   (7/24, her 15 dk), MTF (5m-1w), indikatör, KAP, push notifier, market open/close.
   //   ENV GATE (CRON_DISABLED=true): Tüm cron'ları kapat (Render fail debug için).
   // Önce botların kalıcı durumunu Supabase'ten geri yükle (cron'lar/ingest
   // okumadan ÖNCE), sonra cron'ları başlat. Supabase kapalıysa loadAll no-op.
