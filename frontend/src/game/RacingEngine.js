@@ -17,9 +17,10 @@
 // --- Dünya & fizik sabitleri ---
 const GRAV = 1750          // yerçekimi (dünya birimi / s²)
 const SUBSTEPS = 6         // kare başı fizik alt-adımı (stabilite)
-const SX = 150             // mum (candle) yatay aralığı (dünya birimi)
-const AMP = 540            // fiyat → yükseklik genlik bandı
-const MAXSTEP = AMP * 0.16 // komşu mum max yükseklik farkı (sürülebilirlik)
+const SX = 110             // örnek nokta yatay aralığı (dünya birimi)
+const AMP = 560            // fiyat → yükseklik genlik bandı
+const MAXSTEP = AMP * 0.13 // komşu nokta max yükseklik farkı (sürülebilirlik)
+const TERRAIN_POINTS = 150 // tüm grafiği tek pist'e indirgemek için örnek sayısı
 const METER = 30           // dünya birimi / görüntülenen metre
 const PHYS_DT_MAX = 1 / 50 // çok büyük kare atlamalarında fizik patlamasın
 
@@ -85,14 +86,34 @@ export class RacingEngine {
       .filter((v) => Number.isFinite(v) && v > 0)
 
     if (closes.length < 8) {
-      // veri yoksa hoş bir sentetik tepe dizisi üret (oyun yine de oynanır)
-      closes = Array.from({ length: 120 }, (_, i) => 100 + Math.sin(i * 0.25) * 30 + Math.sin(i * 0.07) * 50)
+      // veri yoksa hoş, oynanır bir sentetik grafik üret
+      closes = Array.from({ length: 160 }, (_, i) =>
+        100 * Math.exp(Math.sin(i * 0.11) * 0.35 + Math.sin(i * 0.045) * 0.5 + i * 0.003))
     }
 
-    // 3-nokta yumuşatma (tek günlük spike'ları yumuşat)
-    const sm = closes.map((v, i) => {
-      const a = closes[Math.max(0, i - 1)]
-      const b = closes[Math.min(closes.length - 1, i + 1)]
+    // LOG ÖLÇEK — kritik: Türk hisseleri 5 yılda 15-30x artıyor; lineer ölçekte
+    // erken yıllar dümdüz ezilir ve tüm hisseler aynı görünür. Log ile yüzdesel
+    // hareketler her yerde eşit yükseklikte → gerçek "çizgi grafik" hissi.
+    const logs = closes.map((c) => Math.log(c))
+
+    // Tüm çok-yıllık grafiği tek turda sürülebilir sayıda noktaya indir.
+    // Böylece oyuncu hissenin GERÇEK hikâyesini (ralliler + düzeltmeler) sürer.
+    const N = TERRAIN_POINTS
+    const L = logs.length
+    const res = []
+    for (let i = 0; i < N; i++) {
+      const t = (i * (L - 1)) / (N - 1)
+      const i0 = Math.floor(t)
+      const f = t - i0
+      const a = logs[i0]
+      const b = logs[Math.min(L - 1, i0 + 1)]
+      res.push(a + (b - a) * f)
+    }
+
+    // hafif yumuşatma (tek nokta spike'larını yumuşat ama dalgalanmayı koru)
+    const sm = res.map((v, i) => {
+      const a = res[Math.max(0, i - 1)]
+      const b = res[Math.min(N - 1, i + 1)]
       return (a + v * 2 + b) / 4
     })
 
@@ -449,12 +470,13 @@ export class RacingEngine {
   _collectibleAt(i) {
     if (i < 1) return null
     const x = i * SX
-    if (i % 34 === 0) {
-      return { type: 'fuel', x, y: this.heightAt(x) + 46 }
+    if (i % 28 === 0) {
+      return { type: 'fuel', x, y: this.heightAt(x) + 40 }
     }
     const h = hash32(i)
-    if (h % 100 < 35) {
-      const off = 40 + (h % 70)
+    if (h % 100 < 45) {
+      // çizginin hemen üstünde — sürerken kolayca toplanır (yukarıda asılı kalmaz)
+      const off = 26 + (h % 20)
       return { type: 'coin', x, y: this.heightAt(x) + off }
     }
     return null
