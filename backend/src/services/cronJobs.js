@@ -17,6 +17,8 @@ const economicCalendarService = require('./economicCalendarService');
 const botEngine = require('./tradingBotV2/botEngine');
 const cryptoBotEngine = require('./cryptoBotV2/cryptoBotEngine');
 const tema34Engine = require('./tema34Bot/tema34Engine');
+const customBotEngine = require('./customBots/customBotEngine');
+const customBotRegistry = require('./customBots/customBotRegistry');
 const logger = require('../utils/logger');
 
 // Türkiye saat dilimi — BIST takvimi
@@ -323,6 +325,64 @@ async function runTema34Bot() {
     return result;
   } catch (e) {
     logger.error(`[TEMA34 bot] hata: ${e.message}`, e.stack);
+    return null;
+  }
+}
+
+// ── Kullanıcı-tanımlı (custom) botlar ──────────────────────────────────────
+// Günlük tarama — BIST kapanışından sonra her aktif botun stratejisini evreninde
+// koşturur (giriş/çıkış sinyalleri). TR resmi tatilinde sessiz. Botlar sırayla
+// işlenir (Yahoo veri çekimini boğmamak için).
+async function runCustomBotsDaily() {
+  try {
+    const dateKey = todayKeyTR();
+    if (TR_HOLIDAYS_2026.has(dateKey)) {
+      logger.info(`⏭️ Custom botlar: ${dateKey} resmi tatil — tarama atlandı`);
+      return null;
+    }
+    const bots = customBotRegistry.list().filter(b => b.status !== 'paused');
+    if (!bots.length) return null;
+    logger.info(`⏰ Custom botlar günlük tarama başlatıldı (${bots.length} aktif bot)`);
+    for (const bot of bots) {
+      try {
+        const r = await customBotEngine.runDaily(bot);
+        if (r?.ok && !r.skipped) {
+          logger.info(`🛠️🤖 Custom "${bot.name}" — taranan ${r.scanned}, giriş ${r.opened}, çıkış ${r.closed}`);
+        }
+      } catch (e) {
+        logger.error(`[CustomBot ${bot.id}] günlük hata: ${e.message}`);
+      }
+    }
+    return { ok: true, bots: bots.length };
+  } catch (e) {
+    logger.error(`[CustomBot] daily hata: ${e.message}`, e.stack);
+    return null;
+  }
+}
+
+// Gün-içi tick — BIST açık saatlerinde her aktif botun açık pozisyonlarının
+// SL/TP/trailing/timeout kontrolü. isBistOpen() penceresi dışında çalışmaz.
+async function runCustomBotsTick() {
+  try {
+    if (!isBistOpen()) return null;
+    const bots = customBotRegistry.list().filter(b => b.status !== 'paused');
+    if (!bots.length) return null;
+    let totalClosed = 0, totalTrailed = 0;
+    for (const bot of bots) {
+      try {
+        const r = await customBotEngine.tick(bot);
+        totalClosed += r?.closed || 0;
+        totalTrailed += r?.trailed || 0;
+      } catch (e) {
+        logger.error(`[CustomBot ${bot.id}] tick hata: ${e.message}`);
+      }
+    }
+    if (totalClosed || totalTrailed) {
+      logger.info(`🛠️🤖 Custom botlar tick — kapanan ${totalClosed}, trailing ${totalTrailed}`);
+    }
+    return { ok: true };
+  } catch (e) {
+    logger.error(`[CustomBot] tick hata: ${e.message}`, e.stack);
     return null;
   }
 }
@@ -724,6 +784,24 @@ class CronJobsService {
       { scheduled: false, ...TR_TZ }
     );
 
+    // 29. Custom (kullanıcı-tanımlı) botlar — günlük strateji taraması. BIST
+    //     kapanışından sonra (18:40 TR, TEMA34'ten sonra), Pzt-Cuma. Her aktif
+    //     botun stratejisi evreninde koşar; tatil günlerinde fonksiyon sessizdir.
+    const customBotDailyJob = cron.schedule(
+      '40 18 * * 1-5',
+      () => runCustomBotsDaily(),
+      { scheduled: false, ...TR_TZ }
+    );
+
+    // 30. Custom botlar tick — BIST açık saatlerinde her 5 dk. Açık pozisyonların
+    //     SL/TP/trailing/timeout kontrolü. runCustomBotsTick() içindeki isBistOpen()
+    //     kapısı kesin pencereyi uygular.
+    const customBotTickJob = cron.schedule(
+      '*/5 9-18 * * 1-5',
+      () => runCustomBotsTick(),
+      { scheduled: false, ...TR_TZ }
+    );
+
     // Start jobs only during market hours (9 AM - 6 PM, Monday-Friday)
     const marketHoursJob = cron.schedule(
       '* 9-18 * * 1-5', // Mon-Fri, 9 AM - 6 PM
@@ -805,6 +883,8 @@ class CronJobsService {
       botTickJob,
       tema34BotJob,
       cryptoBotTickJob,
+      customBotDailyJob,
+      customBotTickJob,
       marketHoursJob,
       afterHoursJob
     ];

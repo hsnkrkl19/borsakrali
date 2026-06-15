@@ -49,6 +49,7 @@ const adminRoutes = require('./routes/admin.routes');
 const tradingBotRoutes = require('./routes/tradingBot.routes');
 const cryptoBotRoutes = require('./routes/cryptoBot.routes');
 const tema34BotRoutes = require('./routes/tema34Bot.routes');
+const customBotsRoutes = require('./routes/customBots.routes');
 const isYatirimRoutes = require('./routes/isyatirim.routes');
 const borsapyRoutes = require('./routes/borsapy.routes');
 const pushNotificationService = require('./services/pushNotificationService');
@@ -214,6 +215,7 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/trading-bot', tradingBotRoutes);
 app.use('/api/crypto-bot', cryptoBotRoutes);
 app.use('/api/tema34-bot', tema34BotRoutes);
+app.use('/api/custom-bots', customBotsRoutes);
 app.use('/api/isyatirim', isYatirimRoutes);
 app.use('/api/borsapy', borsapyRoutes);
 

@@ -21,11 +21,19 @@ const { supabaseAdmin, isSupabaseEnabled } = require('../lib/supabase');
 
 const BUCKET = 'bot-state';
 const DATA_ROOT = process.env.BOT_DATA_DIR || path.join(__dirname, '..', 'data');
-const SUBDIRS = ['bot', 'crypto-bot', 'tema34-bot'];
-// signal-log.json → BIST/kripto botları; runs.json → TEMA34 botu. Liste tüm
-// alt-dizinlere uygulanır; olmayan dosyalar loadAll'da sessizce atlanır.
-const FILES = ['portfolio.json', 'positions.json', 'trades.json', 'signal-log.json', 'runs.json'];
+// Sabit botlar + kullanıcı-tanımlı botların kayıt defteri ('custom-bots/registry.json').
+// Kullanıcı botlarının portföyleri ise dinamik 'custom-<id>' alt-dizinlerinde yaşar
+// (loadAll, registry.json'ı okuyup bunları runtime'da keşfeder).
+const SUBDIRS = ['bot', 'crypto-bot', 'tema34-bot', 'custom-bots'];
+// signal-log.json → BIST/kripto botları; runs.json → TEMA34 botu; registry.json →
+// custom bot tanım defteri. Liste tüm alt-dizinlere uygulanır; olmayan dosyalar
+// loadAll'da sessizce atlanır.
+const FILES = ['portfolio.json', 'positions.json', 'trades.json', 'signal-log.json', 'runs.json', 'registry.json'];
 const DEBOUNCE_MS = 2500;
+
+// Bir custom bot portföy alt-dizini mi? ('custom-<id>', registry'nin 'custom-bots'u hariç)
+function isCustomSubdir(subdir) { return /^custom-[a-z0-9]+$/i.test(subdir) && subdir !== 'custom-bots'; }
+function isAllowedSubdir(subdir) { return SUBDIRS.includes(subdir) || isCustomSubdir(subdir); }
 
 let bucketReady = false;
 const pending = new Map(); // storageKey -> { data, timer }
@@ -59,26 +67,44 @@ async function loadAll() {
     return { enabled: false, restored: 0 };
   }
   let restored = 0, missing = 0;
+  // Tek bir (subdir, filename)'i Supabase'ten yerel dosyaya geri yazar.
+  async function restoreOne(subdir, filename) {
+    const key = keyOf(subdir, filename);
+    try {
+      const { data, error } = await supabaseAdmin.storage.from(BUCKET).download(key);
+      if (error || !data) { missing++; return; }
+      const text = typeof data.text === 'function'
+        ? await data.text()
+        : Buffer.from(await data.arrayBuffer()).toString('utf8');
+      JSON.parse(text); // bozuksa atla
+      const dir = path.join(DATA_ROOT, subdir);
+      if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+      fs.writeFileSync(path.join(dir, filename), text, 'utf8');
+      restored++;
+    } catch (_) {
+      missing++;
+    }
+  }
   try {
     await ensureBucket();
     for (const subdir of SUBDIRS) {
-      for (const filename of FILES) {
-        const key = keyOf(subdir, filename);
-        try {
-          const { data, error } = await supabaseAdmin.storage.from(BUCKET).download(key);
-          if (error || !data) { missing++; continue; }
-          const text = typeof data.text === 'function'
-            ? await data.text()
-            : Buffer.from(await data.arrayBuffer()).toString('utf8');
-          JSON.parse(text); // bozuksa atla
-          const dir = path.join(DATA_ROOT, subdir);
-          if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-          fs.writeFileSync(path.join(dir, filename), text, 'utf8');
-          restored++;
-        } catch (_) {
-          missing++;
+      for (const filename of FILES) await restoreOne(subdir, filename);
+    }
+    // Custom bot portföylerini keşfet: az önce geri yüklenen registry.json'ı oku,
+    // her bot için 'custom-<id>' alt-dizinini geri yükle (cron'lar okumadan önce).
+    try {
+      const regPath = path.join(DATA_ROOT, 'custom-bots', 'registry.json');
+      if (fs.existsSync(regPath)) {
+        const bots = JSON.parse(fs.readFileSync(regPath, 'utf8'));
+        if (Array.isArray(bots)) {
+          for (const b of bots) {
+            if (!b || !b.id) continue;
+            for (const filename of FILES) await restoreOne(`custom-${b.id}`, filename);
+          }
         }
       }
+    } catch (e) {
+      console.error('[BotPersistence] custom bot geri yükleme hatası:', e.message);
     }
     console.log(`[BotPersistence] Supabase'ten geri yüklendi: ${restored} dosya (${missing} yok/atlandı)`);
   } catch (e) {
@@ -93,7 +119,7 @@ async function loadAll() {
  */
 function save(subdir, filename, dataObj) {
   if (!isSupabaseEnabled()) return;
-  if (!SUBDIRS.includes(subdir) || !FILES.includes(filename)) return;
+  if (!isAllowedSubdir(subdir) || !FILES.includes(filename)) return;
   const key = keyOf(subdir, filename);
   const existing = pending.get(key);
   if (existing?.timer) clearTimeout(existing.timer);
@@ -127,4 +153,26 @@ async function flushAll() {
   }
 }
 
-module.exports = { loadAll, save, flush, flushAll, ensureBucket, BUCKET, SUBDIRS, FILES };
+/**
+ * Bir alt-dizinin tüm yedek dosyalarını Supabase'ten siler. Custom bot
+ * silinince çağrılır (orphan bucket nesnesi bırakmaz). Supabase kapalıysa no-op.
+ */
+async function remove(subdir) {
+  // Bekleyen yazımları iptal et (silinen botu tekrar yazma)
+  for (const filename of FILES) {
+    const key = keyOf(subdir, filename);
+    const e = pending.get(key);
+    if (e?.timer) clearTimeout(e.timer);
+    pending.delete(key);
+  }
+  if (!isSupabaseEnabled()) return;
+  try {
+    if (!(await ensureBucket())) return;
+    const keys = FILES.map(f => keyOf(subdir, f));
+    await supabaseAdmin.storage.from(BUCKET).remove(keys);
+  } catch (e) {
+    console.error(`[BotPersistence] silme hatası (${subdir}):`, e.message);
+  }
+}
+
+module.exports = { loadAll, save, flush, flushAll, remove, ensureBucket, BUCKET, SUBDIRS, FILES };
