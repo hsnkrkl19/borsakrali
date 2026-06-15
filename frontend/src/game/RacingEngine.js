@@ -146,10 +146,19 @@ export class RacingEngine {
       else if (d < -MAXSTEP) h[i] = h[i + 1] - MAXSTEP
     }
 
-    // NOT: yapay rampa/tümsek EKLEMİYORUZ — gerçek grafiğin doğal tepeleri
-    // (resample sonrası ~26-30 yön değişimi) zaten zıplama için yeterli crest
-    // veriyor. Yapay tümsekler ölümcül yüz-üstü iniş tuzağı yaratıyordu + grafiği
-    // bozuyordu. Tam takla artık doğal büyük crest'lerde + hızda olur (nadir ödül).
+    // ZIPLAMA TÜMSEKLERİ — hava/takla için simetrik yumuşak tepeler (uçurum
+    // DEĞİL). Dokunmazsan düz uçup güvenle inersin; gaz/fren tutarsan takla atar
+    // ama ters inersen boynun kırılır. Grafiğin genel şekli korunur.
+    let bi = 14
+    while (bi < N - 6) {
+      if (hash32(bi * 53 + 11) % 5 === 0) {
+        const peak = AMP * 0.16
+        h[bi - 1] += peak * 0.5
+        h[bi] += peak
+        h[bi + 1] += peak * 0.5
+        bi += 13
+      } else bi += 1
+    }
 
     this.heights = h
     this.N = h.length
@@ -314,30 +323,22 @@ export class RacingEngine {
     // nitro itişi (merkeze uygulanır → tork yok, takla atmaz)
     if (this.nitroActive > 0) {
       const fX = Math.cos(car.angle), fY = Math.sin(car.angle)
-      const NF = s.enginePower * 1.3
+      const NF = s.enginePower * 1.15
       car.vx += fX * NF * dt
       car.vy += fY * NF * dt * 0.5
     }
 
-    // havada gaz/fren ile dönüş (ease-in → tap'ler ani takla atmaz)
-    // Hava kontrolü YUMUŞAK: gaz havada aracı yavaşça döndürür → düz zeminden
-    // uçunca tepetaklak olup kafa üstü inmez (affedici). Tam takla ancak BÜYÜK
-    // havada (büyük tümsek + hız) tamamlanır → nadir ödül, sürekli kaza değil.
-    // Hava kontrolü: yalnızca ilk inişten SONRA (spawn drop-in'i döndürmesin).
-    // Yeterince güçlü ki gaz/fren tutarak tam takla tamamlanabilsin; takla
-    // tamamlanınca iniş otomatik düzeltilir → tam takla = güvenli iniş.
-    if (this._hasLanded) {
+    // HAVA KONTROLÜ (klasik Hill-Climb riski):
+    //  • Havada DOKUNMAZSAN → araç düz inişe yönelir (güvenli).
+    //  • Gaz/fren tutarsan → SERBEST döner (takla). Ama ters/yan inersen BOYNUN
+    //    KIRILIR = oyun biter. Yani takla riskli bir ustalık hamlesi.
+    if (!car.onGround && this._hasLanded) {
       const a = wrapPi(car.angle)
-      if (!car.onGround) {
-        const ramp = clamp(this._physAirTimer / 0.12, 0.5, 1)
-        const at = s.airControl * 2.6 * ramp
-        if (gas && hasFuel) car.angVel += at * dt          // SERBEST dönüş → tam takla
-        else if (brake && hasFuel) car.angVel -= at * dt   // ön takla
-        else car.angVel += (-a * 12 - car.angVel * 5) * dt // giriş yok → düz inişe yönel
-      } else if (Math.abs(a) > 1.0) {
-        // Yerde de devrilmeyi engelle (yedek) → araç ASLA ters kalmaz.
-        car.angVel += (-a * 9 - car.angVel * 3) * dt
-      }
+      const ramp = clamp(this._physAirTimer / 0.12, 0.5, 1)
+      const at = s.airControl * 2.6 * ramp
+      if (gas && hasFuel) car.angVel += at * dt          // geri takla — RİSK
+      else if (brake && hasFuel) car.angVel -= at * dt   // ön takla — RİSK
+      else car.angVel += (-a * 14 - car.angVel * 6) * dt // dokunma → düz inişe yönel
     }
 
     car.vx -= car.vx * 0.16 * dt
@@ -350,28 +351,18 @@ export class RacingEngine {
     car.y += car.vy * dt
     car.angle += car.angVel * dt
 
-    // GÜVENLİK GARANTİSİ: kasıtlı hava-takla DIŞINDA aracın eğimini ±75° ile
-    // sınırla → araç FİZİKSEL OLARAK asla ters dönemez → kafa üstü kaza yok.
-    // Havada gaz/fren tutarsan serbest döner (takla sayılır), inince clamp düzeltir.
-    const flipping = !car.onGround && (gas || brake) && hasFuel
-    if (this._hasLanded && !flipping) {
-      const a = wrapPi(car.angle)
-      if (a > 1.3) { car.angle -= (a - 1.3); if (car.angVel > 0) car.angVel = 0 }
-      else if (a < -1.3) { car.angle -= (a + 1.3); if (car.angVel < 0) car.angVel = 0 }
-    }
-
     // kalkış / iniş kenarı
     if (this._wasGroundPhys && !car.onGround) {
       // Kalkışta dönüş girişi yoksa crest'in verdiği spin'i kır → araç DÜZ uçar.
       if (!gas && !brake) car.angVel *= 0.2
       // Crest fırlatması: hızlıysan tepeden uçarsın (zıplama/takla için hava).
-      // Artık GÜVENLİ — ±75° clamp kötü inişi yakalar, kafa üstü kaza olmaz.
       const nL = this.normalAt(car.x - SX * 0.5).x
       const nR = this.normalAt(car.x + SX * 0.5).x
       if (nL < -0.05 && nR > 0.05 && car.vx > 200) car.vy += clamp(car.vx, 0, 1000) * 0.16 + 60
       this._physAirTimer = 0
     } else if (!this._wasGroundPhys && car.onGround) {
-      this._pendingLanding = { vy: car.vy, airTime: this._physAirTimer, flips: this._flipsThisAir }
+      // iniş açısını yakala (clamp öncesi) → ters/yan iniş ölümcül
+      this._pendingLanding = { vy: car.vy, airTime: this._physAirTimer, flips: this._flipsThisAir, angle: wrapPi(car.angle) }
     }
     if (car.onGround) this._hasLanded = true
     if (!car.onGround) this._physAirTimer += dt
@@ -424,20 +415,13 @@ export class RacingEngine {
     if (!car.onGround) {
       this._airTimer += frameDt
       this._airAccum += car.angVel * frameDt
-      this.nitro = Math.min(this.nitroMax, this.nitro + 10 * frameDt)
-      if (Math.abs(this._airAccum) >= Math.PI * 1.3) {   // ~234° = takla (arcade, cömert)
-        this.run.flips++
+      if (Math.abs(this._airAccum) >= Math.PI * 1.3) {   // ~234° = bir tur döndü
+        // Ödül DEĞİL: sadece say. Ödül/ceza İNİŞTE belli olur (temiz in = ödül,
+        // ters in = ölüm). Böylece takla gerçek bir risk.
         this._flipsThisAir++
         this._airAccum -= Math.sign(this._airAccum) * Math.PI * 1.3
-        const m = this._flipsThisAir
-        this.run.coins += m
-        this.nitro = Math.min(this.nitroMax, this.nitro + 25)
-        const label = m >= 4 ? ('İNANILMAZ x' + m) : m === 3 ? 'TRIPLE TAKLA!' : m === 2 ? 'DOUBLE TAKLA!' : 'TAKLA!'
-        this._addFloat(car.x, car.y + 70, label, '#f59e0b')
-        this._beep(560 + m * 120, 0.09)
-        this._spawnSparkle(car.x, car.y + 30)
-        this._addShake(5)
-        this._combo = m
+        this._beep(560 + this._flipsThisAir * 110, 0.06)
+        this._combo = this._flipsThisAir
         this._comboFlash = this._frame
       }
     } else {
@@ -450,20 +434,25 @@ export class RacingEngine {
       const L = this._pendingLanding; this._pendingLanding = null
       const gN = car.groundN
       const groundAngle = Math.atan2(gN.x, gN.y)
+      if (Math.abs(L.angle) > 1.55) {
+        // TERS / YAN İNDİ → boyun kırıldı = oyun biter (klasik Hill-Climb riski)
+        return this._gameOver('crash')
+      }
       if (L.flips >= 1) {
-        // TAKLA tamamlandı → aracı zemine hizala, temiz iniş garanti (ödül)
+        // TAM TAKLA atıp DÜZ indi → ustalık ödülü (sadece indirilen taklalar sayılır)
+        this.run.flips += L.flips
         car.angle = -groundAngle
-        car.angVel *= 0.15
-        const pay = 20 * L.flips
-        this.run.coins += 6 * L.flips
-        this.nitro = Math.min(this.nitroMax, this.nitro + 25)
-        this._addFloat(car.x, car.y + 55, 'TEMİZ İNİŞ! +' + pay, '#22c55e')
+        car.angVel *= 0.2
+        const pay = 30 * L.flips
+        this.run.coins += 8 * L.flips
+        this.nitro = Math.min(this.nitroMax, this.nitro + 20)
+        this._addFloat(car.x, car.y + 55, (L.flips > 1 ? L.flips + 'X TAKLA! +' : 'TAKLA! +') + pay, '#fbbf24')
         this._beep(1040, 0.12); this._addShake(5); this._spawnSparkle(car.x, car.y + 20)
       } else if (L.airTime > 0.4) {
         const misalign = Math.abs(wrapPi(car.angle + groundAngle))
         if (misalign < 0.32) {
           this.run.coins += 8
-          this.nitro = Math.min(this.nitroMax, this.nitro + 30)
+          this.nitro = Math.min(this.nitroMax, this.nitro + 14)
           this._addFloat(car.x, car.y + 55, 'MÜKEMMEL İNİŞ!', '#22c55e')
           this._beep(990, 0.12); this._addShake(4); this._spawnSparkle(car.x, car.y + 20)
         } else if (L.vy < -520) {
@@ -474,16 +463,15 @@ export class RacingEngine {
       }
     }
 
-    // nitro tetik + sönüm
-    if (this.input.gas && this.nitro >= 30 && this.nitroActive <= 0) this.nitroActive = 1.5
+    // nitro tetik + sönüm (NERF: dolu bar gerek, kısa patlama → sonsuz motor değil)
+    if (this.input.gas && this.nitro >= 55 && this.nitroActive <= 0) this.nitroActive = 1.0
     if (this.nitroActive > 0) {
       this.nitroActive -= frameDt
-      this.nitro = Math.max(0, this.nitro - (30 / 1.5) * frameDt)
+      this.nitro = Math.max(0, this.nitro - 58 * frameDt)
       if (this.nitro <= 0) this.nitroActive = 0
       const tp = this._tailpipe()
       this._spawnFlame(tp.x, tp.y)
     }
-    if (car.onGround && car.vy < -60 && spd > 400) this.nitro = Math.min(this.nitroMax, this.nitro + 8 * frameDt)
 
     this._collect()
     this._stepParticles(frameDt)
@@ -571,7 +559,7 @@ export class RacingEngine {
           this._addFloat(c.x, c.y, '+YAKIT', '#26a69a'); this._beep(440, 0.1)
         } else {
           this.run.coins += c.high ? 3 : 1
-          this.nitro = Math.min(this.nitroMax, this.nitro + (c.high ? 12 : 5))
+          this.nitro = Math.min(this.nitroMax, this.nitro + (c.high ? 7 : 4))
           this._addFloat(c.x, c.y, c.high ? '+3' : '+1', '#fbbf24')
           this._spawnSparkle(c.x, c.y); this._beep(880, 0.05)
         }
@@ -695,7 +683,7 @@ export class RacingEngine {
     canvas.width = Math.round(w * dpr)
     canvas.height = Math.round(h * dpr)
     this.dpr = dpr; this.viewW = w; this.viewH = h
-    this.zoomBase = clamp(h / 560, 0.82, 1.6)
+    this.zoomBase = clamp(h / 820, 0.55, 1.15)   // uzaklaştırıldı → grafik daha çok görünür
     if (this._zoom == null) this._zoom = this.zoomBase
   }
 
@@ -713,9 +701,9 @@ export class RacingEngine {
 
     const spd = Math.hypot(car.vx, car.vy)
     const k = (rate) => 1 - Math.exp(-rate * Math.min(frameDt, 0.05))
-    const lookAhead = clamp(car.vx * 0.28 + Math.sign(car.vx) * spd * 0.04, -160, 380)
+    const lookAhead = clamp(car.vx * 0.32 + Math.sign(car.vx) * spd * 0.06, -200, 520)
     const tgtX = car.x + lookAhead
-    const tgtY = car.y + 80 + spd * 0.012 + (!car.onGround ? 40 : 0)
+    const tgtY = car.y + 70 + spd * 0.012 + (!car.onGround ? 50 : 0)
     this.camX = lerp(this.camX ?? car.x, tgtX, k(11))
     this.camY = lerp(this.camY ?? car.y, tgtY, k(8))
     const zTarget = this.zoomBase * clamp(1 - spd / 9000, 0.8, 1)
