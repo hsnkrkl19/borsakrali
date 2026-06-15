@@ -75,6 +75,7 @@ import Yenilikler from './pages/Yenilikler' // YENİ v5.2: Hoşgeldin / yenilikl
 import HisseMerkezi from './pages/HisseMerkezi' // YENİ v5.3: Tek çatı altında hisse detayları
 import IsYatirimVeri from './pages/IsYatirimVeri' // YENİ v5.4: İş Yatırım hisse/endeks/mali tablo veri arayüzü
 import BorsapyMerkezi from './pages/BorsapyMerkezi' // YENİ v5.5: TEFAS+TCMB+Banka kurları+Enflasyon (borsapy esinli)
+import HisseYarisi from './pages/HisseYarisi' // YENİ: BIST grafiğinde araba/motor sürme oyunu (hill-climb)
 
 // === PARÇA 1 WRAPPER'LARI (21→6 sekme sadeleştirmesi) ===
 import Firsatlar from './pages/Firsatlar' // Tarayıcılar + Günlük Sinyaller
@@ -238,6 +239,9 @@ function App() {
                 {/* Borsapy Veri Merkezi — public (TEFAS + TCMB + banka kurları + enflasyon) */}
                 <Route path="/borsapy" element={<BorsapyMerkezi />} />
                 <Route path="/veri-merkezi" element={<Navigate to="/borsapy" replace />} />
+                {/* Hisse Yarışı — BIST grafiğinde araba/motor sürme oyunu (public, eğlence) */}
+                <Route path="/oyun" element={<HisseYarisi />} />
+                <Route path="/hisse-yarisi" element={<Navigate to="/oyun" replace />} />
                 <Route path="/site-haritasi" element={<SiteHaritasi />} />
                 <Route path="/endeks/:symbol" element={<EndeksDetay />} />
                 <Route path="/yenilikler" element={<Yenilikler />} />

@@ -154,6 +154,11 @@ export const SEO_MAP = {
     description:
       'Türkiye ve ABD ekonomik takvimi: enflasyon, faiz kararları ve önemli veri açıklamaları. Piyasayı etkileyen olayları takip edin.',
   },
+  '/oyun': {
+    title: 'Hisse Yarışı: BIST Grafiğinde Araba ve Motor Oyunu',
+    description:
+      'BIST hisselerinin fiyat grafiğinde araba ve motor sür! Para topla, aracını geliştir (motor, lastik, süspansiyon), yeni hisse pistleri aç. Eğlenceli borsa temalı hill-climb oyunu.',
+  },
   '/sinyaller': {
     title: 'Canlı Sinyaller ve Piyasa Özeti',
     description:
