@@ -79,6 +79,8 @@ export default function HisseYarisi() {
       candles,
       stats: effectiveStats(save.vehicle, save.upgrades[save.vehicle] || {}),
       sound: save.settings.sound,
+      symbol: save.stock,
+      name: stockMeta(save.stock).name,
       onState: (s) => setHud(s),
       onEnd: (r) => finishRun(r),
     })
@@ -149,7 +151,14 @@ export default function HisseYarisi() {
     return () => { window.removeEventListener('keydown', down); window.removeEventListener('keyup', up) }
   }, [screen])
 
-  const press = (name, val) => () => engineRef.current?.setInput(name, val)
+  // Mobil pedal: pointer capture → parmak butondan kayınca güç kesilmez;
+  // pointerleave ile bırakma YOK (klasik hill-climb tuzağı). + hafif titreşim.
+  const pedalDown = (name) => (e) => {
+    try { e.currentTarget.setPointerCapture(e.pointerId) } catch { /* yoksay */ }
+    engineRef.current?.setInput(name, true)
+    try { navigator.vibrate && navigator.vibrate(8) } catch { /* yoksay */ }
+  }
+  const pedalUp = (name) => () => engineRef.current?.setInput(name, false)
 
   // --- shop actions ---
   const buyUpgrade = (upg) => mutate((s) => {
@@ -241,77 +250,87 @@ export default function HisseYarisi() {
       </div>
 
       {/* OYUN ALANI */}
-      <div ref={wrapRef} className="relative rounded-2xl overflow-hidden shadow-lg" style={{ border: '1px solid var(--border-main)', height: 'min(68vh, 560px)', minHeight: 380 }}>
+      <div ref={wrapRef} className="relative rounded-2xl overflow-hidden shadow-lg" style={{ border: '1px solid #2a2e39', height: 'min(68vh, 560px)', minHeight: 380, background: '#131722' }}>
+        <style>{`@keyframes hy-pop{0%{transform:translateX(-50%) scale(0) rotate(-8deg);opacity:0}60%{transform:translateX(-50%) scale(1.25) rotate(2deg)}100%{transform:translateX(-50%) scale(1);opacity:1}}.hy-pop{animation:hy-pop .55s cubic-bezier(.2,1.3,.4,1) both}`}</style>
         <canvas ref={canvasRef} className="w-full h-full block touch-none" style={{ width: '100%', height: '100%' }} />
 
-        {/* HUD */}
+        {/* HUD — TradingView koyu temasına uygun */}
         {screen === 'playing' && hud && (
           <>
-            <div className="absolute top-3 left-3 right-3 flex items-start justify-between gap-2 pointer-events-none">
-              <div className="flex flex-col gap-2">
-                <div className="bg-white/85 backdrop-blur rounded-xl px-3 py-2 shadow flex items-center gap-3 text-sm font-bold text-slate-800">
-                  <span className="flex items-center gap-1"><Gauge className="w-4 h-4 text-emerald-600" />{hud.distanceM}m</span>
-                  <span className="flex items-center gap-1 text-amber-600"><Coins className="w-4 h-4" />{hud.coins}</span>
-                  {hud.flips > 0 && <span className="flex items-center gap-1 text-orange-500"><Flame className="w-4 h-4" />{hud.flips}</span>}
+            {/* üst-orta istatistik + barlar (sol-üstte motorun çizdiği ticker legend var) */}
+            <div className="absolute top-3 left-1/2 -translate-x-1/2 flex flex-col items-center gap-1.5 pointer-events-none w-[min(90%,340px)]">
+              <div className="bg-slate-900/75 backdrop-blur-md rounded-xl px-3.5 py-2 flex items-center gap-3.5 text-sm font-bold text-slate-100 shadow-lg ring-1 ring-white/10">
+                <span className="flex items-center gap-1"><Gauge className="w-4 h-4 text-sky-400" />{hud.distanceM}m</span>
+                <span className="flex items-center gap-1 text-amber-400"><Coins className="w-4 h-4" />{hud.coins}</span>
+                <span className="flex items-center gap-1 text-emerald-300">{hud.speed}<span className="text-[10px] font-medium opacity-70">km/s</span></span>
+                {hud.flips > 0 && <span className="flex items-center gap-1 text-orange-400"><Flame className="w-4 h-4" />{hud.flips}</span>}
+              </div>
+              <div className="w-full flex gap-1.5">
+                <div className="flex-1 bg-slate-900/70 backdrop-blur rounded-lg px-2 py-1.5 ring-1 ring-white/10">
+                  <div className="flex items-center justify-between text-[10px] font-semibold text-slate-300 mb-1"><span className="flex items-center gap-1"><Fuel className="w-3 h-3" />Yakıt</span><span>{Math.round(hud.fuelPct * 100)}%</span></div>
+                  <div className="h-2 rounded-full bg-slate-700/60 overflow-hidden"><div className="h-full rounded-full transition-all" style={{ width: `${hud.fuelPct * 100}%`, background: hud.fuelPct < 0.25 ? '#ef4444' : 'linear-gradient(90deg,#22c55e,#10b981)' }} /></div>
                 </div>
-                {/* yakıt */}
-                <div className="bg-white/85 backdrop-blur rounded-xl px-3 py-2 shadow w-44">
-                  <div className="flex items-center justify-between text-[11px] font-semibold text-slate-600 mb-1">
-                    <span className="flex items-center gap-1"><Fuel className="w-3.5 h-3.5" /> Yakıt</span>
-                    <span>{Math.round(hud.fuelPct * 100)}%</span>
-                  </div>
-                  <div className="h-2.5 rounded-full bg-slate-200 overflow-hidden">
-                    <div className="h-full rounded-full transition-all" style={{ width: `${hud.fuelPct * 100}%`, background: hud.fuelPct < 0.25 ? '#ef4444' : 'linear-gradient(90deg,#22c55e,#10b981)' }} />
-                  </div>
+                <div className={`flex-1 bg-slate-900/70 backdrop-blur rounded-lg px-2 py-1.5 ring-1 ${hud.nitroActive ? 'ring-orange-400/70' : 'ring-white/10'}`}>
+                  <div className="flex items-center justify-between text-[10px] font-semibold text-slate-300 mb-1"><span className={hud.nitroActive ? 'text-orange-300' : ''}>⚡ Nitro</span><span>{Math.round(hud.nitroPct * 100)}%</span></div>
+                  <div className="h-2 rounded-full bg-slate-700/60 overflow-hidden"><div className="h-full rounded-full transition-all" style={{ width: `${hud.nitroPct * 100}%`, background: hud.nitroActive ? 'linear-gradient(90deg,#fde047,#f97316)' : 'linear-gradient(90deg,#f59e0b,#f97316)' }} /></div>
                 </div>
               </div>
-              {hud.airborne && (
-                <div className="bg-orange-500 text-white rounded-xl px-3 py-1.5 shadow font-extrabold text-sm animate-pulse">HAVADA! 🪂</div>
-              )}
             </div>
 
-            <button onClick={() => { stopEngine(); setScreen('idle') }} className="absolute top-3 right-3 mt-16 sm:mt-0 pointer-events-auto bg-white/85 hover:bg-white text-slate-700 rounded-lg px-3 py-1.5 text-xs font-semibold shadow" style={{ display: hud.airborne ? 'none' : undefined }}>
+            {hud.airborne && (
+              <div className="absolute top-24 left-1/2 -translate-x-1/2 bg-orange-500/90 text-white rounded-xl px-3 py-1 shadow-lg font-extrabold text-sm pointer-events-none whitespace-nowrap">
+                HAVADA{hud.flipsThisAir > 0 ? ` · TAKLA x${hud.flipsThisAir}` : ''} 🪂
+              </div>
+            )}
+
+            {hud.combo > 1 && (
+              <div key={hud.comboFlash} className="hy-pop absolute left-1/2 top-1/3 -translate-x-1/2 text-emerald-300 font-black text-4xl pointer-events-none drop-shadow-[0_2px_10px_rgba(16,185,129,0.7)]">
+                x{hud.combo} COMBO
+              </div>
+            )}
+
+            <button onClick={() => { stopEngine(); setScreen('idle') }} className="absolute top-3 right-2 pointer-events-auto bg-slate-900/70 hover:bg-slate-800 text-slate-200 rounded-lg px-3 py-1.5 text-xs font-semibold ring-1 ring-white/10">
               Bitir
             </button>
 
-            {/* PEDALLAR */}
-            <div className="absolute bottom-4 left-4 right-4 flex items-end justify-between pointer-events-none select-none">
+            {/* PEDALLAR — pointer capture + güvenli alan */}
+            <div className="absolute left-3 right-3 flex items-end justify-between pointer-events-none select-none" style={{ bottom: 'calc(0.75rem + env(safe-area-inset-bottom, 0px))' }}>
               <button
-                onPointerDown={press('brake', true)} onPointerUp={press('brake', false)} onPointerLeave={press('brake', false)} onPointerCancel={press('brake', false)}
-                className="pointer-events-auto w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-red-500/90 active:bg-red-600 text-white font-extrabold text-sm shadow-lg flex flex-col items-center justify-center active:scale-95 transition-transform"
+                onPointerDown={pedalDown('brake')} onPointerUp={pedalUp('brake')} onPointerCancel={pedalUp('brake')}
+                className="pointer-events-auto touch-none w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-red-500/85 active:bg-red-600 text-white font-extrabold text-sm shadow-xl ring-2 ring-white/20 flex flex-col items-center justify-center active:scale-95 transition-transform"
               >
                 <span className="text-2xl leading-none">◀</span>FREN
               </button>
               <button
-                onPointerDown={press('gas', true)} onPointerUp={press('gas', false)} onPointerLeave={press('gas', false)} onPointerCancel={press('gas', false)}
-                className="pointer-events-auto w-24 h-24 sm:w-28 sm:h-28 rounded-full bg-emerald-500/90 active:bg-emerald-600 text-white font-extrabold text-base shadow-lg flex flex-col items-center justify-center active:scale-95 transition-transform"
+                onPointerDown={pedalDown('gas')} onPointerUp={pedalUp('gas')} onPointerCancel={pedalUp('gas')}
+                className={`pointer-events-auto touch-none w-24 h-24 sm:w-28 sm:h-28 rounded-full text-white font-extrabold text-base shadow-xl ring-2 flex flex-col items-center justify-center active:scale-95 transition-transform ${hud.nitroActive ? 'bg-orange-500/95 ring-yellow-300/70' : 'bg-emerald-500/85 active:bg-emerald-600 ring-white/20'}`}
               >
-                <span className="text-3xl leading-none">▶</span>GAZ
+                <span className="text-3xl leading-none">▶</span>{hud.nitroActive ? 'NİTRO' : 'GAZ'}
               </button>
             </div>
           </>
         )}
 
-        {/* IDLE / başlat ekranı */}
+        {/* IDLE / başlat ekranı — koyu TradingView teması */}
         {(screen === 'idle' || screen === 'loading') && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center bg-gradient-to-b from-emerald-50/70 to-white/80 backdrop-blur-[2px] text-center px-4">
-            <div className="text-5xl mb-2">{vehicle.emoji}</div>
-            <h2 className="text-lg font-bold mb-1" style={{ color: 'var(--text-primary)' }}>
-              {stockInfo.symbol} pistinde {vehicle.name}
+          <div className="absolute inset-0 flex flex-col items-center justify-center bg-gradient-to-b from-[#131722]/85 to-[#0c0e15]/92 backdrop-blur-[2px] text-center px-4">
+            <div className="text-5xl mb-2 drop-shadow-lg">{vehicle.emoji}</div>
+            <h2 className="text-lg font-bold mb-1 text-slate-100">
+              {stockInfo.symbol} grafiğinde {vehicle.name}
             </h2>
-            <p className="text-xs mb-4 max-w-xs" style={{ color: 'var(--text-secondary)' }}>
-              {stockInfo.name} fiyat grafiği senin pistin. Gaza bas, mesafe kat, para topla. Yakıtın bitmeden ne kadar gidebilirsin?
+            <p className="text-xs mb-4 max-w-xs text-slate-400">
+              {stockInfo.name} fiyat grafiği senin pistin. Tepelerden uç, takla at, para topla, nitroyu doldur. Yakıtın bitmeden ne kadar gidebilirsin?
             </p>
             <button
               onClick={startRun}
               disabled={screen === 'loading'}
               className="px-7 py-3 rounded-xl font-extrabold text-white shadow-lg flex items-center gap-2 disabled:opacity-60 transition active:scale-95"
-              style={{ background: 'linear-gradient(135deg,#10b981,#047857)' }}
+              style={{ background: 'linear-gradient(135deg,#26a69a,#0b7d72)' }}
             >
               <Play className="w-5 h-5" /> {screen === 'loading' ? 'Pist hazırlanıyor…' : 'YARIŞ BAŞLASIN'}
             </button>
-            <p className="text-[11px] mt-3" style={{ color: 'var(--text-faint, #94a3b8)' }}>
-              ⌨️ Yön tuşları / boşluk · 📱 Ekran pedalları
+            <p className="text-[11px] mt-3 text-slate-500">
+              ⌨️ Yön tuşları / boşluk · 📱 Ekran pedalları · havada gaz/fren = dön
             </p>
           </div>
         )}
