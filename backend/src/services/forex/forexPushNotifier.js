@@ -57,10 +57,11 @@ async function evaluateAndPush(signals) {
   if (process.env.FOREX_PUSH_DISABLED === '1') return { telegram: 0, app: 0, considered: 0, disabled: true };
   const chatId = process.env.TELEGRAM_FOREX_CHANNEL || process.env.TELEGRAM_CHAT_ID || '';
   const now = Date.now();
-  let tg = 0, app = 0, considered = 0;
+  let tg = 0, app = 0, considered = 0, eligible = 0;
 
   for (const s of (signals || [])) {
     if (s.confidence < PUSH_CONFIDENCE) continue;
+    eligible++;
     const key = `${s.id}:${s.tf}:${s.direction}`;
     if (now - (lastSent.get(key) || 0) < COOLDOWN_MS) continue;
     considered++;
@@ -73,7 +74,7 @@ async function evaluateAndPush(signals) {
 
     lastSent.set(key, now);
   }
-  return { telegram: tg, app, considered };
+  return { telegram: tg, app, considered, eligible, chatSet: !!chatId };
 }
 
 // ── Kapanış / teyit mesajları (aynı NO ile) ────────────────────────────────

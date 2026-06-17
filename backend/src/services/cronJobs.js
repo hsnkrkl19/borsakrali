@@ -525,9 +525,8 @@ async function runForexSignalCadence() {
     } catch (_) { /* socket yoksa sessiz */ }
     // Telegram ana kanal + uygulama-içi (hsnkrkl19@gmail.com) push (cooldown içeride)
     const pushed = await forexPushNotifier.evaluateAndPush(sigs);
-    if (pushed?.telegram || pushed?.app) {
-      logger.info(`💱 Forex turu — ${sigs.length} sinyal · Telegram ${pushed.telegram} · App ${pushed.app}`);
-    }
+    const maxConf = sigs.reduce((m, s) => Math.max(m, s.confidence || 0), 0);
+    logger.info(`💱 Forex turu — ${sigs.length} sinyal · maxGüven ${maxConf} · eşikÜstü ${pushed?.eligible} · aday ${pushed?.considered} · TG ${pushed?.telegram} · App ${pushed?.app} · chat ${pushed?.chatSet}`);
     // Açık sinyallerin kapanış/teyit kontrolü (TP1/STOP/SÜRE → aynı NO ile teyit)
     try {
       const closures = await forexSignalTracker.checkClosures();
