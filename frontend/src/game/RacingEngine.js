@@ -316,6 +316,16 @@ export class RacingEngine {
       }
     }
 
+    // YERDE ÖN/ARKA KALDIRMA — sürerken SOL/SAĞ ile aracın önünü/arkasını kaldır.
+    // HIZA ORANTILI: dururken etkisiz, hızlandıkça daha çok kalkar. Hedef-açı yayı →
+    // devrilmeden bir yatışta dengelenir; bıraktığında zemin doğrultur. Rampaya bu
+    // açıyla girersen takla başlatmak kolaylaşır.
+    if (car.onGround && this._hasLanded && (this.input.flipL || this.input.flipR)) {
+      const sf = clamp(speed / (s.topSpeed * 0.45), 0, 1)
+      const target = (this.input.flipL ? 1 : -1) * 0.62 * sf   // SOL→ön kalkar (+), SAĞ→arka kalkar (−)
+      car.angVel += (target - car.angle) * 13 * dt
+    }
+
     // HAVA KONTROLÜ — SOL/SAĞ = takla (klasik Hill-Climb riski):
     //  • Havada SOL/SAĞ'a DOKUNMAZSAN → araç düz inişe yönelir (güvenli).
     //  • SOL = geri takla, SAĞ = ön takla. Ama dönüşü tamamlayamayıp sürücünün
@@ -638,7 +648,7 @@ export class RacingEngine {
     canvas.width = Math.round(w * dpr)
     canvas.height = Math.round(h * dpr)
     this.dpr = dpr; this.viewW = w; this.viewH = h
-    this.zoomBase = clamp(h / 1430, 0.30, 0.58)   // daha da uzak → harita küçük, pistin tamamı görünür
+    this.zoomBase = clamp(h / 1820, 0.24, 0.46)   // iyice uzak → harita küçük, pistin çoğu görünür
     if (this._zoom == null) this._zoom = this.zoomBase
   }
 

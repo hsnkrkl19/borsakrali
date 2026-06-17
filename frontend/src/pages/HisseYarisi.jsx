@@ -16,6 +16,7 @@ import {
   STOCK_CATALOG, TIER_LABEL, getStockTier, stockUnlockPrice, isStockFree, stockMeta,
   ACHIEVEMENTS, computeEarnings, formatBP,
   loadSave, persistSave,
+  GATE_PCT, vehicleUpgradeProgress, vehicleGate, highestOwnedIndex,
 } from '../game/gameData'
 import { normalizeHistoricalQuotes } from '../utils/chartAnalysis'
 
@@ -172,7 +173,7 @@ export default function HisseYarisi() {
   const buyUpgrade = (upg) => mutate((s) => {
     const lv = (s.upgrades[s.vehicle]?.[upg.key]) || 0
     if (lv >= upg.max) return s
-    const cost = upgradeCost(upg, lv)
+    const cost = upgradeCost(upg, lv, VEHICLES[s.vehicle]?.costMul ?? 1)
     if (s.wallet < cost) return s
     s.wallet -= cost
     s.upgrades = { ...s.upgrades, [s.vehicle]: { ...(s.upgrades[s.vehicle] || {}), [upg.key]: lv + 1 } }
@@ -181,6 +182,8 @@ export default function HisseYarisi() {
 
   const buyVehicle = (id) => mutate((s) => {
     if (s.ownedVehicles.includes(id)) { s.vehicle = id; return s }
+    // %70 upgrade kapısı: yalnızca sıradaki araç + mevcut aracın %70'i bitmişse alınır
+    if (vehicleGate(s, id).state !== 'buyable') return s
     const v = VEHICLES[id]
     if (s.wallet < v.price) return s
     s.wallet -= v.price
@@ -338,7 +341,7 @@ export default function HisseYarisi() {
               {stockInfo.symbol} grafiğinde {vehicle.name}
             </h2>
             <p className="text-xs mb-4 max-w-xs text-slate-400">
-              {stockInfo.name} fiyat grafiği senin pistin. İLERİ ile gazla, tepelerden uç. Havada SOL/SAĞ ile takla atarsan ekstra para — ama kafan yere değerse oyun biter. Düz sürmek güvenli; risk almak kazandırır.
+              {stockInfo.name} fiyat grafiği senin pistin. İLERİ/GERİ ile sür; SOL/SAĞ yerdeyken aracın önünü/arkasını kaldırır (hıza orantılı), havadayken takla attırır. Takla = ekstra para, ama kafan yere değerse oyun biter. Düz sürmek güvenli; risk almak kazandırır.
             </p>
             <button
               onClick={startRun}
@@ -349,7 +352,7 @@ export default function HisseYarisi() {
               <Play className="w-5 h-5" /> {screen === 'loading' ? 'Pist hazırlanıyor…' : 'YARIŞ BAŞLASIN'}
             </button>
             <p className="text-[11px] mt-3 text-slate-500">
-              ⌨️ ↑ ileri · ↓ geri · ← → havada takla · 📱 ekran pedalları
+              ⌨️ ↑ ileri · ↓ geri · ← → yerde ön/arka kaldır, havada takla · 📱 ekran pedalları
             </p>
           </div>
         )}
@@ -447,18 +450,49 @@ function GarageModal({ save, stats, onClose, onBuyUpgrade, onBuyVehicle, onSelec
 
       {tab === 'upgrades' && (
         <div>
-          <div className="flex items-center gap-2 mb-3 p-2 rounded-xl bg-emerald-50">
-            <span className="text-2xl">{vehicle.emoji}</span>
-            <div>
-              <div className="font-bold text-slate-800 text-sm">{vehicle.name}</div>
-              <div className="text-[11px] text-slate-500">Yükseltmeler bu araca özeldir</div>
-            </div>
-          </div>
+          {(() => {
+            const prog = vehicleUpgradeProgress(vUpg)                                  // seçili aracın kendi tamamlanması
+            const ownedIdx = highestOwnedIndex(save.ownedVehicles)
+            const next = VEHICLE_ORDER[ownedIdx + 1]
+            const gateId = VEHICLE_ORDER[ownedIdx]                                      // kapı DAİMA en-üst-sahip araca bağlı
+            const gateProg = vehicleUpgradeProgress(save.upgrades[gateId] || {})
+            const gateMet = gateProg + 1e-9 >= GATE_PCT
+            const gateIsSelected = gateId === save.vehicle
+            return (
+              <div className="mb-3 p-2.5 rounded-xl bg-emerald-50">
+                <div className="flex items-center gap-2">
+                  <span className="text-2xl">{vehicle.emoji}</span>
+                  <div className="flex-1 min-w-0">
+                    <div className="font-bold text-slate-800 text-sm">{vehicle.name}</div>
+                    <div className="text-[11px] text-slate-500">Yükseltmeler bu araca özeldir</div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-sm font-extrabold text-emerald-700">%{Math.round(prog * 100)}</div>
+                    <div className="text-[9px] text-slate-500">tamamlandı</div>
+                  </div>
+                </div>
+                {next && (
+                  <div className="mt-2">
+                    <div className="h-2 rounded-full bg-slate-200 overflow-hidden relative">
+                      <div className="h-full rounded-full" style={{ width: `${Math.min(100, gateProg / GATE_PCT * 100)}%`, background: gateMet ? 'linear-gradient(90deg,#f59e0b,#d97706)' : 'linear-gradient(90deg,#22c55e,#10b981)' }} />
+                    </div>
+                    <div className="text-[10px] text-slate-500 mt-1">
+                      {gateMet
+                        ? <span className="text-amber-600 font-semibold">✓ Sıradaki araç ({VEHICLES[next].name}) açıldı — Araçlar sekmesinden al</span>
+                        : gateIsSelected
+                          ? <>Sıradaki araç ({VEHICLES[next].name}) için <b>%{Math.round(GATE_PCT * 100)}</b> upgrade gerekli (kalan %{Math.max(0, Math.round((GATE_PCT - gateProg) * 100))})</>
+                          : <>Sıradaki araç için <b>{VEHICLES[gateId].name}</b> aracını %{Math.round(GATE_PCT * 100)} yükselt (şu an %{Math.round(gateProg * 100)})</>}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )
+          })()}
           <div className="space-y-2">
             {UPGRADES.map((upg) => {
               const lv = vUpg[upg.key] || 0
               const maxed = lv >= upg.max
-              const cost = upgradeCost(upg, lv)
+              const cost = upgradeCost(upg, lv, vehicle.costMul)
               const afford = save.wallet >= cost
               return (
                 <div key={upg.key} className="flex items-center gap-3 p-2.5 rounded-xl bg-white border border-slate-100">
@@ -497,16 +531,18 @@ function GarageModal({ save, stats, onClose, onBuyUpgrade, onBuyVehicle, onSelec
             const owned = save.ownedVehicles.includes(id)
             const selected = save.vehicle === id
             const afford = save.wallet >= v.price
+            const gate = vehicleGate(save, id)
+            const locked = !owned && gate.state !== 'buyable'
             return (
-              <div key={id} className={`p-3 rounded-xl border ${selected ? 'border-emerald-400 bg-emerald-50' : 'border-slate-100 bg-white'}`}>
-                <div className="flex items-center gap-2 mb-1">
+              <div key={id} className={`p-3 rounded-xl border ${selected ? 'border-emerald-400 bg-emerald-50' : locked ? 'border-slate-100 bg-slate-50' : 'border-slate-100 bg-white'}`}>
+                <div className={`flex items-center gap-2 mb-1 ${locked ? 'opacity-60' : ''}`}>
                   <span className="text-2xl">{v.emoji}</span>
                   <div className="flex-1 min-w-0">
-                    <div className="font-bold text-slate-800 text-sm flex items-center gap-1">{v.name}{selected && <Check className="w-3.5 h-3.5 text-emerald-500" />}</div>
+                    <div className="font-bold text-slate-800 text-sm flex items-center gap-1">{v.name}{selected && <Check className="w-3.5 h-3.5 text-emerald-500" />}{locked && <Lock className="w-3 h-3 text-slate-400" />}</div>
                     <div className="text-[10px] text-slate-500 truncate">{v.desc}</div>
                   </div>
                 </div>
-                <div className="grid grid-cols-3 gap-1 my-2">
+                <div className={`grid grid-cols-3 gap-1 my-2 ${locked ? 'opacity-60' : ''}`}>
                   <StatBar label="Güç" v={v.enginePower / 5000} />
                   <StatBar label="Tutuş" v={v.grip / 1.8} />
                   <StatBar label="Hız" v={v.topSpeed / 1600} />
@@ -516,12 +552,22 @@ function GarageModal({ save, stats, onClose, onBuyUpgrade, onBuyVehicle, onSelec
                     className="w-full py-2 rounded-lg text-xs font-bold disabled:opacity-60 text-emerald-700 bg-emerald-100 hover:bg-emerald-200 transition">
                     {selected ? 'Seçili' : 'Seç'}
                   </button>
-                ) : (
+                ) : gate.state === 'buyable' ? (
                   <button onClick={() => onBuyVehicle(id)} disabled={!afford}
                     className="w-full py-2 rounded-lg text-xs font-bold text-white disabled:opacity-50 active:scale-95 transition"
                     style={{ background: afford ? 'linear-gradient(135deg,#f59e0b,#d97706)' : '#cbd5e1' }}>
                     {afford ? `Satın Al · ${formatBP(v.price)} BP` : `${formatBP(v.price)} BP gerekli`}
                   </button>
+                ) : gate.state === 'locked-upgrade' ? (
+                  <div className="w-full py-2 rounded-lg text-[11px] font-semibold text-amber-700 bg-amber-50 border border-amber-200 text-center px-1 leading-tight">
+                    🔒 {VEHICLES[gate.gateVehicle].name} %{Math.round(GATE_PCT * 100)} upgrade gerekli
+                    <div className="text-[10px] font-normal text-amber-600">şu an %{Math.round(gate.progress * 100)} · fiyat {formatBP(v.price)} BP</div>
+                  </div>
+                ) : (
+                  <div className="w-full py-2 rounded-lg text-[11px] font-semibold text-slate-500 bg-slate-100 text-center leading-tight">
+                    🔒 Önce sıradaki aracı al
+                    <div className="text-[10px] font-normal text-slate-400">fiyat {formatBP(v.price)} BP</div>
+                  </div>
                 )}
               </div>
             )

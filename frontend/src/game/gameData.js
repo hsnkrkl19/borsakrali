@@ -10,7 +10,7 @@
 // ============================================================================
 
 // --- Kalıcı kayıt anahtarı ---
-export const SAVE_KEY = 'bk-hisse-yarisi-v1'
+export const SAVE_KEY = 'bk-hisse-yarisi-v2'   // v2: tek-araç başlangıç + %70 upgrade kapısı + yeni ekonomi
 
 // ----------------------------------------------------------------------------
 // ARAÇLAR
@@ -28,65 +28,68 @@ export const SAVE_KEY = 'bk-hisse-yarisi-v1'
 //   wheelR      : teker yarıçapı
 //   bodyW/bodyH : gövde boyutu (görsel)
 // ----------------------------------------------------------------------------
+// price = bir önceki aracın %70-upgrade maliyetine EŞİT (cost70). costMul = bu aracın
+// upgrade maliyet çarpanı. Böylece "sonraki araç = mevcut aracın %70 upgrade'i kadar"
+// özdeşliği korunur (bkz. progression yardımcıları + GATE_PCT).
 export const VEHICLES = {
   hatchback: {
-    id: 'hatchback', name: 'Şehir Arabası', emoji: '🚗', price: 0, free: true,
+    id: 'hatchback', name: 'Şehir Arabası', emoji: '🚗', price: 0, free: true, costMul: 0.4,
     desc: 'Dengeli başlangıç aracı. Her piste uygun.',
     enginePower: 2400, mass: 1.0, grip: 1.0, suspK: 240, suspDamp: 26,
     fuelMax: 100, topSpeed: 760, airControl: 9, wheelBase: 78, wheelR: 24,
     bodyW: 116, bodyH: 40, color: '#10b981', accent: '#065f46',
   },
   motorcycle: {
-    id: 'motorcycle', name: 'Motosiklet', emoji: '🏍️', price: 0, free: true,
+    id: 'motorcycle', name: 'Motosiklet', emoji: '🏍️', price: 2340, costMul: 0.7,
     desc: 'Hafif ve hızlı. Tutuşu zayıf, kolay takla atar — usta sürücü işi.',
     enginePower: 2750, mass: 0.62, grip: 0.82, suspK: 200, suspDamp: 20,
     fuelMax: 78, topSpeed: 900, airControl: 14, wheelBase: 70, wheelR: 22,
     bodyW: 92, bodyH: 26, color: '#f59e0b', accent: '#92400e', bike: true,
   },
   jeep: {
-    id: 'jeep', name: '4x4 Jip', emoji: '🚙', price: 4200,
+    id: 'jeep', name: '4x4 Jip', emoji: '🚙', price: 4080, costMul: 1.1,
     desc: 'Yüksek tutuş ve tırmanış. Sarp/oynak hisseler için ideal.',
     enginePower: 3000, mass: 1.35, grip: 1.28, suspK: 320, suspDamp: 34,
     fuelMax: 120, topSpeed: 700, airControl: 8, wheelBase: 86, wheelR: 28,
     bodyW: 124, bodyH: 46, color: '#0ea5e9', accent: '#075985',
   },
-  sports: {
-    id: 'sports', name: 'Spor Araba', emoji: '🏎️', price: 12000,
-    desc: 'Müthiş hız, zayıf tutuş. Düz/yükseliş trendli hisselerde uçar.',
-    enginePower: 3400, mass: 0.9, grip: 0.92, suspK: 260, suspDamp: 24,
-    fuelMax: 105, topSpeed: 1180, airControl: 10, wheelBase: 92, wheelR: 22,
-    bodyW: 132, bodyH: 34, color: '#ef4444', accent: '#7f1d1d',
-  },
   pickup: {
-    id: 'pickup', name: 'Pikap', emoji: '🛻', price: 9000,
+    id: 'pickup', name: 'Pikap', emoji: '🛻', price: 6600, costMul: 1.7,
     desc: 'Güçlü motor, ağır gövde. Tork canavarı.',
     enginePower: 3300, mass: 1.5, grip: 1.18, suspK: 300, suspDamp: 32,
     fuelMax: 135, topSpeed: 720, airControl: 7, wheelBase: 92, wheelR: 27,
     bodyW: 134, bodyH: 44, color: '#8b5cf6', accent: '#4c1d95',
   },
+  sports: {
+    id: 'sports', name: 'Spor Araba', emoji: '🏎️', price: 10080, costMul: 2.6,
+    desc: 'Müthiş hız, zayıf tutuş. Düz/yükseliş trendli hisselerde uçar.',
+    enginePower: 3400, mass: 0.9, grip: 0.92, suspK: 260, suspDamp: 24,
+    fuelMax: 105, topSpeed: 1180, airControl: 10, wheelBase: 92, wheelR: 22,
+    bodyW: 132, bodyH: 34, color: '#ef4444', accent: '#7f1d1d',
+  },
   monster: {
-    id: 'monster', name: 'Canavar Kamyon', emoji: '🚚', price: 26000,
+    id: 'monster', name: 'Canavar Kamyon', emoji: '🚚', price: 15600, costMul: 4.0,
     desc: 'Devasa tekerler. Neredeyse her tepeyi ezer geçer.',
     enginePower: 3800, mass: 1.7, grip: 1.4, suspK: 360, suspDamp: 38,
     fuelMax: 150, topSpeed: 760, airControl: 9, wheelBase: 104, wheelR: 38,
     bodyW: 142, bodyH: 50, color: '#22c55e', accent: '#14532d',
   },
   tractor: {
-    id: 'tractor', name: 'Traktör', emoji: '🚜', price: 18000,
+    id: 'tractor', name: 'Traktör', emoji: '🚜', price: 23760, costMul: 6.0,
     desc: 'Yavaş ama durdurulamaz tork ve tutuş. Asla takılmaz.',
     enginePower: 3600, mass: 1.6, grip: 1.55, suspK: 330, suspDamp: 40,
     fuelMax: 160, topSpeed: 560, airControl: 6, wheelBase: 96, wheelR: 34,
     bodyW: 120, bodyH: 48, color: '#84cc16', accent: '#3f6212',
   },
   tank: {
-    id: 'tank', name: 'Tank', emoji: '🛡️', price: 48000,
+    id: 'tank', name: 'Tank', emoji: '🛡️', price: 35700, costMul: 9.0,
     desc: 'Ultra ağır, devrilmez. Her şeyi yarıp geçer.',
     enginePower: 4200, mass: 2.4, grip: 1.7, suspK: 420, suspDamp: 48,
     fuelMax: 190, topSpeed: 600, airControl: 5, wheelBase: 112, wheelR: 30,
     bodyW: 156, bodyH: 52, color: '#64748b', accent: '#1e293b',
   },
   rocket: {
-    id: 'rocket', name: 'Roketli Araba', emoji: '🚀', price: 90000,
+    id: 'rocket', name: 'Roketli Araba', emoji: '🚀', price: 53520, costMul: 13.0,
     desc: 'Son sınır. Akıl almaz hız ve ivme — sadece ustalar için.',
     enginePower: 4800, mass: 0.85, grip: 1.05, suspK: 300, suspDamp: 28,
     fuelMax: 130, topSpeed: 1600, airControl: 13, wheelBase: 100, wheelR: 24,
@@ -101,18 +104,21 @@ export const VEHICLE_ORDER = [
 // ----------------------------------------------------------------------------
 // YÜKSELTMELER — her araç için ayrı seviye tutulur (bol içerik / uzun ilerleme)
 // ----------------------------------------------------------------------------
+// Tek tip eğri (base 60, growth 1.28, max 10) → 6×10=60 toplam seviye, %70 kapısı = 42 seviye.
+// Gerçek maliyet upgradeCost'ta araç costMul'u ile ölçeklenir (cost70 özdeşliği için).
+export const UPGRADE_MAX = 10
 export const UPGRADES = [
-  { key: 'engine',     name: 'Motor',        emoji: '⚙️', desc: 'Daha fazla güç ve ivme.',            baseCost: 180, growth: 1.42, max: 20 },
-  { key: 'tires',      name: 'Lastik',       emoji: '🛞', desc: 'Daha iyi tutuş, az patinaj.',         baseCost: 150, growth: 1.40, max: 20 },
-  { key: 'suspension', name: 'Süspansiyon',  emoji: '🔩', desc: 'Yumuşak iniş, az takla.',             baseCost: 160, growth: 1.41, max: 20 },
-  { key: 'gearbox',    name: 'Şanzıman',     emoji: '🔧', desc: 'Daha yüksek son hız.',                baseCost: 170, growth: 1.43, max: 20 },
-  { key: 'fuel',       name: 'Yakıt Deposu', emoji: '⛽', desc: 'Daha uzun mesafe, daha çok kazanç.',  baseCost: 200, growth: 1.38, max: 20 },
-  { key: 'aero',       name: 'Aerodinamik',  emoji: '🪽', desc: 'Havada kontrol + denge.',             baseCost: 190, growth: 1.40, max: 20 },
+  { key: 'engine',     name: 'Motor',        emoji: '⚙️', desc: 'Daha fazla güç ve ivme.',            baseCost: 60, growth: 1.28, max: UPGRADE_MAX },
+  { key: 'tires',      name: 'Lastik',       emoji: '🛞', desc: 'Daha iyi tutuş, az patinaj.',         baseCost: 60, growth: 1.28, max: UPGRADE_MAX },
+  { key: 'suspension', name: 'Süspansiyon',  emoji: '🔩', desc: 'Yumuşak iniş, az takla.',             baseCost: 60, growth: 1.28, max: UPGRADE_MAX },
+  { key: 'gearbox',    name: 'Şanzıman',     emoji: '🔧', desc: 'Daha yüksek son hız.',                baseCost: 60, growth: 1.28, max: UPGRADE_MAX },
+  { key: 'fuel',       name: 'Yakıt Deposu', emoji: '⛽', desc: 'Daha uzun mesafe, daha çok kazanç.',  baseCost: 60, growth: 1.28, max: UPGRADE_MAX },
+  { key: 'aero',       name: 'Aerodinamik',  emoji: '🪽', desc: 'Havada kontrol + denge.',             baseCost: 60, growth: 1.28, max: UPGRADE_MAX },
 ]
 
-// Yükseltme seviyesinin maliyeti (sonraki seviyeye geçiş)
-export function upgradeCost(upg, level) {
-  return Math.round(upg.baseCost * Math.pow(upg.growth, level) / 10) * 10
+// Yükseltme seviyesinin maliyeti (sonraki seviyeye geçiş). costMul = araca özel çarpan.
+export function upgradeCost(upg, level, costMul = 1) {
+  return Math.round(upg.baseCost * costMul * Math.pow(upg.growth, level) / 10) * 10
 }
 
 // ----------------------------------------------------------------------------
@@ -120,22 +126,71 @@ export function upgradeCost(upg, level) {
 // ----------------------------------------------------------------------------
 export function effectiveStats(vehicleId, upgradesForVehicle = {}) {
   const base = VEHICLES[vehicleId] || VEHICLES.hatchback
-  const lv = (k) => upgradesForVehicle[k] || 0
+  const lv = (k) => Math.min(upgradesForVehicle[k] || 0, UPGRADE_MAX)   // eski kayıt seviyelerini clamp'le
   const eng = lv('engine'), tir = lv('tires'), sus = lv('suspension')
   const gear = lv('gearbox'), fuel = lv('fuel'), aero = lv('aero')
 
   return {
     ...base,
-    enginePower: base.enginePower * (1 + 0.10 * eng),
-    grip:        base.grip * (1 + 0.07 * tir),
-    suspK:       base.suspK * (1 + 0.06 * sus),
-    suspDamp:    base.suspDamp * (1 + 0.05 * sus),
-    topSpeed:    base.topSpeed * (1 + 0.035 * eng + 0.06 * gear),
-    fuelMax:     base.fuelMax * (1 + 0.16 * fuel),
-    airControl:  base.airControl * (1 + 0.09 * aero),
-    stability:   1 + 0.07 * aero,   // havadaki açısal sönümleme
-    landing:     1 + 0.06 * sus,    // çarpma toleransı (boyun kırılma eşiği)
+    // Katsayılar max=10'a göre ölçeklendi. Base hız ×1.12 (araç biraz daha hızlı),
+    // motor+şanzıman hıza daha çok katkı (yükseltmelerle daha da hızlanır).
+    enginePower: base.enginePower * 1.10 * (1 + 0.20 * eng),
+    grip:        base.grip * (1 + 0.14 * tir),
+    suspK:       base.suspK * (1 + 0.12 * sus),
+    suspDamp:    base.suspDamp * (1 + 0.10 * sus),
+    topSpeed:    base.topSpeed * 1.12 * (1 + 0.09 * eng + 0.15 * gear),
+    fuelMax:     base.fuelMax * (1 + 0.32 * fuel),
+    airControl:  base.airControl * (1 + 0.18 * aero),
+    stability:   1 + 0.14 * aero,   // havadaki açısal sönümleme
+    landing:     1 + 0.12 * sus,    // çarpma toleransı
     mass:        base.mass,
+  }
+}
+
+// ----------------------------------------------------------------------------
+// PROGRESSION KAPISI — tek araçla başla, sonraki araç ancak mevcut (en üst sahip)
+// aracın upgrade'lerinin %70'i bitince açılır. Sonraki aracın fiyatı = o aracın
+// %70-upgrade maliyeti (cost70) olduğundan ilerleme "tam tamına sıkı" hissedilir.
+// ----------------------------------------------------------------------------
+export const GATE_PCT = 0.70
+
+// Bir aracın upgrade tamamlanma oranı (0..1) = toplam seviye / (upgrade sayısı × max).
+export function vehicleUpgradeProgress(upgradesForVehicle = {}) {
+  const total = UPGRADES.reduce((s, u) => s + Math.min(upgradesForVehicle[u.key] || 0, u.max), 0)
+  const max = UPGRADES.reduce((s, u) => s + u.max, 0)
+  return max ? total / max : 0
+}
+
+// Sahip olunan araçlar içinde VEHICLE_ORDER'daki en yüksek index.
+export function highestOwnedIndex(ownedVehicles = []) {
+  let idx = 0
+  for (const id of ownedVehicles) {
+    const i = VEHICLE_ORDER.indexOf(id)
+    if (i > idx) idx = i
+  }
+  return idx
+}
+
+// Sıradaki (henüz alınmamış) araç id'si, ya da null (hepsi alındıysa).
+export function nextVehicleId(ownedVehicles = []) {
+  return VEHICLE_ORDER[highestOwnedIndex(ownedVehicles) + 1] || null
+}
+
+// Bir aracın satın alma durumu:
+//  owned        → zaten sahip (veya sıradan önceki)
+//  buyable      → sıradaki araç + %70 kapısı açık (fiyat ayrıca kontrol edilir)
+//  locked-upgrade → sıradaki araç ama mevcut aracın %70'i bitmemiş
+//  locked-order → daha ileri bir araç (önce sıradakini al)
+export function vehicleGate(save, vehicleId) {
+  const order = VEHICLE_ORDER.indexOf(vehicleId)
+  const ownedIdx = highestOwnedIndex(save.ownedVehicles || [])
+  if ((save.ownedVehicles || []).includes(vehicleId) || order <= ownedIdx) return { state: 'owned' }
+  if (order > ownedIdx + 1) return { state: 'locked-order' }
+  const gateVehicle = VEHICLE_ORDER[ownedIdx]
+  const progress = vehicleUpgradeProgress((save.upgrades || {})[gateVehicle] || {})
+  return {
+    state: progress + 1e-9 >= GATE_PCT ? 'buyable' : 'locked-upgrade',
+    progress, needPct: GATE_PCT, gateVehicle,
   }
 }
 
@@ -300,7 +355,7 @@ export function defaultSave() {
   return {
     wallet: 350,                                    // başlangıç sermayesi
     vehicle: 'hatchback',
-    ownedVehicles: ['hatchback', 'motorcycle'],     // araba + motor hediye
+    ownedVehicles: ['hatchback'],                   // TEK araçla başla (diğerleri %70 kapısıyla açılır)
     upgrades: {},                                   // upgrades[vehicleId][key] = level
     stock: 'GARAN',
     unlockedStocks: BIST30.map(s => s.symbol),       // BIST30 ücretsiz
@@ -315,7 +370,14 @@ export function defaultSave() {
 
 export function loadSave() {
   try {
-    const raw = localStorage.getItem(SAVE_KEY)
+    let raw = localStorage.getItem(SAVE_KEY)
+    let migrating = false
+    if (!raw) {
+      // v1 → v2 migrasyonu: cüzdan + açılan hisseler + istatistikler korunur,
+      // araç/upgrade'ler yeni ekonomiye göre sıfırlanır (aşağıda).
+      const legacy = localStorage.getItem('bk-hisse-yarisi-v1')
+      if (legacy) { raw = legacy; migrating = true }
+    }
     if (!raw) return defaultSave()
     const parsed = JSON.parse(raw)
     const base = defaultSave()
@@ -340,10 +402,25 @@ export function loadSave() {
     if (!VEHICLES[merged.vehicle]) merged.vehicle = base.vehicle
     if (typeof merged.stock !== 'string' || !merged.stock) merged.stock = base.stock
 
+    // v1→v2 geçişinde araç/upgrade'leri yeni ekonomiye sıfırla (eski max-20 seviyeler
+    // ve bedava motor yeni costMul/%70-kapı sistemiyle uyumsuz). Cüzdan/hisse/istatistik korunur.
+    if (migrating) {
+      merged.vehicle = base.vehicle
+      merged.ownedVehicles = [...base.ownedVehicles]
+      merged.upgrades = {}
+    }
+
     // BIST30 her zaman açık kalsın (katalog güncellenirse)
     const set = new Set([...merged.unlockedStocks, ...base.unlockedStocks])
     merged.unlockedStocks = [...set]
+    // Sahiplik daima VEHICLE_ORDER'ın bitişik prefix'i (bozuk kayıt güvenliği + sıralı progression)
+    merged.ownedVehicles = VEHICLE_ORDER.slice(0, highestOwnedIndex(merged.ownedVehicles) + 1)
     if (!merged.ownedVehicles.includes(merged.vehicle)) merged.vehicle = merged.ownedVehicles[0] || 'hatchback'
+
+    if (migrating) {
+      persistSave(merged)
+      try { localStorage.removeItem('bk-hisse-yarisi-v1') } catch { /* yoksay */ }
+    }
     return merged
   } catch {
     return defaultSave()
