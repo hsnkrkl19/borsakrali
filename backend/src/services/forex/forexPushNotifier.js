@@ -55,7 +55,7 @@ function buildAppPush(s, reg) {
 
 async function evaluateAndPush(signals) {
   if (process.env.FOREX_PUSH_DISABLED === '1') return { telegram: 0, app: 0, considered: 0, disabled: true };
-  const chatId = process.env.TELEGRAM_CHAT_ID || '';
+  const chatId = process.env.TELEGRAM_FOREX_CHANNEL || process.env.TELEGRAM_CHAT_ID || '';
   const now = Date.now();
   let tg = 0, app = 0, considered = 0;
 
@@ -94,7 +94,7 @@ function buildClosureTelegram(ev) {
 
 async function pushClosures(events) {
   if (process.env.FOREX_PUSH_DISABLED === '1') return { telegram: 0, app: 0 };
-  const chatId = process.env.TELEGRAM_CHAT_ID || '';
+  const chatId = process.env.TELEGRAM_FOREX_CHANNEL || process.env.TELEGRAM_CHAT_ID || '';
   let tg = 0, app = 0;
   for (const ev of (events || [])) {
     if (chatId) { try { const r = await telegramService.sendMessage(chatId, buildClosureTelegram(ev)); if (r?.success) tg++; } catch (e) { logger.error(`[ForexPush] closeTg #${ev.code}: ${e.message}`); } }
