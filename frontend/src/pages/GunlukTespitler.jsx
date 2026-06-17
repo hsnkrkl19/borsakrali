@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { Filter, TrendingUp, TrendingDown, Target, Activity, Bell, BellRing, RefreshCw, X, Volume2, VolumeX, Star, Clock, Zap, Wifi, WifiOff, Info, CheckCircle, BookOpen, HelpCircle, Sparkles, Coins, Layers, Flame, MoreVertical } from 'lucide-react'
+import { Filter, TrendingUp, TrendingDown, Target, Activity, Bell, BellRing, RefreshCw, X, Volume2, VolumeX, Star, Clock, Zap, Wifi, WifiOff, Info, CheckCircle, BookOpen, HelpCircle, Sparkles, Coins, Layers, Flame, MoreVertical, Wallet } from 'lucide-react'
 import { io } from 'socket.io-client'
 
 import { getApiBase, getSocketBase } from '../config'
@@ -10,6 +10,7 @@ import TradePlanCard from '../components/TradePlanCard'
 import InfoTooltip from '../components/InfoTooltip'
 import BugununSinyalleri from '../components/BugununSinyalleri'
 import KriptoSinyalleri from '../components/KriptoSinyalleri'
+import ForexSinyalleri from '../components/ForexSinyalleri'
 import EmtiaSinyalleri from '../components/EmtiaSinyalleri'
 import MTFSinyalleri from '../components/MTFSinyalleri'
 import BacktestPanel from '../components/BacktestPanel'
@@ -28,6 +29,7 @@ const LEGACY_TAB_MAP = {
   'today':           { tab: 'bugun',   sub: null },
   'bugun':           { tab: 'bugun',   sub: null },
   'kripto':          { tab: 'kripto',  sub: null },
+  'forex':           { tab: 'forex',   sub: null },
   'emtia':           { tab: 'emtia',   sub: null },
   'mtf':             { tab: 'analiz',  sub: 'mtf' },
   'likidasyon':      { tab: 'analiz',  sub: 'likidasyon' },
@@ -49,7 +51,7 @@ export default function GunlukTespitler() {
     const rawTab = searchParams.get('tab')
     const rawSub = searchParams.get('sub')
     // 1) Yeni 5'li yapı: tab geçerli ise direkt kullan
-    if (['bugun', 'kripto', 'emtia', 'analiz', 'araclar'].includes(rawTab)) {
+    if (['bugun', 'kripto', 'forex', 'emtia', 'analiz', 'araclar'].includes(rawTab)) {
       const validSub = SUB_TABS[rawTab]?.includes(rawSub) ? rawSub : (SUB_TABS[rawTab]?.[0] || null)
       return { tab: rawTab, sub: validSub }
     }
@@ -312,7 +314,8 @@ export default function GunlukTespitler() {
   const tabs = [
     { id: 'bugun',   label: 'Bugünün Sinyalleri', shortLabel: 'Bugün',  icon: Sparkles },
     { id: 'kripto',  label: 'Kripto',             shortLabel: 'Kripto', icon: Coins },
-    { id: 'emtia',   label: 'Altın & Gümüş',      shortLabel: 'Emtia',  icon: Coins,   isNew: true },
+    { id: 'forex',   label: 'Forex / Parite',     shortLabel: 'Forex',  icon: Wallet,  isNew: true },
+    { id: 'emtia',   label: 'Altın & Gümüş',      shortLabel: 'Emtia',  icon: Coins },
     { id: 'analiz',  label: 'Analiz',             shortLabel: 'Analiz', icon: Layers },
     { id: 'araclar', label: 'Araçlar',            shortLabel: 'Araçlar',icon: Filter,  badge: unreadCount },
   ]
@@ -565,6 +568,9 @@ export default function GunlukTespitler() {
 
       {/* Kripto Tab — top 100 coin için spot/futures long/short */}
       {activeTab === 'kripto' && <KriptoSinyalleri />}
+
+      {/* Forex / Parite Tab — 10 enstrüman gün-içi long/short + lot/risk planı */}
+      {activeTab === 'forex' && <ForexSinyalleri />}
 
       {/* Emtia Tab — Altın & Gümüş Malaysian SNR sinyalleri */}
       {activeTab === 'emtia' && <EmtiaSinyalleri />}

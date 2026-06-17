@@ -9,6 +9,9 @@ const signalDetectionService = require('./signalDetectionService');
 const kapService = require('./kapService');
 const dailySignalsService = require('./dailySignalsService');
 const cryptoSignalsService = require('./cryptoSignalsService');
+const forexEngine = require('./forex/forexEngineMTF');
+const forexBacktest = require('./forex/forexBacktest');
+const forexPushNotifier = require('./forex/forexPushNotifier');
 const multiTimeframeService = require('./multiTimeframeService');
 const signalConfidenceService = require('./signalConfidenceService');
 const socketService = require('./socketService');
@@ -89,6 +92,9 @@ function isBistOpen() {
 const CADENCE_STALE_MS = 14 * 60 * 1000;
 let _bistCadenceLockAt = 0;
 let _cryptoCadenceLockAt = 0;
+// Forex turu her dk çalışır → daha kısa bayatlama penceresi (üst üste binmesin).
+const FOREX_STALE_MS = 90 * 1000;
+let _forexCadenceLockAt = 0;
 
 // Borsa açılış bildirimi — TR resmi tatil günlerinde sessiz.
 async function runMarketOpen() {
@@ -492,6 +498,62 @@ async function runCryptoBotTick() {
   }
 }
 
+// ── Forex/Parite gün-içi sinyal kadansı — HER DAKİKA ──────────────────────
+//    10 enstrüman (5 kripto + altın + gümüş + EURUSD + Nasdaq + S&P500) Yahoo
+//    1m/5m/15m ile taranır, gün-içi long/short + lot/risk planı (10k$, 1:100,
+//    günlük %5 / toplam %10) üretilir. Telegram push'u kendi cooldown'ını
+//    (enstrüman+yön başına 30 dk) uygular → her dk çağrılması spam yapmaz.
+//    Piyasası kapalı (mum bayat) enstrümanda sinyal üretilmez.
+async function runForexSignalCadence() {
+  const now = Date.now();
+  if (_forexCadenceLockAt && now - _forexCadenceLockAt < FOREX_STALE_MS) {
+    return null; // önceki tur hâlâ çalışıyor — bu dk tetiği atla
+  }
+  _forexCadenceLockAt = now;
+  try {
+    const snap = await forexEngine.generate();      // varsayılan 10k$ portföy
+    const sigs = snap?.signals || [];
+    // Socket.IO canlı bilgi
+    try {
+      socketService.broadcastSignal({
+        strategy: 'forex', generatedAt: snap?.generatedAt,
+        total: snap?.counts?.signal || 0,
+        long: snap?.counts?.long || 0, short: snap?.counts?.short || 0,
+        stockSymbol: 'FOREX',
+      });
+    } catch (_) { /* socket yoksa sessiz */ }
+    // Telegram ana kanal + uygulama-içi (hsnkrkl19@gmail.com) push (cooldown içeride)
+    const pushed = await forexPushNotifier.evaluateAndPush(sigs);
+    if (pushed?.telegram || pushed?.app) {
+      logger.info(`💱 Forex turu — ${sigs.length} sinyal · Telegram ${pushed.telegram} · App ${pushed.app}`);
+    }
+    return snap;
+  } catch (e) {
+    logger.error(`Forex sinyal turu hata: ${e.message}`, e.stack);
+    return null;
+  } finally {
+    _forexCadenceLockAt = 0;
+  }
+}
+
+// ── Forex backtest — geçmiş başarı oranı (günde 1, ağır) ──────────────────
+let _forexBacktestRunning = false;
+async function runForexBacktest() {
+  if (_forexBacktestRunning) return null;
+  _forexBacktestRunning = true;
+  try {
+    const t0 = Date.now();
+    const r = await forexBacktest.runAll();
+    logger.info(`💱📊 Forex backtest tamam — ${r.done}/${r.total} (enstrüman×TF) · ${Date.now() - t0}ms`);
+    return r;
+  } catch (e) {
+    logger.error(`Forex backtest hata: ${e.message}`, e.stack);
+    return null;
+  } finally {
+    _forexBacktestRunning = false;
+  }
+}
+
 // ── Multi-Timeframe (1h/4h/1d/1w) signal scanner ──────────────────────────
 async function runMTFPhase(tf, options = {}) {
   try {
@@ -673,6 +735,24 @@ class CronJobsService {
       () => runCryptoSignalCadence(),
       { scheduled: false, ...TR_TZ }
     );
+
+    // 14b. Forex/Parite gün-içi sinyal kadansı — HER DAKİKA, 7/24. 10 enstrüman
+    //      taranır; piyasası kapalı olanlar (mum bayat) elenir. Telegram push'u
+    //      kendi cooldown'ını uygular (enstrüman+yön başına 30 dk).
+    const forexSignalJob = cron.schedule(
+      '* * * * *',
+      () => runForexSignalCadence(),
+      { scheduled: false, ...TR_TZ }
+    );
+
+    // 14c. Forex backtest — geçmiş başarı oranı, günde 1 kez 03:35 TR (ağır).
+    //      Açılıştan ~90 sn sonra bir kez de tetiklenir (ilk veri dolsun).
+    const forexBacktestJob = cron.schedule(
+      '35 3 * * *',
+      () => runForexBacktest(),
+      { scheduled: false, ...TR_TZ }
+    );
+    setTimeout(() => runForexBacktest(), 90 * 1000);
 
     // 15. MTF 1m — her dakika (top 10 coin scalping). Sessiz; Socket.IO push.
     //     30 sn klines cache + her dk tarama → ortalama 30 sn data tazeliği.
@@ -869,6 +949,8 @@ class CronJobsService {
       signalUpdateJob,
       bistSignalJob,
       cryptoSignalJob,
+      forexSignalJob,
+      forexBacktestJob,
       mtf1mJob,
       mtf5mJob,
       mtf15mJob,
@@ -927,6 +1009,13 @@ class CronJobsService {
     const valid = ['morning', 'midday', 'evening', 'night', 'intraday'];
     const safe = valid.includes(phase) ? phase : 'intraday';
     return runCryptoPhase(safe, { silent: true });
+  }
+
+  /**
+   * Manuel tetikleme — forex/parite gün-içi sinyalleri (test + ilk önbellek)
+   */
+  async triggerForexCadence() {
+    return runForexSignalCadence();
   }
 
   /**

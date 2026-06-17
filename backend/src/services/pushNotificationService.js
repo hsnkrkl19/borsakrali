@@ -332,6 +332,44 @@ async function broadcastNotification(payload) {
   };
 }
 
+// Tek bir kullanıcıya (e-posta) anlık push — topic yerine kullanıcının kayıtlı
+// cihaz token'larına gönderir. Cihaz yoksa / Firebase yoksa sessizce no-op.
+async function sendToUser(email, payload) {
+  const title = safeTrim(payload.title, 120);
+  const body = safeTrim(payload.body, 500);
+  if (!email || !title || !body) return { success: false, error: 'email/title/body zorunlu' };
+  const target = String(email).toLowerCase();
+  const store = readStore();
+  const devices = Object.values(store.devices).filter(d => d.email && String(d.email).toLowerCase() === target);
+  if (devices.length === 0) return { success: false, error: `Kayıtlı cihaz yok: ${email}`, deviceCount: 0 };
+
+  const firebaseState = ensureFirebaseApp();
+  if (!firebaseState.success) return { success: false, error: firebaseState.error, deviceCount: devices.length };
+
+  const channelId = safeTrim(payload.channelId, 120) || DEFAULT_CHANNEL_ID;
+  const pathValue = normalizePath(payload.path);
+  const data = Object.fromEntries(Object.entries({
+    path: pathValue && !/^https?:\/\//i.test(pathValue) ? pathValue : '',
+    url: /^https?:\/\//i.test(pathValue) ? pathValue : '',
+    sentAt: new Date().toISOString(),
+  }).filter(([, v]) => v));
+
+  const admin = getFirebaseAdmin();
+  let sent = 0; const errors = [];
+  for (const d of devices) {
+    try {
+      await admin.messaging().send({
+        token: d.token,
+        notification: { title, body },
+        data,
+        android: { priority: 'high', notification: { channelId, sound: 'default' } },
+      });
+      sent++;
+    } catch (e) { errors.push(e.message); }
+  }
+  return { success: sent > 0, sentCount: sent, deviceCount: devices.length, errors: errors.slice(0, 3) };
+}
+
 function listAnnouncements({ limit = 20, since } = {}) {
   const store = readStore();
   let history = (store.history || []).slice().reverse(); // newest first
@@ -372,6 +410,7 @@ module.exports = {
   registerDevice,
   unregisterDevice,
   broadcastNotification,
+  sendToUser,
   listAnnouncements,
   setBroadcastEmitter,
 };
