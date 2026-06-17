@@ -322,8 +322,8 @@ export class RacingEngine {
     //    KAFASI yere değerse oyun biter. Yani takla riskli bir ustalık hamlesi.
     if (!car.onGround && this._hasLanded) {
       const a = wrapPi(car.angle)
-      const ramp = clamp(this._physAirTimer / 0.12, 0.5, 1)
-      const at = s.airControl * 2.0 * ramp
+      const ramp = clamp(this._physAirTimer / 0.07, 0.75, 1)   // neredeyse anında tepki
+      const at = s.airControl * 5.5 * ramp                     // güçlü tork → kısa havada bile takla
       if (this.input.flipL) car.angVel += at * dt          // SOL → geri takla (CCW) — RİSK
       else if (this.input.flipR) car.angVel -= at * dt     // SAĞ → ön takla (CW) — RİSK
       else car.angVel += (-a * 14 - car.angVel * 6) * dt   // dokunma → düz inişe yönel
@@ -333,7 +333,7 @@ export class RacingEngine {
     car.vy -= car.vy * 0.02 * dt
     const angDamp = car.onGround ? 4.5 : (0.5 / s.stability)
     car.angVel -= car.angVel * angDamp * dt
-    car.angVel = clamp(car.angVel, -11, 11)
+    car.angVel = clamp(car.angVel, -16, 16)
 
     car.x += car.vx * dt
     car.y += car.vy * dt
@@ -346,7 +346,7 @@ export class RacingEngine {
       // Crest fırlatması: hızlıysan tepeden uçarsın (zıplama/takla için hava).
       const nL = this.normalAt(car.x - SX * 0.5).x
       const nR = this.normalAt(car.x + SX * 0.5).x
-      if (nL < -0.05 && nR > 0.05 && car.vx > 220) car.vy += clamp(car.vx, 0, 950) * 0.12 + 40
+      if (nL < -0.05 && nR > 0.05 && car.vx > 180) car.vy += clamp(car.vx, 0, 950) * 0.55 + 160
       this._physAirTimer = 0
     } else if (!this._wasGroundPhys && car.onGround) {
       // iniş açısını yakala (clamp öncesi) → ters/yan iniş ölümcül
