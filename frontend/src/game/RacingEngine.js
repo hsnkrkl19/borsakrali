@@ -7,8 +7,8 @@
 // (sürülen zemin), canlı fiyat etiketi/crosshair, sembol filigranı, ticker.
 //
 // Fizik: rijit şasi + 2 penalty-contact yaylı teker. Ek detaylar: tepeden
-// fırlatma, takla kombosu, nitro/boost, iniş kalitesi, yokuş-aşağı momentum,
-// çarpma toleransı, ekran sarsıntısı, lastik izi, hız çizgileri, parçacıklar.
+// fırlatma, takla kombosu, iniş kalitesi, yokuş-aşağı momentum, çarpma
+// toleransı, ekran sarsıntısı, lastik izi, hız çizgileri, parçacıklar.
 // ============================================================================
 
 const GRAV = 1750
@@ -84,11 +84,6 @@ export class RacingEngine {
     this._pendingLanding = null
     this._crashTimer = 0
     this._frame = 0
-
-    // nitro / boost
-    this.nitroMax = 100
-    this.nitro = 0
-    this.nitroActive = 0
 
     this._resize()
   }
@@ -314,18 +309,10 @@ export class RacingEngine {
       const fX = Math.cos(car.angle), fY = Math.sin(car.angle)
       const downhill = -fY
       if (downhill > 0.15 && car.vx > 80) {
-        const assist = GRAV * 0.06 * downhill
+        const assist = GRAV * 0.045 * downhill
         car.vx += fX * assist * dt
         car.vy += fY * assist * dt
       }
-    }
-
-    // nitro itişi (merkeze uygulanır → tork yok, takla atmaz)
-    if (this.nitroActive > 0) {
-      const fX = Math.cos(car.angle), fY = Math.sin(car.angle)
-      const NF = s.enginePower * 1.15
-      car.vx += fX * NF * dt
-      car.vy += fY * NF * dt * 0.5
     }
 
     // HAVA KONTROLÜ (klasik Hill-Climb riski):
@@ -335,7 +322,7 @@ export class RacingEngine {
     if (!car.onGround && this._hasLanded) {
       const a = wrapPi(car.angle)
       const ramp = clamp(this._physAirTimer / 0.12, 0.5, 1)
-      const at = s.airControl * 2.6 * ramp
+      const at = s.airControl * 2.0 * ramp
       if (gas && hasFuel) car.angVel += at * dt          // geri takla — RİSK
       else if (brake && hasFuel) car.angVel -= at * dt   // ön takla — RİSK
       else car.angVel += (-a * 14 - car.angVel * 6) * dt // dokunma → düz inişe yönel
@@ -345,7 +332,7 @@ export class RacingEngine {
     car.vy -= car.vy * 0.02 * dt
     const angDamp = car.onGround ? 4.5 : (0.5 / s.stability)
     car.angVel -= car.angVel * angDamp * dt
-    car.angVel = clamp(car.angVel, -14, 14)
+    car.angVel = clamp(car.angVel, -11, 11)
 
     car.x += car.vx * dt
     car.y += car.vy * dt
@@ -358,7 +345,7 @@ export class RacingEngine {
       // Crest fırlatması: hızlıysan tepeden uçarsın (zıplama/takla için hava).
       const nL = this.normalAt(car.x - SX * 0.5).x
       const nR = this.normalAt(car.x + SX * 0.5).x
-      if (nL < -0.05 && nR > 0.05 && car.vx > 200) car.vy += clamp(car.vx, 0, 1000) * 0.16 + 60
+      if (nL < -0.05 && nR > 0.05 && car.vx > 220) car.vy += clamp(car.vx, 0, 950) * 0.12 + 40
       this._physAirTimer = 0
     } else if (!this._wasGroundPhys && car.onGround) {
       // iniş açısını yakala (clamp öncesi) → ters/yan iniş ölümcül
@@ -445,14 +432,12 @@ export class RacingEngine {
         car.angVel *= 0.2
         const pay = 30 * L.flips
         this.run.coins += 8 * L.flips
-        this.nitro = Math.min(this.nitroMax, this.nitro + 20)
         this._addFloat(car.x, car.y + 55, (L.flips > 1 ? L.flips + 'X TAKLA! +' : 'TAKLA! +') + pay, '#fbbf24')
         this._beep(1040, 0.12); this._addShake(5); this._spawnSparkle(car.x, car.y + 20)
       } else if (L.airTime > 0.4) {
         const misalign = Math.abs(wrapPi(car.angle + groundAngle))
         if (misalign < 0.32) {
           this.run.coins += 8
-          this.nitro = Math.min(this.nitroMax, this.nitro + 14)
           this._addFloat(car.x, car.y + 55, 'MÜKEMMEL İNİŞ!', '#22c55e')
           this._beep(990, 0.12); this._addShake(4); this._spawnSparkle(car.x, car.y + 20)
         } else if (L.vy < -520) {
@@ -461,16 +446,6 @@ export class RacingEngine {
           this._spawnPoof(car.x, this.heightAt(car.x), -L.vy / 90)
         }
       }
-    }
-
-    // nitro tetik + sönüm (NERF: dolu bar gerek, kısa patlama → sonsuz motor değil)
-    if (this.input.gas && this.nitro >= 55 && this.nitroActive <= 0) this.nitroActive = 1.0
-    if (this.nitroActive > 0) {
-      this.nitroActive -= frameDt
-      this.nitro = Math.max(0, this.nitro - 58 * frameDt)
-      if (this.nitro <= 0) this.nitroActive = 0
-      const tp = this._tailpipe()
-      this._spawnFlame(tp.x, tp.y)
     }
 
     this._collect()
@@ -506,15 +481,6 @@ export class RacingEngine {
     if (this.stateClock > 0.08) { this.stateClock = 0; this._emitState() }
   }
 
-  _tailpipe() {
-    const car = this.car, s = this.stats
-    const cosA = Math.cos(car.angle), sinA = Math.sin(car.angle)
-    return {
-      x: car.x + (-s.bodyW * 0.5) * cosA + (-s.bodyH * 0.15) * (-sinA),
-      y: car.y + (-s.bodyW * 0.5) * sinA + (-s.bodyH * 0.15) * cosA,
-    }
-  }
-
   _emitState() {
     const s = this.stats
     const car = this.car
@@ -530,8 +496,6 @@ export class RacingEngine {
       flipsThisAir: this._flipsThisAir,
       combo: this._combo,
       comboFlash: this._comboFlash,
-      nitroPct: clamp(this.nitro / this.nitroMax, 0, 1),
-      nitroActive: this.nitroActive > 0,
       price,
     })
   }
@@ -559,7 +523,6 @@ export class RacingEngine {
           this._addFloat(c.x, c.y, '+YAKIT', '#26a69a'); this._beep(440, 0.1)
         } else {
           this.run.coins += c.high ? 3 : 1
-          this.nitro = Math.min(this.nitroMax, this.nitro + (c.high ? 7 : 4))
           this._addFloat(c.x, c.y, c.high ? '+3' : '+1', '#fbbf24')
           this._spawnSparkle(c.x, c.y); this._beep(880, 0.05)
         }
@@ -599,10 +562,6 @@ export class RacingEngine {
       this.particles.push({ kind: 'dust', x, y, vx: Math.cos(a) * 160, vy: Math.abs(Math.sin(a)) * 120, life: 0.6, age: 0, r: 6 + (k % 5) })
     }
   }
-  _spawnFlame(x, y) {
-    if (this.particles.length > 200) return
-    this.particles.push({ kind: 'flame', x, y, vx: -120 + (hash32(this._frame) % 60 - 30), vy: (hash32(this._frame * 3) % 40 - 20), life: 0.25, age: 0, r: 8 })
-  }
   _spawnDebris() {
     const s = this.stats, car = this.car
     for (let k = 0; k < 12; k++) {
@@ -616,7 +575,6 @@ export class RacingEngine {
     for (const p of this.particles) {
       p.age += dt; p.x += p.vx * dt; p.y += p.vy * dt
       if (p.kind === 'dust') { p.vy -= 60 * dt; p.vx *= 0.92 }
-      else if (p.kind === 'flame') { p.vy += 80 * dt; p.vx *= 0.9 }
       else if (p.kind === 'shard') { p.vy -= 400 * dt }
       else p.vy -= 200 * dt
     }
@@ -648,8 +606,8 @@ export class RacingEngine {
   _updateAudio(speed) {
     if (!this.audio) return
     const throttle = (this.input.gas || this.input.brake) && this.fuel > 0
-    const target = this.nitroActive > 0 ? 0.08 : throttle ? 0.06 : 0.015
-    const freq = 70 + clamp(speed / 8, 0, 200) + (throttle ? 40 : 0) + (this.nitroActive > 0 ? 60 : 0)
+    const target = throttle ? 0.06 : 0.015
+    const freq = 70 + clamp(speed / 8, 0, 200) + (throttle ? 40 : 0)
     try {
       this.audio.gain.gain.value += (target - this.audio.gain.gain.value) * 0.2
       this.audio.osc.frequency.value += (freq - this.audio.osc.frequency.value) * 0.3
@@ -683,7 +641,7 @@ export class RacingEngine {
     canvas.width = Math.round(w * dpr)
     canvas.height = Math.round(h * dpr)
     this.dpr = dpr; this.viewW = w; this.viewH = h
-    this.zoomBase = clamp(h / 820, 0.55, 1.15)   // uzaklaştırıldı → grafik daha çok görünür
+    this.zoomBase = clamp(h / 1060, 0.42, 0.8)   // uzaklaştırıldı → grafik/pist daha çok görünür
     if (this._zoom == null) this._zoom = this.zoomBase
   }
 
@@ -703,7 +661,7 @@ export class RacingEngine {
     const k = (rate) => 1 - Math.exp(-rate * Math.min(frameDt, 0.05))
     const lookAhead = clamp(car.vx * 0.32 + Math.sign(car.vx) * spd * 0.06, -200, 520)
     const tgtX = car.x + lookAhead
-    const tgtY = car.y + 70 + spd * 0.012 + (!car.onGround ? 50 : 0)
+    const tgtY = car.y + 52 + spd * 0.010 + (!car.onGround ? 60 : 0)
     this.camX = lerp(this.camX ?? car.x, tgtX, k(11))
     this.camY = lerp(this.camY ?? car.y, tgtY, k(8))
     const zTarget = this.zoomBase * clamp(1 - spd / 9000, 0.8, 1)
@@ -844,11 +802,6 @@ export class RacingEngine {
       if (p.kind === 'dust') {
         ctx.fillStyle = `rgba(120,123,134,${a * 0.45})`
         ctx.beginPath(); ctx.arc(px, py, p.r * zoom * (1 + p.age), 0, Math.PI * 2); ctx.fill()
-      } else if (p.kind === 'flame') {
-        ctx.save(); ctx.globalCompositeOperation = 'lighter'
-        const col = a > 0.6 ? '#fef08a' : a > 0.3 ? '#f97316' : '#7c2d12'
-        ctx.fillStyle = col; ctx.beginPath(); ctx.arc(px, py, p.r * a * zoom, 0, Math.PI * 2); ctx.fill()
-        ctx.restore()
       } else if (p.kind === 'shard') {
         ctx.save(); ctx.translate(px, py); ctx.rotate(p.age * 8)
         ctx.fillStyle = p.col; ctx.fillRect(-3 * zoom, -1.5 * zoom, 6 * zoom, 3 * zoom); ctx.restore()
@@ -943,7 +896,7 @@ export class RacingEngine {
   _drawSpeedLines(ctx, W, H, spd) {
     const intensity = clamp((spd - 2600) / 4000, 0, 1)
     if (intensity <= 0) return
-    const col = this.nitroActive > 0 ? '52,211,153' : '255,255,255'
+    const col = '255,255,255'
     ctx.lineWidth = 2
     for (let i = 0; i < 14; i++) {
       const y = H * 0.5 + ((hash32(i * 7) % 1000 / 1000) - 0.5) * H * 0.7
@@ -965,17 +918,6 @@ export class RacingEngine {
 
     const bw = s.bodyW, bh = s.bodyH, wb = s.wheelBase, wr = s.wheelR
     const squash = 1 - 0.05 * ((this.suspComp[0] + this.suspComp[1]) / (wr * 1.4 * 2))
-
-    // nitro alev
-    if (this.nitroActive > 0) {
-      const flen = 18 + Math.sin(this._frame * 0.6) * 8
-      ctx.save(); ctx.globalCompositeOperation = 'lighter'
-      const fg = ctx.createLinearGradient(-bw / 2, 0, -bw / 2 - flen - 22, 0)
-      fg.addColorStop(0, '#fef08a'); fg.addColorStop(0.5, '#f97316'); fg.addColorStop(1, 'rgba(124,45,18,0)')
-      ctx.fillStyle = fg
-      ctx.beginPath(); ctx.moveTo(-bw / 2, bh * 0.05 - 7); ctx.lineTo(-bw / 2 - flen - 22, bh * 0.05); ctx.lineTo(-bw / 2, bh * 0.05 + 7); ctx.closePath(); ctx.fill()
-      ctx.restore()
-    }
 
     // gölge
     ctx.fillStyle = 'rgba(0,0,0,0.25)'

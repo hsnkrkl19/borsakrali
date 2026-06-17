@@ -265,15 +265,9 @@ export default function HisseYarisi() {
                 <span className="flex items-center gap-1 text-emerald-300">{hud.speed}<span className="text-[10px] font-medium opacity-70">km/s</span></span>
                 {hud.flips > 0 && <span className="flex items-center gap-1 text-orange-400"><Flame className="w-4 h-4" />{hud.flips}</span>}
               </div>
-              <div className="w-full flex gap-1.5">
-                <div className="flex-1 bg-slate-900/70 backdrop-blur rounded-lg px-2 py-1.5 ring-1 ring-white/10">
-                  <div className="flex items-center justify-between text-[10px] font-semibold text-slate-300 mb-1"><span className="flex items-center gap-1"><Fuel className="w-3 h-3" />Yakıt</span><span>{Math.round(hud.fuelPct * 100)}%</span></div>
-                  <div className="h-2 rounded-full bg-slate-700/60 overflow-hidden"><div className="h-full rounded-full transition-all" style={{ width: `${hud.fuelPct * 100}%`, background: hud.fuelPct < 0.25 ? '#ef4444' : 'linear-gradient(90deg,#22c55e,#10b981)' }} /></div>
-                </div>
-                <div className={`flex-1 bg-slate-900/70 backdrop-blur rounded-lg px-2 py-1.5 ring-1 ${hud.nitroActive ? 'ring-orange-400/70' : 'ring-white/10'}`}>
-                  <div className="flex items-center justify-between text-[10px] font-semibold text-slate-300 mb-1"><span className={hud.nitroActive ? 'text-orange-300' : ''}>⚡ Nitro</span><span>{Math.round(hud.nitroPct * 100)}%</span></div>
-                  <div className="h-2 rounded-full bg-slate-700/60 overflow-hidden"><div className="h-full rounded-full transition-all" style={{ width: `${hud.nitroPct * 100}%`, background: hud.nitroActive ? 'linear-gradient(90deg,#fde047,#f97316)' : 'linear-gradient(90deg,#f59e0b,#f97316)' }} /></div>
-                </div>
+              <div className="w-full bg-slate-900/70 backdrop-blur rounded-lg px-2 py-1.5 ring-1 ring-white/10">
+                <div className="flex items-center justify-between text-[10px] font-semibold text-slate-300 mb-1"><span className="flex items-center gap-1"><Fuel className="w-3 h-3" />Yakıt</span><span>{Math.round(hud.fuelPct * 100)}%</span></div>
+                <div className="h-2 rounded-full bg-slate-700/60 overflow-hidden"><div className="h-full rounded-full transition-all" style={{ width: `${hud.fuelPct * 100}%`, background: hud.fuelPct < 0.25 ? '#ef4444' : 'linear-gradient(90deg,#22c55e,#10b981)' }} /></div>
               </div>
             </div>
 
@@ -303,9 +297,9 @@ export default function HisseYarisi() {
               </button>
               <button
                 onPointerDown={pedalDown('gas')} onPointerUp={pedalUp('gas')} onPointerCancel={pedalUp('gas')}
-                className={`pointer-events-auto touch-none w-24 h-24 sm:w-28 sm:h-28 rounded-full text-white font-extrabold text-base shadow-xl ring-2 flex flex-col items-center justify-center active:scale-95 transition-transform ${hud.nitroActive ? 'bg-orange-500/95 ring-yellow-300/70' : 'bg-emerald-500/85 active:bg-emerald-600 ring-white/20'}`}
+                className="pointer-events-auto touch-none w-24 h-24 sm:w-28 sm:h-28 rounded-full text-white font-extrabold text-base shadow-xl ring-2 flex flex-col items-center justify-center active:scale-95 transition-transform bg-emerald-500/85 active:bg-emerald-600 ring-white/20"
               >
-                <span className="text-3xl leading-none">▶</span>{hud.nitroActive ? 'NİTRO' : 'GAZ'}
+                <span className="text-3xl leading-none">▶</span>GAZ
               </button>
             </div>
           </>
@@ -319,7 +313,7 @@ export default function HisseYarisi() {
               {stockInfo.symbol} grafiğinde {vehicle.name}
             </h2>
             <p className="text-xs mb-4 max-w-xs text-slate-400">
-              {stockInfo.name} fiyat grafiği senin pistin. Tepelerden uç, takla at, para topla, nitroyu doldur. Yakıtın bitmeden ne kadar gidebilirsin?
+              {stockInfo.name} fiyat grafiği senin pistin. Tepelerden uç, takla at, para topla. Yakıtın bitmeden ne kadar gidebilirsin?
             </p>
             <button
               onClick={startRun}
