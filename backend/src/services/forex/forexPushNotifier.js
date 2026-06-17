@@ -12,7 +12,7 @@ const pushNotificationService = require('../pushNotificationService');
 const tracker = require('./forexSignalTracker');
 const logger = require('../../utils/logger');
 
-const PUSH_CONFIDENCE = 65;
+const PUSH_CONFIDENCE = 60;
 const COOLDOWN_MS = 30 * 60 * 1000;
 const TARGET_USER_EMAIL = process.env.FOREX_PUSH_EMAIL || 'hsnkrkl19@gmail.com';
 
