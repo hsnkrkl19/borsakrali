@@ -36,10 +36,13 @@ function nowSec() { return Math.floor(Date.now() / 1000); }
 async function load() {
   if (loaded) return;
   loaded = true;
-  // Önce Supabase
+  // Önce Supabase (zaman aşımıyla — Render'dan asılı kalmasın, cron'u dondurmasın)
   if (supaEnabled && supaEnabled()) {
     try {
-      const { data } = await supa.storage.from(BUCKET).download(SUPA_KEY);
+      const { data } = await Promise.race([
+        supa.storage.from(BUCKET).download(SUPA_KEY),
+        new Promise((_, rej) => setTimeout(() => rej(new Error('supa-timeout')), 8000)),
+      ]);
       if (data) {
         const text = typeof data.text === 'function' ? await data.text() : Buffer.from(await data.arrayBuffer()).toString('utf8');
         const parsed = JSON.parse(text);

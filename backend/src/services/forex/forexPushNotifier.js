@@ -18,6 +18,14 @@ const TARGET_USER_EMAIL = process.env.FOREX_PUSH_EMAIL || 'hsnkrkl19@gmail.com';
 
 const lastSent = new Map(); // `${id}:${tf}:${dir}` -> ts
 
+// Hiçbir dış çağrı (Telegram/FCM) cron'u dondurmasın — sert zaman aşımı.
+function withTimeout(promise, ms, label) {
+  return Promise.race([
+    Promise.resolve(promise),
+    new Promise((_, rej) => setTimeout(() => rej(new Error('timeout:' + label)), ms)),
+  ]);
+}
+
 function fmt(v, p) { return v == null ? '-' : Number(v).toLocaleString('en-US', { minimumFractionDigits: p, maximumFractionDigits: p }); }
 function usd(v, d = 0) { return v == null ? '-' : (v < 0 ? '-$' : '$') + Math.abs(Number(v)).toLocaleString('en-US', { maximumFractionDigits: d }); }
 
@@ -67,10 +75,10 @@ async function evaluateAndPush(signals) {
     considered++;
 
     let reg;
-    try { reg = await tracker.register(s); } catch (e) { reg = { code: '???', reverseOf: [], samePairCount: 1 }; }
+    try { reg = await withTimeout(tracker.register(s), 10000, 'register'); } catch (e) { reg = { code: '???', reverseOf: [], samePairCount: 1 }; }
 
-    if (chatId) { try { const r = await telegramService.sendMessage(chatId, buildTelegram(s, reg)); if (r?.success) tg++; } catch (e) { logger.error(`[ForexPush] tg ${key}: ${e.message}`); } }
-    try { const r = await pushNotificationService.sendToUser(TARGET_USER_EMAIL, buildAppPush(s, reg)); if (r?.success) app++; } catch (e) { logger.error(`[ForexPush] app ${key}: ${e.message}`); }
+    if (chatId) { try { const r = await withTimeout(telegramService.sendMessage(chatId, buildTelegram(s, reg)), 16000, 'tg'); if (r?.success) tg++; else logger.error(`[ForexPush] tg ${key} basarisiz: ${r?.error || '?'}`); } catch (e) { logger.error(`[ForexPush] tg ${key}: ${e.message}`); } }
+    try { const r = await withTimeout(pushNotificationService.sendToUser(TARGET_USER_EMAIL, buildAppPush(s, reg)), 12000, 'app'); if (r?.success) app++; } catch (e) { logger.error(`[ForexPush] app ${key}: ${e.message}`); }
 
     lastSent.set(key, now);
   }
@@ -98,15 +106,15 @@ async function pushClosures(events) {
   const chatId = process.env.TELEGRAM_FOREX_CHANNEL || process.env.TELEGRAM_CHAT_ID || '';
   let tg = 0, app = 0;
   for (const ev of (events || [])) {
-    if (chatId) { try { const r = await telegramService.sendMessage(chatId, buildClosureTelegram(ev)); if (r?.success) tg++; } catch (e) { logger.error(`[ForexPush] closeTg #${ev.code}: ${e.message}`); } }
+    if (chatId) { try { const r = await withTimeout(telegramService.sendMessage(chatId, buildClosureTelegram(ev)), 16000, 'closeTg'); if (r?.success) tg++; } catch (e) { logger.error(`[ForexPush] closeTg #${ev.code}: ${e.message}`); } }
     try {
       const sign = ev.pnlPct >= 0 ? '+' : '';
       const head = ev.outcome === 'TP1' ? '✅ TP1' : ev.outcome === 'SL' ? '🛑 STOP' : '⏱️ Süre doldu';
-      const r = await pushNotificationService.sendToUser(TARGET_USER_EMAIL, {
+      const r = await withTimeout(pushNotificationService.sendToUser(TARGET_USER_EMAIL, {
         title: `${head} · #${ev.code} ${ev.symbol} ${ev.tf}`,
         body: `${sign}${ev.pnlPct}%${ev.pnlUsd != null ? ` (${usd(ev.pnlUsd, 0)})` : ''} · Giriş ${fmt(ev.entry, ev.precision ?? 4)} → ${fmt(ev.exit, ev.precision ?? 4)}`,
         path: '/firsatlar?tab=forex', channelId: 'borsa-krali-announcements',
-      });
+      }), 12000, 'closeApp');
       if (r?.success) app++;
     } catch (e) { logger.error(`[ForexPush] closeApp #${ev.code}: ${e.message}`); }
   }

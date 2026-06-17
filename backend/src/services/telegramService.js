@@ -55,7 +55,7 @@ async function sendMessage(chatId, text, parseMode = 'HTML') {
       text: safeText,
       parse_mode: parseMode,
       disable_web_page_preview: true
-    });
+    }, { timeout: 15000 });
 
     return { success: true, messageId: response.data.result.message_id };
   } catch (error) {
