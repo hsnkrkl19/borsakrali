@@ -524,9 +524,19 @@ async function runForexSignalCadence() {
       });
     } catch (_) { /* socket yoksa sessiz */ }
     // Telegram ana kanal + uygulama-içi (hsnkrkl19@gmail.com) push (cooldown içeride)
-    const pushed = await forexPushNotifier.evaluateAndPush(sigs);
     const maxConf = sigs.reduce((m, s) => Math.max(m, s.confidence || 0), 0);
-    logger.info(`💱 Forex turu — ${sigs.length} sinyal · maxGüven ${maxConf} · eşikÜstü ${pushed?.eligible} · aday ${pushed?.considered} · TG ${pushed?.telegram} · App ${pushed?.app} · chat ${pushed?.chatSet}`);
+    logger.info(`FOREXDBG before-push sigs=${sigs.length} maxConf=${maxConf}`);
+    let pushed;
+    try {
+      pushed = await Promise.race([
+        forexPushNotifier.evaluateAndPush(sigs),
+        new Promise((_, r) => setTimeout(() => r(new Error('evalpush-timeout-45s')), 45000)),
+      ]);
+    } catch (pe) {
+      logger.error(`FOREXDBG evaluateAndPush ERR: ${pe.message}`);
+      pushed = { telegram: 0, app: 0, eligible: -9, considered: -9, chatSet: false };
+    }
+    logger.info(`FOREXDBG after-push eligible=${pushed.eligible} considered=${pushed.considered} TG=${pushed.telegram} App=${pushed.app} chat=${pushed.chatSet}`);
     // Açık sinyallerin kapanış/teyit kontrolü (TP1/STOP/SÜRE → aynı NO ile teyit)
     try {
       const closures = await forexSignalTracker.checkClosures();
