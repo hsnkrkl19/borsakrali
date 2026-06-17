@@ -54,7 +54,8 @@ export class RacingEngine {
     this.symbol = (opts.symbol || 'BIST').toUpperCase()
     this.assetName = opts.name || this.symbol
 
-    this.input = { gas: false, brake: false }
+    // 4 ayrı kontrol: ileri / geri (sürüş) + sol/sağ (havada takla)
+    this.input = { fwd: false, rev: false, flipL: false, flipR: false }
     this.running = false
     this.over = false
     this.raf = null
@@ -144,14 +145,14 @@ export class RacingEngine {
     // ZIPLAMA TÜMSEKLERİ — hava/takla için simetrik yumuşak tepeler (uçurum
     // DEĞİL). Dokunmazsan düz uçup güvenle inersin; gaz/fren tutarsan takla atar
     // ama ters inersen boynun kırılır. Grafiğin genel şekli korunur.
-    let bi = 14
+    let bi = 12
     while (bi < N - 6) {
-      if (hash32(bi * 53 + 11) % 5 === 0) {
-        const peak = AMP * 0.16
+      if (hash32(bi * 53 + 11) % 4 === 0) {
+        const peak = AMP * 0.20
         h[bi - 1] += peak * 0.5
         h[bi] += peak
         h[bi + 1] += peak * 0.5
-        bi += 13
+        bi += 10
       } else bi += 1
     }
 
@@ -241,8 +242,8 @@ export class RacingEngine {
   _physics(dt) {
     const car = this.car
     const s = this.stats
-    const gas = this.input.gas
-    const brake = this.input.brake
+    const fwd = this.input.fwd
+    const rev = this.input.rev
     const hasFuel = this.fuel > 0
 
     car.vy -= GRAV * dt
@@ -284,8 +285,8 @@ export class RacingEngine {
 
         let drive = 0
         if (w.drive && hasFuel) {
-          if (gas) drive += s.enginePower
-          if (brake) drive -= s.enginePower * 0.72
+          if (fwd) drive += s.enginePower
+          if (rev) drive -= s.enginePower * 0.72   // geri vites — biraz daha zayıf
         }
         if (speed > s.topSpeed && drive > 0) drive = 0
 
@@ -295,7 +296,7 @@ export class RacingEngine {
         this._applyImpulse(tx * Ft * dt, ty * Ft * dt, rcx, rcy)
         this.wheelSpin[wi] += (vt / w.r) * dt
 
-        if (gas && hasFuel && speed > 120 && Math.abs(vt) > 60 && hash32(this._frame * 7 + wi) % 3 === 0) {
+        if (fwd && hasFuel && speed > 120 && Math.abs(vt) > 60 && hash32(this._frame * 7 + wi) % 3 === 0) {
           this._spawnDust(wx, gy, -tx, -ty)
         }
       } else this.suspComp[wi] = 0
@@ -315,17 +316,17 @@ export class RacingEngine {
       }
     }
 
-    // HAVA KONTROLÜ (klasik Hill-Climb riski):
-    //  • Havada DOKUNMAZSAN → araç düz inişe yönelir (güvenli).
-    //  • Gaz/fren tutarsan → SERBEST döner (takla). Ama ters/yan inersen BOYNUN
-    //    KIRILIR = oyun biter. Yani takla riskli bir ustalık hamlesi.
+    // HAVA KONTROLÜ — SOL/SAĞ = takla (klasik Hill-Climb riski):
+    //  • Havada SOL/SAĞ'a DOKUNMAZSAN → araç düz inişe yönelir (güvenli).
+    //  • SOL = geri takla, SAĞ = ön takla. Ama dönüşü tamamlayamayıp sürücünün
+    //    KAFASI yere değerse oyun biter. Yani takla riskli bir ustalık hamlesi.
     if (!car.onGround && this._hasLanded) {
       const a = wrapPi(car.angle)
       const ramp = clamp(this._physAirTimer / 0.12, 0.5, 1)
       const at = s.airControl * 2.0 * ramp
-      if (gas && hasFuel) car.angVel += at * dt          // geri takla — RİSK
-      else if (brake && hasFuel) car.angVel -= at * dt   // ön takla — RİSK
-      else car.angVel += (-a * 14 - car.angVel * 6) * dt // dokunma → düz inişe yönel
+      if (this.input.flipL) car.angVel += at * dt          // SOL → geri takla (CCW) — RİSK
+      else if (this.input.flipR) car.angVel -= at * dt     // SAĞ → ön takla (CW) — RİSK
+      else car.angVel += (-a * 14 - car.angVel * 6) * dt   // dokunma → düz inişe yönel
     }
 
     car.vx -= car.vx * 0.16 * dt
@@ -340,8 +341,8 @@ export class RacingEngine {
 
     // kalkış / iniş kenarı
     if (this._wasGroundPhys && !car.onGround) {
-      // Kalkışta dönüş girişi yoksa crest'in verdiği spin'i kır → araç DÜZ uçar.
-      if (!gas && !brake) car.angVel *= 0.2
+      // Kalkışta takla girişi yoksa crest'in verdiği spin'i kır → araç DÜZ uçar.
+      if (!this.input.flipL && !this.input.flipR) car.angVel *= 0.2
       // Crest fırlatması: hızlıysan tepeden uçarsın (zıplama/takla için hava).
       const nL = this.normalAt(car.x - SX * 0.5).x
       const nR = this.normalAt(car.x + SX * 0.5).x
@@ -359,7 +360,7 @@ export class RacingEngine {
     // lastik izi (çizginin üstünde, ilerledikçe)
     if (car.onGround && Math.abs(car.x - this._lastTrailX) > 9) {
       const gy = this.heightAt(car.x)
-      const hard = speed > s.topSpeed * 0.5 && (this.input.gas || this.input.brake)
+      const hard = speed > s.topSpeed * 0.5 && (fwd || rev)
       this.trail.push({ x: car.x, y: gy + 2, age: 0, hard })
       if (this.trail.length > 130) this.trail.shift()
       this._lastTrailX = car.x
@@ -390,7 +391,7 @@ export class RacingEngine {
 
     if (this.fuel > 0) {
       let burn = 0.6
-      if (this.input.gas || this.input.brake) burn = 7
+      if (this.input.fwd || this.input.rev) burn = 7
       this.fuel = Math.max(0, this.fuel - burn * frameDt)
     }
 
@@ -430,9 +431,9 @@ export class RacingEngine {
         this.run.flips += L.flips
         car.angle = -groundAngle
         car.angVel *= 0.2
-        const pay = 30 * L.flips
-        this.run.coins += 8 * L.flips
-        this._addFloat(car.x, car.y + 55, (L.flips > 1 ? L.flips + 'X TAKLA! +' : 'TAKLA! +') + pay, '#fbbf24')
+        const coin = 14 * L.flips                 // takla = ekstra para (risk ödülü)
+        this.run.coins += coin
+        this._addFloat(car.x, car.y + 55, (L.flips > 1 ? L.flips + 'X TAKLA! +' : 'TAKLA! +') + coin, '#fbbf24')
         this._beep(1040, 0.12); this._addShake(5); this._spawnSparkle(car.x, car.y + 20)
       } else if (L.airTime > 0.4) {
         const misalign = Math.abs(wrapPi(car.angle + groundAngle))
@@ -453,17 +454,13 @@ export class RacingEngine {
     this.shake = Math.max(0, this.shake - this.shake * Math.min(1, 12 * frameDt))
     this._updateAudio(spd)
 
-    // ÇARPMA — affedici: sadece (a) kafayı tepeye uzun süre gömersen (yüz üstü
-    // dalış) ya da (b) tepetaklak olup öyle kalırsan. Kötü iniş tek başına öldürmez.
+    // ÇARPMA — SÜRÜCÜNÜN KAFASI YERE DEĞERSE oyun ANINDA biter. Takla yaparken
+    // dönüşü tamamlayamayıp ters/yan inersen kask zemine çarpar = bitiş. Düz
+    // sürüp flip'e basmazsan kafa hep yukarıda kalır (güvenli).
     const cosA = Math.cos(car.angle), sinA = Math.sin(car.angle)
     const headX = car.x + (-sinA) * (s.bodyH * 0.5 + 14)
     const headY = car.y + (cosA) * (s.bodyH * 0.5 + 14)
-    const headBuried = headY < this.heightAt(headX) - 8
-    if (headBuried) this._crashTimer += frameDt; else this._crashTimer = 0
-    const crashSpd = 55 * (s.landing || 1)
-    // Tek kaza yolu: hızla bir tepeye yüz-üstü saplanıp sürekli gömülü kalmak.
-    // Ters dönme yerde otomatik doğrultulduğu için artık öldürmez.
-    if (this._crashTimer > 0.6 && spd > crashSpd) {
+    if (this._hasLanded && headY <= this.heightAt(headX)) {
       if (!car.onGround && this._airTimer > 0.4) this.run.airTime += this._airTimer
       return this._gameOver('crash')
     }
@@ -605,7 +602,7 @@ export class RacingEngine {
   }
   _updateAudio(speed) {
     if (!this.audio) return
-    const throttle = (this.input.gas || this.input.brake) && this.fuel > 0
+    const throttle = (this.input.fwd || this.input.rev) && this.fuel > 0
     const target = throttle ? 0.06 : 0.015
     const freq = 70 + clamp(speed / 8, 0, 200) + (throttle ? 40 : 0)
     try {
@@ -641,7 +638,7 @@ export class RacingEngine {
     canvas.width = Math.round(w * dpr)
     canvas.height = Math.round(h * dpr)
     this.dpr = dpr; this.viewW = w; this.viewH = h
-    this.zoomBase = clamp(h / 1060, 0.42, 0.8)   // uzaklaştırıldı → grafik/pist daha çok görünür
+    this.zoomBase = clamp(h / 1430, 0.30, 0.58)   // daha da uzak → harita küçük, pistin tamamı görünür
     if (this._zoom == null) this._zoom = this.zoomBase
   }
 
@@ -960,7 +957,7 @@ export class RacingEngine {
       ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.fillStyle = 'rgba(255,247,200,0.12)'
       ctx.beginPath(); ctx.moveTo(bw / 2, bh * 0.1); ctx.lineTo(bw / 2 + bw * 0.7, -bh * 0.3); ctx.lineTo(bw / 2 + bw * 0.7, bh * 0.5); ctx.closePath(); ctx.fill(); ctx.restore()
     }
-    if (this.input.brake) {
+    if (this.input.rev) {
       ctx.save(); ctx.shadowColor = '#ef4444'; ctx.shadowBlur = 8; ctx.fillStyle = '#ef4444'
       ctx.fillRect(-bw / 2 - 1, bh * 0.05, 3, bh * 0.3); ctx.restore()
     }

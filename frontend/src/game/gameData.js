@@ -263,7 +263,7 @@ export function stockMeta(symbol) {
 export const REWARD = {
   perMeter: 0.6,    // metre başı BP (ana gelir)
   perCoin: 3,       // toplanan para başı BP
-  perFlip: 40,      // tam takla başı BP
+  perFlip: 60,      // tam takla başı BP (risk ödülü — takla ekstra para getirir)
   perAirSec: 10,    // havada geçen saniye başı BP
 }
 

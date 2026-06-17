@@ -134,17 +134,25 @@ export default function HisseYarisi() {
       const el = document.activeElement
       return !!el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable)
     }
+    // Yukarı/W/Boşluk = ileri · Aşağı/S = geri · Sol/A = geri takla · Sağ/D = ön takla
+    const keyToInput = (code) => {
+      if (['ArrowUp', 'KeyW', 'Space'].includes(code)) return 'fwd'
+      if (['ArrowDown', 'KeyS'].includes(code)) return 'rev'
+      if (['ArrowLeft', 'KeyA'].includes(code)) return 'flipL'
+      if (['ArrowRight', 'KeyD'].includes(code)) return 'flipR'
+      return null
+    }
     const down = (e) => {
       const eng = engineRef.current
       if (!eng || isTyping()) return
-      if (['ArrowRight', 'ArrowUp', 'KeyD', 'KeyW', 'Space'].includes(e.code)) { eng.setInput('gas', true); e.preventDefault() }
-      if (['ArrowLeft', 'ArrowDown', 'KeyA', 'KeyS'].includes(e.code)) { eng.setInput('brake', true); e.preventDefault() }
+      const k = keyToInput(e.code)
+      if (k) { eng.setInput(k, true); e.preventDefault() }
     }
     const up = (e) => {
       const eng = engineRef.current
       if (!eng) return
-      if (['ArrowRight', 'ArrowUp', 'KeyD', 'KeyW', 'Space'].includes(e.code)) eng.setInput('gas', false)
-      if (['ArrowLeft', 'ArrowDown', 'KeyA', 'KeyS'].includes(e.code)) eng.setInput('brake', false)
+      const k = keyToInput(e.code)
+      if (k) eng.setInput(k, false)
     }
     window.addEventListener('keydown', down)
     window.addEventListener('keyup', up)
@@ -287,20 +295,37 @@ export default function HisseYarisi() {
               Bitir
             </button>
 
-            {/* PEDALLAR — pointer capture + güvenli alan */}
+            {/* PEDALLAR — 4 kontrol. Sol: geri takla + geri · Sağ: ileri + ön takla.
+                pointer capture → parmak kayınca güç kesilmez. */}
             <div className="absolute left-3 right-3 flex items-end justify-between pointer-events-none select-none" style={{ bottom: 'calc(0.75rem + env(safe-area-inset-bottom, 0px))' }}>
-              <button
-                onPointerDown={pedalDown('brake')} onPointerUp={pedalUp('brake')} onPointerCancel={pedalUp('brake')}
-                className="pointer-events-auto touch-none w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-red-500/85 active:bg-red-600 text-white font-extrabold text-sm shadow-xl ring-2 ring-white/20 flex flex-col items-center justify-center active:scale-95 transition-transform"
-              >
-                <span className="text-2xl leading-none">◀</span>FREN
-              </button>
-              <button
-                onPointerDown={pedalDown('gas')} onPointerUp={pedalUp('gas')} onPointerCancel={pedalUp('gas')}
-                className="pointer-events-auto touch-none w-24 h-24 sm:w-28 sm:h-28 rounded-full text-white font-extrabold text-base shadow-xl ring-2 flex flex-col items-center justify-center active:scale-95 transition-transform bg-emerald-500/85 active:bg-emerald-600 ring-white/20"
-              >
-                <span className="text-3xl leading-none">▶</span>GAZ
-              </button>
+              <div className="flex items-end gap-2">
+                <button
+                  onPointerDown={pedalDown('flipL')} onPointerUp={pedalUp('flipL')} onPointerCancel={pedalUp('flipL')}
+                  className="pointer-events-auto touch-none w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-purple-500/85 active:bg-purple-600 text-white font-extrabold text-[11px] shadow-xl ring-2 ring-white/20 flex flex-col items-center justify-center active:scale-95 transition-transform"
+                >
+                  <span className="text-xl leading-none">↺</span>TAKLA
+                </button>
+                <button
+                  onPointerDown={pedalDown('rev')} onPointerUp={pedalUp('rev')} onPointerCancel={pedalUp('rev')}
+                  className="pointer-events-auto touch-none w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-red-500/85 active:bg-red-600 text-white font-extrabold text-sm shadow-xl ring-2 ring-white/20 flex flex-col items-center justify-center active:scale-95 transition-transform"
+                >
+                  <span className="text-2xl leading-none">◀</span>GERİ
+                </button>
+              </div>
+              <div className="flex items-end gap-2">
+                <button
+                  onPointerDown={pedalDown('fwd')} onPointerUp={pedalUp('fwd')} onPointerCancel={pedalUp('fwd')}
+                  className="pointer-events-auto touch-none w-24 h-24 sm:w-28 sm:h-28 rounded-full text-white font-extrabold text-base shadow-xl ring-2 flex flex-col items-center justify-center active:scale-95 transition-transform bg-emerald-500/85 active:bg-emerald-600 ring-white/20"
+                >
+                  <span className="text-3xl leading-none">▶</span>İLERİ
+                </button>
+                <button
+                  onPointerDown={pedalDown('flipR')} onPointerUp={pedalUp('flipR')} onPointerCancel={pedalUp('flipR')}
+                  className="pointer-events-auto touch-none w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-purple-500/85 active:bg-purple-600 text-white font-extrabold text-[11px] shadow-xl ring-2 ring-white/20 flex flex-col items-center justify-center active:scale-95 transition-transform"
+                >
+                  <span className="text-xl leading-none">↻</span>TAKLA
+                </button>
+              </div>
             </div>
           </>
         )}
@@ -313,7 +338,7 @@ export default function HisseYarisi() {
               {stockInfo.symbol} grafiğinde {vehicle.name}
             </h2>
             <p className="text-xs mb-4 max-w-xs text-slate-400">
-              {stockInfo.name} fiyat grafiği senin pistin. Tepelerden uç, takla at, para topla. Yakıtın bitmeden ne kadar gidebilirsin?
+              {stockInfo.name} fiyat grafiği senin pistin. İLERİ ile gazla, tepelerden uç. Havada SOL/SAĞ ile takla atarsan ekstra para — ama kafan yere değerse oyun biter. Düz sürmek güvenli; risk almak kazandırır.
             </p>
             <button
               onClick={startRun}
@@ -324,7 +349,7 @@ export default function HisseYarisi() {
               <Play className="w-5 h-5" /> {screen === 'loading' ? 'Pist hazırlanıyor…' : 'YARIŞ BAŞLASIN'}
             </button>
             <p className="text-[11px] mt-3 text-slate-500">
-              ⌨️ Yön tuşları / boşluk · 📱 Ekran pedalları · havada gaz/fren = dön
+              ⌨️ ↑ ileri · ↓ geri · ← → havada takla · 📱 ekran pedalları
             </p>
           </div>
         )}
