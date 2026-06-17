@@ -533,7 +533,7 @@ export class RacingEngine {
   _collectibleAt(i) {
     if (i < 1) return null
     const x = i * SX
-    if (i % 28 === 0) return { type: 'fuel', x, y: this.heightAt(x) + 36 }
+    if (i % 48 === 0) return { type: 'fuel', x, y: this.heightAt(x) + 36 }
     const h = hash32(i)
     // yüksek bonus ark (zıplayarak ulaşılır) — seyrek
     if (h % 100 < 7) return { type: 'coin', high: true, x, y: this.heightAt(x) + 120 + (h % 40) }
@@ -721,7 +721,7 @@ export class RacingEngine {
     ctx.fillText(this.symbol, W / 2, H * 0.40)
     ctx.font = '600 16px -apple-system,Segoe UI,sans-serif'
     ctx.fillStyle = 'rgba(120,123,134,0.06)'
-    ctx.fillText('BIST · 1G', W / 2, H * 0.40 + 42)
+    ctx.fillText('BIST · 15DK', W / 2, H * 0.40 + 42)
     ctx.restore()
   }
 

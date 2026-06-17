@@ -24,7 +24,7 @@ const candleCache = {}
 async function fetchCandles(symbol) {
   if (candleCache[symbol]) return candleCache[symbol]
   try {
-    const res = await fetch(`/api/market/stock/${symbol}/historical?period=5y&interval=1d`)
+    const res = await fetch(`/api/market/stock/${symbol}/historical?period=1mo&interval=15m`)
     if (!res.ok) throw new Error('veri yok')
     const data = await res.json()
     const quotes = data.data || data.quotes || []
