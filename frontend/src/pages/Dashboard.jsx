@@ -6,6 +6,7 @@ import {
 } from 'lucide-react'
 import apiClient from '../services/api'
 import GuestCTA from '../components/GuestCTA'
+import LaunchBanner from '../components/home/LaunchBanner'
 import HelpBubble from '../components/HelpBubble'
 import HomeFooter from '../components/home/HomeFooter'
 import LazyOnScroll from '../components/LazyOnScroll'
@@ -469,6 +470,7 @@ export default function Dashboard() {
     <div className="space-y-10 sm:space-y-12">
       <div ref={cockpitRef} className="space-y-6 scroll-mt-20 sm:space-y-7">
         <GuestCTA />
+        <LaunchBanner />
 
         {/* HERO — selamlama + tarih + borsa durumu */}
         <header className="flex flex-wrap items-start justify-between gap-x-4 gap-y-3">

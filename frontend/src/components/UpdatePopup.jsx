@@ -1,9 +1,11 @@
 import { useState, useEffect, useCallback } from 'react'
-import { X, ArrowRight, Sparkles } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
+import { X, ArrowRight, Sparkles, Wallet, Send, Smartphone } from 'lucide-react'
 import { createPortal } from 'react-dom'
 import { useAuthStore } from '../store/authStore'
+import { TELEGRAM_URL, PLAY_URL, FOREX_PATH } from '../config/links'
 
-const VERSION = '4.4.0'
+const VERSION = '4.5.0'
 
 // Kısa, etkileyici "siteyi tanıt" karşılama popup'ı. Eski uzun changelog
 // (8 kart + 4sn zorunlu bekleme) yerine tek bakışta etki bırakan vitrin.
@@ -15,12 +17,13 @@ const STATS = [
   { icon: '🧠', value: 'AI',   label: '14 göstergeli hisse skoru' },
 ]
 
-const POPUP_KEY = 'bk-welcome-popup-v4.4'
+const POPUP_KEY = 'bk-welcome-popup-v4.5'
 const MAX_SHOWS = 2
 const INTERVAL_MS = 10 * 60 * 1000
 
 export default function UpdatePopup() {
   const [visible, setVisible] = useState(false)
+  const navigate = useNavigate()
   // Misafir (herkese açık ziyaretçi) için karşılama popup'ı GÖSTERİLMEZ.
   // Açılışta içerik üstüne binen popup hem rahatsız ediyor hem AdSense'in
   // "araya giren reklam/interstitial" kuralına takılır. Sadece gerçek
@@ -144,12 +147,11 @@ export default function UpdatePopup() {
 
           {/* Çarpıcı başlık */}
           <h2 className="font-black text-2xl leading-tight mb-2" style={{ color: 'var(--text-primary)' }}>
-            Tahtın seni bekliyor 👑
+            Forex / Parite yayında 🚀
           </h2>
           <p className="text-sm leading-relaxed mb-5" style={{ color: 'var(--text-secondary)' }}>
-            BIST ve kriptonun tek komuta merkezi. Canlı veri,{' '}
-            <b style={{ color: 'var(--gold-500)' }}>AI sinyaller</b> ve otomatik botlarla
-            profesyonel analiz artık avucunun içinde.
+            10 enstrüman × 5 zaman dilimi · <b style={{ color: 'var(--gold-500)' }}>güven notu + lot + MT5 emri</b>.
+            Mobil uygulama ve Telegram'da anlık bildirim. Hemen indir, sinyalleri kaçırma.
           </p>
 
           {/* Etkileyici sayılar — 2x2 kompakt vitrin */}
@@ -173,15 +175,31 @@ export default function UpdatePopup() {
             ))}
           </div>
 
-          {/* Tek net CTA */}
-          <button
-            onClick={close}
-            className="w-full py-3 rounded-xl font-bold text-sm transition-transform hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-2"
-            style={{ background: 'var(--grad-gold-rich)', color: '#fff', boxShadow: 'var(--glow-gold)' }}
-          >
-            Keşfetmeye başla
-            <ArrowRight className="w-4 h-4" />
-          </button>
+          {/* CTA — Forex (birincil) + Google Play + Telegram */}
+          <div className="space-y-2">
+            <button
+              onClick={() => { navigate(FOREX_PATH); close() }}
+              className="w-full py-3 rounded-xl font-bold text-sm transition-transform hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-2"
+              style={{ background: 'var(--grad-gold-rich)', color: '#fff', boxShadow: 'var(--glow-gold)' }}
+            >
+              <Wallet className="w-4 h-4" /> Forex Sinyallerini Aç <ArrowRight className="w-4 h-4" />
+            </button>
+            <div className="grid grid-cols-2 gap-2">
+              <a href={PLAY_URL} target="_blank" rel="noopener noreferrer" onClick={close}
+                className="py-2.5 rounded-xl font-semibold text-[13px] flex items-center justify-center gap-1.5 border"
+                style={{ background: 'var(--bg-elevated)', color: 'var(--text-primary)', borderColor: 'var(--border-subtle)' }}>
+                <Smartphone className="w-4 h-4" /> Google Play
+              </a>
+              <a href={TELEGRAM_URL} target="_blank" rel="noopener noreferrer" onClick={close}
+                className="py-2.5 rounded-xl font-semibold text-[13px] flex items-center justify-center gap-1.5 border"
+                style={{ background: 'rgba(34,158,217,0.12)', color: '#229ed9', borderColor: 'rgba(34,158,217,0.35)' }}>
+                <Send className="w-4 h-4" /> Telegram
+              </a>
+            </div>
+            <button onClick={close} className="w-full py-1.5 text-[12px] font-medium" style={{ color: 'var(--text-faint)' }}>
+              Daha sonra
+            </button>
+          </div>
         </div>
       </div>
     </div>,

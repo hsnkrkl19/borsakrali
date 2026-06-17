@@ -5,12 +5,24 @@ import {
   useScrollReveal, useHoverTilt, useCountUp,
 } from '../../hooks/useAnime'
 import {
-  Layers, TrendingUp, Target, GitMerge, Zap, Activity, ArrowUpRight, Bot,
+  Layers, TrendingUp, Target, GitMerge, Zap, Activity, ArrowUpRight, Bot, Wallet,
 } from 'lucide-react'
 import XLogo from '../XLogo'
 
 /* ─── Strateji vitrini — gerçek backtest dönüşleri ─────────────────────── */
 const STRATEGIES = [
+  {
+    id: 'forex',
+    name: 'Forex / Parite — MT5 Sinyalleri',
+    desc: '10 enstrüman (kripto + altın + gümüş + EURUSD + Nasdaq + S&P500) × 5 zaman dilimi. Tüm teknikler birleşir → güven notu + lot + giriş/SL/TP + MetaTrader5 emri. CANLI.',
+    indicators: ['EMA34', 'TEMA34', 'SNR', 'SMC', 'MT5'],
+    metric: null, label: 'Canlı · MT5',
+    period: 'Her dk · Telegram + uygulama bildirimi',
+    color: '234,179,8',
+    icon: Wallet,
+    to: '/firsatlar?tab=forex',
+    spark: [40, 44, 42, 48, 52, 50, 56, 60, 58, 64, 68, 66, 72, 76, 74, 80],
+  },
   {
     id: 'mtf',
     name: 'MTF Confluence Engine',

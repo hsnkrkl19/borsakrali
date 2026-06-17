@@ -12,6 +12,7 @@ const cryptoSignalsService = require('./cryptoSignalsService');
 const forexEngine = require('./forex/forexEngineMTF');
 const forexBacktest = require('./forex/forexBacktest');
 const forexPushNotifier = require('./forex/forexPushNotifier');
+const forexSignalTracker = require('./forex/forexSignalTracker');
 const multiTimeframeService = require('./multiTimeframeService');
 const signalConfidenceService = require('./signalConfidenceService');
 const socketService = require('./socketService');
@@ -527,6 +528,11 @@ async function runForexSignalCadence() {
     if (pushed?.telegram || pushed?.app) {
       logger.info(`💱 Forex turu — ${sigs.length} sinyal · Telegram ${pushed.telegram} · App ${pushed.app}`);
     }
+    // Açık sinyallerin kapanış/teyit kontrolü (TP1/STOP/SÜRE → aynı NO ile teyit)
+    try {
+      const closures = await forexSignalTracker.checkClosures();
+      if (closures.length) await forexPushNotifier.pushClosures(closures);
+    } catch (clErr) { logger.error(`Forex kapanış kontrol hata: ${clErr.message}`); }
     return snap;
   } catch (e) {
     logger.error(`Forex sinyal turu hata: ${e.message}`, e.stack);
