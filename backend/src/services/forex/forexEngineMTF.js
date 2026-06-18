@@ -17,7 +17,7 @@ const ema34 = require('./strategies/ema34');
 const tema34 = require('./strategies/tema34');
 const snrStrat = require('./strategies/snr');
 const smcStrat = require('./strategies/smc');
-const { aggregate, computeConfidence, gradeFor, bandFor } = require('./forexAggregator');
+const { aggregate, computeConfidence, calibrateConfidence, gradeFor, bandFor } = require('./forexAggregator');
 const levelsLib = require('./forexLevels');
 const { computeSizing } = require('./riskSizing');
 const forexBacktest = require('./forexBacktest');
@@ -103,14 +103,21 @@ async function evalInstrument(inst, equity) {
     if (!s || s.status !== 'signal') continue;
     const sameCount = dirs.filter(d => d === s.direction).length;
     const confluence = Math.max(0, (sameCount - 1) / (TFS.length - 1));
-    const confidence = computeConfidence({ ...s._c, confluence });
+    const rawConfidence = computeConfidence({ ...s._c, confluence });
     s.confluence = +confluence.toFixed(2);
     s.sameTfCount = sameCount;
+    // Backtest-tabanlı geçmiş başarı: bandı ham (teknik) güvene göre seç — backtest
+    // bantları da ham güvenle ölçüldüğü için tutarlı (döngü yok). Aynı winRate hem
+    // ekranda gösterilir hem kalibrasyonu sürer.
+    const h = forexBacktest.getHistory(meta.id, tf, rawConfidence);
+    // Kalibrasyon: teknik güveni tarihsel winRate'le harmanla (düşük winRate → aşağı)
+    const cal = calibrateConfidence(rawConfidence, h);
+    const confidence = cal.confidence;
     s.confidence = confidence;
+    s.rawConfidence = cal.rawConfidence;
+    s.confidenceCalibration = { empirical: cal.empirical, trust: cal.trust, delta: cal.delta };
     s.grade = gradeFor(confidence);
     s.confidenceBand = bandFor(confidence);
-    // Backtest-tabanlı geçmiş başarı (Sinyaller komuta merkezi mantığı)
-    const h = forexBacktest.getHistory(meta.id, tf, confidence);
     if (h) { s.historicalWinRate = h.winRate; s.sampleSize = h.sampleSize; s.historicalAvgReturn = h.avgReturn; s.historyBand = h.band; }
     delete s._c;
     if (confidence < MIN_CONFIDENCE) { perTf[tf] = { tf, status: 'low_conf', direction: s.direction, confidence, votes: s.votes }; }

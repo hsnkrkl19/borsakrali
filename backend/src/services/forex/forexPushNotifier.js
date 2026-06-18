@@ -1,35 +1,27 @@
 /**
- * Forex Push Notifier — POZİSYON birleştirmeli (Telegram kanal + app push).
+ * Forex Push Notifier — YALNIZ Telegram KANALI (@borsakraliai).
  *
- * Aynı parite+yön sinyalleri tek pozisyonda birleşir (forexSignalTracker):
- *   • Yeni pozisyon → "yeni sinyal" mesajı (#NO, birleşik TF listesi).
- *   • Aynı pozisyona yeni TF / yeniden oluşma → AYNI NO ile "güncelleme"
- *     (iz süren stop & TP).
+ * Kullanıcı isteği: forex sinyalleri yalnız kanala gitsin (bota/uygulamaya
+ * doğrudan bildirim YOK). Aynı parite+yön sinyalleri tek pozisyonda birleşir:
+ *   • Yeni pozisyon → "yeni sinyal" mesajı (#NO = parite ön eki + numara).
+ *   • R-merdiveni stop yükselince (≥4h) → AYNI NO ile "güncelleme" (BE/+0.5R...).
  *   • Kapanış (TP1/STOP/İZ-SÜREN/SÜRE) → AYNI NO ile teyit.
- * Farklı yön ayrı pozisyon (🔴 ters bayrağı). Eşik: confidence ≥ PUSH_CONFIDENCE.
+ * Kalite kapısı: yalnız backtest'i kenar gösteren (parite,TF) push edilir.
  */
 
 const telegramService = require('../telegramService');
-const pushNotificationService = require('../pushNotificationService');
 const tracker = require('./forexSignalTracker');
 const statsStore = require('./forexStatsStore');
 const logger = require('../../utils/logger');
 
 const PUSH_CONFIDENCE = 60;
-const UPDATE_COOLDOWN_MS = 15 * 60 * 1000; // aynı pozisyon güncellemesi spam'ini engelle
-const TARGET_USER_EMAIL = process.env.FOREX_PUSH_EMAIL || 'hsnkrkl19@gmail.com';
-
-const lastSent = new Map(); // code -> ts (son güncelleme push'u)
+const MIN_SAMPLE = 12;
 
 function withTimeout(promise, ms, label) {
   return Promise.race([Promise.resolve(promise), new Promise((_, rej) => setTimeout(() => rej(new Error('timeout:' + label)), ms))]);
 }
-
-// Veri-temelli kalite kapısı (denetim sonucu): bir (parite,TF) kombinasyonunu
-// YALNIZ geçmiş backtest'i kenar (edge) gösteriyorsa push et. Yeterli örnek
-// (≥12) varken hem isabet <%45 HEM beklenen getiri ≤0 ise = kanıtlanmış kaybeden
-// → bastır. Yeterli veri yoksa izin ver (badge ile "veri toplanıyor" görünür).
-const MIN_SAMPLE = 12;
+// Veri-temelli kalite kapısı: yeterli örnek (≥12) varken hem isabet <%45 HEM
+// beklenen getiri ≤0 ise = kanıtlanmış kaybeden → bastır. Veri yoksa izin ver.
 function passesQuality(s) {
   if (s.sampleSize == null || s.sampleSize < MIN_SAMPLE) return true;
   if (s.historicalWinRate == null) return true;
@@ -38,12 +30,12 @@ function passesQuality(s) {
 function fmt(v, p) { return v == null ? '-' : Number(v).toLocaleString('en-US', { minimumFractionDigits: p, maximumFractionDigits: p }); }
 function usd(v, d = 0) { return v == null ? '-' : (v < 0 ? '-$' : '$') + Math.abs(Number(v)).toLocaleString('en-US', { maximumFractionDigits: d }); }
 function dirWord(d) { return d === 'long' ? 'LONG' : 'SHORT'; }
+function chan() { return process.env.TELEGRAM_FOREX_CHANNEL || process.env.TELEGRAM_CHAT_ID || ''; }
 
 function metrics(p) {
-  const dir = p.direction === 'long' ? 1 : -1;
-  const u = p.units;
+  const dir = p.direction === 'long' ? 1 : -1, u = p.units;
   return {
-    slPnl: u != null ? +(u * (p.stop - p.entry) * dir).toFixed(2) : null,   // + ise kilitli kâr
+    slPnl: u != null ? +(u * (p.stop - p.entry) * dir).toFixed(2) : null,
     tp1: u != null ? +(u * (p.target1 - p.entry) * dir).toFixed(2) : null,
     tp2: u != null ? +(u * (p.target2 - p.entry) * dir).toFixed(2) : null,
   };
@@ -60,64 +52,52 @@ function buildNew(p, reverseOf) {
   lines.push(`Stop: ${fmt(p.stop, pr)} | TP1: ${fmt(p.target1, pr)} (R/R ${p.rr1}) | TP2: ${fmt(p.target2, pr)} (R/R ${p.rr2})`);
   lines.push(`💼 Marj: ${usd(p.marginUsd)} (${p.marginPct}%) · Risk: ${usd(m.slPnl != null ? -Math.min(0, m.slPnl) : null, 0)}`);
   lines.push(`Muhtemel: TP1 ${usd(m.tp1)} · TP2 ${usd(m.tp2)}`);
+  if (isManageableTfs(p.tfs)) lines.push(`🪜 Yönetim: +1.5R'de stop girişe (BE), sonra her +0.5R'de kâr kilitlenir`);
   lines.push(`🤖 MT5: <code>${p.direction === 'long' ? 'BUY' : 'SELL'} ${p.mt5Symbol} @PİYASA · SL ${fmt(p.stop, pr)} · TP1 ${fmt(p.target1, pr)} · TP2 ${fmt(p.target2, pr)}</code>`);
   return lines.join('\n');
 }
+function isManageableTfs(tfs) { return Array.isArray(tfs) && tfs.some(t => t === '4h' || t === '1d'); }
 
-function buildUpdate(p, ev) {
-  const pr = p.precision ?? 4;
-  const lines = [`🔄 <b>GÜNCELLEME — #${p.code} ${p.symbol} ${dirWord(p.direction)}</b>`];
-  if (ev.addedTfs && ev.addedTfs.length) lines.push(`➕ Yeni TF: ${ev.addedTfs.join(', ')} → birleşik: ${p.tfs.join(', ')}`);
-  if (ev.stopChanged) lines.push(`🛡 İz süren STOP: ${fmt(ev.prev.stop, pr)} → <b>${fmt(p.stop, pr)}</b>`);
-  if (ev.tpChanged) lines.push(`🎯 TP1: ${fmt(ev.prev.target1, pr)} → ${fmt(p.target1, pr)} · TP2: ${fmt(ev.prev.target2, pr)} → ${fmt(p.target2, pr)}`);
-  lines.push(`🤖 MT5 güncelle: <code>SL ${fmt(p.stop, pr)} · TP1 ${fmt(p.target1, pr)} · TP2 ${fmt(p.target2, pr)}</code>`);
-  return lines.join('\n');
-}
-
-function appNew(p) {
-  const pr = p.precision ?? 4;
-  return {
-    title: `#${p.code} ${dirWord(p.direction)} ${p.symbol} · Güven ${p.confidence}`,
-    body: `TF ${p.tfs.join(', ')} · Giriş ${fmt(p.entry, pr)} · SL ${fmt(p.stop, pr)} · TP1 ${fmt(p.target1, pr)}`,
-    path: '/firsatlar?tab=forex', channelId: 'borsa-krali-announcements',
-  };
-}
-function appUpdate(p, ev) {
-  const pr = p.precision ?? 4;
-  const tfPart = (ev.addedTfs && ev.addedTfs.length) ? `+TF ${ev.addedTfs.join(',')} · ` : '';
-  return {
-    title: `🔄 #${p.code} ${p.symbol} güncellendi`,
-    body: `${tfPart}SL ${fmt(p.stop, pr)} · TP1 ${fmt(p.target1, pr)} · TP2 ${fmt(p.target2, pr)}`,
-    path: '/firsatlar?tab=forex', channelId: 'borsa-krali-announcements',
-  };
+// R-merdiveni stop güncellemesi (aynı NO)
+function buildManage(ev) {
+  const p = ev.position, pr = p.precision ?? 4;
+  const stageTxt = ev.lockR === 0 ? 'stop GİRİŞE çekildi (BE — artık risksiz)' : `kâr +${ev.lockR}R kilitlendi`;
+  return [
+    `🪜 <b>GÜNCELLEME — #${p.code} ${p.symbol} ${dirWord(p.direction)}</b>`,
+    `Fiyat +${ev.reachedR}R'ye ulaştı → ${stageTxt}`,
+    `İz süren STOP: ${fmt(ev.prevStop, pr)} → <b>${fmt(p.stop, pr)}</b>`,
+    `🤖 MT5 güncelle: <code>SL ${fmt(p.stop, pr)}</code> (TP1 ${fmt(p.target1, pr)} / TP2 ${fmt(p.target2, pr)} aynı)`,
+  ].join('\n');
 }
 
 async function evaluateAndPush(signals) {
-  if (process.env.FOREX_PUSH_DISABLED === '1') return { telegram: 0, app: 0, considered: 0, disabled: true };
-  const chatId = process.env.TELEGRAM_FOREX_CHANNEL || process.env.TELEGRAM_CHAT_ID || '';
+  if (process.env.FOREX_PUSH_DISABLED === '1') return { telegram: 0, considered: 0, disabled: true };
+  const chatId = chan();
   const eligible = (signals || []).filter(s => s.confidence >= PUSH_CONFIDENCE && passesQuality(s));
 
   let events = [];
   try { events = await withTimeout(tracker.syncPositions(eligible), 12000, 'sync'); }
-  catch (e) { logger.error(`[ForexPush] sync: ${e.message}`); return { telegram: 0, app: 0, considered: 0, eligible: eligible.length }; }
+  catch (e) { logger.error(`[ForexPush] sync: ${e.message}`); return { telegram: 0, considered: 0, eligible: eligible.length }; }
 
-  const now = Date.now();
-  let tg = 0, app = 0, sent = 0;
-  for (const ev of events) {
+  let tg = 0, sent = 0;
+  for (const ev of events) { // syncPositions artık YALNIZ 'new' döndürür
     const p = ev.position;
-    if (ev.type === 'update') {
-      const last = lastSent.get(p.code) || 0;
-      if ((!ev.addedTfs || ev.addedTfs.length === 0) && (now - last < UPDATE_COOLDOWN_MS)) continue; // güncelleme spam'i engeli
-    }
-    if (ev.type === 'new') statsStore.recordOpen(p).catch(() => {}); // sinyal kaydı (istatistik)
-    const tgMsg = ev.type === 'new' ? buildNew(p, ev.reverseOf) : buildUpdate(p, ev);
-    const appMsg = ev.type === 'new' ? appNew(p) : appUpdate(p, ev);
-    if (chatId) { try { const r = await withTimeout(telegramService.sendMessage(chatId, tgMsg), 16000, 'tg'); if (r?.success) tg++; } catch (e) { logger.error(`[ForexPush] tg #${p.code}: ${e.message}`); } }
-    try { const r = await withTimeout(pushNotificationService.sendToUser(TARGET_USER_EMAIL, appMsg), 12000, 'app'); if (r?.success) app++; } catch (e) { logger.error(`[ForexPush] app #${p.code}: ${e.message}`); }
-    lastSent.set(p.code, now);
-    sent++;
+    statsStore.recordOpen(p).catch(() => {});
+    if (chatId) { try { const r = await withTimeout(telegramService.sendMessage(chatId, buildNew(p, ev.reverseOf)), 16000, 'tg'); if (r?.success) { tg++; sent++; } } catch (e) { logger.error(`[ForexPush] tg #${p.code}: ${e.message}`); } }
   }
-  return { telegram: tg, app, considered: sent, eligible: eligible.length, chatSet: !!chatId };
+  return { telegram: tg, considered: sent, eligible: eligible.length, chatSet: !!chatId };
+}
+
+// ── R-merdiveni stop güncellemeleri (≥4h) ───────────────────────────────────
+async function pushManagementUpdates(events) {
+  if (process.env.FOREX_PUSH_DISABLED === '1') return { telegram: 0 };
+  const chatId = chan();
+  let tg = 0;
+  for (const ev of (events || [])) {
+    if (chatId) { try { const r = await withTimeout(telegramService.sendMessage(chatId, buildManage(ev)), 16000, 'mgmtTg'); if (r?.success) tg++; } catch (e) { logger.error(`[ForexPush] mgmtTg #${ev.position.code}: ${e.message}`); } }
+  }
+  if (tg) logger.info(`💱🪜 Forex stop güncelleme — ${events.length} · TG ${tg}`);
+  return { telegram: tg };
 }
 
 // ── Kapanış / teyit (aynı NO) ───────────────────────────────────────────────
@@ -138,46 +118,27 @@ function buildClosureTelegram(ev) {
 }
 
 async function pushClosures(events) {
-  if (process.env.FOREX_PUSH_DISABLED === '1') return { telegram: 0, app: 0 };
-  const chatId = process.env.TELEGRAM_FOREX_CHANNEL || process.env.TELEGRAM_CHAT_ID || '';
-  let tg = 0, app = 0;
+  if (process.env.FOREX_PUSH_DISABLED === '1') return { telegram: 0 };
+  const chatId = chan();
+  let tg = 0;
   for (const ev of (events || [])) {
-    statsStore.recordClosure(ev).catch(() => {}); // başarı istatistiği kaydı
+    statsStore.recordClosure(ev).catch(() => {});
     if (chatId) { try { const r = await withTimeout(telegramService.sendMessage(chatId, buildClosureTelegram(ev)), 16000, 'closeTg'); if (r?.success) tg++; } catch (e) { logger.error(`[ForexPush] closeTg #${ev.code}: ${e.message}`); } }
-    try {
-      const sign = ev.pnlPct >= 0 ? '+' : '';
-      const head = ev.outcome === 'TP1' ? '✅ TP1' : ev.outcome === 'TRAIL' ? '✅ İz-stop kâr' : ev.outcome === 'SL' ? '🛑 STOP' : '⏱️ Süre doldu';
-      const r = await withTimeout(pushNotificationService.sendToUser(TARGET_USER_EMAIL, {
-        title: `${head} · #${ev.code} ${ev.symbol}`,
-        body: `${sign}${ev.pnlPct}%${ev.pnlUsd != null ? ` (${usd(ev.pnlUsd, 0)})` : ''} · Giriş ${fmt(ev.entry, ev.precision ?? 4)} → ${fmt(ev.exit, ev.precision ?? 4)}`,
-        path: '/firsatlar?tab=forex', channelId: 'borsa-krali-announcements',
-      }), 12000, 'closeApp');
-      if (r?.success) app++;
-    } catch (e) { logger.error(`[ForexPush] closeApp #${ev.code}: ${e.message}`); }
   }
-  if (tg || app) logger.info(`💱✅ Forex kapanış — ${events.length} · TG ${tg} · App ${app}`);
-  return { telegram: tg, app };
+  if (tg) logger.info(`💱✅ Forex kapanış — ${events.length} · TG ${tg}`);
+  return { telegram: tg };
 }
 
-// ── Günlük istatistik paylaşımı (parite bazlı long/short başarı oranı) ──────
+// ── Günlük istatistik (parite bazlı long/short başarı) — yalnız kanal ───────
 async function pushStats() {
-  if (process.env.FOREX_PUSH_DISABLED === '1') return { telegram: 0, app: 0 };
-  const chatId = process.env.TELEGRAM_FOREX_CHANNEL || process.env.TELEGRAM_CHAT_ID || '';
-  let tg = 0, app = 0;
+  if (process.env.FOREX_PUSH_DISABLED === '1') return { telegram: 0 };
+  const chatId = chan();
   let msg = '';
-  try { msg = await statsStore.buildStatsMessage(); } catch (e) { logger.error(`[ForexPush] stats build: ${e.message}`); return { telegram: 0, app: 0 }; }
+  try { msg = await statsStore.buildStatsMessage(); } catch (e) { logger.error(`[ForexPush] stats build: ${e.message}`); return { telegram: 0 }; }
+  let tg = 0;
   if (chatId) { try { const r = await withTimeout(telegramService.sendMessage(chatId, msg), 16000, 'statsTg'); if (r?.success) tg++; } catch (e) { logger.error(`[ForexPush] statsTg: ${e.message}`); } }
-  try {
-    const st = await statsStore.getStats();
-    const r = await withTimeout(pushNotificationService.sendToUser(TARGET_USER_EMAIL, {
-      title: '📊 Forex sinyal istatistiği',
-      body: `${st.totalClosed} kapanan sinyal · detay kanalda`,
-      path: '/firsatlar?tab=forex', channelId: 'borsa-krali-announcements',
-    }), 12000, 'statsApp');
-    if (r?.success) app++;
-  } catch (e) { logger.error(`[ForexPush] statsApp: ${e.message}`); }
-  logger.info(`💱📊 Forex istatistik paylaşıldı — TG ${tg} · App ${app}`);
-  return { telegram: tg, app };
+  logger.info(`💱📊 Forex istatistik paylaşıldı — TG ${tg}`);
+  return { telegram: tg };
 }
 
-module.exports = { evaluateAndPush, pushClosures, pushStats, buildNew, buildUpdate, PUSH_CONFIDENCE, TARGET_USER_EMAIL };
+module.exports = { evaluateAndPush, pushManagementUpdates, pushClosures, pushStats, buildNew, buildManage, PUSH_CONFIDENCE };

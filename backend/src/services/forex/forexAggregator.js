@@ -52,6 +52,52 @@ function computeConfidence({ consensus, avgScore, trendStrength, momentum, rr1, 
   return Math.round(Math.max(0, Math.min(1, raw)) * 100);
 }
 
+// ── KALİBRASYON: teknik güven notunu tarihsel backtest başarısıyla harmanla ──
+//
+// Sorun: teknik-oy skoru (consensus/avgScore/ADX...) ile gerçek isabet oranı
+// TERS düşebiliyor. Somut örnek: NAS100 1d teknik güven 75 iken backtest winRate
+// %21 (38 örnek); aynı paritede 1h teknik 58 ama winRate %66 — yani yüksek
+// teknik skor düşük gerçek başarıyı maskeleyebiliyor.
+//
+// Çözüm: yeterli örneklemde (≥MIN_SAMPLE), nihai güveni tarihsel winRate'e doğru
+// harmanla. winRate bu sistemin TP1 R/R'sindeki ~başabaş oranının (NEUTRAL_WINRATE)
+// üstündeyse güveni yukarı, altındaysa aşağı çeker. Harman ağırlığı (trust) örneklem
+// büyüdükçe artar, teknik skor en az (1-TRUST_MAX) kadar korunur. Tarihsel veri yoksa
+// kalibrasyon devre dışı — saf teknik skor döner (sahte düzeltme yapmaz).
+const CAL = {
+  NEUTRAL_WINRATE: 41,    // TP1 R/R≈1.4-1.55 → başabaş isabet ~%39-43; tek çapa 41
+  SLOPE: 1.6,             // winRate'in başabaştan her puan sapması → empirik puan
+  AVGRET_W: 1.5,          // ort. getiri (%) ince ayarı (açık poz. driftiyle gürültülü → düşük ağırlık)
+  AVGRET_CLAMP: 3,
+  TRUST_MAX: 0.6,         // kalibrasyonun azami ağırlığı (teknik skor ≥%40 korunur)
+  FULL_TRUST_SAMPLE: 40,  // bu örneklemde tam güven; altında orantılı
+  MIN_SAMPLE: 8,          // altında kalibrasyon yok (gürültü) — getHistory ile aynı eşik
+};
+
+// Tarihsel winRate → 0..100 "empirik güven". Başabaş oranı (NEUTRAL_WINRATE) → 50.
+function empiricalConfidence(winRate, avgReturn) {
+  let s = 50 + (winRate - CAL.NEUTRAL_WINRATE) * CAL.SLOPE;
+  if (avgReturn != null && Number.isFinite(avgReturn)) {
+    const a = Math.max(-CAL.AVGRET_CLAMP, Math.min(CAL.AVGRET_CLAMP, avgReturn));
+    s += a * CAL.AVGRET_W;
+  }
+  return Math.max(0, Math.min(100, s));
+}
+
+// rawConfidence (0-100 teknik) + history (forexBacktest.getHistory sonucu | null)
+//   → { confidence, rawConfidence, empirical, trust, delta }
+function calibrateConfidence(rawConfidence, history) {
+  const raw = Math.round(Math.max(0, Math.min(100, rawConfidence || 0)));
+  if (!history || history.winRate == null || !(history.sampleSize >= CAL.MIN_SAMPLE)) {
+    return { confidence: raw, rawConfidence: raw, empirical: null, trust: 0, delta: 0 };
+  }
+  const empirical = empiricalConfidence(history.winRate, history.avgReturn);
+  const trust = CAL.TRUST_MAX * Math.min(1, history.sampleSize / CAL.FULL_TRUST_SAMPLE);
+  const blended = raw * (1 - trust) + empirical * trust;
+  const confidence = Math.round(Math.max(0, Math.min(100, blended)));
+  return { confidence, rawConfidence: raw, empirical: Math.round(empirical), trust: +trust.toFixed(2), delta: confidence - raw };
+}
+
 function gradeFor(conf) {
   if (conf >= 75) return 'MUKEMMEL';
   if (conf >= 60) return 'GUCLU';
@@ -64,4 +110,4 @@ function bandFor(conf) {
   return 'low';
 }
 
-module.exports = { aggregate, computeConfidence, gradeFor, bandFor };
+module.exports = { aggregate, computeConfidence, calibrateConfidence, empiricalConfidence, gradeFor, bandFor, CAL };

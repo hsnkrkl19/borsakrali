@@ -34,6 +34,9 @@ backend/src/data/users.enc
 backend/src/data/users.json
 backend/src/data/account-deletion-requests.json
 backend/src/data/push-devices.json
+backend/src/data/forex-open-signals.json
+backend/src/data/forex-stats.json
+backend/src/data/forex-backtest.json
 backend/.x-cookies.json
 backend/.x-mentions-store.json
 frontend/android/app/google-services.json

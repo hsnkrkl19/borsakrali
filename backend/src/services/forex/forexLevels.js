@@ -17,8 +17,8 @@ const MIN_ATR_FRAC = 0.0006; // çok küçük ATR'de stop tabanı (R/R korunur)
 
 // id → MetaTrader5 sembolü (yaygın broker adlandırması)
 const MT5_SYMBOL = {
-  BTCUSD: 'BTCUSD', ETHUSD: 'ETHUSD', XRPUSD: 'XRPUSD', SOLUSD: 'SOLUSD', DOGEUSD: 'DOGEUSD',
-  XAUUSD: 'XAUUSD', XAGUSD: 'XAGUSD', EURUSD: 'EURUSD', NAS100: 'US100', SPX500: 'US500',
+  BTCUSD: 'BTCUSD', ETHUSD: 'ETHUSD', XRPUSD: 'XRPUSD', SOLUSD: 'SOLUSD',
+  XAUUSD: 'XAUUSD', XAGUSD: 'XAGUSD', NAS100: 'US100', SPX500: 'US500',
 };
 
 function tradeHorizon(tf) {

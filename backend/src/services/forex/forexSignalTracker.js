@@ -20,12 +20,12 @@ try { const m = require('../../lib/supabase'); supa = m.supabaseAdmin; supaEnabl
 
 const BUCKET = 'bot-state';
 const SUPA_KEY = 'forex/open-signals.json';
-const DISK_FILE = path.join(__dirname, '..', '..', 'data', 'forex-open-signals.json');
+const DISK_FILE = process.env.FOREX_OPEN_SIGNALS_FILE || path.join(__dirname, '..', '..', 'data', 'forex-open-signals.json');
 
 const TF_ORDER = ['5m', '15m', '1h', '4h', '1d'];
 const EXPIRE_SEC = { '5m': 3 * 3600, '15m': 6 * 3600, '1h': 18 * 3600, '4h': 2 * 86400, '1d': 4 * 86400 };
 
-let state = { counter: 0, open: {}, version: 2 };
+let state = { counters: {}, open: {}, version: 3 };
 let loaded = false;
 let saveTimer = null;
 
@@ -59,12 +59,12 @@ async function load() {
       if (data) {
         const text = typeof data.text === 'function' ? await data.text() : Buffer.from(await data.arrayBuffer()).toString('utf8');
         const p = JSON.parse(text);
-        if (p && p.open) { state = { counter: p.counter || 0, open: p.open || {}, version: 2 }; got = true; }
+        if (p && p.open) { state = { counters: p.counters || {}, open: p.open || {}, version: 3 }; got = true; }
       }
     } catch (_) {}
   }
   if (!got) {
-    try { if (fs.existsSync(DISK_FILE)) { const p = JSON.parse(fs.readFileSync(DISK_FILE, 'utf8')); if (p && p.open) state = { counter: p.counter || 0, open: p.open || {}, version: 2 }; } } catch (_) {}
+    try { if (fs.existsSync(DISK_FILE)) { const p = JSON.parse(fs.readFileSync(DISK_FILE, 'utf8')); if (p && p.open) state = { counters: p.counters || {}, open: p.open || {}, version: 3 }; } } catch (_) {}
   }
   sanitizeOpen();
 }
@@ -84,24 +84,30 @@ function persist() {
   }
 }
 
-function nextCode() {
-  state.counter = (state.counter || 0) + 1;
-  const n = state.counter;
-  return String(n % 1000).padStart(3, '0') + String.fromCharCode(65 + Math.floor(n / 1000) % 26);
+// Parite-başına sinyal NO: 2 harf ön ek + 2 hane (BT01..BT99..BT100).
+function nextCode(id) {
+  state.counters = state.counters || {};
+  state.counters[id] = (state.counters[id] || 0) + 1;
+  const n = state.counters[id];
+  const inst = getInstrument(id);
+  const prefix = (inst && inst.prefix) || (id || 'XX').slice(0, 2).toUpperCase();
+  return prefix + String(n).padStart(2, '0');
 }
 
-// İz süren STOP — FİYAT bazlı (orijinal risk mesafesi korunur, sadece lehe kayar).
-// TP açılışta SABİT kalır (tutarlılık; trailing TP hedefi ulaşılmaz yapıyordu).
-// Not: stop sinyalin hesapladığı stop'a göre DEĞİL fiyata göre kayar → düşük
-// TF'in dar stop'u pozisyonu bozmaz; kapanış kontrolü stopSetSec ile ileri-yönlü.
-function trail(dir, cur, basis, p) {
-  const r = (v) => +Number(v).toFixed(p);
-  const dist = cur.origStopDist != null ? cur.origStopDist : Math.abs(cur.entry - cur.stop);
-  const price = basis.entry; // yeni taramadaki canlı fiyat
-  if (dir === 'long') {
-    return { stop: r(Math.max(cur.stop, price - dist)), target1: cur.target1, target2: cur.target2 };
-  }
-  return { stop: r(Math.min(cur.stop, price + dist)), target1: cur.target1, target2: cur.target2 };
+// İz süren stop/yönetim YALNIZ ≥4h pozisyonlarda yapılır (kullanıcı isteği:
+// 5m/15m/1h'te trailing gürültüyle vuruluyor, uygun değil).
+function isManageable(p) {
+  return Array.isArray(p.tfs) && p.tfs.some(tf => tf === '4h' || tf === '1d');
+}
+
+// R-merdiveni: fiyat lehte kaç R ilerlediyse stop'u kilitle.
+//   reachedR ≥1.5 → BE(0); ≥2 → +0.5R; ≥2.5 → +1R ... (1.5R geriden 0.5R adımlı)
+// Eşik 1.5R: managed-backtest (≥4h, 8 parite) BE@1R'nin trend işlemlerinde
+// beklentiyi düşürdüğünü, BE@1.5R'nin beklentiyi koruyup (0.229≈RAW 0.230)
+// gerçek kâr koruması sağladığını gösterdi (BE@2R neredeyse hiç tetiklenmiyor).
+function ladderLockR(reachedR) {
+  if (reachedR < 1.5) return null; // +1.5R'ye gelmeden stop'a dokunma (orijinal kalır)
+  return Math.max(0, Math.floor(reachedR * 2) / 2 - 1.5);
 }
 
 /**
@@ -127,7 +133,7 @@ async function syncPositions(eligible) {
     const existing = findPosition(id, dir);
 
     if (!existing) {
-      const code = nextCode();
+      const code = nextCode(id);
       const units = (basis.sizing && basis.entry && basis.stop) ? basis.sizing.riskUsd / Math.abs(basis.entry - basis.stop) : null;
       const pos = {
         code, instrumentId: id, symbol: basis.symbol, direction: dir, precision: p,
@@ -141,18 +147,14 @@ async function syncPositions(eligible) {
       state.open[code] = pos;
       events.push({ type: 'new', position: pos, addedTfs: tfs, reverseOf });
     } else {
-      const tr = trail(dir, existing, basis, existing.precision ?? 4);
-      const stopChanged = tr.stop !== existing.stop;
+      // Mevcut pozisyon: TF'leri SESSİZCE birleştir + güveni güncelle. Stop/TP
+      // DEĞİŞMEZ — seviye yönetimi manageOpenPositions (R-merdiveni, ≥4h) işidir.
       const newTfs = tfs.filter(t => !existing.tfs.includes(t));
-      const tfChanged = newTfs.length > 0;
-      if (stopChanged || tfChanged) {
-        const prev = { stop: existing.stop, target1: existing.target1, target2: existing.target2, tfs: existing.tfs.slice() };
-        if (stopChanged) { existing.stop = tr.stop; existing.stopSetSec = nowSec(); } // iz süren stop ileri-yönlü değerlendirilir
-        // TP sabit (existing.target1/2 değişmez)
+      if (newTfs.length || basis.confidence > existing.confidence) {
         existing.tfs = sortTfs([...existing.tfs, ...tfs]);
         existing.confidence = Math.max(existing.confidence, basis.confidence);
         existing.lastUpdateSec = nowSec();
-        events.push({ type: 'update', position: existing, addedTfs: newTfs, stopChanged, tpChanged: false, prev, reverseOf });
+        persist();
       }
     }
   }
@@ -200,6 +202,43 @@ async function checkClosures() {
   return events;
 }
 
+// R-merdiveni yönetimi — YALNIZ ≥4h pozisyonlar. Fiyatın lehte ulaştığı en
+// yüksek R'ye göre stop'u kademeli yukarı kilitler (BE → +0.5R → +1R ...).
+// Stop kademe değiştirdiğinde olay döndürür (aynı NO ile "güncelleme" mesajı).
+async function manageOpenPositions() {
+  await load();
+  const events = [];
+  for (const p of openList()) {
+    if (!isManageable(p)) continue;
+    const R = p.origStopDist;
+    if (!(R > 0)) continue;
+    const inst = getInstrument(p.instrumentId);
+    if (!inst) continue;
+    let candles;
+    try { candles = await forexKlines.fetchCandles(inst.yahoo, '5m', 300); } catch (_) { continue; }
+    if (!candles || !candles.length) continue;
+    const since = candles.filter(c => c.time > p.issueTimeSec);
+    if (!since.length) continue;
+    const isLong = p.direction === 'long';
+    const mfe = isLong ? Math.max(...since.map(c => c.high)) : Math.min(...since.map(c => c.low)); // en iyi lehte hareket
+    const reachedR = isLong ? (mfe - p.entry) / R : (p.entry - mfe) / R;
+    const lockR = ladderLockR(reachedR);
+    if (lockR == null) continue;
+    const rnd = (v) => +Number(v).toFixed(p.precision ?? 4);
+    const newSL = rnd(isLong ? p.entry + lockR * R : p.entry - lockR * R);
+    const better = isLong ? newSL > p.stop : newSL < p.stop; // sadece lehe ratchet
+    if (!better) continue;
+    const prevStop = p.stop;
+    p.stop = newSL; p.stopSetSec = nowSec(); p.mgmtLockR = lockR; p.lastUpdateSec = nowSec();
+    events.push({ position: p, prevStop, lockR, reachedR: +reachedR.toFixed(2), stage: lockR === 0 ? 'BE' : `+${lockR}R` });
+  }
+  if (events.length) persist();
+  return events;
+}
+
 function getOpen() { return openList(); }
 
-module.exports = { load, syncPositions, checkClosures, getOpen };
+// ── Test kancaları (golden testler için; üretimde kullanılmaz) ───────────────
+function __resetForTest() { state = { counters: {}, open: {}, version: 3 }; loaded = true; if (saveTimer) { clearTimeout(saveTimer); saveTimer = null; } }
+
+module.exports = { load, syncPositions, manageOpenPositions, checkClosures, getOpen, nextCode, ladderLockR, isManageable, __resetForTest };

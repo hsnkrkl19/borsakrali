@@ -622,9 +622,15 @@ async function runForexSignalCadence() {
     } catch (pe) {
       logger.error(`Forex push hata: ${pe.message}`);
     }
-    if (pushed?.telegram || pushed?.app) {
-      logger.info(`💱 Forex turu — ${sigs.length} sinyal · TG ${pushed.telegram} · App ${pushed.app}`);
+    if (pushed?.telegram) {
+      logger.info(`💱 Forex turu — ${sigs.length} sinyal · TG ${pushed.telegram} (yeni ${pushed.considered})`);
     }
+    // R-merdiveni yönetimi (YALNIZ ≥4h): kâr +1R'de stop girişe, sonra +0.5R adımlı
+    // kilitlenir → kademe değişince aynı NO ile "güncelleme" mesajı (sadece kanal).
+    try {
+      const mgmt = await forexSignalTracker.manageOpenPositions();
+      if (mgmt.length) await forexPushNotifier.pushManagementUpdates(mgmt);
+    } catch (mErr) { logger.error(`Forex yönetim hata: ${mErr.message}`); }
     // Açık sinyallerin kapanış/teyit kontrolü (TP1/STOP/SÜRE → aynı NO ile teyit)
     try {
       const closures = await forexSignalTracker.checkClosures();
@@ -661,7 +667,7 @@ async function runForexBacktest() {
 async function runForexStats() {
   try {
     const r = await forexPushNotifier.pushStats();
-    logger.info(`💱📊 Forex istatistik turu — TG ${r?.telegram || 0} · App ${r?.app || 0}`);
+    logger.info(`💱📊 Forex istatistik turu — TG ${r?.telegram || 0}`);
     return r;
   } catch (e) {
     logger.error(`Forex istatistik hata: ${e.message}`, e.stack);

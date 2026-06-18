@@ -72,15 +72,20 @@ function summarize(b) {
   };
 }
 
-async function backtestTF(inst, tf) {
+// opts.lookback = pencere uzunluğu (bar), opts.endOffset = pencereyi kaç bar
+// geriye kaydır (farklı zaman aralıkları test etmek için).
+async function backtestTF(inst, tf, opts = {}) {
   const horizon = HORIZON[tf] || 12;
   const candles = await forexKlines.fetchCandles(inst.yahoo, tf, 900);
   if (!candles || candles.length < MIN_HISTORY) return null;
   const assetType = assetTypeFor(inst.class);
   const buckets = { high: blank(), mid: blank(), low: blank(), all: blank() };
 
-  const start = Math.max(220, candles.length - LOOKBACK_BARS - horizon);
-  const end = candles.length - horizon;
+  const lookback = opts.lookback || LOOKBACK_BARS;
+  const endOffset = opts.endOffset || 0;
+  const end = candles.length - horizon - endOffset;
+  const start = Math.max(220, end - lookback);
+  if (end <= start) return { high: summarize(blank()), mid: summarize(blank()), low: summarize(blank()), all: summarize(blank()) };
   for (let i = start; i < end; i++) {
     const hist = candles.slice(0, i + 1);
     const [snrR, smcR] = await Promise.all([
