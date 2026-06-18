@@ -573,7 +573,7 @@ export default function GunlukTespitler() {
       {/* Kripto Tab — top 100 coin için spot/futures long/short */}
       {activeTab === 'kripto' && <KriptoSinyalleri />}
 
-      {/* Forex / Parite Tab — 10 enstrüman gün-içi long/short + lot/risk planı */}
+      {/* Forex / Parite Tab — 8 enstrüman gün-içi long/short + risk planı */}
       {activeTab === 'forex' && <ForexSinyalleri />}
 
       {/* Emtia Tab — Altın & Gümüş Malaysian SNR sinyalleri */}

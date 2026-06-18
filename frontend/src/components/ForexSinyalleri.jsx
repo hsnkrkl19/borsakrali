@@ -1,7 +1,7 @@
 /**
  * Forex / Parite Sinyalleri — Borsa Krali (çoklu-zaman, çoklu-strateji)
  *
- * 10 enstrüman (5 kripto + altın + gümüş + EUR/USD + Nasdaq + S&P500) × 5 TF
+ * 8 enstrüman (4 kripto + altın + gümüş + Nasdaq + S&P500) × 5 TF
  * (5m/15m/1h/4h/1d). Her TF'de ayrı sinyal; tüm tarama teknikleri (Genel Tarama,
  * EMA34, TEMA34, Malaysian SNR, SMC) birleştirilip 0-100 GÜVEN NOTU üretilir.
  * Her sinyal: giriş/SL/TP, muhtemel kâr-zarar, MetaTrader5 emri. Portföy
@@ -92,7 +92,7 @@ export default function ForexSinyalleri() {
   if (data?.pending) return (
     <div className="card p-8 text-center space-y-3">
       <Clock className="w-8 h-8 text-amber-400 mx-auto" /><h3 className="text-white font-bold">Forex sinyalleri hazırlanıyor</h3>
-      <p className="text-xs text-gray-400 max-w-md mx-auto">İlk üretim Yahoo verilerini topluyor (5 TF × 10 enstrüman), birkaç saniye sürer.</p>
+      <p className="text-xs text-gray-400 max-w-md mx-auto">İlk üretim Yahoo verilerini topluyor (5 TF × 8 enstrüman), birkaç saniye sürer.</p>
       <button onClick={refresh} disabled={refreshing} className="btn-primary inline-flex items-center gap-2 text-sm disabled:opacity-50"><RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} /> Şimdi üret</button>
     </div>
   )
@@ -301,7 +301,7 @@ function ForexCard({ sig, expanded, onToggle }) {
             <PlanCell label={`TP2 (R/R ${sig.rr2})`} value={fmtPrice(sig.target2, p)} color="emerald" />
           </div>
 
-          {/* Lot / kâr-zarar */}
+          {/* Risk / kâr-zarar */}
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-[11px]">
             <KV label="Miktar" value={`${Number(z.units).toLocaleString('en-US')} ${z.unitLabel}`} />
             <KV label="Notional" value={fmtUsd(z.notionalUsd)} />

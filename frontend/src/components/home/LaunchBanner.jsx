@@ -30,7 +30,7 @@ export default function LaunchBanner() {
             📈 Forex / Parite sinyalleri yayında — MetaTrader5'e hazır
           </h3>
           <p className="text-xs sm:text-[13px] mt-1 leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
-            10 enstrüman × 5 zaman dilimi · güven notu + lot + giriş/SL/TP. Mobil uygulama ve Telegram'da anlık bildirim.
+            8 enstrüman × 5 zaman dilimi · güven notu + giriş/SL/TP. Telegram kanalında anlık bildirim, mobil uygulamada görüntüle.
           </p>
         </div>
 

@@ -150,8 +150,8 @@ export default function UpdatePopup() {
             Forex / Parite yayında 🚀
           </h2>
           <p className="text-sm leading-relaxed mb-5" style={{ color: 'var(--text-secondary)' }}>
-            10 enstrüman × 5 zaman dilimi · <b style={{ color: 'var(--gold-500)' }}>güven notu + lot + MT5 emri</b>.
-            Mobil uygulama ve Telegram'da anlık bildirim. Hemen indir, sinyalleri kaçırma.
+            8 enstrüman × 5 zaman dilimi · <b style={{ color: 'var(--gold-500)' }}>güven notu + MT5 emri</b>.
+            Telegram kanalında anlık bildirim, mobil uygulamada görüntüle. Hemen indir, sinyalleri kaçırma.
           </p>
 
           {/* Etkileyici sayılar — 2x2 kompakt vitrin */}

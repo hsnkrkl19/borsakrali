@@ -14,10 +14,10 @@ const STRATEGIES = [
   {
     id: 'forex',
     name: 'Forex / Parite — MT5 Sinyalleri',
-    desc: '10 enstrüman (kripto + altın + gümüş + EURUSD + Nasdaq + S&P500) × 5 zaman dilimi. Tüm teknikler birleşir → güven notu + lot + giriş/SL/TP + MetaTrader5 emri. CANLI.',
+    desc: '8 enstrüman (kripto + altın + gümüş + Nasdaq + S&P500) × 5 zaman dilimi. Tüm teknikler birleşir → güven notu + giriş/SL/TP + MetaTrader5 emri. CANLI.',
     indicators: ['EMA34', 'TEMA34', 'SNR', 'SMC', 'MT5'],
     metric: null, label: 'Canlı · MT5',
-    period: 'Her dk · Telegram + uygulama bildirimi',
+    period: 'Her dk · Telegram kanalı bildirimi',
     color: '234,179,8',
     icon: Wallet,
     to: '/firsatlar?tab=forex',
