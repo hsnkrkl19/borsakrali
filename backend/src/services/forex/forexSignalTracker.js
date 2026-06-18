@@ -90,13 +90,18 @@ function nextCode() {
   return String(n % 1000).padStart(3, '0') + String.fromCharCode(65 + Math.floor(n / 1000) % 26);
 }
 
-// long: stop/TP yukarı iz sürer; short: aşağı.
+// İz süren STOP — FİYAT bazlı (orijinal risk mesafesi korunur, sadece lehe kayar).
+// TP açılışta SABİT kalır (tutarlılık; trailing TP hedefi ulaşılmaz yapıyordu).
+// Not: stop sinyalin hesapladığı stop'a göre DEĞİL fiyata göre kayar → düşük
+// TF'in dar stop'u pozisyonu bozmaz; kapanış kontrolü stopSetSec ile ileri-yönlü.
 function trail(dir, cur, basis, p) {
   const r = (v) => +Number(v).toFixed(p);
+  const dist = cur.origStopDist != null ? cur.origStopDist : Math.abs(cur.entry - cur.stop);
+  const price = basis.entry; // yeni taramadaki canlı fiyat
   if (dir === 'long') {
-    return { stop: r(Math.max(cur.stop, basis.stop)), target1: r(Math.max(cur.target1, basis.target1)), target2: r(Math.max(cur.target2, basis.target2)) };
+    return { stop: r(Math.max(cur.stop, price - dist)), target1: cur.target1, target2: cur.target2 };
   }
-  return { stop: r(Math.min(cur.stop, basis.stop)), target1: r(Math.min(cur.target1, basis.target1)), target2: r(Math.min(cur.target2, basis.target2)) };
+  return { stop: r(Math.min(cur.stop, price + dist)), target1: cur.target1, target2: cur.target2 };
 }
 
 /**
@@ -130,24 +135,24 @@ async function syncPositions(eligible) {
         tfs, confidence: basis.confidence, rr1: basis.rr1, rr2: basis.rr2,
         mt5Symbol: basis.mt5?.symbol || id,
         marginUsd: basis.sizing?.requiredMarginUsd ?? null, marginPct: basis.sizing?.marginPct ?? null, units,
-        issuedAt: new Date().toISOString(), issueTimeSec: nowSec(), lastUpdateSec: nowSec(),
+        origStopDist: Math.abs(basis.entry - basis.stop),
+        issuedAt: new Date().toISOString(), issueTimeSec: nowSec(), lastUpdateSec: nowSec(), stopSetSec: nowSec(),
       };
       state.open[code] = pos;
       events.push({ type: 'new', position: pos, addedTfs: tfs, reverseOf });
     } else {
       const tr = trail(dir, existing, basis, existing.precision ?? 4);
       const stopChanged = tr.stop !== existing.stop;
-      const tpChanged = tr.target1 !== existing.target1 || tr.target2 !== existing.target2;
       const newTfs = tfs.filter(t => !existing.tfs.includes(t));
       const tfChanged = newTfs.length > 0;
-      if (stopChanged || tpChanged || tfChanged) {
+      if (stopChanged || tfChanged) {
         const prev = { stop: existing.stop, target1: existing.target1, target2: existing.target2, tfs: existing.tfs.slice() };
-        existing.stop = tr.stop; existing.target1 = tr.target1; existing.target2 = tr.target2;
+        if (stopChanged) { existing.stop = tr.stop; existing.stopSetSec = nowSec(); } // iz süren stop ileri-yönlü değerlendirilir
+        // TP sabit (existing.target1/2 değişmez)
         existing.tfs = sortTfs([...existing.tfs, ...tfs]);
         existing.confidence = Math.max(existing.confidence, basis.confidence);
-        existing.rr1 = basis.rr1; existing.rr2 = basis.rr2;
         existing.lastUpdateSec = nowSec();
-        events.push({ type: 'update', position: existing, addedTfs: newTfs, stopChanged, tpChanged, prev, reverseOf });
+        events.push({ type: 'update', position: existing, addedTfs: newTfs, stopChanged, tpChanged: false, prev, reverseOf });
       }
     }
   }
@@ -161,10 +166,14 @@ async function evalOne(p) {
   if (!inst) return null;
   const candles = await forexKlines.fetchCandles(inst.yahoo, '5m', 300);
   const isLong = p.direction === 'long';
+  // Stop, YALNIZ o seviye konduktan sonraki mumlarla değerlendirilir (iz süren
+  // stop yukarı kayınca eski geri-çekilmeler geriye dönük "stop" tetiklemesin).
+  const stopSince = p.stopSetSec || p.issueTimeSec;
   let outcome = null, exit = null;
   if (candles && candles.length) {
-    for (const b of candles.filter(c => c.time > p.issueTimeSec)) {
-      const slHit = isLong ? b.low <= p.stop : b.high >= p.stop;
+    for (const b of candles) {
+      if (b.time <= p.issueTimeSec) continue;
+      const slHit = (b.time > stopSince) && (isLong ? b.low <= p.stop : b.high >= p.stop);
       const tpHit = isLong ? b.high >= p.target1 : b.low <= p.target1;
       if (slHit) { outcome = (isLong ? p.stop >= p.entry : p.stop <= p.entry) ? 'TRAIL' : 'SL'; exit = p.stop; break; }
       if (tpHit) { outcome = 'TP1'; exit = p.target1; break; }
@@ -178,7 +187,7 @@ async function evalOne(p) {
   const dir = isLong ? 1 : -1;
   const pnlPct = +(((exit - p.entry) / p.entry) * 100 * dir).toFixed(3);
   const pnlUsd = p.units != null ? +(p.units * (exit - p.entry) * dir).toFixed(2) : null;
-  return { code: p.code, symbol: p.symbol, direction: p.direction, tfs: p.tfs, precision: p.precision, entry: p.entry, exit, outcome, pnlPct, pnlUsd, issuedAt: p.issuedAt };
+  return { code: p.code, instrumentId: p.instrumentId, symbol: p.symbol, direction: p.direction, tfs: p.tfs, precision: p.precision, entry: p.entry, exit, outcome, pnlPct, pnlUsd, issuedAt: p.issuedAt };
 }
 
 async function checkClosures() {
