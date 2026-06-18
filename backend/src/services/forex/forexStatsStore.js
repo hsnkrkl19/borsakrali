@@ -20,7 +20,7 @@ const SUPA_KEY = 'forex/stats.json';
 const DISK_FILE = path.join(__dirname, '..', '..', 'data', 'forex-stats.json');
 const HISTORY_CAP = 1000;
 
-let state = { byPair: {}, history: [], totalOpened: 0, totalClosed: 0, since: null };
+let state = { byPair: {}, history: [], totalOpened: 0, totalClosed: 0, since: null, resetTag: null };
 let loaded = false;
 let saveTimer = null;
 
@@ -40,11 +40,19 @@ async function load() {
       if (data) {
         const text = typeof data.text === 'function' ? await data.text() : Buffer.from(await data.arrayBuffer()).toString('utf8');
         const p = JSON.parse(text);
-        if (p && p.byPair) { state = { byPair: p.byPair || {}, history: p.history || [], totalOpened: p.totalOpened || 0, totalClosed: p.totalClosed || 0, since: p.since || null }; got = true; }
+        if (p && p.byPair) { state = { byPair: p.byPair || {}, history: p.history || [], totalOpened: p.totalOpened || 0, totalClosed: p.totalClosed || 0, since: p.since || null, resetTag: p.resetTag || null }; got = true; }
       }
     } catch (_) {}
   }
-  if (!got) { try { if (fs.existsSync(DISK_FILE)) { const p = JSON.parse(fs.readFileSync(DISK_FILE, 'utf8')); if (p && p.byPair) state = { byPair: p.byPair || {}, history: p.history || [], totalOpened: p.totalOpened || 0, totalClosed: p.totalClosed || 0, since: p.since || null }; } } catch (_) {} }
+  if (!got) { try { if (fs.existsSync(DISK_FILE)) { const p = JSON.parse(fs.readFileSync(DISK_FILE, 'utf8')); if (p && p.byPair) state = { byPair: p.byPair || {}, history: p.history || [], totalOpened: p.totalOpened || 0, totalClosed: p.totalClosed || 0, since: p.since || null, resetTag: p.resetTag || null }; } } catch (_) {} }
+  // Tek-seferlik SIFIRLAMA: FOREX_STATS_RESET değeri (etiket) değişince istatistiği
+  // bir kez temizler (sahte-stop/birleştirme öncesi kirli kapanışları atar). Aynı
+  // etiketle sonraki açılışlarda tekrar sıfırlamaz (deploy/yeniden başlatmaya güvenli).
+  const tag = process.env.FOREX_STATS_RESET;
+  if (tag && state.resetTag !== tag) {
+    state = { byPair: {}, history: [], totalOpened: 0, totalClosed: 0, since: null, resetTag: tag };
+    persist();
+  }
 }
 
 function persist() {

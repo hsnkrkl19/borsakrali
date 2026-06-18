@@ -30,7 +30,7 @@ function passesQuality(s) {
 function fmt(v, p) { return v == null ? '-' : Number(v).toLocaleString('en-US', { minimumFractionDigits: p, maximumFractionDigits: p }); }
 function usd(v, d = 0) { return v == null ? '-' : (v < 0 ? '-$' : '$') + Math.abs(Number(v)).toLocaleString('en-US', { maximumFractionDigits: d }); }
 function dirWord(d) { return d === 'long' ? 'LONG' : 'SHORT'; }
-function chan() { return process.env.TELEGRAM_FOREX_CHANNEL || process.env.TELEGRAM_CHAT_ID || ''; }
+function chan() { return require('../signalDelivery').signalChannel(); } // YALNIZ kanal — DM'e düşmez
 
 function metrics(p) {
   const dir = p.direction === 'long' ? 1 : -1, u = p.units;

@@ -12,7 +12,7 @@ const logger = require('../../utils/logger');
 function withTimeout(p, ms, label) {
   return Promise.race([Promise.resolve(p), new Promise((_, rej) => setTimeout(() => rej(new Error('timeout:' + label)), ms))]);
 }
-function chan() { return process.env.TELEGRAM_FOREX_CHANNEL || process.env.TELEGRAM_CHAT_ID || ''; }
+function chan() { return require('../signalDelivery').signalChannel(); } // YALNIZ kanal — DM'e düşmez
 function fmt(v, p) { return v == null ? '-' : Number(v).toLocaleString('en-US', { minimumFractionDigits: p, maximumFractionDigits: p }); }
 function dirWord(d) { return d === 'long' ? 'LONG (AL)' : 'SHORT (SAT)'; }
 

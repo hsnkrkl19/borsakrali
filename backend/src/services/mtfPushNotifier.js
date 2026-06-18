@@ -47,6 +47,13 @@ const stats = {
  *   { symbol, verdict, net, confidence, alignedLong, alignedShort, tfDirections }
  */
 async function evaluateAndPush(confluences) {
+  // Kanal-tek modu: BIST dışı MTF kişisel push'u (uygulama + Telegram DM) SUSAR.
+  // MTF, kanalı 1dk scalp'leriyle doldurmasın diye yalnız uygulama-içi sayfada
+  // görünür (kullanıcı tercihi: "MTF sessiz"). cooldown/verdict yine de güncellenir.
+  if (require('./signalDelivery').channelOnly()) {
+    for (const c of (confluences || [])) { if (c?.symbol && c?.verdict) prevVerdict.set(c.symbol, c.verdict); }
+    return { upgrades: 0, pushed: 0, silenced: 'channelOnly' };
+  }
   if (!Array.isArray(confluences) || confluences.length === 0) return { upgrades: 0, pushed: 0 };
 
   stats.totalEvaluated++;

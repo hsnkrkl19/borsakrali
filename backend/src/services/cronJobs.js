@@ -28,6 +28,8 @@ const crossoverNotifier = require('./crossover/crossoverNotifier');
 const waveScanEngine = require('./waveScan/waveScanEngine');
 const waveScanNotifier = require('./waveScan/waveScanNotifier');
 const waveScanTracker = require('./waveScan/waveScanTracker');
+const cryptoChannelNotifier = require('./cryptoChannelNotifier');
+const signalDelivery = require('./signalDelivery');
 const customBotEngine = require('./customBots/customBotEngine');
 const customBotRegistry = require('./customBots/customBotRegistry');
 const logger = require('../utils/logger');
@@ -511,21 +513,23 @@ async function runCryptoPhase(phase, options = {}) {
     });
 
     if (!options.silent && phase !== 'intraday') {
-      const longTop  = (result.futures_long?.signals  || []).slice(0, 3).map(s => s.symbol).join(', ');
-      const shortTop = (result.futures_short?.signals || []).slice(0, 3).map(s => s.symbol).join(', ');
-      const spotTop  = (result.spot_long?.signals     || []).slice(0, 3).map(s => s.symbol).join(', ');
       const title = CRYPTO_PHASE_TITLE[phase] || '🪙 Kripto Sinyalleri';
-      const body =
-        `Al sinyali: ${longTop || spotTop || '—'}` +
-        (shortTop ? ` · Düşüş bölgesi: ${shortTop}` : '');
-      try {
-        await pushNotificationService.broadcastNotification({
-          title, body,
-          path: '/gunluk-tespitler?tab=kripto',
-          topic: 'all',
-        });
-      } catch (e) {
-        logger.error(`[CryptoSignals] FCM push hata (${phase}): ${e.message}`);
+      if (signalDelivery.channelOnly()) {
+        // Kanal-tek: kullanıcıya FCM push YOK → kripto sinyalleri Telegram kanalına
+        try { await cryptoChannelNotifier.pushToChannel(result, title); }
+        catch (e) { logger.error(`[CryptoSignals] kanal gönderim hata (${phase}): ${e.message}`); }
+      } else {
+        const longTop  = (result.futures_long?.signals  || []).slice(0, 3).map(s => s.symbol).join(', ');
+        const shortTop = (result.futures_short?.signals || []).slice(0, 3).map(s => s.symbol).join(', ');
+        const spotTop  = (result.spot_long?.signals     || []).slice(0, 3).map(s => s.symbol).join(', ');
+        const body =
+          `Al sinyali: ${longTop || spotTop || '—'}` +
+          (shortTop ? ` · Düşüş bölgesi: ${shortTop}` : '');
+        try {
+          await pushNotificationService.broadcastNotification({ title, body, path: '/gunluk-tespitler?tab=kripto', topic: 'all' });
+        } catch (e) {
+          logger.error(`[CryptoSignals] FCM push hata (${phase}): ${e.message}`);
+        }
       }
     }
 
