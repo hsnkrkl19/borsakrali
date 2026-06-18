@@ -9,6 +9,7 @@ import SignalGuide from '../components/SignalGuide'
 import TradePlanCard from '../components/TradePlanCard'
 import InfoTooltip from '../components/InfoTooltip'
 import BugununSinyalleri from '../components/BugununSinyalleri'
+import SpotAlSinyalleri from '../components/SpotAlSinyalleri'
 import KriptoSinyalleri from '../components/KriptoSinyalleri'
 import ForexSinyalleri from '../components/ForexSinyalleri'
 import EmtiaSinyalleri from '../components/EmtiaSinyalleri'
@@ -51,7 +52,7 @@ export default function GunlukTespitler() {
     const rawTab = searchParams.get('tab')
     const rawSub = searchParams.get('sub')
     // 1) Yeni 5'li yapı: tab geçerli ise direkt kullan
-    if (['bugun', 'kripto', 'forex', 'emtia', 'analiz', 'araclar'].includes(rawTab)) {
+    if (['bugun', 'sinyaller', 'kripto', 'forex', 'emtia', 'analiz', 'araclar'].includes(rawTab)) {
       const validSub = SUB_TABS[rawTab]?.includes(rawSub) ? rawSub : (SUB_TABS[rawTab]?.[0] || null)
       return { tab: rawTab, sub: validSub }
     }
@@ -313,6 +314,7 @@ export default function GunlukTespitler() {
   // Ana sekmeler — 5 grup. Analiz ve Araçlar alt sekmelere sahiptir.
   const tabs = [
     { id: 'bugun',   label: 'Bugünün Sinyalleri', shortLabel: 'Bugün',  icon: Sparkles },
+    { id: 'sinyaller', label: 'Spot Al (≥75)',     shortLabel: 'Spot Al', icon: Target, isNew: true },
     { id: 'kripto',  label: 'Kripto',             shortLabel: 'Kripto', icon: Coins },
     { id: 'forex',   label: 'Forex / Parite',     shortLabel: 'Forex',  icon: Wallet,  isNew: true },
     { id: 'emtia',   label: 'Altın & Gümüş',      shortLabel: 'Emtia',  icon: Coins },
@@ -565,6 +567,8 @@ export default function GunlukTespitler() {
 
       {/* Bugünün Sinyalleri Tab — pre-market 09:55 + revize 11:00 */}
       {activeTab === 'bugun' && <BugununSinyalleri />}
+
+      {activeTab === 'sinyaller' && <SpotAlSinyalleri />}
 
       {/* Kripto Tab — top 100 coin için spot/futures long/short */}
       {activeTab === 'kripto' && <KriptoSinyalleri />}
