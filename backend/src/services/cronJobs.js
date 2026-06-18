@@ -29,6 +29,7 @@ const waveScanEngine = require('./waveScan/waveScanEngine');
 const waveScanNotifier = require('./waveScan/waveScanNotifier');
 const waveScanTracker = require('./waveScan/waveScanTracker');
 const cryptoChannelNotifier = require('./cryptoChannelNotifier');
+const cryptoSignalTracker = require('./cryptoSignalTracker');
 const signalDelivery = require('./signalDelivery');
 const customBotEngine = require('./customBots/customBotEngine');
 const customBotRegistry = require('./customBots/customBotRegistry');
@@ -512,24 +513,26 @@ async function runCryptoPhase(phase, options = {}) {
       stockSymbol: 'CRYPTO_DAILY',
     });
 
-    if (!options.silent && phase !== 'intraday') {
+    if (signalDelivery.channelOnly()) {
+      // SÜREKLİ yayın (faz YOK): her turda yeni bulunanları kanala (dedup tracker)
+      // + açık sinyallerin TP/SL kapanış teyidi. Kullanıcı: "fazlarla değil sürekli".
+      try {
+        const r = await cryptoChannelNotifier.evaluateAndPush(result);
+        const closures = await cryptoSignalTracker.checkClosures();
+        if (closures.length) await cryptoChannelNotifier.pushClosures(closures);
+        if (r?.newCount || closures.length) logger.info(`🪙 Kripto kanal turu — yeni ${r?.newCount || 0} · kapanış ${closures.length}`);
+      } catch (e) { logger.error(`[CryptoSignals] sürekli kanal gönderim hata: ${e.message}`); }
+    } else if (!options.silent && phase !== 'intraday') {
+      // Legacy (kanal kapalıyken): 4 fazda FCM broadcast
       const title = CRYPTO_PHASE_TITLE[phase] || '🪙 Kripto Sinyalleri';
-      if (signalDelivery.channelOnly()) {
-        // Kanal-tek: kullanıcıya FCM push YOK → kripto sinyalleri Telegram kanalına
-        try { await cryptoChannelNotifier.pushToChannel(result, title); }
-        catch (e) { logger.error(`[CryptoSignals] kanal gönderim hata (${phase}): ${e.message}`); }
-      } else {
-        const longTop  = (result.futures_long?.signals  || []).slice(0, 3).map(s => s.symbol).join(', ');
-        const shortTop = (result.futures_short?.signals || []).slice(0, 3).map(s => s.symbol).join(', ');
-        const spotTop  = (result.spot_long?.signals     || []).slice(0, 3).map(s => s.symbol).join(', ');
-        const body =
-          `Al sinyali: ${longTop || spotTop || '—'}` +
-          (shortTop ? ` · Düşüş bölgesi: ${shortTop}` : '');
-        try {
-          await pushNotificationService.broadcastNotification({ title, body, path: '/gunluk-tespitler?tab=kripto', topic: 'all' });
-        } catch (e) {
-          logger.error(`[CryptoSignals] FCM push hata (${phase}): ${e.message}`);
-        }
+      const longTop  = (result.futures_long?.signals  || []).slice(0, 3).map(s => s.symbol).join(', ');
+      const shortTop = (result.futures_short?.signals || []).slice(0, 3).map(s => s.symbol).join(', ');
+      const spotTop  = (result.spot_long?.signals     || []).slice(0, 3).map(s => s.symbol).join(', ');
+      const body = `Al sinyali: ${longTop || spotTop || '—'}` + (shortTop ? ` · Düşüş bölgesi: ${shortTop}` : '');
+      try {
+        await pushNotificationService.broadcastNotification({ title, body, path: '/gunluk-tespitler?tab=kripto', topic: 'all' });
+      } catch (e) {
+        logger.error(`[CryptoSignals] FCM push hata (${phase}): ${e.message}`);
       }
     }
 
@@ -896,8 +899,9 @@ class CronJobsService {
     );
 
     // 10. Kripto/altın sinyal kadansı — 7/24 HER 15 DK (piyasa kapanmaz).
-    //     4 sabit saatte (09:00/13:00/19:00/01:00) push'lu faz, diğer turlar
-    //     sessiz intraday. Her turda kripto botu snapshot'ı ingest eder (long+short).
+    //     Kanal-tek modda SÜREKLİ: her turda yeni bulunanlar kanala (dedup tracker)
+    //     + TP/SL kapanış teyidi — faz YOK (kullanıcı isteği). Kanal kapalıyken
+    //     eski 4-faz FCM davranışı. Her turda kripto botu snapshot'ı ingest eder.
     const cryptoSignalJob = cron.schedule(
       '*/15 * * * *',
       () => runCryptoSignalCadence(),

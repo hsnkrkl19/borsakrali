@@ -31,26 +31,14 @@ describe('signalDelivery', () => {
   });
 });
 
-describe('cryptoChannelNotifier.buildMessage', () => {
-  test('dolu bölümler + boş bölüm atlanır + sembol/giriş/skor', () => {
-    const res = {
-      spot_long: { signals: [{ symbol: 'btc', entry: 105000, stop: 102000, target1: 112000, totalScore: 8, historicalWinRate: 62 }] },
-      futures_long: { signals: [] },
-      futures_short: { signals: [{ symbol: 'xrp', entry: 2.1, stop: 2.2, target1: 1.8, totalScore: 7 }] },
-    };
-    const m = crypto.buildMessage(res, '09:00');
-    expect(m).toContain('KRİPTO');
-    expect(m).toContain('BTC');
-    expect(m).toContain('SPOT');
-    expect(m).toContain('FUTURES SHORT');
-    expect(m).toContain('XRP');
-    expect(m).not.toContain('FUTURES LONG');           // boş bölüm atlandı
-    expect(m).toMatch(/Yatırım tavsiyesi/);
-  });
-
-  test('hiç sinyal yoksa null (mesaj atılmaz)', () => {
-    const empty = { spot_long: { signals: [] }, futures_long: { signals: [] }, futures_short: { signals: [] } };
-    expect(crypto.buildMessage(empty, '13:00')).toBeNull();
+// NOT: kripto artık SÜREKLİ per-sinyal yayında (flatten/buildNew/buildClosure) —
+// kapsamı cryptoSignals.golden.test.js'de. Eski özet buildMessage kaldırıldı.
+describe('cryptoChannelNotifier — sürekli API mevcut', () => {
+  test('flatten/buildNew/evaluateAndPush export edilir (özet buildMessage kaldırıldı)', () => {
+    expect(typeof crypto.flatten).toBe('function');
+    expect(typeof crypto.buildNew).toBe('function');
+    expect(typeof crypto.evaluateAndPush).toBe('function');
+    expect(crypto.buildMessage).toBeUndefined();
   });
 });
 
