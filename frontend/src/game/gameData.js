@@ -134,11 +134,11 @@ export function effectiveStats(vehicleId, upgradesForVehicle = {}) {
     ...base,
     // Katsayılar max=10'a göre ölçeklendi. Base hız ×1.12 (araç biraz daha hızlı),
     // motor+şanzıman hıza daha çok katkı (yükseltmelerle daha da hızlanır).
-    enginePower: base.enginePower * 1.10 * (1 + 0.20 * eng),
+    enginePower: base.enginePower * 1.16 * (1 + 0.20 * eng),
     grip:        base.grip * (1 + 0.14 * tir),
     suspK:       base.suspK * (1 + 0.12 * sus),
     suspDamp:    base.suspDamp * (1 + 0.10 * sus),
-    topSpeed:    base.topSpeed * 1.12 * (1 + 0.09 * eng + 0.15 * gear),
+    topSpeed:    base.topSpeed * 1.20 * (1 + 0.09 * eng + 0.15 * gear),
     fuelMax:     base.fuelMax * (1 + 0.32 * fuel),
     airControl:  base.airControl * (1 + 0.18 * aero),
     stability:   1 + 0.14 * aero,   // havadaki açısal sönümleme

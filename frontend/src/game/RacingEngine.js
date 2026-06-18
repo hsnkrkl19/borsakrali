@@ -333,7 +333,7 @@ export class RacingEngine {
     if (!car.onGround && this._hasLanded) {
       const a = wrapPi(car.angle)
       const ramp = clamp(this._physAirTimer / 0.07, 0.75, 1)   // neredeyse anında tepki
-      const at = s.airControl * 5.5 * ramp                     // güçlü tork → kısa havada bile takla
+      const at = s.airControl * 7.0 * ramp                     // güçlü tork → kısa havada bile takla
       if (this.input.flipL) car.angVel += at * dt          // SOL → geri takla (CCW) — RİSK
       else if (this.input.flipR) car.angVel -= at * dt     // SAĞ → ön takla (CW) — RİSK
       else car.angVel += (-a * 14 - car.angVel * 6) * dt   // dokunma → düz inişe yönel
@@ -343,7 +343,7 @@ export class RacingEngine {
     car.vy -= car.vy * 0.02 * dt
     const angDamp = car.onGround ? 4.5 : (0.5 / s.stability)
     car.angVel -= car.angVel * angDamp * dt
-    car.angVel = clamp(car.angVel, -16, 16)
+    car.angVel = clamp(car.angVel, -19, 19)
 
     car.x += car.vx * dt
     car.y += car.vy * dt
@@ -648,7 +648,7 @@ export class RacingEngine {
     canvas.width = Math.round(w * dpr)
     canvas.height = Math.round(h * dpr)
     this.dpr = dpr; this.viewW = w; this.viewH = h
-    this.zoomBase = clamp(h / 1820, 0.24, 0.46)   // iyice uzak → harita küçük, pistin çoğu görünür
+    this.zoomBase = clamp(h / 2150, 0.20, 0.40)   // daha da uzak → tüm parkur daha iyi görünür
     if (this._zoom == null) this._zoom = this.zoomBase
   }
 
