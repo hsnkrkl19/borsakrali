@@ -321,9 +321,10 @@ export class RacingEngine {
     // devrilmeden bir yatışta dengelenir; bıraktığında zemin doğrultur. Rampaya bu
     // açıyla girersen takla başlatmak kolaylaşır.
     if (car.onGround && this._hasLanded && (this.input.flipL || this.input.flipR)) {
-      const sf = clamp(speed / (s.topSpeed * 0.45), 0, 1)
-      const target = (this.input.flipL ? 1 : -1) * 0.62 * sf   // SOL→ön kalkar (+), SAĞ→arka kalkar (−)
-      car.angVel += (target - car.angle) * 13 * dt
+      const sf = clamp(speed / (s.topSpeed * 0.30), 0.45, 1)     // düşük hızda bile belirgin kalkar
+      const target = (this.input.flipL ? 1 : -1) * 0.7 * sf      // ~40° net kaldırma (SOL=ön, SAĞ=arka)
+      car.angVel += (target - car.angle) * 40 * dt               // sert hedef-açı yayı → hızlı kalkar
+      car.angVel -= car.angVel * 8 * dt                          // kritik sönüm → aşmaz/devrilmez
     }
 
     // HAVA KONTROLÜ — SOL/SAĞ = takla (klasik Hill-Climb riski):
@@ -333,7 +334,7 @@ export class RacingEngine {
     if (!car.onGround && this._hasLanded) {
       const a = wrapPi(car.angle)
       const ramp = clamp(this._physAirTimer / 0.07, 0.75, 1)   // neredeyse anında tepki
-      const at = s.airControl * 7.0 * ramp                     // güçlü tork → kısa havada bile takla
+      const at = s.airControl * 4.2 * ramp                     // ölçülü tork → kontrollü takla (çok hızlı değil)
       if (this.input.flipL) car.angVel += at * dt          // SOL → geri takla (CCW) — RİSK
       else if (this.input.flipR) car.angVel -= at * dt     // SAĞ → ön takla (CW) — RİSK
       else car.angVel += (-a * 14 - car.angVel * 6) * dt   // dokunma → düz inişe yönel
@@ -343,7 +344,7 @@ export class RacingEngine {
     car.vy -= car.vy * 0.02 * dt
     const angDamp = car.onGround ? 4.5 : (0.5 / s.stability)
     car.angVel -= car.angVel * angDamp * dt
-    car.angVel = clamp(car.angVel, -19, 19)
+    car.angVel = clamp(car.angVel, -13, 13)
 
     car.x += car.vx * dt
     car.y += car.vy * dt
