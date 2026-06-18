@@ -12,6 +12,7 @@
 const telegramService = require('../telegramService');
 const pushNotificationService = require('../pushNotificationService');
 const tracker = require('./forexSignalTracker');
+const statsStore = require('./forexStatsStore');
 const logger = require('../../utils/logger');
 
 const PUSH_CONFIDENCE = 60;
@@ -22,6 +23,17 @@ const lastSent = new Map(); // code -> ts (son güncelleme push'u)
 
 function withTimeout(promise, ms, label) {
   return Promise.race([Promise.resolve(promise), new Promise((_, rej) => setTimeout(() => rej(new Error('timeout:' + label)), ms))]);
+}
+
+// Veri-temelli kalite kapısı (denetim sonucu): bir (parite,TF) kombinasyonunu
+// YALNIZ geçmiş backtest'i kenar (edge) gösteriyorsa push et. Yeterli örnek
+// (≥12) varken hem isabet <%45 HEM beklenen getiri ≤0 ise = kanıtlanmış kaybeden
+// → bastır. Yeterli veri yoksa izin ver (badge ile "veri toplanıyor" görünür).
+const MIN_SAMPLE = 12;
+function passesQuality(s) {
+  if (s.sampleSize == null || s.sampleSize < MIN_SAMPLE) return true;
+  if (s.historicalWinRate == null) return true;
+  return s.historicalWinRate >= 45 || (s.historicalAvgReturn != null && s.historicalAvgReturn > 0);
 }
 function fmt(v, p) { return v == null ? '-' : Number(v).toLocaleString('en-US', { minimumFractionDigits: p, maximumFractionDigits: p }); }
 function usd(v, d = 0) { return v == null ? '-' : (v < 0 ? '-$' : '$') + Math.abs(Number(v)).toLocaleString('en-US', { maximumFractionDigits: d }); }
@@ -83,7 +95,7 @@ function appUpdate(p, ev) {
 async function evaluateAndPush(signals) {
   if (process.env.FOREX_PUSH_DISABLED === '1') return { telegram: 0, app: 0, considered: 0, disabled: true };
   const chatId = process.env.TELEGRAM_FOREX_CHANNEL || process.env.TELEGRAM_CHAT_ID || '';
-  const eligible = (signals || []).filter(s => s.confidence >= PUSH_CONFIDENCE);
+  const eligible = (signals || []).filter(s => s.confidence >= PUSH_CONFIDENCE && passesQuality(s));
 
   let events = [];
   try { events = await withTimeout(tracker.syncPositions(eligible), 12000, 'sync'); }
@@ -97,6 +109,7 @@ async function evaluateAndPush(signals) {
       const last = lastSent.get(p.code) || 0;
       if ((!ev.addedTfs || ev.addedTfs.length === 0) && (now - last < UPDATE_COOLDOWN_MS)) continue; // güncelleme spam'i engeli
     }
+    if (ev.type === 'new') statsStore.recordOpen(p).catch(() => {}); // sinyal kaydı (istatistik)
     const tgMsg = ev.type === 'new' ? buildNew(p, ev.reverseOf) : buildUpdate(p, ev);
     const appMsg = ev.type === 'new' ? appNew(p) : appUpdate(p, ev);
     if (chatId) { try { const r = await withTimeout(telegramService.sendMessage(chatId, tgMsg), 16000, 'tg'); if (r?.success) tg++; } catch (e) { logger.error(`[ForexPush] tg #${p.code}: ${e.message}`); } }
@@ -129,6 +142,7 @@ async function pushClosures(events) {
   const chatId = process.env.TELEGRAM_FOREX_CHANNEL || process.env.TELEGRAM_CHAT_ID || '';
   let tg = 0, app = 0;
   for (const ev of (events || [])) {
+    statsStore.recordClosure(ev).catch(() => {}); // başarı istatistiği kaydı
     if (chatId) { try { const r = await withTimeout(telegramService.sendMessage(chatId, buildClosureTelegram(ev)), 16000, 'closeTg'); if (r?.success) tg++; } catch (e) { logger.error(`[ForexPush] closeTg #${ev.code}: ${e.message}`); } }
     try {
       const sign = ev.pnlPct >= 0 ? '+' : '';
@@ -145,4 +159,25 @@ async function pushClosures(events) {
   return { telegram: tg, app };
 }
 
-module.exports = { evaluateAndPush, pushClosures, buildNew, buildUpdate, PUSH_CONFIDENCE, TARGET_USER_EMAIL };
+// ── Günlük istatistik paylaşımı (parite bazlı long/short başarı oranı) ──────
+async function pushStats() {
+  if (process.env.FOREX_PUSH_DISABLED === '1') return { telegram: 0, app: 0 };
+  const chatId = process.env.TELEGRAM_FOREX_CHANNEL || process.env.TELEGRAM_CHAT_ID || '';
+  let tg = 0, app = 0;
+  let msg = '';
+  try { msg = await statsStore.buildStatsMessage(); } catch (e) { logger.error(`[ForexPush] stats build: ${e.message}`); return { telegram: 0, app: 0 }; }
+  if (chatId) { try { const r = await withTimeout(telegramService.sendMessage(chatId, msg), 16000, 'statsTg'); if (r?.success) tg++; } catch (e) { logger.error(`[ForexPush] statsTg: ${e.message}`); } }
+  try {
+    const st = await statsStore.getStats();
+    const r = await withTimeout(pushNotificationService.sendToUser(TARGET_USER_EMAIL, {
+      title: '📊 Forex sinyal istatistiği',
+      body: `${st.totalClosed} kapanan sinyal · detay kanalda`,
+      path: '/firsatlar?tab=forex', channelId: 'borsa-krali-announcements',
+    }), 12000, 'statsApp');
+    if (r?.success) app++;
+  } catch (e) { logger.error(`[ForexPush] statsApp: ${e.message}`); }
+  logger.info(`💱📊 Forex istatistik paylaşıldı — TG ${tg} · App ${app}`);
+  return { telegram: tg, app };
+}
+
+module.exports = { evaluateAndPush, pushClosures, pushStats, buildNew, buildUpdate, PUSH_CONFIDENCE, TARGET_USER_EMAIL };
