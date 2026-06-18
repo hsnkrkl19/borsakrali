@@ -108,6 +108,7 @@ async function syncPositions(eligible) {
         entry: r(s.entry), stop: r(s.stop), target1: r(s.target1), target2: r(s.target2),
         rr1: s.rr1, rr2: s.rr2, confidence: s.confidence, grade: s.grade, horizon: s.horizon || null,
         issuedAt: new Date().toISOString(), issueTimeSec: nowSec(), lastUpdateSec: nowSec(),
+        stopSetDate: new Date().toISOString().slice(0, 10),   // stop bu tarihten İTİBAREN geçerli
       };
       state.open[pos.code] = pos;
       events.push({ type: 'new', position: pos });
@@ -123,6 +124,9 @@ async function syncPositions(eligible) {
         existing.confidence = Math.max(existing.confidence, s.confidence);
         existing.grade = s.grade || existing.grade;
         existing.rr1 = s.rr1; existing.rr2 = s.rr2; existing.lastUpdateSec = nowSec();
+        // Stop yukarı taşındıysa: YENİ stop yalnız BU tarihten İTİBAREN geçerli olsun
+        // (eski günlerin dipleri yükseltilen stopu geriye dönük tetiklemesin → sahte stop).
+        if (stopChanged) existing.stopSetDate = new Date().toISOString().slice(0, 10);
         events.push({ type: 'update', position: existing, prev, stopChanged, tpChanged });
       }
     }
@@ -136,6 +140,7 @@ async function evalOne(p) {
   const hist = await liveDataService.fetchHistoricalData(p.symbol, '2mo', '1d');
   const candles = (hist || []).filter(r => r && r.close != null);
   const issueDate = new Date(p.issuedAt).toISOString().slice(0, 10);
+  const stopSince = p.stopSetDate || issueDate;         // stop YALNIZ konduğu tarihten sonra geçerli
   let outcome = null, exit = null, exitDate = null;
   let prevClose = null;
   for (const c of candles) {
@@ -147,7 +152,8 @@ async function evalOne(p) {
     // sahte-stop koruması: önceki kapanışa göre ±%20 dışı okuma = bozuk veri, reddet
     const badLow = lo == null || lo <= 0 || (pc && lo < pc * (1 - BIST_BAND));
     const badHigh = hi == null || (pc && hi > pc * (1 + BIST_BAND));
-    const slHit = !badLow && lo <= p.stop;
+    // İLERİ-YÖNLÜ stop: stop yükseltildiyse yalnız sonraki günler tetikler (retroaktif sahte-stop önlenir)
+    const slHit = !badLow && d > stopSince && lo <= p.stop;
     const tpHit = !badHigh && hi >= p.target1;
     if (slHit) { outcome = 'SL'; exit = p.stop; exitDate = d; break; }   // aynı barda ikisi de → ihtiyatlı SL
     if (tpHit) { outcome = 'TP1'; exit = p.target1; exitDate = d; break; }

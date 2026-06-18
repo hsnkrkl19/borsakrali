@@ -226,7 +226,12 @@ async function manageOpenPositions() {
     if (lockR == null) continue;
     const rnd = (v) => +Number(v).toFixed(p.precision ?? 4);
     const newSL = rnd(isLong ? p.entry + lockR * R : p.entry - lockR * R);
-    const better = isLong ? newSL > p.stop : newSL < p.stop; // sadece lehe ratchet
+    // GÜVENLİK: fiyat zaten kilit seviyesinin gerisine döndüyse stop'u oraya ÇEKME —
+    // yoksa "güncelleme geldi → hemen stop" olur. MFE tepe yaptı ama fiyat geri çekildiyse
+    // yeni stop güncel fiyatın en az 0.1R berisinde olmalı; değilse orijinal stop kalsın.
+    const curPrice = candles[candles.length - 1].close;
+    const safe = isLong ? newSL < curPrice - 0.1 * R : newSL > curPrice + 0.1 * R;
+    const better = (isLong ? newSL > p.stop : newSL < p.stop) && safe; // lehe ratchet + güvenli mesafe
     if (!better) continue;
     const prevStop = p.stop;
     p.stop = newSL; p.stopSetSec = nowSec(); p.mgmtLockR = lockR; p.lastUpdateSec = nowSec();

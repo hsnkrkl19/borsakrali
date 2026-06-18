@@ -177,6 +177,35 @@ describe('bistSignalTracker.checkClosures — TP/SL + sahte-stop koruması', () 
     const open = await tracker.getOpen();
     expect(open.find(p => p.symbol === 'BAD')).toBeTruthy();     // hâlâ açık
   });
+
+  // REGRESYON: stop YUKARI taşındıktan sonra ESKİ günün dibi geriye dönük tetiklememeli
+  // ("güncelleme sonrası hemen stop" hatası). İleri-yönlü stop (stopSetDate) kilidi.
+  test('iz süren stop yükseltildi → ÖNCEKİ günlerin dibi stopu tetiklemez', async () => {
+    await openOne('FWD');
+    const p = (await tracker.getOpen())[0];
+    p.stop = 98; p.stopSetDate = '2099-06-15';                   // stop 98'e çekildi (2099-06-15)
+    mockHist['FWD'] = [
+      { date: '2099-06-10', close: 100, high: 101, low: 96 },    // stopSetDate ÖNCESİ: low 96 < 98 ama TETİKLEMEZ
+      { date: '2099-06-20', close: 100, high: 101, low: 99 },    // sonrası: low 99 > 98 → tetiklemez
+    ];
+    const ev = await tracker.checkClosures();
+    expect(ev).toHaveLength(0);
+    expect((await tracker.getOpen()).find(x => x.symbol === 'FWD')).toBeTruthy();
+  });
+
+  test('stop yükseltildikten SONRAKİ gün dibe inerse SL', async () => {
+    await openOne('FWD2');
+    const p = (await tracker.getOpen())[0];
+    p.stop = 98; p.stopSetDate = '2099-06-15';
+    mockHist['FWD2'] = [
+      { date: '2099-06-10', close: 100, high: 101, low: 96 },    // önce → skip
+      { date: '2099-06-20', close: 100, high: 101, low: 97 },    // sonra: low 97 ≤ 98 → SL
+    ];
+    const ev = await tracker.checkClosures();
+    expect(ev).toHaveLength(1);
+    expect(ev[0].outcome).toBe('SL');
+    expect(ev[0].exit).toBe(98);
+  });
 });
 
 // ── 3) bistSignalNotifier saf kurucular ──────────────────────────────────────

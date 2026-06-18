@@ -694,9 +694,14 @@ function stopPolling() {
 }
 
 /**
- * Sinyal bildirimi gonder
+ * Sinyal bildirimi gonder. Varsayilan hedef: SINYAL KANALI (kullanici DM'i degil).
+ * Cagiran acikca chatId verirse ona gider (komut yanitlari icin).
  */
-async function sendSignalAlert(signal, chatId = TELEGRAM_CHAT_ID) {
+function defaultSignalChat() {
+  try { return require('./signalDelivery').signalChannel() || TELEGRAM_CHAT_ID; }
+  catch (_) { return TELEGRAM_CHAT_ID; }
+}
+async function sendSignalAlert(signal, chatId = defaultSignalChat()) {
   const signalKey = `${signal.symbol}-${signal.strategy}-${new Date().toDateString()}`;
 
   if (sentSignals.has(signalKey)) {

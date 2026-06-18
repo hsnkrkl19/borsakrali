@@ -23,7 +23,8 @@ function withTimeout(promise, ms, label) {
   return Promise.race([Promise.resolve(promise), new Promise((_, rej) => setTimeout(() => rej(new Error('timeout:' + label)), ms))]);
 }
 function fmt(v, p = 2) { return v == null ? '-' : Number(v).toLocaleString('tr-TR', { minimumFractionDigits: p, maximumFractionDigits: p }); }
-function chatId() { return process.env.TELEGRAM_BIST_CHANNEL || process.env.TELEGRAM_CHAT_ID || ''; }
+// BIST kanalı yoksa ANA kanala düşer (kullanıcı DM'ine ASLA). Broadcast (uygulama) ayrı.
+function chatId() { return process.env.TELEGRAM_BIST_CHANNEL || require('../signalDelivery').signalChannel(); }
 
 // ── Saf mesaj kurucular (test edilebilir) ───────────────────────────────────
 function buildNewTelegram(p) {
