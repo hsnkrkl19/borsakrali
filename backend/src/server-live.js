@@ -54,6 +54,7 @@ const customBotsRoutes = require('./routes/customBots.routes');
 const isYatirimRoutes = require('./routes/isyatirim.routes');
 const borsapyRoutes = require('./routes/borsapy.routes');
 const forexRoutes = require('./routes/forex.routes');
+const bistSignalsRoutes = require('./routes/bistSignals.routes');
 const pushNotificationService = require('./services/pushNotificationService');
 const { allBistStocks, bist30Stocks, bist100Stocks, sectors } = require('./data/allBistStocks');
 
@@ -222,6 +223,7 @@ app.use('/api/custom-bots', customBotsRoutes);
 app.use('/api/isyatirim', isYatirimRoutes);
 app.use('/api/borsapy', borsapyRoutes);
 app.use('/api/forex', forexRoutes);
+app.use('/api/bist-signals', bistSignalsRoutes);
 
 // Tüm kullanicilara açik duyuru listesi (admin tarafindan gönderilen
 // broadcast bildirimlerinin geçmişi). Header bell + Duyurular paneli

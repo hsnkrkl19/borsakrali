@@ -13,6 +13,9 @@ const forexEngine = require('./forex/forexEngineMTF');
 const forexBacktest = require('./forex/forexBacktest');
 const forexPushNotifier = require('./forex/forexPushNotifier');
 const forexSignalTracker = require('./forex/forexSignalTracker');
+const bistScoreEngine = require('./bistSignals/bistScoreEngine');
+const bistSignalNotifier = require('./bistSignals/bistSignalNotifier');
+const bistSignalTracker = require('./bistSignals/bistSignalTracker');
 const multiTimeframeService = require('./multiTimeframeService');
 const signalConfidenceService = require('./signalConfidenceService');
 const socketService = require('./socketService');
@@ -93,6 +96,7 @@ function isBistOpen() {
 // (önceki tur ölmüşse sistem kilitli kalmasın diye serbest bırakılır).
 const CADENCE_STALE_MS = 14 * 60 * 1000;
 let _bistCadenceLockAt = 0;
+let _bistFullSignalLockAt = 0;
 let _cryptoCadenceLockAt = 0;
 // Forex turu her dk çalışır → daha kısa bayatlama penceresi (üst üste binmesin).
 const FOREX_STALE_MS = 90 * 1000;
@@ -291,6 +295,51 @@ async function runBistSignalCadence() {
   }
 }
 
+// ── BIST "≥75 LONG" tam-evren sinyal kadansı — işlem saatlerinde her 15 dk ──
+//    TÜM BIST (510) tüm tekniklerle 0-100 puanlanır; LONG + güven ≥ eşik (75)
+//    olanlardan top N (10) numaralı sinyal olur → Telegram ana kanal + TÜM
+//    kullanıcılara uygulama-içi yayın. Açık sinyallerin TP/SL kapanışı da
+//    kontrol edilir (aynı NO ile teyit). isBistOpen() pencere dışını eler.
+async function runBistFullSignalCadence() {
+  const now = Date.now();
+  if (_bistFullSignalLockAt && now - _bistFullSignalLockAt < CADENCE_STALE_MS) {
+    logger.info('⏭️ BIST ≥75 sinyal turu hâlâ çalışıyor — bu tetik atlandı');
+    return null;
+  }
+  if (!isBistOpen()) return null;
+
+  _bistFullSignalLockAt = now;
+  try {
+    const snap = await bistScoreEngine.scan({ force: true });
+    const top = (snap && snap.top) || [];
+    let pushed = { telegram: 0, app: 0 };
+    try {
+      pushed = await Promise.race([
+        bistSignalNotifier.evaluateAndPush(top),
+        new Promise((_, r) => setTimeout(() => r(new Error('bist-evalpush-timeout-45s')), 45000)),
+      ]);
+    } catch (pe) {
+      logger.error(`BIST ≥75 sinyal push hata: ${pe.message}`);
+    }
+    if (pushed?.telegram || pushed?.app) {
+      logger.info(`📈 BIST ≥${bistScoreEngine.MIN_CONFIDENCE} tur — ${snap.qualified} uygun · top ${top.length} · TG ${pushed.telegram} · App ${pushed.app}`);
+    }
+    // Açık sinyallerin TP/SL kapanış kontrolü (aynı NO ile teyit)
+    try {
+      const closures = await bistSignalTracker.checkClosures();
+      if (closures.length) await bistSignalNotifier.pushClosures(closures);
+    } catch (clErr) {
+      logger.error(`BIST ≥75 sinyal kapanış hata: ${clErr.message}`);
+    }
+    return snap;
+  } catch (e) {
+    logger.error(`BIST ≥75 tam sinyal turu hata: ${e.message}`, e.stack);
+    return null;
+  } finally {
+    _bistFullSignalLockAt = 0;
+  }
+}
+
 // Trading bot tick — açık pozisyonların TP/SL/trailing kontrolü.
 // Sadece BIST açıkken (09:45–18:30, hafta içi, tatil değil) çalışır.
 async function runBotTick() {
@@ -301,6 +350,13 @@ async function runBotTick() {
       logger.info(
         `🤖 Bot tick — checked: ${result.checked}, triggered: ${result.triggered}, trailed: ${result.trailed}, closed: ${result.closed}`
       );
+    }
+    // BIST ≥75 sinyallerinin TP/SL kapanışını gün içinde ~5 dk'da yakala (aynı NO ile teyit)
+    try {
+      const closures = await bistSignalTracker.checkClosures();
+      if (closures.length) await bistSignalNotifier.pushClosures(closures);
+    } catch (e) {
+      logger.error(`BIST ≥75 sinyal kapanış (tick) hata: ${e.message}`);
     }
     return result;
   } catch (e) {
@@ -601,6 +657,18 @@ async function runForexBacktest() {
   }
 }
 
+// ── Forex istatistik paylaşımı — günde 2 kez (parite bazlı başarı oranı) ────
+async function runForexStats() {
+  try {
+    const r = await forexPushNotifier.pushStats();
+    logger.info(`💱📊 Forex istatistik turu — TG ${r?.telegram || 0} · App ${r?.app || 0}`);
+    return r;
+  } catch (e) {
+    logger.error(`Forex istatistik hata: ${e.message}`, e.stack);
+    return null;
+  }
+}
+
 // ── Multi-Timeframe (1h/4h/1d/1w) signal scanner ──────────────────────────
 async function runMTFPhase(tf, options = {}) {
   try {
@@ -774,6 +842,17 @@ class CronJobsService {
       { scheduled: false, ...TR_TZ }
     );
 
+    // 7b. BIST "≥75 LONG" tam-evren sinyali — işlem saatlerinde her 15 dk, ama
+    //     BIST100 kadansından kaydırılmış dakikalarda (7,22,37,52) çalışır ki
+    //     Yahoo aynı anda boğulmasın. TÜM BIST (510) tüm tekniklerle 0-100
+    //     puanlanır; LONG + güven ≥ eşik (75) top 10 numaralı sinyal olur →
+    //     Telegram + tüm kullanıcılara yayın. TP/SL kapanışı da kontrol edilir.
+    const bistFullSignalJob = cron.schedule(
+      '7,22,37,52 * * * *',
+      () => runBistFullSignalCadence(),
+      { scheduled: false, ...TR_TZ }
+    );
+
     // 10. Kripto/altın sinyal kadansı — 7/24 HER 15 DK (piyasa kapanmaz).
     //     4 sabit saatte (09:00/13:00/19:00/01:00) push'lu faz, diğer turlar
     //     sessiz intraday. Her turda kripto botu snapshot'ı ingest eder (long+short).
@@ -800,6 +879,14 @@ class CronJobsService {
       { scheduled: false, ...TR_TZ }
     );
     setTimeout(() => runForexBacktest(), 90 * 1000);
+
+    // 14d. Forex istatistik paylaşımı — günde 2 kez 12:00 & 20:00 TR. Kanala
+    //      parite bazlı long/short başarı oranı (kapanan sinyallerden).
+    const forexStatsJob = cron.schedule(
+      '0 12,20 * * *',
+      () => runForexStats(),
+      { scheduled: false, ...TR_TZ }
+    );
 
     // 15. MTF 1m — her dakika (top 10 coin scalping). Sessiz; Socket.IO push.
     //     30 sn klines cache + her dk tarama → ortalama 30 sn data tazeliği.
@@ -1006,9 +1093,11 @@ class CronJobsService {
       kapUpdateJob,
       signalUpdateJob,
       bistSignalJob,
+      bistFullSignalJob,
       cryptoSignalJob,
       forexSignalJob,
       forexBacktestJob,
+      forexStatsJob,
       mtf1mJob,
       mtf5mJob,
       mtf15mJob,
@@ -1075,6 +1164,13 @@ class CronJobsService {
    */
   async triggerForexCadence() {
     return runForexSignalCadence();
+  }
+
+  /**
+   * Manuel tetikleme — forex parite başarı istatistiğini şimdi paylaş (test/admin)
+   */
+  async triggerForexStats() {
+    return runForexStats();
   }
 
   /**
