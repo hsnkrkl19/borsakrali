@@ -25,6 +25,9 @@ const botEngine = require('./tradingBotV2/botEngine');
 const cryptoBotEngine = require('./cryptoBotV2/cryptoBotEngine');
 const tema34Engine = require('./tema34Bot/tema34Engine');
 const crossoverNotifier = require('./crossover/crossoverNotifier');
+const waveScanEngine = require('./waveScan/waveScanEngine');
+const waveScanNotifier = require('./waveScan/waveScanNotifier');
+const waveScanTracker = require('./waveScan/waveScanTracker');
 const customBotEngine = require('./customBots/customBotEngine');
 const customBotRegistry = require('./customBots/customBotRegistry');
 const logger = require('../utils/logger');
@@ -675,6 +678,35 @@ async function runForexStats() {
   }
 }
 
+// ── Dalga Taraması (Elliott + SNR + Mum + Fraktal) — BTC + Altın, 1d/4h ─────
+//     Forex'ten BAĞIMSIZ, nadir, yalnız Telegram kanalı. Sayıma dahil değil.
+let _waveScanRunning = false;
+async function runWaveScan() {
+  if (_waveScanRunning) return null;
+  _waveScanRunning = true;
+  try {
+    const signals = await waveScanEngine.scan();
+    let pushed = { telegram: 0, newCount: 0 };
+    try {
+      pushed = await Promise.race([
+        waveScanNotifier.evaluateAndPush(signals),
+        new Promise((_, r) => setTimeout(() => r(new Error('wave-push-timeout-45s')), 45000)),
+      ]);
+    } catch (pe) { logger.error(`Dalga taraması push hata: ${pe.message}`); }
+    if (pushed?.newCount) logger.info(`🌊 Dalga taraması — ${signals.length} kurulum · ${pushed.newCount} yeni · TG ${pushed.telegram}`);
+    try {
+      const closures = await waveScanTracker.checkClosures();
+      if (closures.length) await waveScanNotifier.pushClosures(closures);
+    } catch (clErr) { logger.error(`Dalga kapanış kontrol hata: ${clErr.message}`); }
+    return signals;
+  } catch (e) {
+    logger.error(`Dalga taraması hata: ${e.message}`, e.stack);
+    return null;
+  } finally {
+    _waveScanRunning = false;
+  }
+}
+
 // ── Multi-Timeframe (1h/4h/1d/1w) signal scanner ──────────────────────────
 async function runMTFPhase(tf, options = {}) {
   try {
@@ -894,6 +926,16 @@ class CronJobsService {
       { scheduled: false, ...TR_TZ }
     );
 
+    // 14e. Dalga Taraması (Elliott+SNR+Mum+Fraktal) — BTC + Altın, 1d/4h.
+    //      Her 4 saatte bir (TR 00/04/08/12/16/20). Onaylı fraktal kullanır →
+    //      tam kapanış saatine duyarlı değil. Nadir, yalnız Telegram kanalı;
+    //      normal sinyal sayısına dahil DEĞİL.
+    const waveScanJob = cron.schedule(
+      '6 0,4,8,12,16,20 * * *',
+      () => runWaveScan(),
+      { scheduled: false, ...TR_TZ }
+    );
+
     // 15. MTF 1m — her dakika (top 10 coin scalping). Sessiz; Socket.IO push.
     //     30 sn klines cache + her dk tarama → ortalama 30 sn data tazeliği.
     const mtf1mJob = cron.schedule(
@@ -1104,6 +1146,7 @@ class CronJobsService {
       forexSignalJob,
       forexBacktestJob,
       forexStatsJob,
+      waveScanJob,
       mtf1mJob,
       mtf5mJob,
       mtf15mJob,
@@ -1185,6 +1228,13 @@ class CronJobsService {
    */
   async triggerCrossoverAlerts(opts = {}) {
     return crossoverNotifier.runAndNotify(opts);
+  }
+
+  /**
+   * Manuel tetikleme — dalga taraması (Elliott+SNR+Mum+Fraktal), BTC+Altın 1d/4h.
+   */
+  async triggerWaveScan() {
+    return runWaveScan();
   }
 
   /**
