@@ -68,7 +68,7 @@ function buildMt5(instrument, direction, lots, levels, tf, precision = 4) {
     price: levels.entry, sl: levels.stop, tp: levels.target1, tp2: levels.target2,
     comment: `BorsaKrali ${tf}`,
   };
-  order.summary = `${type} ${symbol} ${lots} lot @PİYASA · SL ${fmt(levels.stop)} · TP1 ${fmt(levels.target1)} · TP2 ${fmt(levels.target2)}`;
+  order.summary = `${type} ${symbol} @PİYASA · SL ${fmt(levels.stop)} · TP1 ${fmt(levels.target1)} · TP2 ${fmt(levels.target2)}`;
   return order;
 }
 

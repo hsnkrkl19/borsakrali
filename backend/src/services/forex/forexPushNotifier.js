@@ -42,7 +42,7 @@ function buildTelegram(s, reg) {
   lines.push(`Giriş: <b>${fmt(s.entry, p)}</b> (piyasa)`);
   lines.push(`Stop: ${fmt(s.stop, p)} | TP1: ${fmt(s.target1, p)} (R/R ${s.rr1}) | TP2: ${fmt(s.target2, p)} (R/R ${s.rr2})`);
   lines.push('');
-  lines.push(`💼 Lot: <b>${z.lots}</b> · Marj: ${usd(z.requiredMarginUsd)} (${z.marginPct}%)`);
+  lines.push(`💼 Marj: ${usd(z.requiredMarginUsd)} (${z.marginPct}%)`);
   lines.push(`Risk: ${usd(z.riskUsd, 2)} (%${z.riskPct}) · TP1 kâr: ${usd(pnl.tp1ProfitUsd)} · TP2: ${usd(pnl.tp2ProfitUsd)}`);
   lines.push('');
   lines.push(`🤖 MT5: <code>${s.mt5?.summary || '-'}</code>`);
@@ -55,7 +55,7 @@ function buildAppPush(s, reg) {
   const rev = (reg.reverseOf && reg.reverseOf.length) ? '🔴TERS ' : '';
   return {
     title: `${rev}#${reg.code} ${s.action} ${s.symbol} ${s.tf} · Güven ${s.confidence}`,
-    body: `Giriş ${fmt(s.entry, p)} · SL ${fmt(s.stop, p)} · TP1 ${fmt(s.target1, p)} · ${z.lots} lot`,
+    body: `Giriş ${fmt(s.entry, p)} · SL ${fmt(s.stop, p)} · TP1 ${fmt(s.target1, p)}`,
     path: '/firsatlar?tab=forex',
     channelId: 'borsa-krali-announcements',
   };

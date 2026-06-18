@@ -4,7 +4,7 @@
  * 10 enstrüman (5 kripto + altın + gümüş + EUR/USD + Nasdaq + S&P500) × 5 TF
  * (5m/15m/1h/4h/1d). Her TF'de ayrı sinyal; tüm tarama teknikleri (Genel Tarama,
  * EMA34, TEMA34, Malaysian SNR, SMC) birleştirilip 0-100 GÜVEN NOTU üretilir.
- * Her sinyal: giriş/SL/TP, lot, muhtemel kâr-zarar, MetaTrader5 emri. Portföy
+ * Her sinyal: giriş/SL/TP, muhtemel kâr-zarar, MetaTrader5 emri. Portföy
  * ayarlanabilir (varsayılan 10k$); her dakika güncellenir.
  */
 
@@ -170,7 +170,7 @@ export default function ForexSinyalleri() {
           <Info className="w-3.5 h-3.5 text-blue-400 mt-0.5 flex-shrink-0" />
           <p className="text-gray-400 leading-relaxed">
             Tüm tarama teknikleri (<span className="text-white">Genel Tarama, EMA34, TEMA34, Malaysian SNR, SMC</span>) her enstrümana <span className="text-white">5 ayrı zaman diliminde</span> uygulanır; birleşik <span className="text-white">güven notu (0-100)</span> indikatör + tarama uyumundan hesaplanır.
-            Her sinyalde giriş/SL/TP, lot, muhtemel kâr-zarar ve <span className="text-white">MetaTrader5 emri</span> var. Her işlem <span className="text-white">günlük %5 / toplam %10</span> kuralına uygun boyutlanır. Güçlü sinyaller Telegram + uygulama bildirimi olarak gider.
+            Her sinyalde giriş/SL/TP, muhtemel kâr-zarar ve <span className="text-white">MetaTrader5 emri</span> var. Her işlem <span className="text-white">günlük %5 / toplam %10</span> kuralına uygun boyutlanır. Güçlü sinyaller Telegram + uygulama bildirimi olarak gider.
           </p>
         </div>
       </div>
@@ -248,7 +248,7 @@ function ForexCard({ sig, expanded, onToggle }) {
                 <span title={`Backtest geçmiş başarı: %${sig.historicalWinRate} (${sig.sampleSize} örnek)`} className="text-[10px] px-2 py-0.5 rounded-full border bg-violet-500/10 text-violet-300 border-violet-500/30">📊 %{sig.historicalWinRate}</span>
               )}
             </div>
-            <p className="text-[10px] text-gray-500 truncate mt-0.5">{sig.name} · {z.lots} lot · R/R {sig.rr1} · {sig.horizon} · {sig.sameTfCount}/5 TF uyum</p>
+            <p className="text-[10px] text-gray-500 truncate mt-0.5">{sig.name} · R/R {sig.rr1} · {sig.horizon} · {sig.sameTfCount}/5 TF uyum</p>
           </div>
           {/* Güven notu */}
           <div className="flex flex-col items-end flex-shrink-0 w-16">
@@ -269,7 +269,6 @@ function ForexCard({ sig, expanded, onToggle }) {
 
         {/* Plan + MT5 */}
         <div className="mt-2 flex items-center gap-x-3 gap-y-1 text-[11px] flex-wrap">
-          <span className="text-gold-300 font-semibold">Lot: {z.lots}</span>
           <span className="text-gray-400">Marj: {fmtUsd(z.requiredMarginUsd)} ({z.marginPct}%)</span>
           <span className="text-rose-300 flex items-center gap-1"><Shield className="w-3 h-3" />Risk: {fmtUsd(z.riskUsd, 0)} ({z.riskPct}%)</span>
           <span className="text-emerald-300">TP1: +{fmtUsd(pnl.tp1ProfitUsd)}</span>
@@ -288,7 +287,7 @@ function ForexCard({ sig, expanded, onToggle }) {
               <button onClick={copyMt5} className="text-[10px] flex items-center gap-1 px-2 py-1 rounded bg-dark-800 hover:bg-dark-700 text-gray-300">{copied ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}{copied ? 'Kopyalandı' : 'Kopyala'}</button>
             </div>
             <div className="font-mono text-[11px] text-white bg-dark-900/60 rounded p-2 leading-relaxed">
-              <div><span className={isLong ? 'text-emerald-400' : 'text-rose-400'}>{sig.mt5?.type}</span> {sig.mt5?.symbol} · {z.lots} lot @ PİYASA</div>
+              <div><span className={isLong ? 'text-emerald-400' : 'text-rose-400'}>{sig.mt5?.type}</span> {sig.mt5?.symbol} @ PİYASA</div>
               <div className="text-gray-400">SL {fmtPrice(sig.stop, p)} · TP1 {fmtPrice(sig.target1, p)} · TP2 {fmtPrice(sig.target2, p)}</div>
             </div>
           </div>
@@ -304,7 +303,6 @@ function ForexCard({ sig, expanded, onToggle }) {
 
           {/* Lot / kâr-zarar */}
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-[11px]">
-            <KV label="Lot" value={`${z.lots}`} />
             <KV label="Miktar" value={`${Number(z.units).toLocaleString('en-US')} ${z.unitLabel}`} />
             <KV label="Notional" value={fmtUsd(z.notionalUsd)} />
             <KV label="Gerekli marj" value={`${fmtUsd(z.requiredMarginUsd)} (${z.marginPct}%)`} />
