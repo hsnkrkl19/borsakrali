@@ -54,12 +54,23 @@ describe('cryptoChannelNotifier.buildMessage', () => {
   });
 });
 
-describe('mtfPushNotifier — kanal-tek susturma', () => {
-  test('SIGNALS_CHANNEL_ONLY açıkken push YOK (silenced)', async () => {
+describe('mtfPushNotifier — kanal-tek + izinli parite filtresi (BTC/ETH)', () => {
+  const mtf = require('../../src/services/mtfPushNotifier');
+  beforeEach(() => {
+    mtf.reset();
     process.env.SIGNALS_CHANNEL_ONLY = '1';
-    const mtf = require('../../src/services/mtfPushNotifier');
-    const r = await mtf.evaluateAndPush([{ symbol: 'ETHUSDT', verdict: 'STRONG_LONG', confidence: 0.9, net: 1 }]);
-    expect(r.silenced).toBe('channelOnly');
+    process.env.MTF_CHANNEL_SYMBOLS = 'BTC,ETH';
+    delete process.env.TELEGRAM_FOREX_CHANNEL; // chatId boş → testte gerçek gönderim olmaz
+  });
+
+  test('izinli parite (ETH) → kanala (FCM yok)', async () => {
+    const r = await mtf.evaluateAndPush([{ symbol: 'ETHUSDT', verdict: 'STRONG_LONG', confidence: 0.9, net: 1, alignedLong: 7, alignedShort: 0 }]);
+    expect(r.channel).toBe(true);
+    expect(r.pushed).toBe(1);
+  });
+
+  test('izinsiz parite (DOGE) → push YOK', async () => {
+    const r = await mtf.evaluateAndPush([{ symbol: 'DOGEUSDT', verdict: 'STRONG_LONG', confidence: 0.9, net: 1 }]);
     expect(r.pushed).toBe(0);
   });
 });

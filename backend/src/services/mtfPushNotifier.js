@@ -33,6 +33,14 @@ const COOLDOWN_MS = 30 * 60 * 1000; // 30 dk per (coin, verdict)
 const MIN_CONFIDENCE = 0.5;
 const MAX_BATCH = 5;                // tek bildirimde en fazla 5 coin
 
+// Kanal-tek modda MTF YALNIZ bu pariteleri kanala atar (sıklığı düşürür).
+// Kullanıcı: "altın btc ve eth" — altın MTF'de yok (forex 5-TF ile geliyor) → BTC,ETH.
+function mtfWhitelist() {
+  return (process.env.MTF_CHANNEL_SYMBOLS || 'BTC,ETH').split(',').map(s => s.trim().toUpperCase()).filter(Boolean);
+}
+function normSym(s) { return String(s || '').toUpperCase().replace(/[^A-Z]/g, '').replace(/USDT$|USD$/, ''); }
+function mtfAllowed(sym) { return mtfWhitelist().includes(normSym(sym)); }
+
 const prevVerdict = new Map();      // symbol → 'STRONG_LONG' | ... | null
 const lastPushAt = new Map();       // key → timestamp
 const stats = {
@@ -47,14 +55,11 @@ const stats = {
  *   { symbol, verdict, net, confidence, alignedLong, alignedShort, tfDirections }
  */
 async function evaluateAndPush(confluences) {
-  // Kanal-tek modu: BIST dışı MTF kişisel push'u (uygulama + Telegram DM) SUSAR.
-  // MTF, kanalı 1dk scalp'leriyle doldurmasın diye yalnız uygulama-içi sayfada
-  // görünür (kullanıcı tercihi: "MTF sessiz"). cooldown/verdict yine de güncellenir.
-  if (require('./signalDelivery').channelOnly()) {
-    for (const c of (confluences || [])) { if (c?.symbol && c?.verdict) prevVerdict.set(c.symbol, c.verdict); }
-    return { upgrades: 0, pushed: 0, silenced: 'channelOnly' };
-  }
   if (!Array.isArray(confluences) || confluences.length === 0) return { upgrades: 0, pushed: 0 };
+  // Kanal-tek modu (BIST dışı): MTF kullanıcıya FCM/DM ATMAZ; yalnız Telegram
+  // KANALINA ve YALNIZ izinli pariteler (MTF_CHANNEL_SYMBOLS, vars. BTC,ETH) gider —
+  // kanal 1dk scalp'leriyle dolmasın diye. Diğer coinler yalnız uygulama-içi sayfada.
+  const channelMode = require('./signalDelivery').channelOnly();
 
   stats.totalEvaluated++;
   stats.lastEvaluatedAt = new Date().toISOString();
@@ -64,6 +69,7 @@ async function evaluateAndPush(confluences) {
 
   for (const c of confluences) {
     if (!c?.symbol || !c?.verdict) continue;
+    if (channelMode && !mtfAllowed(c.symbol)) continue; // kanal-tek: yalnız izinli pariteler
 
     const prev = prevVerdict.get(c.symbol) || null;
     const wasStrong = prev === 'STRONG_LONG' || prev === 'STRONG_SHORT';
@@ -123,6 +129,20 @@ async function evaluateAndPush(confluences) {
   const body = bodyParts.join(' · ') || 'Güçlü fırsat güncellemesi';
 
   try {
+    // KANAL-TEK: FCM/DM yok → yalnız Telegram kanalına (izinli pariteler)
+    if (channelMode) {
+      const { signalChannel } = require('./signalDelivery');
+      const chatId = signalChannel();
+      let sent = 0;
+      if (chatId) {
+        try { const tg = require('./telegramService'); const r = await tg.sendMessage(chatId, formatTelegramMessage(top), 'HTML'); if (r?.success !== false) sent = 1; }
+        catch (e) { logger.warn(`[MTFPush] kanal gönderim hatası: ${e.message}`); }
+      }
+      stats.totalPushed += top.length;
+      logger.info(`📡 MTF kanal — ${top.length} STRONG (izinli parite): ${top.map(c => c.symbol).join(', ')}`);
+      return { upgrades: upgrades.length, pushed: top.length, channel: true, telegramSent: !!sent };
+    }
+
     await pushNotificationService.broadcastNotification({
       title, body,
       path: '/gunluk-tespitler?tab=mtf',
