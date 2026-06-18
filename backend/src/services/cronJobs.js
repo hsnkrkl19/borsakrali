@@ -21,6 +21,7 @@ const economicCalendarService = require('./economicCalendarService');
 const botEngine = require('./tradingBotV2/botEngine');
 const cryptoBotEngine = require('./cryptoBotV2/cryptoBotEngine');
 const tema34Engine = require('./tema34Bot/tema34Engine');
+const crossoverNotifier = require('./crossover/crossoverNotifier');
 const customBotEngine = require('./customBots/customBotEngine');
 const customBotRegistry = require('./customBots/customBotRegistry');
 const logger = require('../utils/logger');
@@ -332,6 +333,37 @@ async function runTema34Bot() {
     return result;
   } catch (e) {
     logger.error(`[TEMA34 bot] hata: ${e.message}`, e.stack);
+    return null;
+  }
+}
+
+// EMA34 & TEMA34 günlük "ilk kırılım" bildirimcisi — BIST kapanışından sonra
+// tüm BIST'i tarar; yukarı (cross_above) ve düşüşte (cross_below) ilk kırılımları
+// Telegram ana kanal + uygulama/web push (broadcast) ile gönderir. TR resmi
+// tatil günlerinde sessiz (yeni günlük mum oluşmaz). Idempotluk içeride
+// (lastCandleDate) → aynı işlem günü tekrar bildirilmez.
+async function runCrossoverAlerts() {
+  try {
+    const dateKey = todayKeyTR();
+    if (TR_HOLIDAYS_2026.has(dateKey)) {
+      logger.info(`⏭️ Crossover bildirim: ${dateKey} resmi tatil — tarama atlandı`);
+      return null;
+    }
+    logger.info('⏰ EMA34/TEMA34 kırılım taraması başlatıldı');
+    const result = await crossoverNotifier.runAndNotify();
+    if (!result?.ok) {
+      logger.error(`[Crossover] tarama başarısız: ${result?.error || 'bilinmeyen hata'}`);
+    } else if (result.skippedReason) {
+      logger.info(`📐 Crossover — atlandı (${result.skippedReason}), taranan ${result.scanned}, kırılım ${result.total}`);
+    } else {
+      logger.info(
+        `📐 Crossover — taranan ${result.scanned}, TEMA ↑${result.counts.temaUp}/↓${result.counts.temaDown}, ` +
+        `EMA ↑${result.counts.emaUp}/↓${result.counts.emaDown}, bildirildi: ${result.notified}`
+      );
+    }
+    return result;
+  } catch (e) {
+    logger.error(`[Crossover] hata: ${e.message}`, e.stack);
     return null;
   }
 }
@@ -871,6 +903,17 @@ class CronJobsService {
       { scheduled: false, ...TR_TZ }
     );
 
+    // 27b. EMA34 & TEMA34 günlük kırılım bildirimcisi — 18:50 TR, Pzt-Cuma.
+    //      Tüm BIST taranır; yukarı (cross_above) + düşüşte (cross_below) ilk
+    //      kırılımlar Telegram ana kanal + uygulama/web push ile gönderilir.
+    //      18:30 TEMA34 botu ve 18:40 custom botlardan sonra (Yahoo'yu boğmasın).
+    //      Resmi tatil + idempotluk fonksiyonun içinde uygulanır.
+    const crossoverAlertJob = cron.schedule(
+      '50 18 * * 1-5',
+      () => runCrossoverAlerts(),
+      { scheduled: false, ...TR_TZ }
+    );
+
     // 28. Kripto Bot tick — her 15 dk, 7/24 (kripto piyasası kapanmaz).
     //     Açık long/short pozisyonların TP/SL/timeout/trailing kontrolü.
     const cryptoBotTickJob = cron.schedule(
@@ -979,6 +1022,7 @@ class CronJobsService {
       confidenceUpdateJob,
       botTickJob,
       tema34BotJob,
+      crossoverAlertJob,
       cryptoBotTickJob,
       customBotDailyJob,
       customBotTickJob,
@@ -1031,6 +1075,14 @@ class CronJobsService {
    */
   async triggerForexCadence() {
     return runForexSignalCadence();
+  }
+
+  /**
+   * Manuel tetikleme — EMA34/TEMA34 kırılım taraması + bildirim (admin / test).
+   * opts.force=true → aynı işlem günü tekrar bildirilse bile gönderir.
+   */
+  async triggerCrossoverAlerts(opts = {}) {
+    return crossoverNotifier.runAndNotify(opts);
   }
 
   /**
