@@ -140,7 +140,54 @@ function trailStop(direction, candles, currentStop, atrVal, opts = {}) {
   }
 }
 
+// İŞLEM SEVİYELERİ (giriş/SL/TP) — NET FIBONACCI değerleri (lot/risk hesabı YOK).
+// Kullanıcı isteği: TP/SL fibo seviyelerine bağlansın; ATR'den geniş olsun (az stop).
+//   LONG retracement: SL=swing dibi, TP1=swing tepesi, TP2=1.618 uzantı.
+//   LONG kırılım (giriş tepe üstü): SL=%38.2 geri çekilme, TP1=1.618, TP2=2.0 uzantı.
+//   SHORT simetrik. SL mesafesi [STOP_MIN..MAX]·ATR bandına sığdırılır (ne çok dar
+//   ne absürt). Geçerli yapı yoksa null → çağıran ATR'ye düşer.
+const STOP_MIN_ATR = 2.0;   // fib stop EN AZ bu kadar (eski 1.8 ATR'den geniş → az stop)
+const STOP_MAX_ATR = 6.0;
+
+function tradeLevels(direction, candles, entry, atrVal, precision = 4, opts = {}) {
+  if (!(entry > 0) || !(atrVal > 0)) return null;
+  const sw = lastSwing(candles, direction, opts);
+  if (!sw) return null;
+  const range = sw.H.price - sw.L.price;
+  if (!(range > 0)) return null;
+  const buf = (opts.buffer ?? BUFFER_ATR) * atrVal;
+  const minD = STOP_MIN_ATR * atrVal, maxD = STOP_MAX_ATR * atrVal;
+  const r = (v) => +v.toFixed(precision);
+  const isLong = direction === 'long';
+  let stop, t1, t2;
+
+  if (isLong) {
+    if (entry < sw.L.price) return null;                       // yapı kırık (giriş dip altı)
+    if (entry <= sw.H.price) { stop = sw.L.price - buf; t1 = sw.H.price + 0.272 * range; t2 = sw.H.price + 0.618 * range; } // 1.272 / 1.618 uzantı
+    else { stop = sw.H.price - 0.382 * range; t1 = sw.H.price + 0.618 * range; t2 = sw.H.price + 1.0 * range; }            // kırılım
+    const d = entry - stop;
+    if (d < minD) stop = entry - minD; else if (d > maxD) stop = entry - maxD;
+    if (t1 <= entry) { t1 = entry + 0.382 * range; t2 = entry + 0.618 * range; }  // sıra güvencesi
+    if (t2 <= t1) t2 = t1 + 0.382 * range;
+  } else {
+    if (entry > sw.H.price) return null;
+    if (entry >= sw.L.price) { stop = sw.H.price + buf; t1 = sw.L.price - 0.272 * range; t2 = sw.L.price - 0.618 * range; } // 1.272 / 1.618 uzantı
+    else { stop = sw.L.price + 0.382 * range; t1 = sw.L.price - 0.618 * range; t2 = sw.L.price - 1.0 * range; }            // kırılım
+    const d = stop - entry;
+    if (d < minD) stop = entry + minD; else if (d > maxD) stop = entry + maxD;
+    if (t1 >= entry) { t1 = entry - 0.382 * range; t2 = entry - 0.618 * range; }  // sıra güvencesi
+    if (t2 >= t1) t2 = t1 - 0.382 * range;
+  }
+  const R = Math.abs(entry - stop);
+  if (!(R > 0)) return null;
+  return {
+    entry: r(entry), stop: r(stop), target1: r(t1), target2: r(t2),
+    rr1: +(Math.abs(t1 - entry) / R).toFixed(2), rr2: +(Math.abs(t2 - entry) / R).toFixed(2),
+    atr: +atrVal.toFixed(precision), basis: 'fib',
+  };
+}
+
 module.exports = {
-  pivots, lastSwing, fibLevels, initialStop, trailStop,
+  pivots, lastSwing, fibLevels, initialStop, trailStop, tradeLevels,
   FIB_RATIOS, DEFAULT_STOP_FIB, PIVOT_LEFT, PIVOT_RIGHT,
 };

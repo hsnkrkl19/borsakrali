@@ -67,14 +67,14 @@ describe('cryptoSignalTracker', () => {
 });
 
 describe('cryptoChannelNotifier', () => {
-  test('flatten — strateji başına top N + geçersiz seviye elenir', () => {
+  test('flatten — YALNIZ forex kriptoları (BTC/ETH/XRP/SOL); diğerleri + geçersiz elenir', () => {
     const result = {
       spot_long: { signals: [{ symbol: 'BTC', entry: 100, stop: 95, target1: 110, totalScore: 9 }, { symbol: 'ETH', entry: 50, stop: 48, target1: 55, totalScore: 8 }] },
-      futures_long: { signals: [] },
+      futures_long: { signals: [{ symbol: 'DOGE', entry: 0.1, stop: 0.09, target1: 0.12, totalScore: 9 }] }, // forex'te YOK → elenir
       futures_short: { signals: [{ symbol: 'XRP', entry: 2, stop: 2.1, target1: 1.8, totalScore: 7 }, { symbol: 'BAD', entry: 0, stop: 0, target1: 0 }] },
     };
-    const flat = notifier.flatten(result, 3);
-    expect(flat.map(s => s.symbol).sort()).toEqual(['BTC', 'ETH', 'XRP']); // BAD (geçersiz) elendi
+    const flat = notifier.flatten(result);
+    expect(flat.map(s => s.symbol).sort()).toEqual(['BTC', 'ETH', 'XRP']); // DOGE (forex değil) + BAD (geçersiz) elendi
     expect(flat.find(s => s.symbol === 'XRP').direction).toBe('short');
   });
 

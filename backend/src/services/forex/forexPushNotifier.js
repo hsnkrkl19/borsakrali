@@ -14,15 +14,17 @@ const tracker = require('./forexSignalTracker');
 const statsStore = require('./forexStatsStore');
 const logger = require('../../utils/logger');
 
-const PUSH_CONFIDENCE = 60;
+const PUSH_CONFIDENCE = Number(process.env.FOREX_PUSH_CONFIDENCE) || 60; // env ile ayarlanabilir (volume dialı)
 const MIN_SAMPLE = 12;
 
 function withTimeout(promise, ms, label) {
   return Promise.race([Promise.resolve(promise), new Promise((_, rej) => setTimeout(() => rej(new Error('timeout:' + label)), ms))]);
 }
-// Veri-temelli kalite kapısı: yeterli örnek (≥12) varken hem isabet <%45 HEM
-// beklenen getiri ≤0 ise = kanıtlanmış kaybeden → bastır. Veri yoksa izin ver.
+// Kalite kapısı — VARSAYILAN KAPALI (FOREX_QUALITY_GATE=1 ile açılır). Kapı +
+// kalibrasyon birlikte sinyalleri "hiç gelmiyor"a düşürmüştü; kullanıcı çalışan
+// akışı geri istedi → kapı kapalı, geçmiş winRate sinyalde GÖSTERİLİR (kullanıcı yargılar).
 function passesQuality(s) {
+  if (process.env.FOREX_QUALITY_GATE !== '1') return true;   // varsayılan: kapı yok
   if (s.sampleSize == null || s.sampleSize < MIN_SAMPLE) return true;
   if (s.historicalWinRate == null) return true;
   return s.historicalWinRate >= 45 || (s.historicalAvgReturn != null && s.historicalAvgReturn > 0);

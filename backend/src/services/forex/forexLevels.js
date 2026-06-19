@@ -4,6 +4,7 @@
  * SL/TP TF'ye göre ATR ile ölçeklenir (düşük TF dar, yüksek TF geniş).
  */
 const { atr } = require('./indicators');
+const fib = require('./forexFib');
 
 // TF → ATR çarpanları (gün-içi → swing genişler)
 const TF_MULT = {
@@ -27,8 +28,13 @@ function tradeHorizon(tf) {
   return 'SWING';
 }
 
-function buildLevels(direction, entry, atrVal, tf, precision = 4) {
+// candles verilirse ÖNCE net Fibonacci seviyeleri denenir (kullanıcı isteği:
+// TP/SL fibo'ya bağlı, ATR'den geniş → az stop). Geçerli yapı yoksa ATR'ye düşer.
+function buildLevels(direction, entry, atrVal, tf, precision = 4, candles = null) {
   if (!(entry > 0) || !(atrVal > 0)) return null;
+  if (candles && candles.length >= 60) {
+    try { const f = fib.tradeLevels(direction, candles, entry, atrVal, precision); if (f) return f; } catch (_) { /* ATR'ye düş */ }
+  }
   const eff = Math.max(atrVal, entry * MIN_ATR_FRAC);
   const m = TF_MULT[tf] || TF_MULT['1h'];
   const r = (v) => +v.toFixed(precision);
@@ -43,7 +49,7 @@ function buildLevels(direction, entry, atrVal, tf, precision = 4) {
     entry: r(entry), stop: sl, target1: tp1, target2: tp2,
     rr1: risk > 0 ? +(Math.abs(tp1 - entry) / risk).toFixed(2) : null,
     rr2: risk > 0 ? +(Math.abs(tp2 - entry) / risk).toFixed(2) : null,
-    atr: +atrVal.toFixed(precision),
+    atr: +atrVal.toFixed(precision), basis: 'atr',
   };
 }
 

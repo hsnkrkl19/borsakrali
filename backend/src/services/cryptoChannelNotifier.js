@@ -10,9 +10,19 @@
 const telegramService = require('./telegramService');
 const tracker = require('./cryptoSignalTracker');
 const { signalChannel } = require('./signalDelivery');
+const { listInstruments } = require('./forex/forexInstruments');
 const logger = require('../utils/logger');
 
 const TOP = Number(process.env.CRYPTO_CHANNEL_TOP) || 3;   // strateji başına en iyi N → kanala aday
+
+// YALNIZ forex'teki kripto pariteleri (kullanıcı: "sadece forexte bulunan benim
+// verdiğim kriptolar"). forexInstruments class==='crypto' → BTC/ETH/XRP/SOL.
+// Env ile override: CRYPTO_CHANNEL_SYMBOLS=BTC,ETH,...
+function allowedSymbols() {
+  const env = process.env.CRYPTO_CHANNEL_SYMBOLS;
+  if (env) return new Set(env.split(',').map(s => s.trim().toUpperCase()).filter(Boolean));
+  return new Set(listInstruments().filter(i => i.class === 'crypto').map(i => i.id.replace(/USD$/, '').toUpperCase()));
+}
 const STRAT = [
   { key: 'spot_long', dir: 'long', label: 'SPOT / AL' },
   { key: 'futures_long', dir: 'long', label: 'FUTURES LONG' },
@@ -30,11 +40,15 @@ function fmtPrice(v) {
   return Number(v).toLocaleString('en-US', { maximumFractionDigits: d });
 }
 
-// Tarama sonucu → düz uygun sinyal listesi (strateji başına top N, geçerli seviyeli)
-function flatten(result, topN = TOP) {
+// Tarama sonucu → düz uygun sinyal listesi. YALNIZ forex'teki kriptolar (≤4 coin) —
+// allSignals'tan süzülür (top-10'a girmese de yakalanır), skor sırasıyla.
+function flatten(result) {
+  const allowed = allowedSymbols();
   const out = [];
   for (const { key, dir } of STRAT) {
-    for (const s of (result?.[key]?.signals || []).slice(0, topN)) {
+    const list = result?.[key]?.allSignals || result?.[key]?.signals || [];
+    for (const s of list) {
+      if (!allowed.has((s.symbol || '').toUpperCase())) continue;
       out.push({
         symbol: s.symbol, name: s.name, strategy: key, direction: dir,
         entry: s.entry, stop: s.stop, target1: s.target1, target2: s.target2,

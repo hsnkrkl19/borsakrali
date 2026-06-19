@@ -96,7 +96,7 @@ async function backtestTF(inst, tf, opts = {}) {
     const agg = aggregate([gen, e, t, snrR, smcR], gen?.ind);
     if (agg.direction === 'neutral') continue;
     const a = atr(hist, 14);
-    const lv = buildLevels(agg.direction, hist[i].close, a, tf, inst.precision);
+    const lv = buildLevels(agg.direction, hist[i].close, a, tf, inst.precision, hist); // canlıyla tutarlı: fib seviyeleri
     if (!lv) continue;
     const conf = computeConfidence({ consensus: agg.consensus, avgScore: agg.avgScore, trendStrength: (gen?.ind?.adx || 0) / 40, momentum: agg.momentum, rr1: lv.rr1, confluence: 0 });
     if (conf < MIN_CONFIDENCE) continue;

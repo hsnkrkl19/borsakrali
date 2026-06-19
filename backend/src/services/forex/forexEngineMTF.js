@@ -51,7 +51,8 @@ async function evalTF(inst, tf, livePrice, equity) {
 
   const atrVal = atr(candles, 14);
   const entry = livePrice || candles[candles.length - 1].close;
-  const levels = levelsLib.buildLevels(agg.direction, entry, atrVal, tf, inst.precision);
+  // candles → net Fibonacci SL/TP (yoksa ATR). Kullanıcı isteği: fibo seviyeleri, geniş, az stop.
+  const levels = levelsLib.buildLevels(agg.direction, entry, atrVal, tf, inst.precision, candles);
   if (!levels) return { tf, status: 'neutral', votes: agg.votes };
 
   const sizing = computeSizing({ instrument: inst, entry: levels.entry, stop: levels.stop, direction: agg.direction }, { equity });
@@ -110,11 +111,14 @@ async function evalInstrument(inst, equity) {
     // bantları da ham güvenle ölçüldüğü için tutarlı (döngü yok). Aynı winRate hem
     // ekranda gösterilir hem kalibrasyonu sürer.
     const h = forexBacktest.getHistory(meta.id, tf, rawConfidence);
-    // Kalibrasyon: teknik güveni tarihsel winRate'le harmanla (düşük winRate → aşağı)
+    // ⚠️ PUSH KARARI HAM TEKNİK GÜVENLE (kalibrasyon yalnız BİLGİ). Kalibrasyon
+    // güveni düşürüp eşiğin altına atıyordu → forex sinyalleri "hiç gelmiyor"du.
+    // Kullanıcı çalışan (öğlen) akışını geri istedi → ham skor kullan, winRate göster.
     const cal = calibrateConfidence(rawConfidence, h);
-    const confidence = cal.confidence;
+    const confidence = rawConfidence;
     s.confidence = confidence;
-    s.rawConfidence = cal.rawConfidence;
+    s.rawConfidence = rawConfidence;
+    s.calibratedConfidence = cal.confidence;
     s.confidenceCalibration = { empirical: cal.empirical, trust: cal.trust, delta: cal.delta };
     s.grade = gradeFor(confidence);
     s.confidenceBand = bandFor(confidence);
