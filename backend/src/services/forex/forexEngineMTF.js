@@ -64,8 +64,11 @@ async function evalTF(inst, tf, livePrice, equity) {
   const conditions = [];
   for (const m of agg.modules) for (const c of (m.conditions || [])) if (c.met) conditions.push({ ...c, technique: m.technique });
 
-  // confluence sonra eklenecek; güven bileşenlerini sakla
-  const confComponents = { consensus: agg.consensus, avgScore: agg.avgScore, trendStrength: agg.trendStrength, momentum: agg.momentum, rr1: levels.rr1 };
+  // confluence sonra eklenecek; güven bileşenlerini sakla.
+  // ⚠️ R/R bileşenini fib (geniş stop) seviyelerinden AYIR: fib SL bilerek geniş →
+  // rr1<1 oluyor ve güveni eşik altına çekiyordu ("sinyal gelmiyor"). Güven SİNYAL
+  // kalitesini ölçmeli, stop seçimini değil → rr1 ≥1.6'ya tabanlanır (eski ATR davranışı).
+  const confComponents = { consensus: agg.consensus, avgScore: agg.avgScore, trendStrength: agg.trendStrength, momentum: agg.momentum, rr1: Math.max(levels.rr1 || 1, 1.6) };
 
   return {
     tf, status: 'signal',
