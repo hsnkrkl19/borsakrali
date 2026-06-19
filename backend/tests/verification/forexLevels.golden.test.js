@@ -27,7 +27,8 @@ describe('forexFib.tradeLevels — net fib seviyeleri', () => {
     expect(lv.entry).toBeLessThan(lv.target1);
     expect(lv.target1).toBeLessThan(lv.target2);
     expect(105 - lv.stop).toBeGreaterThanOrEqual(2 * a - 0.01);   // ATR'den geniş stop (az stop)
-    expect(105 - lv.stop).toBeLessThanOrEqual(6 * a + 0.01);      // ama clamp'li
+    expect(105 - lv.stop).toBeLessThanOrEqual(4.5 * a + 0.01);    // clamp [2..4.5]·ATR (donmasın)
+    expect(lv.rr1).toBeGreaterThanOrEqual(1);                     // seçim 2: R/R ≥ 1 (fib uzantı TP)
   });
 
   test('SHORT geri çekilme: stop>giriş>TP1>TP2, basis fib', () => {
@@ -39,6 +40,7 @@ describe('forexFib.tradeLevels — net fib seviyeleri', () => {
     expect(lv.stop).toBeGreaterThan(lv.entry);
     expect(lv.entry).toBeGreaterThan(lv.target1);
     expect(lv.target1).toBeGreaterThan(lv.target2);
+    expect(lv.rr1).toBeGreaterThanOrEqual(1);                    // seçim 2: R/R ≥ 1
   });
 
   test('geçersiz/yetersiz yapı → null', () => {
