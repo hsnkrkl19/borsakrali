@@ -51,11 +51,13 @@ const cryptoBotRoutes = require('./routes/cryptoBot.routes');
 const tema34BotRoutes = require('./routes/tema34Bot.routes');
 const crossoverRoutes = require('./routes/crossover.routes');
 const customBotsRoutes = require('./routes/customBots.routes');
+const backtestRoutes = require('./routes/backtest.routes');
 const isYatirimRoutes = require('./routes/isyatirim.routes');
 const borsapyRoutes = require('./routes/borsapy.routes');
 const forexRoutes = require('./routes/forex.routes');
 const waveScanRoutes = require('./routes/waveScan.routes');
 const bistSignalsRoutes = require('./routes/bistSignals.routes');
+const ta4jRoutes = require('./routes/ta4j.routes');
 const pushNotificationService = require('./services/pushNotificationService');
 const { allBistStocks, bist30Stocks, bist100Stocks, sectors } = require('./data/allBistStocks');
 
@@ -221,11 +223,13 @@ app.use('/api/crypto-bot', cryptoBotRoutes);
 app.use('/api/tema34-bot', tema34BotRoutes);
 app.use('/api/crossover', crossoverRoutes);
 app.use('/api/custom-bots', customBotsRoutes);
+app.use('/api/backtest', backtestRoutes);
 app.use('/api/isyatirim', isYatirimRoutes);
 app.use('/api/borsapy', borsapyRoutes);
 app.use('/api/forex', forexRoutes);
 app.use('/api/wave-scan', waveScanRoutes);
 app.use('/api/bist-signals', bistSignalsRoutes);
+app.use('/api/ta4j', ta4jRoutes);
 
 // Tüm kullanicilara açik duyuru listesi (admin tarafindan gönderilen
 // broadcast bildirimlerinin geçmişi). Header bell + Duyurular paneli
