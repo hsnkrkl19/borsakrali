@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { Filter, TrendingUp, TrendingDown, Target, Activity, Bell, BellRing, RefreshCw, X, Volume2, VolumeX, Star, Clock, Zap, Wifi, WifiOff, Info, CheckCircle, BookOpen, HelpCircle, Sparkles, Coins, Layers, Flame, MoreVertical, Wallet } from 'lucide-react'
+import { Filter, TrendingUp, TrendingDown, Target, Activity, Bell, BellRing, RefreshCw, X, Volume2, VolumeX, Star, Clock, Zap, Wifi, WifiOff, Info, CheckCircle, BookOpen, HelpCircle, Sparkles, Coins, Layers, Flame, MoreVertical, Wallet, Bot } from 'lucide-react'
 import { io } from 'socket.io-client'
 
 import { getApiBase, getSocketBase } from '../config'
@@ -12,6 +12,7 @@ import BugununSinyalleri from '../components/BugununSinyalleri'
 import SpotAlSinyalleri from '../components/SpotAlSinyalleri'
 import KriptoSinyalleri from '../components/KriptoSinyalleri'
 import ForexSinyalleri from '../components/ForexSinyalleri'
+import YeniRobotSinyalleri from '../components/YeniRobotSinyalleri'
 import EmtiaSinyalleri from '../components/EmtiaSinyalleri'
 import MTFSinyalleri from '../components/MTFSinyalleri'
 import BacktestPanel from '../components/BacktestPanel'
@@ -52,7 +53,7 @@ export default function GunlukTespitler() {
     const rawTab = searchParams.get('tab')
     const rawSub = searchParams.get('sub')
     // 1) Yeni 5'li yapı: tab geçerli ise direkt kullan
-    if (['bugun', 'sinyaller', 'kripto', 'forex', 'emtia', 'analiz', 'araclar'].includes(rawTab)) {
+    if (['bugun', 'sinyaller', 'yenirobot', 'kripto', 'forex', 'emtia', 'analiz', 'araclar'].includes(rawTab)) {
       const validSub = SUB_TABS[rawTab]?.includes(rawSub) ? rawSub : (SUB_TABS[rawTab]?.[0] || null)
       return { tab: rawTab, sub: validSub }
     }
@@ -315,6 +316,7 @@ export default function GunlukTespitler() {
   const tabs = [
     { id: 'bugun',   label: 'Bugünün Sinyalleri', shortLabel: 'Bugün',  icon: Sparkles },
     { id: 'sinyaller', label: 'Spot Al (≥75)',     shortLabel: 'Spot Al', icon: Target, isNew: true },
+    { id: 'yenirobot', label: '🤖 Yeni Robot',     shortLabel: 'Yeni Robot', icon: Bot, isNew: true },
     { id: 'kripto',  label: 'Kripto',             shortLabel: 'Kripto', icon: Coins },
     { id: 'forex',   label: 'Forex / Parite',     shortLabel: 'Forex',  icon: Wallet,  isNew: true },
     { id: 'emtia',   label: 'Altın & Gümüş',      shortLabel: 'Emtia',  icon: Coins },
@@ -569,6 +571,9 @@ export default function GunlukTespitler() {
       {activeTab === 'bugun' && <BugununSinyalleri />}
 
       {activeTab === 'sinyaller' && <SpotAlSinyalleri />}
+
+      {/* Yeni Robot Tab — derin konfluans (BTC/Altın/S&P/EUR) 15m-1d + perf + log */}
+      {activeTab === 'yenirobot' && <YeniRobotSinyalleri />}
 
       {/* Kripto Tab — top 100 coin için spot/futures long/short */}
       {activeTab === 'kripto' && <KriptoSinyalleri />}
