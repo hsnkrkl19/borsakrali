@@ -52,49 +52,92 @@ function computeConfidence({ consensus, avgScore, trendStrength, momentum, rr1, 
   return Math.round(Math.max(0, Math.min(1, raw)) * 100);
 }
 
-// ── KALİBRASYON: teknik güven notunu tarihsel backtest başarısıyla harmanla ──
+// ── KALİBRASYON: teknik güven notunu tarihsel backtest başarısıyla düzelt ──
 //
 // Sorun: teknik-oy skoru (consensus/avgScore/ADX...) ile gerçek isabet oranı
 // TERS düşebiliyor. Somut örnek: NAS100 1d teknik güven 75 iken backtest winRate
-// %21 (38 örnek); aynı paritede 1h teknik 58 ama winRate %66 — yani yüksek
-// teknik skor düşük gerçek başarıyı maskeleyebiliyor.
+// %21 (38 örnek); aynı paritede 1h teknik 58 ama winRate %66.
 //
-// Çözüm: yeterli örneklemde (≥MIN_SAMPLE), nihai güveni tarihsel winRate'e doğru
-// harmanla. winRate bu sistemin TP1 R/R'sindeki ~başabaş oranının (NEUTRAL_WINRATE)
-// üstündeyse güveni yukarı, altındaysa aşağı çeker. Harman ağırlığı (trust) örneklem
-// büyüdükçe artar, teknik skor en az (1-TRUST_MAX) kadar korunur. Tarihsel veri yoksa
-// kalibrasyon devre dışı — saf teknik skor döner (sahte düzeltme yapmaz).
+// Çözüm — backtesting.py sidecar'ı (kernc/backtesting.py) her (enstrüman/TF/bant)
+// için winRate + ORTALAMA GETİRİ + **EXPECTANCY + PROFIT FACTOR** üretir. Empirik
+// güven artık PF/expectancy temelli: bu sistem BİLEREK düşük-winRate-yüksek-R/R
+// (geniş fib stop) → winRate-tek kalibrasyon kârlı kurulumları HAKSIZ eziyordu
+// (forex akışı "hiç gelmiyor"a düşmüştü, geri alınmıştı). PF ölçek-bağımsızdır:
+// PF>1 (kârlı) → empirik ≥50, PF<1 → <50. winRate yalnız küçük dengeleyici.
+//
+// Uygulama: ham güveni MUTLAK empirik seviyeye HARMANLAMAK (eski yöntem) akışı
+// çökertiyordu (75→41). Bunun yerine ham güveni SINIRLI bir DELTA ile düzeltiriz:
+//   delta = clamp((empirical-50)·trust, -MAX_DROP, +MAX_RISE)
+//   confidence = raw + delta
+// Böylece iyi geçmiş yukarı, kötü geçmiş aşağı çeker AMA hiçbir sinyal tek hamlede
+// eşik-altına çakılıp akışı kurutamaz. trust örneklemle büyür; veri yoksa NO-OP.
+function envNum(name, def) { const v = Number(process.env[name]); return Number.isFinite(v) ? v : def; }
 const CAL = {
   NEUTRAL_WINRATE: 41,    // TP1 R/R≈1.4-1.55 → başabaş isabet ~%39-43; tek çapa 41
-  SLOPE: 1.6,             // winRate'in başabaştan her puan sapması → empirik puan
-  AVGRET_W: 1.5,          // ort. getiri (%) ince ayarı (açık poz. driftiyle gürültülü → düşük ağırlık)
+  SLOPE: 1.6,             // winRate-tek yol (PF yoksa): başabaştan her puan sapması
+  AVGRET_W: 1.5,          // ort. getiri (%) ince ayarı (PF yoksa)
   AVGRET_CLAMP: 3,
-  TRUST_MAX: 0.6,         // kalibrasyonun azami ağırlığı (teknik skor ≥%40 korunur)
+  // Profit-factor temelli empirik (backtesting.py perBand) — kârlı=yukarı, zararlı=aşağı
+  PF_GAIN: 30,            // PF>1: empirik += min(PF_CLAMP_UP, (PF-1)·PF_GAIN)
+  PF_LOSS: 50,            // PF<1: empirik += max(-PF_CLAMP_DN, (PF-1)·PF_LOSS) (kaybedeni sert ez)
+  PF_CLAMP_UP: 30,
+  PF_CLAMP_DN: 25,
+  WINRATE_STAB: 0.2,      // PF varken küçük winRate dengeleyici
+  EXP_W: 2.0,             // expectancy (% / kapalı işlem) ince ayarı (PF varken)
+  EXP_CLAMP: 4,
+  // Uygulama (delta) — akış çökmesin diye SINIRLI
+  TRUST_MAX: 0.6,         // empirik etkinin azami ağırlığı
   FULL_TRUST_SAMPLE: 40,  // bu örneklemde tam güven; altında orantılı
-  MIN_SAMPLE: 8,          // altında kalibrasyon yok (gürültü) — getHistory ile aynı eşik
+  MIN_SAMPLE: 8,          // altında kalibrasyon yok (gürültü)
+  MAX_RISE: envNum('CALIBRATION_MAX_RISE', 15),  // kalibrasyon en çok bu kadar EKLER
+  MAX_DROP: envNum('CALIBRATION_MAX_DROP', 15),  // ...ve en çok bu kadar DÜŞÜRÜR
 };
 
-// Tarihsel winRate → 0..100 "empirik güven". Başabaş oranı (NEUTRAL_WINRATE) → 50.
-function empiricalConfidence(winRate, avgReturn) {
-  let s = 50 + (winRate - CAL.NEUTRAL_WINRATE) * CAL.SLOPE;
-  if (avgReturn != null && Number.isFinite(avgReturn)) {
-    const a = Math.max(-CAL.AVGRET_CLAMP, Math.min(CAL.AVGRET_CLAMP, avgReturn));
-    s += a * CAL.AVGRET_W;
+// Tarihsel başarı → 0..100 "empirik güven" (50 = nötr/başabaş).
+// arg: { winRate, avgReturn, profitFactor, expectancy } VEYA (winRate, avgReturn) konumsal.
+function empiricalConfidence(arg, avgReturnPos) {
+  let winRate, avgReturn, profitFactor, expectancy;
+  if (arg && typeof arg === 'object') {
+    ({ winRate, avgReturn, profitFactor, expectancy } = arg);
+  } else { winRate = arg; avgReturn = avgReturnPos; }
+
+  let s = 50;
+  const hasPF = profitFactor != null && Number.isFinite(profitFactor);
+  if (hasPF) {
+    const pf = Math.max(0, profitFactor);
+    s += pf >= 1
+      ? Math.min(CAL.PF_CLAMP_UP, (pf - 1) * CAL.PF_GAIN)
+      : Math.max(-CAL.PF_CLAMP_DN, (pf - 1) * CAL.PF_LOSS);
+    if (winRate != null && Number.isFinite(winRate)) s += (winRate - CAL.NEUTRAL_WINRATE) * CAL.WINRATE_STAB;
+    if (expectancy != null && Number.isFinite(expectancy)) {
+      s += Math.max(-CAL.EXP_CLAMP, Math.min(CAL.EXP_CLAMP, expectancy)) * CAL.EXP_W;
+    } else if (avgReturn != null && Number.isFinite(avgReturn)) {
+      s += Math.max(-CAL.AVGRET_CLAMP, Math.min(CAL.AVGRET_CLAMP, avgReturn)) * CAL.AVGRET_W;
+    }
+  } else {
+    // PF yoksa eski winRate-tek davranış (geriye dönük uyum)
+    if (winRate != null && Number.isFinite(winRate)) s += (winRate - CAL.NEUTRAL_WINRATE) * CAL.SLOPE;
+    if (avgReturn != null && Number.isFinite(avgReturn)) {
+      s += Math.max(-CAL.AVGRET_CLAMP, Math.min(CAL.AVGRET_CLAMP, avgReturn)) * CAL.AVGRET_W;
+    }
   }
   return Math.max(0, Math.min(100, s));
 }
 
-// rawConfidence (0-100 teknik) + history (forexBacktest.getHistory sonucu | null)
+// rawConfidence (0-100 teknik) + history (getHistory sonucu | null)
 //   → { confidence, rawConfidence, empirical, trust, delta }
+// confidence = raw + SINIRLI delta (mutlak harman DEĞİL — bkz. üstteki açıklama).
 function calibrateConfidence(rawConfidence, history) {
   const raw = Math.round(Math.max(0, Math.min(100, rawConfidence || 0)));
-  if (!history || history.winRate == null || !(history.sampleSize >= CAL.MIN_SAMPLE)) {
+  const hasSignal = history && (history.winRate != null || history.profitFactor != null);
+  if (!hasSignal || !(history.sampleSize >= CAL.MIN_SAMPLE)) {
     return { confidence: raw, rawConfidence: raw, empirical: null, trust: 0, delta: 0 };
   }
-  const empirical = empiricalConfidence(history.winRate, history.avgReturn);
+  const empirical = empiricalConfidence(history);
   const trust = CAL.TRUST_MAX * Math.min(1, history.sampleSize / CAL.FULL_TRUST_SAMPLE);
-  const blended = raw * (1 - trust) + empirical * trust;
-  const confidence = Math.round(Math.max(0, Math.min(100, blended)));
+  let delta = (empirical - 50) * trust;
+  delta = Math.max(-CAL.MAX_DROP, Math.min(CAL.MAX_RISE, delta));
+  const confidence = Math.round(Math.max(0, Math.min(100, raw + delta)));
   return { confidence, rawConfidence: raw, empirical: Math.round(empirical), trust: +trust.toFixed(2), delta: confidence - raw };
 }
 

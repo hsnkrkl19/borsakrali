@@ -17,13 +17,18 @@ const ema34 = require('../forex/strategies/ema34');
 const tema34 = require('../forex/strategies/tema34');
 const snrStrat = require('../forex/strategies/snr');
 const smcStrat = require('../forex/strategies/smc');
-const { aggregate, computeConfidence, gradeFor, bandFor } = require('../forex/forexAggregator');
+const { aggregate, computeConfidence, calibrateConfidence, gradeFor, bandFor } = require('../forex/forexAggregator');
 const levelsLib = require('../forex/forexLevels');
 const { atr } = require('../forex/indicators');
 const logger = require('../../utils/logger');
 
 function envNum(name, def) { const v = Number(process.env[name]); return Number.isFinite(v) ? v : def; }
 const MIN_CONFIDENCE = envNum('BIST_SIGNAL_MIN_CONFIDENCE', 75); // ≥75 = MUKEMMEL
+// Aktif kalibrasyon: backtesting.py global ince-kova geçmişi → güveni SINIRLI
+// delta'yla düzelt ve EŞİK kararında uygula. Kill-switch: BIST_CALIBRATION_ACTIVE=0.
+const CALIBRATION_ACTIVE = process.env.BIST_CALIBRATION_ACTIVE !== '0';
+// Döngüsel require yok: bistBacktest artık bistScoreEngine'i import ETMİYOR.
+const bistBacktest = require('./bistBacktest');
 const TOP_N = envNum('BIST_SIGNAL_TOP_N', 10);
 const PRECISION = 2;                       // BIST fiyatları 2 ondalık
 const BATCH_SIZE = 8;                       // dailySignalsService deseni
@@ -70,11 +75,17 @@ async function scoreSymbol(stock) {
     const levels = levelsLib.buildLevels('long', entry, atrVal, '1d', PRECISION);
     if (!levels) return null;
 
-    const confidence = computeConfidence({
+    const rawConfidence = computeConfidence({
       consensus: agg.consensus, avgScore: agg.avgScore,
       trendStrength: agg.trendStrength, momentum: agg.momentum,
       rr1: levels.rr1, confluence: 0,
     });
+    // AKTİF KALİBRASYON: global backtesting.py geçmişiyle güveni düzelt → EŞİK
+    // bunun üzerinden. İnce kovalar ayrımcı: kötü kova bazılarını eler, iyi kova
+    // alt-eşik sinyali terfi eder (tek-tip çöküş yok). Veri yoksa NO-OP (=ham).
+    const calHistory = CALIBRATION_ACTIVE ? bistBacktest.getHistory(rawConfidence) : null;
+    const cal = calibrateConfidence(rawConfidence, calHistory);
+    const confidence = CALIBRATION_ACTIVE ? cal.confidence : rawConfidence;
     if (confidence < MIN_CONFIDENCE) return null;
 
     const conditions = [];
@@ -84,7 +95,9 @@ async function scoreSymbol(stock) {
 
     return {
       symbol, name: stock.name || symbol, direction: 'long',
-      confidence, grade: gradeFor(confidence), confidenceBand: bandFor(confidence),
+      confidence, rawConfidence: cal.rawConfidence,
+      calibration: cal.delta !== 0 ? { empirical: cal.empirical, trust: cal.trust, delta: cal.delta, winRate: calHistory?.winRate ?? null, profitFactor: calHistory?.profitFactor ?? null } : null,
+      grade: gradeFor(confidence), confidenceBand: bandFor(confidence),
       consensus: +agg.consensus.toFixed(2), avgVoteScore: Math.round(agg.avgScore),
       precision: PRECISION,
       ...levels,                          // entry, stop, target1, target2, rr1, rr2, atr

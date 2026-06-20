@@ -1,0 +1,9 @@
+# Borsa Krali — backtest sidecar (Python)
+# kernc/backtesting.py powers the portfolio analytics used to calibrate
+# BIST & forex signal confidence. Pinned for reproducible Render builds.
+backtesting==0.6.5
+fastapi==0.118.0
+uvicorn[standard]==0.34.0
+pydantic==2.11.0
+numpy>=1.26,<3
+pandas>=2.1,<4

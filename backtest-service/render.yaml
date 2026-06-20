@@ -1,0 +1,23 @@
+# REFERANS Blueprint — backtesting.py sidecar'ı için Render servis tanımı.
+#
+# ⚠️ Mevcut Node servisi Render panosundan (dashboard) yönetiliyor; repo kökünde
+# render.yaml YOK. Bu dosya yalnız REFERANSTIR — sidecar'ı YENİ bir Render servisi
+# olarak panodan oluşturmak en güvenlisidir (bkz. README.md "Deploy"). İsterseniz
+# bu içeriği repo köküne taşıyıp Blueprint olarak da bağlayabilirsiniz; o durumda
+# Node servisini de buraya eklemeniz gerekir, yoksa pano yönetimiyle çakışır.
+services:
+  - type: web
+    name: borsakrali-backtest
+    runtime: python
+    rootDir: backtest-service
+    plan: starter            # cold-start istemiyorsanız ücretli; free → ~50sn uyanma
+    region: oregon           # Node servisiyle AYNI region → düşük gecikme + private network
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.8
+      # Public erişime kapatmak için opsiyonel paylaşılan token (Node tarafında da set edin):
+      # - key: BACKTEST_SERVICE_TOKEN
+      #   generateValue: true

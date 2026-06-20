@@ -27,6 +27,10 @@ const TFS = ['5m', '15m', '1h', '4h', '1d'];
 const STALE_MINUTES = 15;
 const MIN_CONFIDENCE = 40;     // altı → "neutral" (işleme değer sinyal yok)
 const DEFAULT_EQUITY = 10000;
+// Aktif kalibrasyon: backtesting.py perBand (PF/expectancy) → güveni SINIRLI
+// delta'yla düzelt ve UYGULA. Akış çökmesin diye delta CALIBRATION_MAX_DROP/RISE
+// ile sınırlı (bkz. forexAggregator). Kill-switch: FOREX_CALIBRATION_ACTIVE=0.
+const CALIBRATION_ACTIVE = process.env.FOREX_CALIBRATION_ACTIVE !== '0';
 
 let latest = null;             // bellek-içi son anlık görüntü (equity=DEFAULT)
 
@@ -114,11 +118,13 @@ async function evalInstrument(inst, equity) {
     // bantları da ham güvenle ölçüldüğü için tutarlı (döngü yok). Aynı winRate hem
     // ekranda gösterilir hem kalibrasyonu sürer.
     const h = forexBacktest.getHistory(meta.id, tf, rawConfidence);
-    // ⚠️ PUSH KARARI HAM TEKNİK GÜVENLE (kalibrasyon yalnız BİLGİ). Kalibrasyon
-    // güveni düşürüp eşiğin altına atıyordu → forex sinyalleri "hiç gelmiyor"du.
-    // Kullanıcı çalışan (öğlen) akışını geri istedi → ham skor kullan, winRate göster.
+    // AKTİF KALİBRASYON: backtesting.py perBand (PF/expectancy) → güveni SINIRLI
+    // delta'yla düzelt ve PUSH/eşik kararında bunu kullan. Eski "winRate-tek mutlak
+    // harman" akışı kurutuyordu; yeni delta-temelli + PF-farkında biçim kârlı-düşük-
+    // winRate kurulumları cezalandırmaz, hiçbir sinyali tek hamlede eşik-altına
+    // çakamaz (MAX_DROP). Kill-switch FOREX_CALIBRATION_ACTIVE=0 → ham skora döner.
     const cal = calibrateConfidence(rawConfidence, h);
-    const confidence = rawConfidence;
+    const confidence = CALIBRATION_ACTIVE ? cal.confidence : rawConfidence;
     s.confidence = confidence;
     s.rawConfidence = rawConfidence;
     s.calibratedConfidence = cal.confidence;

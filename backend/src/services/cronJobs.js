@@ -16,6 +16,7 @@ const forexSignalTracker = require('./forex/forexSignalTracker');
 const bistScoreEngine = require('./bistSignals/bistScoreEngine');
 const bistSignalNotifier = require('./bistSignals/bistSignalNotifier');
 const bistSignalTracker = require('./bistSignals/bistSignalTracker');
+const bistBacktest = require('./bistSignals/bistBacktest');
 const multiTimeframeService = require('./multiTimeframeService');
 const signalConfidenceService = require('./signalConfidenceService');
 const socketService = require('./socketService');
@@ -673,6 +674,24 @@ async function runForexBacktest() {
   }
 }
 
+// ── BIST sinyal kalibrasyon backtest'i — global ince-kova geçmişi (günde 1, ağır) ──
+let _bistBacktestRunning = false;
+async function runBistBacktest() {
+  if (_bistBacktestRunning) return null;
+  _bistBacktestRunning = true;
+  try {
+    const t0 = Date.now();
+    const r = await bistBacktest.runAll();
+    logger.info(`🇹🇷📊 BIST kalibrasyon backtest tamam — ${r.scanned} sembol · ${r.closedSignals} kapalı sinyal · ${r.buckets} kova · ${r.engine} · ${Date.now() - t0}ms`);
+    return r;
+  } catch (e) {
+    logger.error(`BIST kalibrasyon backtest hata: ${e.message}`, e.stack);
+    return null;
+  } finally {
+    _bistBacktestRunning = false;
+  }
+}
+
 // ── Forex istatistik paylaşımı — günde 2 kez (parite bazlı başarı oranı) ────
 async function runForexStats() {
   try {
@@ -926,6 +945,17 @@ class CronJobsService {
     );
     setTimeout(() => runForexBacktest(), 90 * 1000);
 
+    // 14c-bis. BIST sinyal kalibrasyon backtest'i — günde 1 kez 04:10 TR (ağır).
+    //          backtesting.py sidecar ile global ince-kova geçmişi üretir; canlı
+    //          bistScoreEngine güveni bununla kalibre eder. Açılıştan ~3 dk sonra
+    //          bir kez de tetiklenir (ilk geçmiş dolsun).
+    const bistBacktestJob = cron.schedule(
+      '10 4 * * *',
+      () => runBistBacktest(),
+      { scheduled: false, ...TR_TZ }
+    );
+    setTimeout(() => runBistBacktest(), 180 * 1000);
+
     // 14d. Forex istatistik paylaşımı — günde 2 kez 12:00 & 20:00 TR. Kanala
     //      parite bazlı long/short başarı oranı (kapanan sinyallerden).
     const forexStatsJob = cron.schedule(
@@ -1153,6 +1183,7 @@ class CronJobsService {
       cryptoSignalJob,
       forexSignalJob,
       forexBacktestJob,
+      bistBacktestJob,
       forexStatsJob,
       waveScanJob,
       mtf1mJob,
