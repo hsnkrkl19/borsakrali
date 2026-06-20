@@ -56,6 +56,7 @@ const backtestServiceRoutes = require('./routes/backtestService.routes');
 const isYatirimRoutes = require('./routes/isyatirim.routes');
 const borsapyRoutes = require('./routes/borsapy.routes');
 const forexRoutes = require('./routes/forex.routes');
+const proSignalsRoutes = require('./routes/proSignals.routes');
 const waveScanRoutes = require('./routes/waveScan.routes');
 const bistSignalsRoutes = require('./routes/bistSignals.routes');
 const ta4jRoutes = require('./routes/ta4j.routes');
@@ -229,6 +230,7 @@ app.use('/api/backtest-service', backtestServiceRoutes);
 app.use('/api/isyatirim', isYatirimRoutes);
 app.use('/api/borsapy', borsapyRoutes);
 app.use('/api/forex', forexRoutes);
+app.use('/api/pro-signals', proSignalsRoutes);
 app.use('/api/wave-scan', waveScanRoutes);
 app.use('/api/bist-signals', bistSignalsRoutes);
 app.use('/api/ta4j', ta4jRoutes);
@@ -8103,6 +8105,17 @@ server.listen(PORT, () => {
       await botPersistence.loadAll();
     } catch (e) {
       console.error('[BotPersistence] loadAll hata:', e.message);
+    }
+    // YENİ ROBOT — kalıcı durumu (tuned ağırlık/eşik + detaylı log + istatistik)
+    // cron'lar okumadan önce geri yükle (Render ephemeral fs; Supabase'ten).
+    try {
+      await Promise.all([
+        require('./services/proSignals/proSelfTest').load(),
+        require('./services/proSignals/proSignalLog').load(),
+        require('./services/proSignals/proStatsStore').load(),
+      ]);
+    } catch (e) {
+      console.error('[YeniRobot] state load hata:', e.message);
     }
     if (process.env.CRON_DISABLED !== 'true') {
       try {

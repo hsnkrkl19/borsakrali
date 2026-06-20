@@ -13,6 +13,13 @@ const forexEngine = require('./forex/forexEngineMTF');
 const forexBacktest = require('./forex/forexBacktest');
 const forexPushNotifier = require('./forex/forexPushNotifier');
 const forexSignalTracker = require('./forex/forexSignalTracker');
+// YENİ ROBOT — derin konfluans sinyal sistemi (forex'ten BAĞIMSIZ, paralel)
+const proEngine = require('./proSignals/proEngine');
+const proBacktest = require('./proSignals/proBacktest');
+const proSelfTest = require('./proSignals/proSelfTest');
+const proPushNotifier = require('./proSignals/proPushNotifier');
+const proSignalTracker = require('./proSignals/proSignalTracker');
+const proStatsStore = require('./proSignals/proStatsStore');
 const bistScoreEngine = require('./bistSignals/bistScoreEngine');
 const bistSignalNotifier = require('./bistSignals/bistSignalNotifier');
 const bistSignalTracker = require('./bistSignals/bistSignalTracker');
@@ -108,6 +115,11 @@ let _cryptoCadenceLockAt = 0;
 // Forex turu her dk çalışır → daha kısa bayatlama penceresi (üst üste binmesin).
 const FOREX_STALE_MS = 90 * 1000;
 let _forexCadenceLockAt = 0;
+// Yeni Robot turu her 3 dk → 150 sn bayatlama penceresi (üst üste binmesin).
+const PRO_STALE_MS = 150 * 1000;
+let _proCadenceLockAt = 0;
+let _proBacktestRunning = false;
+let _proSelfTestRunning = false;
 
 // Borsa açılış bildirimi — TR resmi tatil günlerinde sessiz.
 async function runMarketOpen() {
@@ -704,6 +716,98 @@ async function runForexStats() {
   }
 }
 
+// ── YENİ ROBOT — derin konfluans sinyal kadansı (her 3 dk) ────────────────
+//    4 enstrüman (BTC / Ons Altın / S&P500 / EUR-USD) × 4 TF (15m/1h/4h/1d).
+//    TÜM teknikler (17-koşul + EMA34/TEMA34 + SNR + SMC + Elliott + Harmonik +
+//    mum + uyumsuzluk + momentum ivmesi + ta4j) → 0-100 güven. ≥3/4 TF konfluans
+//    + R/R≥1.6 + backtest kalite kapısı. Sinyaller "🤖 YENİ ROBOT" markalı.
+async function runProSignalCadence() {
+  const now = Date.now();
+  if (_proCadenceLockAt && now - _proCadenceLockAt < PRO_STALE_MS) return null;
+  _proCadenceLockAt = now;
+  try {
+    const snap = await proEngine.generate();
+    const sigs = snap?.signals || [];
+    try {
+      socketService.broadcastSignal({
+        strategy: 'pro-signals', generatedAt: snap?.generatedAt,
+        total: snap?.counts?.signal || 0,
+        long: snap?.counts?.long || 0, short: snap?.counts?.short || 0,
+        stockSymbol: 'YENI_ROBOT',
+      });
+    } catch (_) { /* socket yoksa sessiz */ }
+    let pushed = { telegram: 0 };
+    try {
+      pushed = await Promise.race([
+        proPushNotifier.evaluateAndPush(sigs),
+        new Promise((_, r) => setTimeout(() => r(new Error('pro-evalpush-timeout-45s')), 45000)),
+      ]);
+    } catch (pe) { logger.error(`Yeni Robot push hata: ${pe.message}`); }
+    if (pushed?.telegram) {
+      logger.info(`🤖 Yeni Robot turu — ${sigs.length} sinyal · TG ${pushed.telegram}`);
+    }
+    try {
+      const mgmt = await proSignalTracker.manageOpenPositions();
+      if (mgmt.length) await proPushNotifier.pushManagementUpdates(mgmt);
+    } catch (mErr) { logger.error(`Yeni Robot yönetim hata: ${mErr.message}`); }
+    try {
+      const closures = await proSignalTracker.checkClosures();
+      if (closures.length) await proPushNotifier.pushClosures(closures);
+    } catch (clErr) { logger.error(`Yeni Robot kapanış kontrol hata: ${clErr.message}`); }
+    return snap;
+  } catch (e) {
+    logger.error(`Yeni Robot sinyal turu hata: ${e.message}`, e.stack);
+    return null;
+  } finally {
+    _proCadenceLockAt = 0;
+  }
+}
+
+// ── YENİ ROBOT backtest — geçmiş başarı (günde 1, ağır) ───────────────────
+async function runProBacktest() {
+  if (_proBacktestRunning) return null;
+  _proBacktestRunning = true;
+  try {
+    const t0 = Date.now();
+    const r = await proBacktest.runAll();
+    logger.info(`🤖📊 Yeni Robot backtest tamam — ${r?.done ?? '?'}/${r?.total ?? '?'} · ${Date.now() - t0}ms`);
+    return r;
+  } catch (e) {
+    logger.error(`Yeni Robot backtest hata: ${e.message}`, e.stack);
+    return null;
+  } finally {
+    _proBacktestRunning = false;
+  }
+}
+
+// ── YENİ ROBOT self-test — canlı vs backtest → sınırlı ağırlık/eşik ayarı ──
+async function runProSelfTest() {
+  if (_proSelfTestRunning) return null;
+  _proSelfTestRunning = true;
+  try {
+    const r = await proSelfTest.run();
+    logger.info(`🤖🔧 Yeni Robot self-test — ${r?.skipped ? 'atlandı:' + r.skipped : (r?.applied ? 'uygulandı' : 'kuru-çalışma')} · değişiklik ${r?.changes?.length || 0}`);
+    return r;
+  } catch (e) {
+    logger.error(`Yeni Robot self-test hata: ${e.message}`, e.stack);
+    return null;
+  } finally {
+    _proSelfTestRunning = false;
+  }
+}
+
+// ── YENİ ROBOT istatistik — günde 2 kez (parite başarı oranı, kanala) ─────
+async function runProStats() {
+  try {
+    const r = await proPushNotifier.pushStats();
+    logger.info(`🤖📊 Yeni Robot istatistik turu — TG ${r?.telegram || 0}`);
+    return r;
+  } catch (e) {
+    logger.error(`Yeni Robot istatistik hata: ${e.message}`, e.stack);
+    return null;
+  }
+}
+
 // ── Dalga Taraması (Elliott + SNR + Mum + Fraktal) — BTC + Altın, 1d/4h ─────
 //     Forex'ten BAĞIMSIZ, nadir, yalnız Telegram kanalı. Sayıma dahil değil.
 let _waveScanRunning = false;
@@ -964,6 +1068,39 @@ class CronJobsService {
       { scheduled: false, ...TR_TZ }
     );
 
+    // 14f. YENİ ROBOT — derin konfluans sinyal kadansı, HER 3 DK, 7/24.
+    //      4 enstrüman × 4 TF (15m/1h/4h/1d). Telegram push kendi cooldown'ını
+    //      uygular (enstrüman+yön başına 30 dk). Kalite kapısı varsayılan AÇIK.
+    const proSignalJob = cron.schedule(
+      '*/3 * * * *',
+      () => runProSignalCadence(),
+      { scheduled: false, ...TR_TZ }
+    );
+
+    // 14g. YENİ ROBOT backtest — günde 1 kez 03:40 TR (forex'ten 5 dk sonra,
+    //      sidecar/Yahoo çakışmasın). Açılıştan ~2 dk sonra bir kez de tetiklenir.
+    const proBacktestJob = cron.schedule(
+      '40 3 * * *',
+      () => runProBacktest(),
+      { scheduled: false, ...TR_TZ }
+    );
+    setTimeout(() => runProBacktest(), 120 * 1000);
+
+    // 14h. YENİ ROBOT self-test — günde 1 kez 04:00 TR (gecelik backtest sonrası).
+    //      Canlı vs backtest → sınırlı ağırlık/eşik ayarı (±0.15 / [55,80]).
+    const proSelfTestJob = cron.schedule(
+      '0 4 * * *',
+      () => runProSelfTest(),
+      { scheduled: false, ...TR_TZ }
+    );
+
+    // 14i. YENİ ROBOT istatistik — günde 2 kez 13:00 & 21:00 TR (forex'ten offset).
+    const proStatsJob = cron.schedule(
+      '0 13,21 * * *',
+      () => runProStats(),
+      { scheduled: false, ...TR_TZ }
+    );
+
     // 14e. Dalga Taraması (Elliott+SNR+Mum+Fraktal) — BTC + Altın, 1d/4h.
     //      Her 4 saatte bir (TR 00/04/08/12/16/20). Onaylı fraktal kullanır →
     //      tam kapanış saatine duyarlı değil. Nadir, yalnız Telegram kanalı;
@@ -1185,6 +1322,10 @@ class CronJobsService {
       forexBacktestJob,
       bistBacktestJob,
       forexStatsJob,
+      proSignalJob,
+      proBacktestJob,
+      proSelfTestJob,
+      proStatsJob,
       waveScanJob,
       mtf1mJob,
       mtf5mJob,
@@ -1259,6 +1400,28 @@ class CronJobsService {
    */
   async triggerForexStats() {
     return runForexStats();
+  }
+
+  /**
+   * Manuel tetikleme — YENİ ROBOT (derin konfluans) sinyal turu (test/admin)
+   */
+  async triggerProCadence() {
+    return runProSignalCadence();
+  }
+
+  /**
+   * Manuel tetikleme — YENİ ROBOT backtest / self-test / istatistik (test/admin)
+   */
+  async triggerProBacktest() {
+    return runProBacktest();
+  }
+
+  async triggerProSelfTest() {
+    return runProSelfTest();
+  }
+
+  async triggerProStats() {
+    return runProStats();
   }
 
   /**

@@ -24,7 +24,7 @@ const DATA_ROOT = process.env.BOT_DATA_DIR || path.join(__dirname, '..', 'data')
 // Sabit botlar + kullanıcı-tanımlı botların kayıt defteri ('custom-bots/registry.json').
 // Kullanıcı botlarının portföyleri ise dinamik 'custom-<id>' alt-dizinlerinde yaşar
 // (loadAll, registry.json'ı okuyup bunları runtime'da keşfeder).
-const SUBDIRS = ['bot', 'crypto-bot', 'tema34-bot', 'custom-bots', 'crossover-alerts'];
+const SUBDIRS = ['bot', 'crypto-bot', 'tema34-bot', 'custom-bots', 'crossover-alerts', 'pro-signals'];
 // signal-log.json → BIST/kripto botları; runs.json → TEMA34 botu + EMA34/TEMA34
 // kırılım bildirimcisi (state); registry.json → custom bot tanım defteri. Liste
 // tüm alt-dizinlere uygulanır; olmayan dosyalar loadAll'da sessizce atlanır.
