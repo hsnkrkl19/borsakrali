@@ -60,6 +60,7 @@ const ROUTES = [
   '/borsapy',
   '/is-yatirim-veri',
   '/oyun',
+  '/ta4j',
   // Yasal sayfalar — AdSense gizlilik politikası şartı + güven sinyali.
   '/privacy-policy',
   '/terms-of-use',

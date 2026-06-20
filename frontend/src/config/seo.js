@@ -159,6 +159,11 @@ export const SEO_MAP = {
     description:
       'BIST hisselerinin fiyat grafiğinde araba ve motor sür! Para topla, aracını geliştir (motor, lastik, süspansiyon), yeni hisse pistleri aç. Eğlenceli borsa temalı hill-climb oyunu.',
   },
+  '/ta4j': {
+    title: 'Ta4j Teknik Analiz: 28 İndikatör Anlık Görüntüsü',
+    description:
+      'Ta4j tarzı teknik analiz: RSI, MACD, ADX, Bollinger, Stochastic, ATR, OBV ve daha fazlası. BIST hisseleri için 28 indikatörün anlık değerleri ve özet yorumu tek ekranda.',
+  },
   '/sinyaller': {
     title: 'Canlı Sinyaller ve Piyasa Özeti',
     description:

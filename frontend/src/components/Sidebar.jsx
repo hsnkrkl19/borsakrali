@@ -16,6 +16,7 @@ import {
   Settings,
   Database,
   Gamepad2,
+  LineChart,
 } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { useAuthStore } from '../store/authStore'
@@ -65,6 +66,7 @@ export default function Sidebar({ isOpen, onToggle }) {
     { path: '/firsatlar',          label: 'Tarayıcılar',     icon: Search,                    tour: 'nav-firsatlar' },
     { path: '/botlar',             label: 'Botlar',          icon: Bot,                       tour: 'nav-botlar'    },
     { path: '/is-yatirim-veri',    label: 'Veri',            icon: Database, isPublic: true                            },
+    { path: '/ta4j',               label: 'Ta4j Analiz',     icon: LineChart, isPublic: true                           },
     { path: '/ogren',              label: 'Öğren',           icon: BookOpen, isPublic: true,  tour: 'nav-ogren'     },
     { path: '/oyun',               label: 'Oyun',            icon: Gamepad2, isPublic: true                            },
     { path: '/hesabim',            label: 'Hesabım',         icon: User                                              },

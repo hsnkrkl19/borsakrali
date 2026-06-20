@@ -76,6 +76,7 @@ import HisseMerkezi from './pages/HisseMerkezi' // YENİ v5.3: Tek çatı altın
 import IsYatirimVeri from './pages/IsYatirimVeri' // YENİ v5.4: İş Yatırım hisse/endeks/mali tablo veri arayüzü
 import BorsapyMerkezi from './pages/BorsapyMerkezi' // YENİ v5.5: TEFAS+TCMB+Banka kurları+Enflasyon (borsapy esinli)
 import HisseYarisi from './pages/HisseYarisi' // YENİ: BIST grafiğinde araba/motor sürme oyunu (hill-climb)
+import Ta4jAnaliz from './pages/Ta4jAnaliz' // YENİ: ta4j tarzı (trading-signals) 28 indikatörlü teknik analiz
 
 // === PARÇA 1 WRAPPER'LARI (21→6 sekme sadeleştirmesi) ===
 import Firsatlar from './pages/Firsatlar' // Tarayıcılar + Günlük Sinyaller
@@ -242,6 +243,8 @@ function App() {
                 {/* Hisse Yarışı — BIST grafiğinde araba/motor sürme oyunu (public, eğlence) */}
                 <Route path="/oyun" element={<HisseYarisi />} />
                 <Route path="/hisse-yarisi" element={<Navigate to="/oyun" replace />} />
+                {/* Ta4j Teknik Analiz — public (trading-signals tabanlı 28 indikatör anlık görüntüsü) */}
+                <Route path="/ta4j" element={<Ta4jAnaliz />} />
                 <Route path="/site-haritasi" element={<SiteHaritasi />} />
                 <Route path="/endeks/:symbol" element={<EndeksDetay />} />
                 <Route path="/yenilikler" element={<Yenilikler />} />
