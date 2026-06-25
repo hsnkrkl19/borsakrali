@@ -20,6 +20,9 @@ const proSelfTest = require('./proSignals/proSelfTest');
 const proPushNotifier = require('./proSignals/proPushNotifier');
 const proSignalTracker = require('./proSignals/proSignalTracker');
 const proStatsStore = require('./proSignals/proStatsStore');
+// BEAST TREND — Zero-Lag + Ichimoku + Scalper Beast füzyonu (altın/gümüş/BTC/ETH)
+const beastEngine = require('./beast/beastEngine');
+const beastNotifier = require('./beast/beastNotifier');
 const bistScoreEngine = require('./bistSignals/bistScoreEngine');
 const bistSignalNotifier = require('./bistSignals/bistSignalNotifier');
 const bistSignalTracker = require('./bistSignals/bistSignalTracker');
@@ -120,6 +123,9 @@ const PRO_STALE_MS = 150 * 1000;
 let _proCadenceLockAt = 0;
 let _proBacktestRunning = false;
 let _proSelfTestRunning = false;
+// BEAST turu her 5 dk → 240 sn bayatlama penceresi.
+const BEAST_STALE_MS = 240 * 1000;
+let _beastCadenceLockAt = 0;
 
 // Borsa açılış bildirimi — TR resmi tatil günlerinde sessiz.
 async function runMarketOpen() {
@@ -808,6 +814,37 @@ async function runProStats() {
   }
 }
 
+// ── BEAST TREND — Zero-Lag + Ichimoku + Scalper Beast füzyonu ──────────────
+//     SADECE altın/gümüş/BTC/ETH × 1h/4h/1d (aktif hücreler). Her 5 dk, 7/24
+//     (metaller hafta sonu otomatik bayat → yeni sinyal yok). Push VARSAYILAN
+//     KAPALI (BEAST_PUSH_DISABLED!=='0') — kullanıcı canlı doğrulayana kadar.
+async function runBeastSignalCadence() {
+  const now = Date.now();
+  if (_beastCadenceLockAt && now - _beastCadenceLockAt < BEAST_STALE_MS) return null;
+  _beastCadenceLockAt = now;
+  try {
+    const snap = await beastEngine.generate();
+    const sigs = snap?.signals || [];
+    let pushed = { pushed: 0 };
+    try {
+      pushed = await Promise.race([
+        beastNotifier.evaluateAndPush(sigs),
+        new Promise((_, r) => setTimeout(() => r(new Error('beast-evalpush-timeout-45s')), 45000)),
+      ]);
+    } catch (pe) { logger.error(`BEAST push hata: ${pe.message}`); }
+    try {
+      await beastNotifier.pushClosures();
+    } catch (clErr) { logger.error(`BEAST kapanış kontrol hata: ${clErr.message}`); }
+    if (pushed?.pushed) logger.info(`🔱 BEAST turu — ${sigs.length} sinyal · TG ${pushed.pushed}`);
+    return snap;
+  } catch (e) {
+    logger.error(`BEAST sinyal turu hata: ${e.message}`, e.stack);
+    return null;
+  } finally {
+    _beastCadenceLockAt = 0;
+  }
+}
+
 // ── Dalga Taraması (Elliott + SNR + Mum + Fraktal) — BTC + Altın, 1d/4h ─────
 //     Forex'ten BAĞIMSIZ, nadir, yalnız Telegram kanalı. Sayıma dahil değil.
 let _waveScanRunning = false;
@@ -1101,6 +1138,15 @@ class CronJobsService {
       { scheduled: false, ...TR_TZ }
     );
 
+    // 14j. BEAST TREND — Zero-Lag+Ichimoku+Scalper Beast füzyonu, HER 5 DK, 7/24.
+    //      4 enstrüman × 1h/4h/1d (aktif hücreler). Push varsayılan KAPALI.
+    const beastSignalJob = cron.schedule(
+      '*/5 * * * *',
+      () => runBeastSignalCadence(),
+      { scheduled: false, ...TR_TZ }
+    );
+    setTimeout(() => runBeastSignalCadence(), 60 * 1000); // açılıştan ~1 dk sonra ilk tur
+
     // 14e. Dalga Taraması (Elliott+SNR+Mum+Fraktal) — BTC + Altın, 1d/4h.
     //      Her 4 saatte bir (TR 00/04/08/12/16/20). Onaylı fraktal kullanır →
     //      tam kapanış saatine duyarlı değil. Nadir, yalnız Telegram kanalı;
@@ -1326,6 +1372,7 @@ class CronJobsService {
       proBacktestJob,
       proSelfTestJob,
       proStatsJob,
+      beastSignalJob,
       waveScanJob,
       mtf1mJob,
       mtf5mJob,

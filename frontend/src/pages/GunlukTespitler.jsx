@@ -13,6 +13,7 @@ import SpotAlSinyalleri from '../components/SpotAlSinyalleri'
 import KriptoSinyalleri from '../components/KriptoSinyalleri'
 import ForexSinyalleri from '../components/ForexSinyalleri'
 import YeniRobotSinyalleri from '../components/YeniRobotSinyalleri'
+import BeastSinyalleri from '../components/BeastSinyalleri'
 import EmtiaSinyalleri from '../components/EmtiaSinyalleri'
 import MTFSinyalleri from '../components/MTFSinyalleri'
 import BacktestPanel from '../components/BacktestPanel'
@@ -317,6 +318,7 @@ export default function GunlukTespitler() {
     { id: 'bugun',   label: 'Bugünün Sinyalleri', shortLabel: 'Bugün',  icon: Sparkles },
     { id: 'sinyaller', label: 'Spot Al (≥75)',     shortLabel: 'Spot Al', icon: Target, isNew: true },
     { id: 'yenirobot', label: '🤖 Yeni Robot',     shortLabel: 'Yeni Robot', icon: Bot, isNew: true },
+    { id: 'beast',   label: '🔱 BEAST Trend',     shortLabel: 'BEAST', icon: Zap, isNew: true },
     { id: 'kripto',  label: 'Kripto',             shortLabel: 'Kripto', icon: Coins },
     { id: 'forex',   label: 'Forex / Parite',     shortLabel: 'Forex',  icon: Wallet,  isNew: true },
     { id: 'emtia',   label: 'Altın & Gümüş',      shortLabel: 'Emtia',  icon: Coins },
@@ -574,6 +576,8 @@ export default function GunlukTespitler() {
 
       {/* Yeni Robot Tab — derin konfluans (BTC/Altın/S&P/EUR) 15m-1d + perf + log */}
       {activeTab === 'yenirobot' && <YeniRobotSinyalleri />}
+
+      {activeTab === 'beast' && <BeastSinyalleri />}
 
       {/* Kripto Tab — top 100 coin için spot/futures long/short */}
       {activeTab === 'kripto' && <KriptoSinyalleri />}

@@ -59,6 +59,7 @@ const forexRoutes = require('./routes/forex.routes');
 const proSignalsRoutes = require('./routes/proSignals.routes');
 const waveScanRoutes = require('./routes/waveScan.routes');
 const bistSignalsRoutes = require('./routes/bistSignals.routes');
+const beastRoutes = require('./routes/beast.routes');
 const ta4jRoutes = require('./routes/ta4j.routes');
 const pushNotificationService = require('./services/pushNotificationService');
 const { allBistStocks, bist30Stocks, bist100Stocks, sectors } = require('./data/allBistStocks');
@@ -233,6 +234,7 @@ app.use('/api/forex', forexRoutes);
 app.use('/api/pro-signals', proSignalsRoutes);
 app.use('/api/wave-scan', waveScanRoutes);
 app.use('/api/bist-signals', bistSignalsRoutes);
+app.use('/api/beast', beastRoutes);
 app.use('/api/ta4j', ta4jRoutes);
 
 // Tüm kullanicilara açik duyuru listesi (admin tarafindan gönderilen

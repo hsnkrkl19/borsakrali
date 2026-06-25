@@ -40,6 +40,7 @@ backend/src/data/forex-backtest.json
 backend/src/data/bist-signals-backtest.json
 backend/src/data/wave-scan-state.json
 backend/src/data/crypto-signals-open.json
+backend/src/data/beast-open-signals.json
 backend/.x-cookies.json
 backend/.x-mentions-store.json
 frontend/android/app/google-services.json
