@@ -125,8 +125,8 @@ export default function BeastSinyalleri() {
           </h2>
           <p className="text-xs md:text-sm text-gray-400 mt-1 max-w-2xl">
             Zero-Lag Trend + Ichimoku bulutu + Scalper Beast konfluans füzyonu. <b className="text-gray-300">Sadece altın · gümüş · BTC · ETH</b> ·
-            <b> 4h & 1d</b> (gürültülü 1h kaldırıldı). Trend-<b>devamı</b> sistemi: üst zaman dilimi hizalama kapısı +
-            parite başına tek yön (çelişki yok) + dar yapısal stop. Az ama yüksek-isabetli sinyal.
+            <b> yalnız günlük (1d)</b> — en yüksek isabet için (gürültülü 1h/4h kaldırıldı). Trend-<b>devamı</b> sistemi:
+            haftalık trend kapısı + parite başına tek yön (çelişki yok) + dar yapısal stop. Az ama yüksek-isabetli sinyal.
           </p>
         </div>
         <button onClick={() => { setRefreshing(true); load() }} className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-emerald-600/20 text-emerald-300 border border-emerald-500/40 hover:bg-emerald-600/30 transition-colors text-sm">
@@ -139,9 +139,9 @@ export default function BeastSinyalleri() {
         <div className="rounded-lg border border-emerald-500/25 bg-emerald-500/5 p-3 text-xs text-gray-300 flex items-start gap-2">
           <BarChart3 className="w-4 h-4 text-emerald-400 mt-0.5 shrink-0" />
           <div>
-            <b className="text-emerald-300">Backtest (4h+1d havuz, 70/30 zaman bölmesi):</b>
-            <b> sınav-dışı isabet %57.7, PF 1.69, +0.29R/işlem</b>. En yüksek isabet günlük (1d) hücrelerde
-            (ETH 1d %73, Ons Altın 1d %90). Not: trend sistemi — her sinyal tutmaz, kazançlar kayıplardan büyük olur.
+            <b className="text-emerald-300">Backtest (günlük/1d havuz, ~2 yıl):</b>
+            <b> isabet %65, PF 2.40, +0.46R/işlem</b>. En güçlü: ETH 1d %73, Ons Altın 1d %90.
+            Az ama net (~ayda 1-3 sinyal). Not: trend sistemi — her sinyal tutmaz, kazançlar kayıplardan büyük olur.
             <span className="text-gray-500"> Push {data?.pushEnabled ? 'açık' : 'kapalı (doğrulama modu)'} · eşik {data?.pushConfidence}.</span>
           </div>
         </div>

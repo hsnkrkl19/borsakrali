@@ -73,8 +73,9 @@ const INSTRUMENTS = [
   },
 ];
 
-// v2: 1h ATILDI (gürültü + çoklu-TF çelişkisi + düşük isabet). Yalnız 4h + 1d.
-const SIGNAL_TFS = ['4h', '1d'];
+// v3 (kullanıcı: isabet önceliği): YALNIZ GÜNLÜK (1d). Backtest: %65 isabet / PF 2.40
+// (4h+1d %59'a karşı). 1h/4h gürültülü → atıldı. Az ama yüksek-isabetli sinyal.
+const SIGNAL_TFS = ['1d'];
 
 function getInstrument(id) { return INSTRUMENTS.find(i => i.id === id) || null; }
 

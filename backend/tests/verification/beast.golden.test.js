@@ -221,20 +221,19 @@ describe('beastBacktest.runBacktest — sentetik trend', () => {
 
 // ─────────────────────────── Config ───────────────────────────
 describe('beastConfig', () => {
-  test('v2 aktif hücreler: TÜM 1h KAPALI (gürültü/çelişki), 4h+1d AÇIK (4 parite)', () => {
+  test('v3 aktif hücreler: YALNIZ GÜNLÜK (1d) — 1h ve 4h KAPALI, 4 parite 1d AÇIK', () => {
     expect(cfgMod.isEnabled('BTCUSD', '1h')).toBe(false);
-    expect(cfgMod.isEnabled('ETHUSD', '1h')).toBe(false);
-    expect(cfgMod.isEnabled('XAUUSD', '1h')).toBe(false);
-    expect(cfgMod.isEnabled('BTCUSD', '4h')).toBe(true);
-    expect(cfgMod.isEnabled('XAGUSD', '1d')).toBe(true);   // v2'de açıldı
+    expect(cfgMod.isEnabled('BTCUSD', '4h')).toBe(false);
+    expect(cfgMod.isEnabled('XAUUSD', '4h')).toBe(false);
+    expect(cfgMod.isEnabled('BTCUSD', '1d')).toBe(true);
+    expect(cfgMod.isEnabled('ETHUSD', '1d')).toBe(true);
     expect(cfgMod.isEnabled('XAUUSD', '1d')).toBe(true);
+    expect(cfgMod.isEnabled('XAGUSD', '1d')).toBe(true);
   });
 
-  test('resolveConfig per-TF zlLength ve mode uygular (4h/1d runner)', () => {
-    const c4h = cfgMod.resolveConfig(getInstrument('BTCUSD'), '4h');
+  test('resolveConfig 1d zlLength ve runner mode uygular', () => {
     const c1d = cfgMod.resolveConfig(getInstrument('BTCUSD'), '1d');
-    expect(c4h.zlLength).toBe(cfgMod.TF_ZL['4h']);
-    expect(c4h.partialMode).toBe('runner');
+    expect(c1d.zlLength).toBe(cfgMod.TF_ZL['1d']);
     expect(c1d.partialMode).toBe('runner');
   });
 

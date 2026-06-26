@@ -20,11 +20,10 @@ const TF_ZL = { '1h': 34, '4h': 50, '1d': 60 };
 // Çıkış modu: 4h/1d trend koşar → runner (backtest: partial/yakın-TP winner'ı keser, daha kötü).
 const MODE_BY_TF = { '1h': 'partial', '4h': 'runner', '1d': 'runner' };
 
-// ⚠️ v2 (2026-06-26) — kullanıcı geri bildirimi: "tutarsız sinyaller, isabet düşük".
-// KÖK NEDEN: (1) gürültülü 1h hücreleri düşük isabet + çoklu-TF çelişkisi yarattı
-// (1h long + 1d short = "tutarsız"); (2) tracker state cold-start'ta sıfırlanınca aynı
-// sinyaller tekrar push edildi. FIX: 1h TAMAMEN ATILDI → yalnız 4h+1d (4h zaten 1d
-// trendiyle kapılı → çelişki yok). Bu TEK BAŞINA isabeti ~%54→%58'e çıkardı.
+// ⚠️ v3 (2026-06-26) — kullanıcı "isabet düşük" → İSABET ÖNCELİĞİ seçildi:
+// YALNIZ GÜNLÜK (1d) sinyaller. Backtest (4 parite 1d havuz): %65.2 isabet, PF 2.40,
+// avgR +0.46 (4h+1d'nin %58.7/1.69'una karşı). Az sinyal (~2/ay) ama yüksek isabet.
+// v2 mirası: 1h çoklu-TF çelişkisi + cold-start re-push düzeltildi (yön kilidi + load()).
 const TUNED = {
   zlMult: 1.0,
   minScore: 4,
@@ -34,25 +33,20 @@ const TUNED = {
   adxMin: 0, adxDiGate: false,        // ADX kapısı KAPALI
 };
 
-// Hangi parite×TF AKTİF — YALNIZ 4h + 1d (1h atıldı). 4 parite de korunur.
-//   Backtest (4h+1d havuz, runner): IN %59.7 PF1.75, OOS %57.7 PF1.69, avgR +0.29.
+// Hangi parite×TF AKTİF — v3: YALNIZ GÜNLÜK (1d), 4 parite. (1h/4h atıldı.)
+//   Backtest (1d havuz, runner): %65.2 isabet, PF 2.40, avgR +0.46.
 const ENABLED = {
-  BTCUSD: ['4h', '1d'],
-  ETHUSD: ['4h', '1d'],
-  XAUUSD: ['4h', '1d'],
-  XAGUSD: ['4h', '1d'],
+  BTCUSD: ['1d'],
+  ETHUSD: ['1d'],
+  XAUUSD: ['1d'],
+  XAGUSD: ['1d'],
 };
 
-// Referans backtest kenarı (canlı güven gösterimi için; motor periyodik tazeler).
-// rr1=1.5 rr2=3.0 runner, 4h+1d. Günlük (1d) hücreler en yüksek isabetli.
+// Referans backtest kenarı (canlı güven gösterimi için). Yalnız günlük hücreler.
 const EDGE = {
-  'BTCUSD:4h': { winRate: 50.0, pf: 1.10, avgR: 0.05 },
   'BTCUSD:1d': { winRate: 53.3, pf: 1.38, avgR: 0.16 },
-  'ETHUSD:4h': { winRate: 60.0, pf: 1.45, avgR: 0.17 },
   'ETHUSD:1d': { winRate: 73.3, pf: 2.70, avgR: 0.45 },
-  'XAUUSD:4h': { winRate: 50.0, pf: 1.30, avgR: 0.10 },
   'XAUUSD:1d': { winRate: 90.0, pf: 8.95, avgR: 0.80 },
-  'XAGUSD:4h': { winRate: 54.5, pf: 1.10, avgR: 0.05 },
   'XAGUSD:1d': { winRate: 50.0, pf: 1.05, avgR: 0.04 },
 };
 
