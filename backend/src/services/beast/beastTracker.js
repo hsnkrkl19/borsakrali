@@ -34,6 +34,7 @@ let saveTimer = null;
 async function load() {
   if (loaded) return;
   loaded = true;
+  let restored = false;
   // 1) Supabase
   if (supa && supa.isSupabaseEnabled && supa.isSupabaseEnabled()) {
     try {
@@ -41,18 +42,21 @@ async function load() {
       if (!error && blob) {
         const text = typeof blob.text === 'function' ? await blob.text() : Buffer.from(await blob.arrayBuffer()).toString('utf8');
         const j = JSON.parse(text);
-        if (j && j.open) { state = Object.assign({ counters: {}, open: {}, closed: [], version: 1 }, j); return; }
+        if (j && j.open) { state = Object.assign({ counters: {}, open: {}, closed: [], version: 1 }, j); restored = true; }
       }
     } catch (_) { /* diske düş */ }
   }
-  // 2) Disk
-  try {
-    if (fs.existsSync(DISK_FILE)) {
-      const j = JSON.parse(fs.readFileSync(DISK_FILE, 'utf8'));
-      if (j && j.open) state = Object.assign({ counters: {}, open: {}, closed: [], version: 1 }, j);
-    }
-  } catch (_) { /* temiz başla */ }
-  pruneDisabled(); // config değişince (örn. 4h kapandı) eski hücre pozisyonlarını temizle
+  // 2) Disk (Supabase yoksa/başarısızsa)
+  if (!restored) {
+    try {
+      if (fs.existsSync(DISK_FILE)) {
+        const j = JSON.parse(fs.readFileSync(DISK_FILE, 'utf8'));
+        if (j && j.open) state = Object.assign({ counters: {}, open: {}, closed: [], version: 1 }, j);
+      }
+    } catch (_) { /* temiz başla */ }
+  }
+  // Her iki yoldan sonra DA çalışır: config değişince (4h/1h kapandı) miras pozisyon temizliği
+  pruneDisabled();
 }
 
 // Artık AKTİF olmayan (enabled değil) hücrelerin açık pozisyonlarını sessizce kaldırır.
