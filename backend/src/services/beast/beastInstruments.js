@@ -73,7 +73,8 @@ const INSTRUMENTS = [
   },
 ];
 
-const SIGNAL_TFS = ['1h', '4h', '1d'];
+// v2: 1h ATILDI (gürültü + çoklu-TF çelişkisi + düşük isabet). Yalnız 4h + 1d.
+const SIGNAL_TFS = ['4h', '1d'];
 
 function getInstrument(id) { return INSTRUMENTS.find(i => i.id === id) || null; }
 

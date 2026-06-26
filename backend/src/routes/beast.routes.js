@@ -28,6 +28,7 @@ router.get('/instruments', (req, res) => {
 
 router.get('/signals', async (req, res) => {
   try {
+    await tracker.load(); // kalıcı state'i (Supabase) yükle — cold-start'ta boş/yeniden-push olmasın
     let snap = engine.getLatest();
     if (!snap || !snap.generatedAt) snap = await engine.generate();
     const open = tracker.getOpen();

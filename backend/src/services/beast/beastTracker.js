@@ -87,6 +87,15 @@ function findCell(id, tf) {
   }
   return null;
 }
+// Pariteye göre YÖN KİLİDİ: aynı paritede ters yönde açık pozisyon var mı?
+// (4h long + 1d short gibi "tutarsız" çelişkiyi engeller — tek yön/parite).
+function pairHasOpposite(id, direction) {
+  for (const code of Object.keys(state.open)) {
+    const p = state.open[code];
+    if (p.id === id && p.direction !== direction) return true;
+  }
+  return false;
+}
 
 // Yeni sinyalleri pozisyonlara işle → {type:'new'|'update'|'flip', position}[] olayları
 async function syncPositions(signals) {
@@ -94,6 +103,12 @@ async function syncPositions(signals) {
   const events = [];
   for (const s of signals) {
     const existing = findCell(s.id, s.tf);
+    // YÖN KİLİDİ: bu hücrede pozisyon yok ama paritede ters yön açıksa, çelişkili
+    // sinyali AÇMA (örn. 1d short açıkken 4h long gelirse bastır).
+    if (!existing && pairHasOpposite(s.id, s.direction)) {
+      events.push({ type: 'suppressed', id: s.id, tf: s.tf, direction: s.direction });
+      continue;
+    }
     if (!existing) {
       const code = nextCode(s.id);
       const pos = {

@@ -221,23 +221,26 @@ describe('beastBacktest.runBacktest — sentetik trend', () => {
 
 // ─────────────────────────── Config ───────────────────────────
 describe('beastConfig', () => {
-  test('aktif hücreler: XAU 1h ve XAG 1d KAPALI (negatif expectancy)', () => {
+  test('v2 aktif hücreler: TÜM 1h KAPALI (gürültü/çelişki), 4h+1d AÇIK (4 parite)', () => {
+    expect(cfgMod.isEnabled('BTCUSD', '1h')).toBe(false);
+    expect(cfgMod.isEnabled('ETHUSD', '1h')).toBe(false);
     expect(cfgMod.isEnabled('XAUUSD', '1h')).toBe(false);
-    expect(cfgMod.isEnabled('XAGUSD', '1d')).toBe(false);
-    expect(cfgMod.isEnabled('BTCUSD', '1d')).toBe(true);
+    expect(cfgMod.isEnabled('BTCUSD', '4h')).toBe(true);
+    expect(cfgMod.isEnabled('XAGUSD', '1d')).toBe(true);   // v2'de açıldı
     expect(cfgMod.isEnabled('XAUUSD', '1d')).toBe(true);
   });
 
-  test('resolveConfig per-TF zlLength ve mode uygular', () => {
-    const c1h = cfgMod.resolveConfig(getInstrument('BTCUSD'), '1h');
+  test('resolveConfig per-TF zlLength ve mode uygular (4h/1d runner)', () => {
+    const c4h = cfgMod.resolveConfig(getInstrument('BTCUSD'), '4h');
     const c1d = cfgMod.resolveConfig(getInstrument('BTCUSD'), '1d');
-    expect(c1h.zlLength).toBe(cfgMod.TF_ZL['1h']);
-    expect(c1h.partialMode).toBe('partial');  // 1h gürültü → partial
-    expect(c1d.partialMode).toBe('runner');   // 1d trend koşar
+    expect(c4h.zlLength).toBe(cfgMod.TF_ZL['4h']);
+    expect(c4h.partialMode).toBe('runner');
+    expect(c1d.partialMode).toBe('runner');
   });
 
-  test('tuned global: 2:1 R/R, stop bandı ~2.0-3.0', () => {
-    expect(cfgMod.TUNED.rr1).toBe(2.0);
+  test('tuned global v2: TP1 1.5R / TP2 3R, stop bandı 2.0-3.0', () => {
+    expect(cfgMod.TUNED.rr1).toBe(1.5);
+    expect(cfgMod.TUNED.rr2).toBe(3.0);
     expect(cfgMod.TUNED.minStopATR).toBe(2.0);
     expect(cfgMod.TUNED.maxStopATR).toBe(3.0);
   });
@@ -272,6 +275,16 @@ describe('beastTracker', () => {
     expect(e[0].type).toBe('flip');
     expect(tracker.getOpen().length).toBe(1);
     expect(tracker.getOpen()[0].direction).toBe('short');
+  });
+
+  test('yön kilidi: paritede ters yön açıkken çelişkili sinyal bastırılır', async () => {
+    const base = { id: 'BTCUSD', symbol: 'BTC/USD', short: 'BTC', tf: '1d', direction: 'long', entry: 100, stop: 97, target1: 104, target2: 110, rr1: 1.5, rr2: 3, atr: 1, confidence: 70, grade: 'GUCLU', trigger: 'zlema', mode: 'runner', precision: 2, time: 1700000000 };
+    await tracker.syncPositions([base]);
+    // aynı parite 4h'te TERS yön → bastırılmalı (çelişki yok)
+    const e = await tracker.syncPositions([{ ...base, tf: '4h', direction: 'short', entry: 99, stop: 102, target1: 95, target2: 90, time: 1700090000 }]);
+    expect(e[0].type).toBe('suppressed');
+    expect(tracker.getOpen().length).toBe(1);
+    expect(tracker.getOpen()[0].direction).toBe('long');
   });
 
   test('evalForward LONG: TP1 mumu gelince fixed modda kapanır', () => {
