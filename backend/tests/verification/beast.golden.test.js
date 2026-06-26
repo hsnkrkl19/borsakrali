@@ -286,6 +286,18 @@ describe('beastTracker', () => {
     expect(tracker.getOpen()[0].direction).toBe('long');
   });
 
+  test('pruneDisabled: aktif olmayan hücre (4h) pozisyonu temizlenir, 1d kalır', async () => {
+    const mk = (tf) => ({ id: 'XAUUSD', symbol: 'XAU/USD', short: 'XAU', tf, direction: 'short', entry: 100, stop: 103, target1: 95, target2: 90, rr1: 1.5, rr2: 3, atr: 1, confidence: 78, grade: 'GUCLU', trigger: 'zlema', mode: 'runner', precision: 2, time: 1700000000 });
+    await tracker.syncPositions([mk('1d')]);
+    await tracker.syncPositions([mk('4h')]); // v3'te 4h kapalı ama state'e elle girebilir (miras)
+    expect(tracker.getOpen().length).toBe(2);
+    const pruned = tracker.pruneDisabled();
+    expect(pruned).toBe(1);                       // yalnız 4h atılır
+    const open = tracker.getOpen();
+    expect(open.length).toBe(1);
+    expect(open[0].tf).toBe('1d');
+  });
+
   test('evalForward LONG: TP1 mumu gelince fixed modda kapanır', () => {
     const pos = { direction: 'long', entry: 100, stop: 98, target1: 104, target2: 108, atr: 1, tf: '1d', mode: 'fixed', issueTime: 1700000000, stopSetTime: 1700000000, precision: 2 };
     const candles = candlesFromCloses([100, 101, 103, 105], 1700086400, 86400); // hepsi issue sonrası

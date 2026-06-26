@@ -52,6 +52,19 @@ async function load() {
       if (j && j.open) state = Object.assign({ counters: {}, open: {}, closed: [], version: 1 }, j);
     }
   } catch (_) { /* temiz başla */ }
+  pruneDisabled(); // config değişince (örn. 4h kapandı) eski hücre pozisyonlarını temizle
+}
+
+// Artık AKTİF olmayan (enabled değil) hücrelerin açık pozisyonlarını sessizce kaldırır.
+// Config daraltılınca (4h/1h atılınca) miras pozisyonlar kanalı kirletmesin.
+function pruneDisabled() {
+  let pruned = 0;
+  for (const code of Object.keys(state.open)) {
+    const p = state.open[code];
+    if (!cfgMod.isEnabled(p.id, p.tf)) { delete state.open[code]; pruned++; }
+  }
+  if (pruned) persist();
+  return pruned;
 }
 
 function persist() {
@@ -231,4 +244,4 @@ function getOpen() { return Object.values(state.open).sort((a, b) => b.confidenc
 function getClosedRecent(n = 30) { return state.closed.slice(0, n); }
 function __resetForTest() { state = { counters: {}, open: {}, closed: [], version: 1 }; loaded = true; }
 
-module.exports = { load, syncPositions, checkClosures, getOpen, getClosedRecent, nextCode, evalForward, __resetForTest };
+module.exports = { load, syncPositions, checkClosures, getOpen, getClosedRecent, nextCode, evalForward, pruneDisabled, __resetForTest };
