@@ -52,6 +52,9 @@ async function analyzeCell(inst, tf) {
   if (!lv || !(lv.riskDist > 0)) return null;
 
   const edge = cfgMod.edgeFor(inst.id, tf);
+  // Yapısal destek/direnç (son onaylı swing dip/tepe) — mesajda gösterilir
+  const support = swing && swing.swingLow != null ? +swing.swingLow.toFixed(inst.precision) : null;
+  const resistance = swing && swing.swingHigh != null ? +swing.swingHigh.toFixed(inst.precision) : null;
   const slPct = +(Math.abs(livePrice - lv.stop) / livePrice * 100).toFixed(2);
   const tp1Pct = +(Math.abs(lv.target1 - livePrice) / livePrice * 100).toFixed(2);
   const tp2Pct = +(Math.abs(lv.target2 - livePrice) / livePrice * 100).toFixed(2);
@@ -61,6 +64,7 @@ async function analyzeCell(inst, tf) {
     class: inst.class, precision: inst.precision, tvSymbol: inst.tvSymbol, prefix: inst.prefix,
     tf, direction: sig.direction, confidence: sig.confidence, score: sig.score, grade: gradeOf(sig.confidence),
     entry: lv.entry, stop: lv.stop, target1: lv.target1, target2: lv.target2,
+    support, resistance,
     rr1: lv.rr1, rr2: lv.rr2, atr: lv.atr, trigger: sig.trigger, reasons: sig.reasons, layers: sig.layers,
     htf: sig.htf, adx: sig.adx, zlema: sig.zlema,
     slPct, tp1Pct, tp2Pct,

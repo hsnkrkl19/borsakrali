@@ -132,7 +132,7 @@ async function syncPositions(signals) {
         code, id: s.id, symbol: s.symbol, short: s.short, tf: s.tf, direction: s.direction,
         entry: s.entry, stop: s.stop, target1: s.target1, target2: s.target2,
         rr1: s.rr1, rr2: s.rr2, atr: s.atr, confidence: s.confidence, grade: s.grade,
-        trigger: s.trigger, mode: s.mode, precision: s.precision,
+        trigger: s.trigger, mode: s.mode, precision: s.precision, support: s.support, resistance: s.resistance,
         issuedAt: new Date().toISOString(), issueTime: s.time, stopSetTime: s.time,
       };
       state.open[code] = pos;
@@ -153,7 +153,7 @@ async function syncPositions(signals) {
         code, id: s.id, symbol: s.symbol, short: s.short, tf: s.tf, direction: s.direction,
         entry: s.entry, stop: s.stop, target1: s.target1, target2: s.target2,
         rr1: s.rr1, rr2: s.rr2, atr: s.atr, confidence: s.confidence, grade: s.grade,
-        trigger: s.trigger, mode: s.mode, precision: s.precision,
+        trigger: s.trigger, mode: s.mode, precision: s.precision, support: s.support, resistance: s.resistance,
         issuedAt: new Date().toISOString(), issueTime: s.time, stopSetTime: s.time,
       };
       state.open[code] = pos;

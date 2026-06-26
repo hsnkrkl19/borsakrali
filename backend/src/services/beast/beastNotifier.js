@@ -20,31 +20,31 @@ function pushDisabled() { return process.env.BEAST_PUSH_DISABLED !== '0'; } // V
 
 function fmt(v, p) { return Number(v).toFixed(p); }
 
-function newMsg(p, edge) {
-  const arrow = p.direction === 'long' ? '🟢 AL (LONG)' : '🔴 SAT (SHORT)';
+// SADE mesaj (kullanıcı isteği): yalnız giriş/stop/TP + varsa destek/direnç.
+// Güven, kod, R/R, tetik, geçmiş istatistik vb. çıkarıldı.
+function newMsg(p) {
+  const arrow = p.direction === 'long' ? '🟢 AL' : '🔴 SAT';
   const lines = [
-    `🔱 <b>BEAST TREND</b> · ${p.short} · ${p.tf}`,
-    `${arrow} · Güven <b>${p.confidence}/100</b> (${p.grade})`,
-    `Kod: <b>${p.code}</b>`,
+    `🔱 <b>${p.short}</b> · ${arrow}`,
     ``,
     `Giriş: <b>${fmt(p.entry, p.precision)}</b>`,
     `🛡 Stop: ${fmt(p.stop, p.precision)}`,
     `🎯 TP1: ${fmt(p.target1, p.precision)}  ·  TP2: ${fmt(p.target2, p.precision)}`,
-    `R/R: ${p.rr1} · Tetik: ${p.trigger}`,
   ];
-  if (edge && edge.pf != null) lines.push(`📊 Geçmiş: PF ${edge.pf} · isabet %${edge.winRate}`);
-  lines.push(`<i>Sadece altın/gümüş/BTC/ETH · trend-devamı sistemi</i>`);
+  if (p.support != null) lines.push(`🟩 Destek: ${fmt(p.support, p.precision)}`);
+  if (p.resistance != null) lines.push(`🟥 Direnç: ${fmt(p.resistance, p.precision)}`);
   return lines.join('\n');
 }
 
 function closeMsg(p) {
   const win = (p.pnlPct || 0) > 0;
+  const arrow = p.direction === 'long' ? 'AL' : 'SAT';
   const tag = p.outcome === 'TP2' || p.outcome === 'TP1' ? '✅ HEDEF' :
     p.outcome === 'TRAIL' ? '✅ İZ-SÜREN KÂR' : p.outcome === 'BE' ? '➖ BAŞABAŞ' :
     p.outcome === 'SL' ? '❌ STOP' : p.outcome === 'FLIP' ? '🔄 YÖN DEĞİŞTİ' : '⏱ SÜRE DOLDU';
   return [
-    `🔱 <b>BEAST</b> · ${p.short} ${p.tf} · ${p.code}`,
-    `${tag} → ${p.outcome} ${win ? '✅' : (p.pnlPct < 0 ? '❌' : '')} <b>${p.pnlPct > 0 ? '+' : ''}${p.pnlPct}%</b>`,
+    `🔱 <b>${p.short}</b> · ${arrow} kapandı`,
+    `${tag}  <b>${p.pnlPct > 0 ? '+' : ''}${p.pnlPct}%</b>`,
   ].join('\n');
 }
 
@@ -62,8 +62,7 @@ async function evaluateAndPush(signals) {
   let pushed = 0;
   for (const ev of events) {
     if (ev.type === 'new' || ev.type === 'flip') {
-      const edge = require('./beastConfig').edgeFor(ev.position.id, ev.position.tf);
-      if (await sendToChannel(newMsg(ev.position, edge))) pushed++;
+      if (await sendToChannel(newMsg(ev.position))) pushed++;
     }
   }
   return { pushed, events: events.length };
@@ -80,4 +79,4 @@ async function pushClosures() {
   return { pushed, closed: events.length };
 }
 
-module.exports = { evaluateAndPush, pushClosures, PUSH_CONFIDENCE, pushDisabled };
+module.exports = { evaluateAndPush, pushClosures, newMsg, closeMsg, PUSH_CONFIDENCE, pushDisabled };

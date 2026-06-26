@@ -306,3 +306,28 @@ describe('beastTracker', () => {
     expect(r.outcome).toBe('TP1');
   });
 });
+
+// ─────────────────────────── Mesaj formatı (sade — kullanıcı isteği) ───────────────────────────
+describe('beastNotifier mesaj formatı', () => {
+  const n = require('../../src/services/beast/beastNotifier');
+  const pos = { short: 'XAU', direction: 'long', precision: 2, entry: 4030.55, stop: 3950.2, target1: 4180, target2: 4330, support: 3940.1, resistance: 4200.75 };
+
+  test('yeni sinyal: yalnız giriş/stop/TP + destek/direnç; gereksiz detay YOK', () => {
+    const m = n.newMsg(pos);
+    expect(m).toContain('Giriş');
+    expect(m).toContain('Stop');
+    expect(m).toContain('TP1');
+    expect(m).toContain('TP2');
+    expect(m).toContain('Destek');
+    expect(m).toContain('Direnç');
+    expect(m).not.toMatch(/Güven|Kod|R\/R|Tetik|Geçmiş|isabet/); // çıkarılan detaylar
+  });
+
+  test('destek/direnç yoksa o satırlar görünmez', () => {
+    const m = n.newMsg({ ...pos, support: null, resistance: null });
+    expect(m).not.toContain('Destek');
+    expect(m).not.toContain('Direnç');
+    expect(m).toContain('Giriş');
+    expect(m).toContain('Stop');
+  });
+});
