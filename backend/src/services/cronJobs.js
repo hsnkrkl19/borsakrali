@@ -886,8 +886,8 @@ async function runAltinCadence() {
       const closures = await altinTracker.manageOpen();
       if (closures && closures.length) await altinNotifier.pushClosures(closures);
     } catch (cErr) { logger.error(`Altın yönetim hata: ${cErr.message}`); }
-    // S/R fraktal kırılım bildirimleri (üst TF)
-    try { if (snap?.srBreaks?.length) await altinNotifier.pushBreaks(snap.srBreaks); } catch (_) {}
+    // (Standalone S/R kırılım bildirimi KALDIRILDI — kullanıcı isteği: destek/direnç
+    //  yalnız gerçek sinyalde, giriş/TP/SL'den sonra yazılır. "trend lehte/aleyhte" spam yok.)
     // Haftalık yön değişimi bildirimi
     try {
       const dir = snap?.bias?.dir;

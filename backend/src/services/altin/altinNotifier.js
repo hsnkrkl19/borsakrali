@@ -105,7 +105,7 @@ function pickMeta(signals, p) {
  * bias = snapshot.bias (haftalık yön satırı için, opsiyonel)
  * meta = orijinal sinyal (srNote için, opsiyonel)
  */
-function buildSignalMsg(p, bias, meta) {
+function buildSignalMsg(p, bias, meta, sr) {
   const pr = 1;
   const lines = [];
   // Yön EN BAŞTA, belirgin yeşil/kırmızı okla — long/short karışmaz.
@@ -119,8 +119,12 @@ function buildSignalMsg(p, bias, meta) {
   }
   const rr = rrOf(p);
   lines.push(`Giriş: ${fmt(p.entry, pr)} · SL: ${fmt(p.stop, pr)} · TP: ${fmt(p.target, pr)}${rr != null ? ` (R/R ${fmt(rr, 2)})` : ''}`);
-  const srNote = (meta && meta.srNote) || p.srNote;
-  if (srNote) lines.push(`Destek/Direnç: ${srNote}`);
+  // Destek/Direnç YALNIZ sinyalde, giriş/TP/SL'den SONRA — gerçek seviyeler.
+  if (sr && (sr.nearestSupport || sr.nearestResistance)) {
+    const sup = sr.nearestSupport ? fmt(sr.nearestSupport.price, pr) : '-';
+    const res = sr.nearestResistance ? fmt(sr.nearestResistance.price, pr) : '-';
+    lines.push(`📊 Destek: ${sup} · Direnç: ${res}`);
+  }
   if (p.scalp) lines.push(`⚠️ SCALP — düşük güven, sıkı yönet`);
   return lines.join('\n');
 }
@@ -184,9 +188,10 @@ async function evaluateAndPush(snapshot) {
     if (inSigCooldown(p)) continue;
     markSigPushed(p);
     const meta = pickMeta(snapshot.signals, p);
+    const sr = snapshot.perTf && snapshot.perTf[p.tf] && snapshot.perTf[p.tf].sr;
     if (chatId) {
       try {
-        const r = await withTimeout(telegramService.sendMessage(chatId, buildSignalMsg(p, snapshot.bias, meta), 'HTML'), 16000, 'tg');
+        const r = await withTimeout(telegramService.sendMessage(chatId, buildSignalMsg(p, snapshot.bias, meta, sr), 'HTML'), 16000, 'tg');
         if (r && r.success) tg++;
       } catch (e) { logger.error(`[AltinPush] tg #${p.code}: ${e.message}`); }
     }
