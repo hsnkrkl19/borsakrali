@@ -57,6 +57,7 @@ const isYatirimRoutes = require('./routes/isyatirim.routes');
 const borsapyRoutes = require('./routes/borsapy.routes');
 const forexRoutes = require('./routes/forex.routes');
 const proSignalsRoutes = require('./routes/proSignals.routes');
+const altinRoutes = require('./routes/altin.routes');
 const waveScanRoutes = require('./routes/waveScan.routes');
 const bistSignalsRoutes = require('./routes/bistSignals.routes');
 const beastRoutes = require('./routes/beast.routes');
@@ -232,6 +233,7 @@ app.use('/api/isyatirim', isYatirimRoutes);
 app.use('/api/borsapy', borsapyRoutes);
 app.use('/api/forex', forexRoutes);
 app.use('/api/pro-signals', proSignalsRoutes);
+app.use('/api/altin', altinRoutes);
 app.use('/api/wave-scan', waveScanRoutes);
 app.use('/api/bist-signals', bistSignalsRoutes);
 app.use('/api/beast', beastRoutes);
@@ -8118,6 +8120,12 @@ server.listen(PORT, () => {
       ]);
     } catch (e) {
       console.error('[YeniRobot] state load hata:', e.message);
+    }
+    // ALTIN — çoklu-TF altın botu açık pozisyonlarını geri yükle
+    try {
+      await require('./services/altin/altinTracker').load();
+    } catch (e) {
+      console.error('[Altin] state load hata:', e.message);
     }
     if (process.env.CRON_DISABLED !== 'true') {
       try {

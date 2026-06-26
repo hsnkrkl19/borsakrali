@@ -20,6 +20,11 @@ const proSelfTest = require('./proSignals/proSelfTest');
 const proPushNotifier = require('./proSignals/proPushNotifier');
 const proSignalTracker = require('./proSignals/proSignalTracker');
 const proStatsStore = require('./proSignals/proStatsStore');
+// ALTIN — çoklu zaman dilimi altın botu (top-down: haftalık yön → alt-TF sinyaller)
+const altinEngine = require('./altin/altinEngine');
+const altinTracker = require('./altin/altinTracker');
+const altinNotifier = require('./altin/altinNotifier');
+const altinBacktest = require('./altin/altinBacktest');
 // BEAST TREND — Zero-Lag + Ichimoku + Scalper Beast füzyonu (altın/gümüş/BTC/ETH)
 const beastEngine = require('./beast/beastEngine');
 const beastNotifier = require('./beast/beastNotifier');
@@ -123,6 +128,11 @@ const PRO_STALE_MS = 150 * 1000;
 let _proCadenceLockAt = 0;
 let _proBacktestRunning = false;
 let _proSelfTestRunning = false;
+// Altın turu (çoklu-TF, tüm zaman dilimleri çekilir → daha uzun pencere)
+const ALTIN_STALE_MS = 4 * 60 * 1000;
+let _altinCadenceLockAt = 0;
+let _altinBacktestRunning = false;
+let _altinPrevBiasDir = null;
 // BEAST turu her 5 dk → 240 sn bayatlama penceresi.
 const BEAST_STALE_MS = 240 * 1000;
 let _beastCadenceLockAt = 0;
@@ -845,6 +855,71 @@ async function runBeastSignalCadence() {
   }
 }
 
+// ── ALTIN — çoklu-TF altın botu kadansı (her 15 dk) ───────────────────────
+//    Top-down: haftalık YÖN → 1g/8h/4h/1h sinyaller + 15m/5m/1m fırsat katmanı.
+//    Destek/direnç + fraktal kırılımı. "🥇 ALTIN" markalı. Veri cache'li
+//    (1g/1h 6-12s, gün-içi 30dk) → 15 dk turu Yahoo'yu yormaz.
+async function runAltinCadence() {
+  const now = Date.now();
+  if (_altinCadenceLockAt && now - _altinCadenceLockAt < ALTIN_STALE_MS) return null;
+  _altinCadenceLockAt = now;
+  try {
+    const snap = await altinEngine.generate();
+    try {
+      socketService.broadcastSignal({
+        strategy: 'altin', generatedAt: snap?.generatedAt,
+        total: snap?.counts?.signals || 0, long: snap?.counts?.long || 0, short: snap?.counts?.short || 0,
+        stockSymbol: 'ALTIN',
+      });
+    } catch (_) { /* socket yoksa sessiz */ }
+    // Yeni sinyaller → pozisyon aç + push (notifier tracker.ingest çağırır)
+    let pushed = { telegram: 0 };
+    try {
+      pushed = await Promise.race([
+        altinNotifier.evaluateAndPush(snap),
+        new Promise((_, r) => setTimeout(() => r(new Error('altin-evalpush-timeout-45s')), 45000)),
+      ]);
+    } catch (pe) { logger.error(`Altın push hata: ${pe.message}`); }
+    if (pushed?.telegram) logger.info(`🥇 Altın turu — ${snap?.counts?.signals || 0} sinyal · TG ${pushed.telegram}`);
+    // Açık pozisyon yönetimi (TP/SL/trailing/expire) → kapanış push
+    try {
+      const closures = await altinTracker.manageOpen();
+      if (closures && closures.length) await altinNotifier.pushClosures(closures);
+    } catch (cErr) { logger.error(`Altın yönetim hata: ${cErr.message}`); }
+    // S/R fraktal kırılım bildirimleri (üst TF)
+    try { if (snap?.srBreaks?.length) await altinNotifier.pushBreaks(snap.srBreaks); } catch (_) {}
+    // Haftalık yön değişimi bildirimi
+    try {
+      const dir = snap?.bias?.dir;
+      if (dir && _altinPrevBiasDir && dir !== _altinPrevBiasDir) await altinNotifier.pushBiasChange(_altinPrevBiasDir, snap.bias);
+      if (dir) _altinPrevBiasDir = dir;
+    } catch (_) {}
+    return snap;
+  } catch (e) {
+    logger.error(`Altın sinyal turu hata: ${e.message}`, e.stack);
+    return null;
+  } finally {
+    _altinCadenceLockAt = 0;
+  }
+}
+
+// ── ALTIN backtest — TF başına geçmiş başarı (günde 1, ağır: 26y günlük) ───
+async function runAltinBacktest() {
+  if (_altinBacktestRunning) return null;
+  _altinBacktestRunning = true;
+  try {
+    const t0 = Date.now();
+    const r = await altinBacktest.runAll();
+    logger.info(`🥇📊 Altın backtest tamam — ${Date.now() - t0}ms`);
+    return r;
+  } catch (e) {
+    logger.error(`Altın backtest hata: ${e.message}`, e.stack);
+    return null;
+  } finally {
+    _altinBacktestRunning = false;
+  }
+}
+
 // ── Dalga Taraması (Elliott + SNR + Mum + Fraktal) — BTC + Altın, 1d/4h ─────
 //     Forex'ten BAĞIMSIZ, nadir, yalnız Telegram kanalı. Sayıma dahil değil.
 let _waveScanRunning = false;
@@ -1138,6 +1213,24 @@ class CronJobsService {
       { scheduled: false, ...TR_TZ }
     );
 
+    // 14j. ALTIN — çoklu-TF altın botu kadansı, HER 15 DK, 7/24. Top-down yön +
+    //      alt-TF sinyaller + S/R kırılım. Veri cache'li; "🥇 ALTIN" markalı.
+    //      Açılıştan ~150 sn sonra bir kez tetiklenir (ilk anlık görüntü dolsun).
+    const altinSignalJob = cron.schedule(
+      '*/15 * * * *',
+      () => runAltinCadence(),
+      { scheduled: false, ...TR_TZ }
+    );
+    setTimeout(() => runAltinCadence(), 150 * 1000);
+
+    // 14k. ALTIN backtest — günde 1 kez 04:20 TR (ağır: 26y günlük). Boot +200s.
+    const altinBacktestJob = cron.schedule(
+      '20 4 * * *',
+      () => runAltinBacktest(),
+      { scheduled: false, ...TR_TZ }
+    );
+    setTimeout(() => runAltinBacktest(), 200 * 1000);
+
     // 14j. BEAST TREND — Zero-Lag+Ichimoku+Scalper Beast füzyonu, HER 5 DK, 7/24.
     //      4 enstrüman × 1h/4h/1d (aktif hücreler). Push varsayılan KAPALI.
     const beastSignalJob = cron.schedule(
@@ -1372,6 +1465,8 @@ class CronJobsService {
       proBacktestJob,
       proSelfTestJob,
       proStatsJob,
+      altinSignalJob,
+      altinBacktestJob,
       beastSignalJob,
       waveScanJob,
       mtf1mJob,
@@ -1469,6 +1564,17 @@ class CronJobsService {
 
   async triggerProStats() {
     return runProStats();
+  }
+
+  /**
+   * Manuel tetikleme — ALTIN çoklu-TF turu / backtest (test/admin)
+   */
+  async triggerAltinCadence() {
+    return runAltinCadence();
+  }
+
+  async triggerAltinBacktest() {
+    return runAltinBacktest();
   }
 
   /**
