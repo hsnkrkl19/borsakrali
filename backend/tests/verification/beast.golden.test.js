@@ -221,19 +221,26 @@ describe('beastBacktest.runBacktest — sentetik trend', () => {
 
 // ─────────────────────────── Config ───────────────────────────
 describe('beastConfig', () => {
-  test('v3 aktif hücreler: YALNIZ GÜNLÜK (1d) — 1h ve 4h KAPALI, 4 parite 1d AÇIK', () => {
-    expect(cfgMod.isEnabled('BTCUSD', '1h')).toBe(false);
-    expect(cfgMod.isEnabled('BTCUSD', '4h')).toBe(false);
-    expect(cfgMod.isEnabled('XAUUSD', '4h')).toBe(false);
+  test('v4 aktif hücreler: parite-özel TF (kripto alt TF, metal üst TF)', () => {
+    // BTC: 1h + 1d açık; 4h/8h kapalı (zarar)
+    expect(cfgMod.isEnabled('BTCUSD', '1h')).toBe(true);
     expect(cfgMod.isEnabled('BTCUSD', '1d')).toBe(true);
-    expect(cfgMod.isEnabled('ETHUSD', '1d')).toBe(true);
-    expect(cfgMod.isEnabled('XAUUSD', '1d')).toBe(true);
-    expect(cfgMod.isEnabled('XAGUSD', '1d')).toBe(true);
+    expect(cfgMod.isEnabled('BTCUSD', '4h')).toBe(false);
+    expect(cfgMod.isEnabled('BTCUSD', '8h')).toBe(false);
+    // ETH: 4h açık; 8h kapalı (zarar)
+    expect(cfgMod.isEnabled('ETHUSD', '4h')).toBe(true);
+    expect(cfgMod.isEnabled('ETHUSD', '8h')).toBe(false);
+    // Metal: 1h kapalı (zarar), 8h açık
+    expect(cfgMod.isEnabled('XAUUSD', '1h')).toBe(false);
+    expect(cfgMod.isEnabled('XAUUSD', '8h')).toBe(true);
+    expect(cfgMod.isEnabled('XAGUSD', '8h')).toBe(true);
   });
 
-  test('resolveConfig 1d zlLength ve runner mode uygular', () => {
+  test('resolveConfig per-TF zlLength + runner mode (8h dahil)', () => {
+    const c8h = cfgMod.resolveConfig(getInstrument('XAUUSD'), '8h');
     const c1d = cfgMod.resolveConfig(getInstrument('BTCUSD'), '1d');
-    expect(c1d.zlLength).toBe(cfgMod.TF_ZL['1d']);
+    expect(c8h.zlLength).toBe(cfgMod.TF_ZL['8h']);
+    expect(c8h.partialMode).toBe('runner');
     expect(c1d.partialMode).toBe('runner');
   });
 
@@ -286,13 +293,14 @@ describe('beastTracker', () => {
     expect(tracker.getOpen()[0].direction).toBe('long');
   });
 
-  test('pruneDisabled: aktif olmayan hücre (4h) pozisyonu temizlenir, 1d kalır', async () => {
+  test('pruneDisabled: aktif olmayan hücre (XAU 1h) temizlenir, 1d kalır', async () => {
+    // XAU için 1h KAPALI (metal alt-TF zarar), 1d AÇIK
     const mk = (tf) => ({ id: 'XAUUSD', symbol: 'XAU/USD', short: 'XAU', tf, direction: 'short', entry: 100, stop: 103, target1: 95, target2: 90, rr1: 1.5, rr2: 3, atr: 1, confidence: 78, grade: 'GUCLU', trigger: 'zlema', mode: 'runner', precision: 2, time: 1700000000 });
     await tracker.syncPositions([mk('1d')]);
-    await tracker.syncPositions([mk('4h')]); // v3'te 4h kapalı ama state'e elle girebilir (miras)
+    await tracker.syncPositions([mk('1h')]); // kapalı hücre — state'e elle girebilir (miras)
     expect(tracker.getOpen().length).toBe(2);
     const pruned = tracker.pruneDisabled();
-    expect(pruned).toBe(1);                       // yalnız 4h atılır
+    expect(pruned).toBe(1);                       // yalnız 1h atılır
     const open = tracker.getOpen();
     expect(open.length).toBe(1);
     expect(open[0].tf).toBe('1d');

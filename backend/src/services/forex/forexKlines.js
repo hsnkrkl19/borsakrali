@@ -16,13 +16,13 @@ const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36';
 
 // Doğrudan Yahoo interval'ı olan TF'ler (4h hariç — 1h'ten resample edilir)
 const YH_INTERVAL = { '1m': '1m', '5m': '5m', '15m': '15m', '30m': '30m', '1h': '1h', '1d': '1d', '1wk': '1wk' };
-// 250+ mum için yeterli range. 4h için 1h'i geniş çekip resample ederiz.
-const YH_RANGE    = { '1m': '1d', '5m': '5d', '15m': '1mo', '30m': '2mo', '1h': '3mo', '4h': '6mo', '1d': '2y', '1wk': '5y' };
+// 250+ mum için yeterli range. 4h/8h için 1h'i geniş çekip resample ederiz.
+const YH_RANGE    = { '1m': '1d', '5m': '5d', '15m': '1mo', '30m': '2mo', '1h': '3mo', '4h': '6mo', '8h': '1y', '1d': '2y', '1wk': '5y' };
 
 // Cache ömrü — düşük TF sık, yüksek TF seyrek tazelenir.
 const TTL_MS = {
   '1m': 50 * 1000, '5m': 4 * 60 * 1000, '15m': 9 * 60 * 1000,
-  '1h': 30 * 60 * 1000, '4h': 30 * 60 * 1000, '1d': 60 * 60 * 1000,
+  '1h': 30 * 60 * 1000, '4h': 30 * 60 * 1000, '8h': 30 * 60 * 1000, '1d': 60 * 60 * 1000,
 };
 
 const cache = new Map(); // key -> { data, t }
@@ -42,15 +42,16 @@ function parseChart(json) {
   return out;
 }
 
-// 1h mumlarını 4h'e topla (UTC 00/04/08/12/16/20 sınırına hizalı)
-function resample4h(h1) {
+// 1h mumlarını N saatlik bara topla (UTC N*3600 sınırına hizalı). 4h→4, 8h→8.
+function resampleHours(h1, hours) {
   if (!h1 || !h1.length) return h1 || [];
+  const sec = hours * 3600;
   let start = 0;
-  while (start < h1.length && h1[start].time % 14400 !== 0) start++;
+  while (start < h1.length && h1[start].time % sec !== 0) start++;
   if (start >= h1.length) start = 0;
   const out = [];
-  for (let i = start; i < h1.length; i += 4) {
-    const g = h1.slice(i, i + 4);
+  for (let i = start; i < h1.length; i += hours) {
+    const g = h1.slice(i, i + hours);
     if (!g.length) break;
     out.push({
       time: g[0].time,
@@ -63,6 +64,7 @@ function resample4h(h1) {
   }
   return out;
 }
+const resample4h = (h1) => resampleHours(h1, 4); // geriye uyum
 
 async function yahooFetch(yahooSymbol, params) {
   const res = await axios.get(`${YAHOO_CHART}/${encodeURIComponent(yahooSymbol)}`, {
@@ -82,8 +84,9 @@ async function fetchCandles(yahooSymbol, tf, limit = 300) {
   if (hit && now - hit.t < (TTL_MS[tf] || 60 * 1000)) return hit.data;
   try {
     let candles;
-    if (tf === '4h') {
-      candles = resample4h(await yahooFetch(yahooSymbol, { interval: '1h', range: YH_RANGE['4h'] }));
+    if (tf === '4h' || tf === '8h') {
+      const hrs = tf === '4h' ? 4 : 8;
+      candles = resampleHours(await yahooFetch(yahooSymbol, { interval: '1h', range: YH_RANGE[tf] }), hrs);
     } else {
       const yi = YH_INTERVAL[tf];
       if (!yi) return null;

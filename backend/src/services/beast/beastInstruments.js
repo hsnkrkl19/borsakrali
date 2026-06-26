@@ -16,6 +16,7 @@
 const TF_DEFS = {
   '1h': { htfFactor: 4, horizon: 48 },   // 1h sinyali, 4h bias, en çok 48 bar (~2 gün)
   '4h': { htfFactor: 6, horizon: 42 },   // 4h sinyali, 1d bias, en çok 42 bar (~7 gün)
+  '8h': { htfFactor: 3, horizon: 36 },   // 8h sinyali, 1d bias (×3), en çok 36 bar (~12 gün)
   '1d': { htfFactor: 5, horizon: 30 },   // 1d sinyali, ~1w bias, en çok 30 bar (~6 hafta)
 };
 
@@ -73,9 +74,9 @@ const INSTRUMENTS = [
   },
 ];
 
-// v3 (kullanıcı: isabet önceliği): YALNIZ GÜNLÜK (1d). Backtest: %65 isabet / PF 2.40
-// (4h+1d %59'a karşı). 1h/4h gürültülü → atıldı. Az ama yüksek-isabetli sinyal.
-const SIGNAL_TFS = ['1d'];
+// v4 (kullanıcı isteği 2026-06-26): 1h + 4h + 8h + 1d hepsi aktif. Alt TF'ler isabeti
+// düşürür ama sıklığı artırır; parite başına yön kilidi çelişkiyi önler.
+const SIGNAL_TFS = ['1h', '4h', '8h', '1d'];
 
 function getInstrument(id) { return INSTRUMENTS.find(i => i.id === id) || null; }
 
