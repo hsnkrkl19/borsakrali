@@ -12,6 +12,7 @@
 const telegramService = require('../telegramService');
 const pushNotificationService = require('../pushNotificationService');
 const tracker = require('./forexSignalTracker');
+const statsStore = require('./forexStatsStore');
 const logger = require('../../utils/logger');
 
 const PUSH_CONFIDENCE = 60;
@@ -98,6 +99,7 @@ async function evaluateAndPush(signals) {
       const last = lastSent.get(p.code) || 0;
       if (now - last < UPDATE_COOLDOWN_MS) continue;
     }
+    if (ev.type === 'new') statsStore.recordOpen().catch(() => {});   // sinyal sayacı
     const tgMsg = ev.type === 'new' ? buildNew(p, ev.reverseOf) : buildUpdate(p, ev);
     if (chatId) { try { const r = await withTimeout(telegramService.sendMessage(chatId, tgMsg), 16000, 'tg'); if (r?.success) { tg++; sent++; } } catch (e) { logger.error(`[ForexPush] tg #${p.code}: ${e.message}`); } }
     lastSent.set(p.code, now);
@@ -127,10 +129,23 @@ async function pushClosures(events) {
   const chatId = require('../signalDelivery').signalChannel(); // YALNIZ kanal (DM/app yok)
   let tg = 0;
   for (const ev of (events || [])) {
+    statsStore.recordClosure(ev).catch(() => {});   // TP/SL/iz-süren sayacı
     if (chatId) { try { const r = await withTimeout(telegramService.sendMessage(chatId, buildClosureTelegram(ev)), 16000, 'closeTg'); if (r?.success) tg++; } catch (e) { logger.error(`[ForexPush] closeTg #${ev.code}: ${e.message}`); } }
   }
   if (tg) logger.info(`💱✅ Forex kapanış — ${events.length} · TG ${tg}`);
   return { telegram: tg };
 }
 
-module.exports = { evaluateAndPush, pushClosures, buildNew, buildUpdate, PUSH_CONFIDENCE, TARGET_USER_EMAIL };
+// Günlük rapor (her gün 20:00, cron) — TP/SL/iz-süren sayıları → kanala.
+async function pushStats() {
+  if (process.env.FOREX_PUSH_DISABLED === '1') return { telegram: 0 };
+  const chatId = require('../signalDelivery').signalChannel();
+  let msg = '';
+  try { msg = await statsStore.buildReport(); } catch (e) { logger.error(`[ForexPush] rapor: ${e.message}`); return { telegram: 0 }; }
+  let tg = 0;
+  if (chatId) { try { const r = await withTimeout(telegramService.sendMessage(chatId, msg), 16000, 'statsTg'); if (r?.success) tg++; } catch (e) { logger.error(`[ForexPush] statsTg: ${e.message}`); } }
+  logger.info(`💱📊 Forex günlük rapor — TG ${tg}`);
+  return { telegram: tg };
+}
+
+module.exports = { evaluateAndPush, pushClosures, pushStats, buildNew, buildUpdate, PUSH_CONFIDENCE, TARGET_USER_EMAIL };

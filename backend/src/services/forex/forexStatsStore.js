@@ -1,35 +1,34 @@
 /**
- * forexStatsStore — Forex sinyal KAYDI + parite bazlı başarı istatistiği.
+ * forexStatsStore — Forex sinyal SONUÇ sayacı (TP / STOP / iz-süren) + günlük rapor.
  *
- * - Her açılan pozisyon (sinyal) ve her kapanış geçmişe kaydedilir (history).
- * - Kapanışlarda parite+yön bazlı kazanan/kaybeden sayılır → başarı oranı.
- *   Başarı = kârla kapanan (TP1 / iz-süren stop / +pnl ile süre dolması).
- * - Günde 2 kez (cron) `buildStatsMessage` ile kanala paylaşılır.
+ * Kullanıcı isteği: "tp ve sl olaylarını say, her gün 20:00 rapor ver."
+ *   • Her açılan sinyal sayılır (opened).
+ *   • Her kapanış sonucuna göre: TP1 → tp, SL → sl, TRAIL (iz-süren kâr) → trail.
+ *   • Günlük (TR) kırılım + sıfırlamadan beri toplam. buildReport() 20:00'da kanala.
  *
- * Kalıcılık: Supabase 'bot-state'/'forex/stats.json' + disk (tracker ile aynı).
+ * Sıfırlama: `FOREX_RESET` env etiketi değişince bir kez sıfırlanır (tracker ile AYNI
+ * etiket → açık sinyaller + sayaç + istatistik birlikte sıfırdan başlar).
+ * Kalıcılık: Supabase 'bot-state'/'forex/stats.json' + disk.
  */
 const fs = require('fs');
 const path = require('path');
-const { listInstruments } = require('./forexInstruments');
 
 let supa = null, supaEnabled = () => false;
 try { const m = require('../../lib/supabase'); supa = m.supabaseAdmin; supaEnabled = m.isSupabaseEnabled; } catch (_) {}
 
 const BUCKET = 'bot-state';
 const SUPA_KEY = 'forex/stats.json';
-const DISK_FILE = path.join(__dirname, '..', '..', 'data', 'forex-stats.json');
-const HISTORY_CAP = 1000;
+const DISK_FILE = process.env.FOREX_STATS_FILE || path.join(__dirname, '..', '..', 'data', 'forex-stats.json');
 
-let state = { byPair: {}, history: [], totalOpened: 0, totalClosed: 0, since: null, resetTag: null };
-let loaded = false;
-let saveTimer = null;
+function fresh() { return { since: null, opened: 0, tp: 0, sl: 0, trail: 0, byDay: {}, resetTag: null }; }
+let state = fresh();
+let loaded = false, saveTimer = null;
 
-function blank() { return { win: 0, loss: 0, sumPnl: 0, n: 0 }; }
-function ensurePair(id) { if (!state.byPair[id]) state.byPair[id] = { long: blank(), short: blank() }; return state.byPair[id]; }
+function dayKey() { return new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/Istanbul' }); } // YYYY-MM-DD (TR)
+function ensureDay(d) { if (!state.byDay[d]) state.byDay[d] = { opened: 0, tp: 0, sl: 0, trail: 0 }; return state.byDay[d]; }
 
 async function load() {
-  if (loaded) return;
-  loaded = true;
+  if (loaded) return; loaded = true;
   let got = false;
   if (supaEnabled && supaEnabled()) {
     try {
@@ -40,19 +39,14 @@ async function load() {
       if (data) {
         const text = typeof data.text === 'function' ? await data.text() : Buffer.from(await data.arrayBuffer()).toString('utf8');
         const p = JSON.parse(text);
-        if (p && p.byPair) { state = { byPair: p.byPair || {}, history: p.history || [], totalOpened: p.totalOpened || 0, totalClosed: p.totalClosed || 0, since: p.since || null, resetTag: p.resetTag || null }; got = true; }
+        if (p && typeof p.tp === 'number') { state = { ...fresh(), ...p, byDay: p.byDay || {} }; got = true; }
       }
     } catch (_) {}
   }
-  if (!got) { try { if (fs.existsSync(DISK_FILE)) { const p = JSON.parse(fs.readFileSync(DISK_FILE, 'utf8')); if (p && p.byPair) state = { byPair: p.byPair || {}, history: p.history || [], totalOpened: p.totalOpened || 0, totalClosed: p.totalClosed || 0, since: p.since || null, resetTag: p.resetTag || null }; } } catch (_) {} }
-  // Tek-seferlik SIFIRLAMA: FOREX_STATS_RESET değeri (etiket) değişince istatistiği
-  // bir kez temizler (sahte-stop/birleştirme öncesi kirli kapanışları atar). Aynı
-  // etiketle sonraki açılışlarda tekrar sıfırlamaz (deploy/yeniden başlatmaya güvenli).
-  const tag = process.env.FOREX_STATS_RESET;
-  if (tag && state.resetTag !== tag) {
-    state = { byPair: {}, history: [], totalOpened: 0, totalClosed: 0, since: null, resetTag: tag };
-    persist();
-  }
+  if (!got) { try { if (fs.existsSync(DISK_FILE)) { const p = JSON.parse(fs.readFileSync(DISK_FILE, 'utf8')); if (p && typeof p.tp === 'number') state = { ...fresh(), ...p, byDay: p.byDay || {} }; } } catch (_) {} }
+  // Tek-seferlik SIFIRLAMA — FOREX_RESET etiketi değişince (tracker ile aynı etiket).
+  const tag = process.env.FOREX_RESET;
+  if (tag && state.resetTag !== tag) { state = { ...fresh(), resetTag: tag }; persist(); }
 }
 
 function persist() {
@@ -70,60 +64,42 @@ function persist() {
   }
 }
 
-function cap() { if (state.history.length > HISTORY_CAP) state.history = state.history.slice(-HISTORY_CAP); }
-
-async function recordOpen(pos) {
+async function recordOpen() {
   await load();
   if (!state.since) state.since = new Date().toISOString();
-  state.totalOpened++;
-  state.history.push({ at: new Date().toISOString(), event: 'open', code: pos.code, id: pos.instrumentId, symbol: pos.symbol, direction: pos.direction, tfs: pos.tfs, entry: pos.entry });
-  cap(); persist();
+  state.opened++; ensureDay(dayKey()).opened++;
+  persist();
 }
 
+// ev.outcome: 'TP1' | 'SL' | 'TRAIL'
 async function recordClosure(ev) {
   await load();
-  const id = ev.instrumentId || ev.id;
-  if (!id || !ev.direction) return;
-  const rec = ensurePair(id)[ev.direction];
-  rec.n++;
-  if ((ev.pnlPct || 0) > 0) rec.win++; else rec.loss++;
-  rec.sumPnl += (ev.pnlPct || 0);
-  state.totalClosed++;
-  state.history.push({ at: new Date().toISOString(), event: 'close', code: ev.code, id, symbol: ev.symbol, direction: ev.direction, outcome: ev.outcome, pnlPct: ev.pnlPct });
-  cap(); persist();
+  const key = ev.outcome === 'TP1' ? 'tp' : ev.outcome === 'SL' ? 'sl' : ev.outcome === 'TRAIL' ? 'trail' : null;
+  if (!key) return;
+  state[key]++; ensureDay(dayKey())[key]++;
+  persist();
 }
 
-function rateStr(r) {
-  if (!r || r.n === 0) return '—';
-  const pct = Math.round((r.win / r.n) * 100);
-  return `%${pct} (${r.win}/${r.n})`;
-}
+function rate(tp, trail, sl) { const w = tp + trail, n = w + sl; return n ? Math.round((w / n) * 100) : null; }
 
-async function getStats() { await load(); return { byPair: state.byPair, totalOpened: state.totalOpened, totalClosed: state.totalClosed, since: state.since }; }
-
-// Telegram istatistik mesajı (parite bazlı long/short başarı oranı)
-async function buildStatsMessage() {
+// 20:00 günlük rapor (TR). Bugün + sıfırlamadan beri toplam + başarı.
+async function buildReport() {
   await load();
-  const today = new Date().toLocaleString('tr-TR', { timeZone: 'Europe/Istanbul', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
-  const lines = [`📊 <b>FOREX SİNYAL İSTATİSTİĞİ</b> — ${today}`];
-  if (state.since) lines.push(`Kayıt: ${new Date(state.since).toLocaleDateString('tr-TR')}'ten beri · ${state.totalClosed} kapanan / ${state.totalOpened} sinyal`);
-  lines.push('');
-
-  let totWin = 0, totN = 0;
-  for (const inst of listInstruments()) {
-    const pr = state.byPair[inst.id];
-    const L = pr?.long || blank(), S = pr?.short || blank();
-    totWin += L.win + S.win; totN += L.n + S.n;
-    if (L.n === 0 && S.n === 0) {
-      lines.push(`<b>${inst.symbol}</b> — veri toplanıyor`);
-    } else {
-      lines.push(`<b>${inst.symbol}</b> — LONG ${rateStr(L)} · SHORT ${rateStr(S)}`);
-    }
-  }
-  lines.push('');
-  lines.push(totN > 0 ? `Genel başarı: <b>%${Math.round((totWin / totN) * 100)}</b> (${totWin}/${totN})` : 'Henüz kapanan sinyal yok — istatistik birikiyor.');
-  lines.push('⚠️ Yatırım tavsiyesi değildir, eğitim amaçlıdır.');
-  return lines.join('\n');
+  const today = dayKey();
+  const t = state.byDay[today] || { opened: 0, tp: 0, sl: 0, trail: 0 };
+  const dr = new Date().toLocaleDateString('tr-TR', { timeZone: 'Europe/Istanbul' });
+  const totRate = rate(state.tp, state.trail, state.sl);
+  const todRate = rate(t.tp, t.trail, t.sl);
+  return [
+    `📊 <b>FOREX GÜNLÜK RAPOR</b> — ${dr}`,
+    `Bugün: ${t.opened} sinyal · ✅ ${t.tp} TP · 🛡 ${t.trail} iz-süren · 🛑 ${t.sl} stop${todRate != null ? ` · başarı %${todRate}` : ''}`,
+    `Toplam${state.since ? ` (${new Date(state.since).toLocaleDateString('tr-TR')}'ten beri)` : ''}: ${state.opened} sinyal · ✅ ${state.tp} TP · 🛡 ${state.trail} iz-süren · 🛑 ${state.sl} stop`,
+    totRate != null ? `Başarı oranı: <b>%${totRate}</b> (${state.tp + state.trail}/${state.tp + state.trail + state.sl} kapanan)` : 'Henüz kapanan sinyal yok.',
+    '⚠️ Yatırım tavsiyesi değildir, eğitim amaçlıdır.',
+  ].join('\n');
 }
 
-module.exports = { load, recordOpen, recordClosure, getStats, buildStatsMessage };
+async function getStats() { await load(); return { ...state }; }
+function __resetForTest() { state = fresh(); loaded = true; if (saveTimer) { clearTimeout(saveTimer); saveTimer = null; } }
+
+module.exports = { load, recordOpen, recordClosure, buildReport, getStats, __resetForTest };

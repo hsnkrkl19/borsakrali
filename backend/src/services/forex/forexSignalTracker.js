@@ -59,14 +59,18 @@ async function load() {
       if (data) {
         const text = typeof data.text === 'function' ? await data.text() : Buffer.from(await data.arrayBuffer()).toString('utf8');
         const p = JSON.parse(text);
-        if (p && p.open) { state = { counter: p.counter || 0, open: p.open || {}, version: 2 }; got = true; }
+        if (p && p.open) { state = { counter: p.counter || 0, open: p.open || {}, version: 2, resetTag: p.resetTag || null }; got = true; }
       }
     } catch (_) {}
   }
   if (!got) {
-    try { if (fs.existsSync(DISK_FILE)) { const p = JSON.parse(fs.readFileSync(DISK_FILE, 'utf8')); if (p && p.open) state = { counter: p.counter || 0, open: p.open || {}, version: 2 }; } } catch (_) {}
+    try { if (fs.existsSync(DISK_FILE)) { const p = JSON.parse(fs.readFileSync(DISK_FILE, 'utf8')); if (p && p.open) state = { counter: p.counter || 0, open: p.open || {}, version: 2, resetTag: p.resetTag || null }; } } catch (_) {}
   }
   sanitizeOpen();
+  // Tek-seferlik SIFIRLAMA: FOREX_RESET etiketi değişince TÜM açık sinyaller + sayaç
+  // sıfırlanır (kullanıcı "önceki sinyalleri sil, sıfırdan başla"). NO #001'den başlar.
+  const tag = process.env.FOREX_RESET;
+  if (tag && state.resetTag !== tag) { state = { counter: 0, open: {}, version: 2, resetTag: tag }; persist(); }
 }
 
 function persist() {

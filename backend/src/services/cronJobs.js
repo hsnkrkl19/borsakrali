@@ -42,6 +42,8 @@ const cryptoBotEngine = require('./cryptoBotV2/cryptoBotEngine');
 const tema34Engine = require('./tema34Bot/tema34Engine');
 const crossoverNotifier = require('./crossover/crossoverNotifier');
 const tema34ScannerNotifier = require('./tema34Scanner/tema34ScannerNotifier');
+const bistAlScannerNotifier = require('./bistAlScanner/bistAlScannerNotifier');
+const bistAlScannerNotifier = require('./bistAlScanner/bistAlScannerNotifier');
 const waveScanEngine = require('./waveScan/waveScanEngine');
 const waveScanNotifier = require('./waveScan/waveScanNotifier');
 const waveScanTracker = require('./waveScan/waveScanTracker');
@@ -471,14 +473,12 @@ async function runCrossoverAlerts() {
   }
 }
 
-// TEMA34 Tarama bildirimcisi — BIST kapanışından sonra tüm BIST'i tarar; YALNIZ
-// TEMA34 yukarı/aşağı ilk kırılımlarını AYRI bir Telegram kanalına gönderir
-// (TELEGRAM_TEMA34_CHANNEL). Tüm BIST çok-zaman-dilimli (4h + 1d) taranır; her TF
-// için YALNIZ "yeni giren" (cross_above) ve "sat bölgesine yeni geçen" (cross_below)
-// hisseler raporlanır. ⚠️ Kullanıcının açık isteğiyle eklenen bu bot
-// FOREX_ONLY_MODE freeze'inden MUAFTIR (forexOnly() kapısı YOK) → forex-only modda
-// bile kendi kanalına yayın yapar. Kanal env'i yoksa sessiz. TR resmi tatilinde
-// sessiz. Idempotluk TF-bazlı (her bar bir kez).
+// TEMA34 Tarama bildirimcisi — tüm BIST'i çok-zaman-dilimli (4h + 1d) tarar; her
+// TF için YALNIZ "yeni giren" (cross_above) ve "sat bölgesine yeni geçen"
+// (cross_below) hisseleri AYRI Telegram kanalına gönderir (TELEGRAM_TEMA34_CHANNEL).
+// ⚠️ Kullanıcının açık isteğiyle eklenen bu bot FOREX_ONLY_MODE freeze'inden
+// MUAFTIR (forexOnly() kapısı YOK) → forex-only modda bile kendi kanalına yayın
+// yapar. Kanal env'i yoksa sessiz. TR resmi tatilinde sessiz. Idempotluk TF-bazlı.
 async function runTema34Scanner() {
   try {
     const dateKey = todayKeyTR();
@@ -499,6 +499,60 @@ async function runTema34Scanner() {
     return result;
   } catch (e) {
     logger.error(`[TEMA34Scanner] hata: ${e.message}`, e.stack);
+    return null;
+  }
+}
+
+// ── BIST "≥80 kaliteli AL" tam-evren tarama → AYRI yeni Telegram kanalı ──────
+// Tüm BIST taranır (bistScoreEngine yeniden kullanılır — 15 dk cache'li, mükerrer
+// Yahoo yükü yok); güven ≥80 + fiyat EMA34 üstü + hacim teyidi geçen top 5 AL
+// sinyali YENİ kanala (TELEGRAM_BIST_AL_CHANNEL) gönderilir. ⚠️ Kullanıcının açık
+// isteğiyle eklenen bu yeni bot FOREX_ONLY_MODE freeze'inden MUAFTIR (forexOnly()
+// kapısı YOK) → forex-only modda bile kendi kanalına yayın yapar. Kanal env'i
+// ayarlı değilse içeride sessiz. İşlem saatleri dışında/tatil/hafta sonu eler.
+// Günlük dedup (aynı hisse günde 1 kez) bildirimcinin içindedir.
+async function runBistAlScanner() {
+  try {
+    if (!isBistOpen()) return null;   // yalnız işlem saatlerinde (tatil/hafta sonu dahil eler)
+    logger.info('⏰ BIST AL taraması başlatıldı');
+    const result = await bistAlScannerNotifier.runAndNotify();
+    if (!result?.ok) {
+      logger.error(`[BistAlScanner] tarama başarısız: ${result?.error || 'bilinmeyen hata'}`);
+    } else if (result.skippedReason) {
+      logger.info(`📈 BIST AL tarama — atlandı (${result.skippedReason}), aday ${result.candidates}, nitelikli ${result.qualified}`);
+    } else {
+      logger.info(`📈 BIST AL tarama — taranan ${result.scanned}, nitelikli ${result.qualified}, yeni ${result.freshCount}, TG ${result.telegramSent}`);
+    }
+    return result;
+  } catch (e) {
+    logger.error(`[BistAlScanner] hata: ${e.message}`, e.stack);
+    return null;
+  }
+}
+
+// ── BIST "≥80 kaliteli AL" tam-evren tarama → AYRI yeni Telegram kanalı ──────
+// Tüm BIST taranır (bistScoreEngine yeniden kullanılır — 15 dk cache'li, mükerrer
+// Yahoo yükü yok); güven ≥80 + fiyat EMA34 üstü + hacim teyidi geçen top 5 AL
+// sinyali YENİ kanala (TELEGRAM_BIST_AL_CHANNEL) gönderilir. ⚠️ Kullanıcının açık
+// isteğiyle eklenen bu yeni bot FOREX_ONLY_MODE freeze'inden MUAFTIR (forexOnly()
+// kapısı YOK) → forex-only modda bile kendi kanalına yayın yapar. Kanal env'i
+// ayarlı değilse içeride sessiz. İşlem saatleri dışında/tatil/hafta sonu eler.
+// Günlük dedup (aynı hisse günde 1 kez) bildirimcinin içindedir.
+async function runBistAlScanner() {
+  try {
+    if (!isBistOpen()) return null;   // yalnız işlem saatlerinde (tatil/hafta sonu dahil eler)
+    logger.info('⏰ BIST AL taraması başlatıldı');
+    const result = await bistAlScannerNotifier.runAndNotify();
+    if (!result?.ok) {
+      logger.error(`[BistAlScanner] tarama başarısız: ${result?.error || 'bilinmeyen hata'}`);
+    } else if (result.skippedReason) {
+      logger.info(`📈 BIST AL tarama — atlandı (${result.skippedReason}), aday ${result.candidates}, nitelikli ${result.qualified}`);
+    } else {
+      logger.info(`📈 BIST AL tarama — taranan ${result.scanned}, nitelikli ${result.qualified}, yeni ${result.freshCount}, TG ${result.telegramSent}`);
+    }
+    return result;
+  } catch (e) {
+    logger.error(`[BistAlScanner] hata: ${e.message}`, e.stack);
     return null;
   }
 }
@@ -763,8 +817,17 @@ async function runBistBacktest() {
   }
 }
 
-// ── Forex istatistik paylaşımı — TEMİZ SÜRÜMDE KALDIRILDI (pushStats yok). No-op. ──
-async function runForexStats() { return null; }
+// ── Forex GÜNLÜK RAPOR — her gün 20:00 (TP/SL/iz-süren sayıları → kanal) ──────
+async function runForexStats() {
+  try {
+    const r = await forexPushNotifier.pushStats();
+    logger.info(`💱📊 Forex günlük rapor turu — TG ${r?.telegram || 0}`);
+    return r;
+  } catch (e) {
+    logger.error(`Forex rapor hata: ${e.message}`, e.stack);
+    return null;
+  }
+}
 
 // ── YENİ ROBOT — derin konfluans sinyal kadansı (her 3 dk) ────────────────
 //    4 enstrüman (BTC / Ons Altın / S&P500 / EUR-USD) × 4 TF (15m/1h/4h/1d).
@@ -1425,6 +1488,28 @@ class CronJobsService {
       { scheduled: false, ...TR_TZ }
     );
 
+    // 27d. BIST "≥80 kaliteli AL" taraması — işlem saatlerinde SAATLİK (10:30–18:30
+    //      TR, Pzt-Cuma; HH:30). Tüm BIST taranır; güven≥80 + trend(EMA34) + hacim
+    //      teyidi geçen top 5 AL sinyali AYRI yeni kanala (TELEGRAM_BIST_AL_CHANNEL).
+    //      FOREX_ONLY_MODE'dan MUAF — kendi kanalına yayın yapar. isBistOpen() +
+    //      günlük dedup fonksiyonun içinde uygulanır.
+    const bistAlScannerJob = cron.schedule(
+      '30 10-18 * * 1-5',
+      () => runBistAlScanner(),
+      { scheduled: false, ...TR_TZ }
+    );
+
+    // 27d. BIST "≥80 kaliteli AL" taraması — işlem saatlerinde SAATLİK (10:30–18:30
+    //      TR, Pzt-Cuma; HH:30). Tüm BIST taranır; güven≥80 + trend(EMA34) + hacim
+    //      teyidi geçen top 5 AL sinyali AYRI yeni kanala (TELEGRAM_BIST_AL_CHANNEL).
+    //      FOREX_ONLY_MODE'dan MUAF — kendi kanalına yayın yapar. isBistOpen() +
+    //      günlük dedup fonksiyonun içinde uygulanır.
+    const bistAlScannerJob = cron.schedule(
+      '30 10-18 * * 1-5',
+      () => runBistAlScanner(),
+      { scheduled: false, ...TR_TZ }
+    );
+
     // 28. Kripto Bot tick — her 15 dk, 7/24 (kripto piyasası kapanmaz).
     //     Açık long/short pozisyonların TP/SL/timeout/trailing kontrolü.
     const cryptoBotTickJob = cron.schedule(
@@ -1547,6 +1632,8 @@ class CronJobsService {
       crossoverAlertJob,
       tema34ScannerMiddayJob,
       tema34ScannerJob,
+      bistAlScannerJob,
+      bistAlScannerJob,
       cryptoBotTickJob,
       customBotDailyJob,
       customBotTickJob,
@@ -1655,6 +1742,22 @@ class CronJobsService {
    */
   async triggerTema34Scanner(opts = {}) {
     return tema34ScannerNotifier.runAndNotify(opts);
+  }
+
+  /**
+   * Manuel tetikleme — BIST "≥80 kaliteli AL" taraması + ayrı yeni kanala bildirim
+   * (admin / test). opts.force=true → günlük dedup atlanır (aynı hisse tekrar gider).
+   */
+  async triggerBistAlScanner(opts = {}) {
+    return bistAlScannerNotifier.runAndNotify(opts);
+  }
+
+  /**
+   * Manuel tetikleme — BIST "≥80 kaliteli AL" taraması + ayrı yeni kanala bildirim
+   * (admin / test). opts.force=true → günlük dedup atlanır (aynı hisse tekrar gider).
+   */
+  async triggerBistAlScanner(opts = {}) {
+    return bistAlScannerNotifier.runAndNotify(opts);
   }
 
   /**
