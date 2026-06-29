@@ -55,6 +55,7 @@ const stats = {
  *   { symbol, verdict, net, confidence, alignedLong, alignedShort, tfDirections }
  */
 async function evaluateAndPush(confluences) {
+  if (process.env.FOREX_ONLY_MODE === '1') return { upgrades: 0, pushed: 0, forexOnly: true }; // forex-only: MTF kapalı
   if (!Array.isArray(confluences) || confluences.length === 0) return { upgrades: 0, pushed: 0 };
   // Kanal-tek modu (BIST dışı): MTF kullanıcıya FCM/DM ATMAZ; yalnız Telegram
   // KANALINA ve YALNIZ izinli pariteler (MTF_CHANNEL_SYMBOLS, vars. BTC,ETH) gider —

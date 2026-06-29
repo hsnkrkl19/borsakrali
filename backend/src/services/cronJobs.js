@@ -51,6 +51,11 @@ const customBotEngine = require('./customBots/customBotEngine');
 const customBotRegistry = require('./customBots/customBotRegistry');
 const logger = require('../utils/logger');
 
+// ⚠️ FOREX-ONLY MODE: kullanıcı isteğiyle forex DIŞINDAKİ tüm sinyal/bot sistemleri
+// (BIST, kripto, MTF, dalga, beast, altın, yeni-robot, crossover, trading/crypto/tema34/
+// custom botlar) DEVRE DIŞI. Geri açmak için Render'da FOREX_ONLY_MODE'u kaldır/0 yap.
+function forexOnly() { return process.env.FOREX_ONLY_MODE === '1'; }
+
 // Türkiye saat dilimi — BIST takvimi
 const TR_TZ = { timezone: 'Europe/Istanbul' };
 
@@ -236,6 +241,7 @@ async function runCalendarWarning() {
 
 // Daily signal cron'u sadece bir kere üretsin diye (manuel + cron çakışması olmasın)
 async function runDailyPhase(phase, options = {}) {
+  if (forexOnly()) return null;
   try {
     logger.info(`⏰ Daily signals (${phase}) başlatıldı`);
     const result = await dailySignalsService.runAndStore(phase);
@@ -301,6 +307,7 @@ async function runDailyPhase(phase, options = {}) {
 //   ingest eder. Faz seçimi bugünkü snapshot'tan okunur → restart sonrası
 //   mükerrer push olmaz. Pencere dışı/hafta sonu/tatil tetikleri sessizce eler.
 async function runBistSignalCadence() {
+  if (forexOnly()) return null;
   const now = Date.now();
   if (_bistCadenceLockAt && now - _bistCadenceLockAt < CADENCE_STALE_MS) {
     logger.info('⏭️ BIST sinyal turu hâlâ çalışıyor — bu 15 dk tetiği atlandı');
@@ -336,6 +343,7 @@ async function runBistSignalCadence() {
 //    kullanıcılara uygulama-içi yayın. Açık sinyallerin TP/SL kapanışı da
 //    kontrol edilir (aynı NO ile teyit). isBistOpen() pencere dışını eler.
 async function runBistFullSignalCadence() {
+  if (forexOnly()) return null;
   const now = Date.now();
   if (_bistFullSignalLockAt && now - _bistFullSignalLockAt < CADENCE_STALE_MS) {
     logger.info('⏭️ BIST ≥75 sinyal turu hâlâ çalışıyor — bu tetik atlandı');
@@ -378,6 +386,7 @@ async function runBistFullSignalCadence() {
 // Trading bot tick — açık pozisyonların TP/SL/trailing kontrolü.
 // Sadece BIST açıkken (09:45–18:30, hafta içi, tatil değil) çalışır.
 async function runBotTick() {
+  if (forexOnly()) return null;
   try {
     if (!isBistOpen()) return null;
     const result = await botEngine.tick();
@@ -404,6 +413,7 @@ async function runBotTick() {
 // Tüm BIST'i tarar; günlük kapanışı TEMA34 üzerine çıkan hisseyi alır,
 // altına ineni satar. TR resmi tatil günlerinde sessiz (mum oluşmaz).
 async function runTema34Bot() {
+  if (forexOnly()) return null;
   try {
     const dateKey = todayKeyTR();
     if (TR_HOLIDAYS_2026.has(dateKey)) {
@@ -434,6 +444,7 @@ async function runTema34Bot() {
 // tatil günlerinde sessiz (yeni günlük mum oluşmaz). Idempotluk içeride
 // (lastCandleDate) → aynı işlem günü tekrar bildirilmez.
 async function runCrossoverAlerts() {
+  if (forexOnly()) return null;
   try {
     const dateKey = todayKeyTR();
     if (TR_HOLIDAYS_2026.has(dateKey)) {
@@ -464,6 +475,7 @@ async function runCrossoverAlerts() {
 // koşturur (giriş/çıkış sinyalleri). TR resmi tatilinde sessiz. Botlar sırayla
 // işlenir (Yahoo veri çekimini boğmamak için).
 async function runCustomBotsDaily() {
+  if (forexOnly()) return null;
   try {
     const dateKey = todayKeyTR();
     if (TR_HOLIDAYS_2026.has(dateKey)) {
@@ -493,6 +505,7 @@ async function runCustomBotsDaily() {
 // Gün-içi tick — BIST açık saatlerinde her aktif botun açık pozisyonlarının
 // SL/TP/trailing/timeout kontrolü. isBistOpen() penceresi dışında çalışmaz.
 async function runCustomBotsTick() {
+  if (forexOnly()) return null;
   try {
     if (!isBistOpen()) return null;
     const bots = customBotRegistry.list().filter(b => b.status !== 'paused');
@@ -527,6 +540,7 @@ const CRYPTO_PHASE_TITLE = {
 };
 
 async function runCryptoPhase(phase, options = {}) {
+  if (forexOnly()) return null;
   try {
     logger.info(`⏰ Crypto signals (${phase}) başlatıldı`);
     const result = await cryptoSignalsService.runAndStore(phase);
@@ -612,6 +626,7 @@ async function runCryptoSignalCadence() {
 
 // Kripto bot tick — açık pozisyonların TP/SL/trailing kontrolü (7/24)
 async function runCryptoBotTick() {
+  if (forexOnly()) return null;
   try {
     const result = await cryptoBotEngine.tick();
     if (result?.closed || result?.trailed) {
@@ -664,13 +679,7 @@ async function runForexSignalCadence() {
     if (pushed?.telegram) {
       logger.info(`💱 Forex turu — ${sigs.length} sinyal · TG ${pushed.telegram} (yeni ${pushed.considered})`);
     }
-    // R-merdiveni yönetimi (YALNIZ ≥4h): kâr +1R'de stop girişe, sonra +0.5R adımlı
-    // kilitlenir → kademe değişince aynı NO ile "güncelleme" mesajı (sadece kanal).
-    try {
-      const mgmt = await forexSignalTracker.manageOpenPositions();
-      if (mgmt.length) await forexPushNotifier.pushManagementUpdates(mgmt);
-    } catch (mErr) { logger.error(`Forex yönetim hata: ${mErr.message}`); }
-    // Açık sinyallerin kapanış/teyit kontrolü (TP1/STOP/SÜRE → aynı NO ile teyit)
+    // Açık sinyallerin kapanış/teyit kontrolü (TP1/STOP/İZ-SÜREN/SÜRE → aynı NO ile teyit)
     try {
       const closures = await forexSignalTracker.checkClosures();
       if (closures.length) await forexPushNotifier.pushClosures(closures);
@@ -705,6 +714,7 @@ async function runForexBacktest() {
 // ── BIST sinyal kalibrasyon backtest'i — global ince-kova geçmişi (günde 1, ağır) ──
 let _bistBacktestRunning = false;
 async function runBistBacktest() {
+  if (forexOnly()) return null;
   if (_bistBacktestRunning) return null;
   _bistBacktestRunning = true;
   try {
@@ -720,17 +730,8 @@ async function runBistBacktest() {
   }
 }
 
-// ── Forex istatistik paylaşımı — günde 2 kez (parite bazlı başarı oranı) ────
-async function runForexStats() {
-  try {
-    const r = await forexPushNotifier.pushStats();
-    logger.info(`💱📊 Forex istatistik turu — TG ${r?.telegram || 0}`);
-    return r;
-  } catch (e) {
-    logger.error(`Forex istatistik hata: ${e.message}`, e.stack);
-    return null;
-  }
-}
+// ── Forex istatistik paylaşımı — TEMİZ SÜRÜMDE KALDIRILDI (pushStats yok). No-op. ──
+async function runForexStats() { return null; }
 
 // ── YENİ ROBOT — derin konfluans sinyal kadansı (her 3 dk) ────────────────
 //    4 enstrüman (BTC / Ons Altın / S&P500 / EUR-USD) × 4 TF (15m/1h/4h/1d).
@@ -738,6 +739,7 @@ async function runForexStats() {
 //    mum + uyumsuzluk + momentum ivmesi + ta4j) → 0-100 güven. ≥3/4 TF konfluans
 //    + R/R≥1.6 + backtest kalite kapısı. Sinyaller "🤖 YENİ ROBOT" markalı.
 async function runProSignalCadence() {
+  if (forexOnly()) return null;
   const now = Date.now();
   if (_proCadenceLockAt && now - _proCadenceLockAt < PRO_STALE_MS) return null;
   _proCadenceLockAt = now;
@@ -781,6 +783,7 @@ async function runProSignalCadence() {
 
 // ── YENİ ROBOT backtest — geçmiş başarı (günde 1, ağır) ───────────────────
 async function runProBacktest() {
+  if (forexOnly()) return null;
   if (_proBacktestRunning) return null;
   _proBacktestRunning = true;
   try {
@@ -798,6 +801,7 @@ async function runProBacktest() {
 
 // ── YENİ ROBOT self-test — canlı vs backtest → sınırlı ağırlık/eşik ayarı ──
 async function runProSelfTest() {
+  if (forexOnly()) return null;
   if (_proSelfTestRunning) return null;
   _proSelfTestRunning = true;
   try {
@@ -814,6 +818,7 @@ async function runProSelfTest() {
 
 // ── YENİ ROBOT istatistik — günde 2 kez (parite başarı oranı, kanala) ─────
 async function runProStats() {
+  if (forexOnly()) return null;
   try {
     const r = await proPushNotifier.pushStats();
     logger.info(`🤖📊 Yeni Robot istatistik turu — TG ${r?.telegram || 0}`);
@@ -829,6 +834,7 @@ async function runProStats() {
 //     (metaller hafta sonu otomatik bayat → yeni sinyal yok). Push VARSAYILAN
 //     KAPALI (BEAST_PUSH_DISABLED!=='0') — kullanıcı canlı doğrulayana kadar.
 async function runBeastSignalCadence() {
+  if (forexOnly()) return null;
   const now = Date.now();
   if (_beastCadenceLockAt && now - _beastCadenceLockAt < BEAST_STALE_MS) return null;
   _beastCadenceLockAt = now;
@@ -860,6 +866,7 @@ async function runBeastSignalCadence() {
 //    Destek/direnç + fraktal kırılımı. "🥇 ALTIN" markalı. Veri cache'li
 //    (1g/1h 6-12s, gün-içi 30dk) → 15 dk turu Yahoo'yu yormaz.
 async function runAltinCadence() {
+  if (forexOnly()) return null;
   const now = Date.now();
   if (_altinCadenceLockAt && now - _altinCadenceLockAt < ALTIN_STALE_MS) return null;
   _altinCadenceLockAt = now;
@@ -905,6 +912,7 @@ async function runAltinCadence() {
 
 // ── ALTIN backtest — TF başına geçmiş başarı (günde 1, ağır: 26y günlük) ───
 async function runAltinBacktest() {
+  if (forexOnly()) return null;
   if (_altinBacktestRunning) return null;
   _altinBacktestRunning = true;
   try {
@@ -924,6 +932,7 @@ async function runAltinBacktest() {
 //     Forex'ten BAĞIMSIZ, nadir, yalnız Telegram kanalı. Sayıma dahil değil.
 let _waveScanRunning = false;
 async function runWaveScan() {
+  if (forexOnly()) return null;
   if (_waveScanRunning) return null;
   _waveScanRunning = true;
   try {
@@ -951,6 +960,7 @@ async function runWaveScan() {
 
 // ── Multi-Timeframe (1h/4h/1d/1w) signal scanner ──────────────────────────
 async function runMTFPhase(tf, options = {}) {
+  if (forexOnly()) return null;
   try {
     logger.info(`⏰ MTF (${tf}) tarama başlatıldı`);
     const result = await multiTimeframeService.runAndStore(tf);

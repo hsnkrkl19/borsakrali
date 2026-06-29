@@ -17,7 +17,7 @@ const ema34 = require('./strategies/ema34');
 const tema34 = require('./strategies/tema34');
 const snrStrat = require('./strategies/snr');
 const smcStrat = require('./strategies/smc');
-const { aggregate, computeConfidence, calibrateConfidence, gradeFor, bandFor } = require('./forexAggregator');
+const { aggregate, computeConfidence, gradeFor, bandFor } = require('./forexAggregator');
 const levelsLib = require('./forexLevels');
 const { computeSizing } = require('./riskSizing');
 const forexBacktest = require('./forexBacktest');
@@ -27,10 +27,6 @@ const TFS = ['5m', '15m', '1h', '4h', '1d'];
 const STALE_MINUTES = 15;
 const MIN_CONFIDENCE = 40;     // altı → "neutral" (işleme değer sinyal yok)
 const DEFAULT_EQUITY = 10000;
-// Aktif kalibrasyon: backtesting.py perBand (PF/expectancy) → güveni SINIRLI
-// delta'yla düzelt ve UYGULA. Akış çökmesin diye delta CALIBRATION_MAX_DROP/RISE
-// ile sınırlı (bkz. forexAggregator). Kill-switch: FOREX_CALIBRATION_ACTIVE=0.
-const CALIBRATION_ACTIVE = process.env.FOREX_CALIBRATION_ACTIVE !== '0';
 
 let latest = null;             // bellek-içi son anlık görüntü (equity=DEFAULT)
 
@@ -55,8 +51,7 @@ async function evalTF(inst, tf, livePrice, equity) {
 
   const atrVal = atr(candles, 14);
   const entry = livePrice || candles[candles.length - 1].close;
-  // candles → net Fibonacci SL/TP (yoksa ATR). Kullanıcı isteği: fibo seviyeleri, geniş, az stop.
-  const levels = levelsLib.buildLevels(agg.direction, entry, atrVal, tf, inst.precision, candles);
+  const levels = levelsLib.buildLevels(agg.direction, entry, atrVal, tf, inst.precision);
   if (!levels) return { tf, status: 'neutral', votes: agg.votes };
 
   const sizing = computeSizing({ instrument: inst, entry: levels.entry, stop: levels.stop, direction: agg.direction }, { equity });
@@ -68,11 +63,8 @@ async function evalTF(inst, tf, livePrice, equity) {
   const conditions = [];
   for (const m of agg.modules) for (const c of (m.conditions || [])) if (c.met) conditions.push({ ...c, technique: m.technique });
 
-  // confluence sonra eklenecek; güven bileşenlerini sakla.
-  // ⚠️ R/R bileşenini fib (geniş stop) seviyelerinden AYIR: fib SL bilerek geniş →
-  // rr1<1 oluyor ve güveni eşik altına çekiyordu ("sinyal gelmiyor"). Güven SİNYAL
-  // kalitesini ölçmeli, stop seçimini değil → rr1 ≥1.6'ya tabanlanır (eski ATR davranışı).
-  const confComponents = { consensus: agg.consensus, avgScore: agg.avgScore, trendStrength: agg.trendStrength, momentum: agg.momentum, rr1: Math.max(levels.rr1 || 1, 1.6) };
+  // confluence sonra eklenecek; güven bileşenlerini sakla
+  const confComponents = { consensus: agg.consensus, avgScore: agg.avgScore, trendStrength: agg.trendStrength, momentum: agg.momentum, rr1: levels.rr1 };
 
   return {
     tf, status: 'signal',
@@ -111,26 +103,14 @@ async function evalInstrument(inst, equity) {
     if (!s || s.status !== 'signal') continue;
     const sameCount = dirs.filter(d => d === s.direction).length;
     const confluence = Math.max(0, (sameCount - 1) / (TFS.length - 1));
-    const rawConfidence = computeConfidence({ ...s._c, confluence });
+    const confidence = computeConfidence({ ...s._c, confluence });
     s.confluence = +confluence.toFixed(2);
     s.sameTfCount = sameCount;
-    // Backtest-tabanlı geçmiş başarı: bandı ham (teknik) güvene göre seç — backtest
-    // bantları da ham güvenle ölçüldüğü için tutarlı (döngü yok). Aynı winRate hem
-    // ekranda gösterilir hem kalibrasyonu sürer.
-    const h = forexBacktest.getHistory(meta.id, tf, rawConfidence);
-    // AKTİF KALİBRASYON: backtesting.py perBand (PF/expectancy) → güveni SINIRLI
-    // delta'yla düzelt ve PUSH/eşik kararında bunu kullan. Eski "winRate-tek mutlak
-    // harman" akışı kurutuyordu; yeni delta-temelli + PF-farkında biçim kârlı-düşük-
-    // winRate kurulumları cezalandırmaz, hiçbir sinyali tek hamlede eşik-altına
-    // çakamaz (MAX_DROP). Kill-switch FOREX_CALIBRATION_ACTIVE=0 → ham skora döner.
-    const cal = calibrateConfidence(rawConfidence, h);
-    const confidence = CALIBRATION_ACTIVE ? cal.confidence : rawConfidence;
     s.confidence = confidence;
-    s.rawConfidence = rawConfidence;
-    s.calibratedConfidence = cal.confidence;
-    s.confidenceCalibration = { empirical: cal.empirical, trust: cal.trust, delta: cal.delta };
     s.grade = gradeFor(confidence);
     s.confidenceBand = bandFor(confidence);
+    // Backtest-tabanlı geçmiş başarı (Sinyaller komuta merkezi mantığı)
+    const h = forexBacktest.getHistory(meta.id, tf, confidence);
     if (h) { s.historicalWinRate = h.winRate; s.sampleSize = h.sampleSize; s.historicalAvgReturn = h.avgReturn; s.historyBand = h.band; }
     delete s._c;
     if (confidence < MIN_CONFIDENCE) { perTf[tf] = { tf, status: 'low_conf', direction: s.direction, confidence, votes: s.votes }; }
