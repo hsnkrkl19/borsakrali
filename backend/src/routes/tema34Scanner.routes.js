@@ -15,7 +15,7 @@ const router = express.Router();
 
 const tema34ScannerStore = require('../services/tema34Scanner/tema34ScannerStore');
 const tema34ScannerNotifier = require('../services/tema34Scanner/tema34ScannerNotifier');
-const crossoverScanner = require('../services/crossover/crossoverScanner');
+const tema34ScanEngine = require('../services/tema34Scanner/tema34ScanEngine');
 const cronJobs = require('../services/cronJobs');
 const authService = require('../services/authService');
 
@@ -39,12 +39,16 @@ router.get('/status', (_req, res) => {
   try {
     res.json({
       ok: true,
-      lastCandleDate: tema34ScannerStore.getLastCandleDate(),
+      timeframes: tema34ScanEngine.TIMEFRAMES,
+      lastBar: {
+        '4h': tema34ScannerStore.getLastBar('4h'),
+        '1d': tema34ScannerStore.getLastBar('1d'),
+      },
       lastResult: tema34ScannerStore.getLastResult(),
-      running: crossoverScanner.isRunning(),
+      running: tema34ScanEngine.isRunning(),
       channelSet: !!tema34ScannerNotifier.channelId(),
       pushDisabled: process.env.TEMA34_SCANNER_DISABLED === '1',
-      config: crossoverScanner.CONFIG,
+      config: tema34ScanEngine.CONFIG,
     });
   } catch (e) {
     res.status(500).json({ ok: false, error: e.message });
@@ -63,7 +67,7 @@ router.get('/runs', (req, res) => {
 // ── Admin endpoint ─────────────────────────────────────────────────────────
 router.post('/run', requireAdmin, (req, res) => {
   try {
-    if (crossoverScanner.isRunning()) {
+    if (tema34ScanEngine.isRunning()) {
       return res.json({ ok: false, busy: true, error: 'Tarama zaten sürüyor' });
     }
     const force = req.body?.force === true || req.query.force === 'true';

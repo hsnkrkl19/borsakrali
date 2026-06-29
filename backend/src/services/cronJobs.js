@@ -473,10 +473,12 @@ async function runCrossoverAlerts() {
 
 // TEMA34 Tarama bildirimcisi — BIST kapanışından sonra tüm BIST'i tarar; YALNIZ
 // TEMA34 yukarı/aşağı ilk kırılımlarını AYRI bir Telegram kanalına gönderir
-// (TELEGRAM_TEMA34_CHANNEL). ⚠️ Kullanıcının açık isteğiyle eklenen bu yeni bot,
+// (TELEGRAM_TEMA34_CHANNEL). Tüm BIST çok-zaman-dilimli (4h + 1d) taranır; her TF
+// için YALNIZ "yeni giren" (cross_above) ve "sat bölgesine yeni geçen" (cross_below)
+// hisseler raporlanır. ⚠️ Kullanıcının açık isteğiyle eklenen bu bot
 // FOREX_ONLY_MODE freeze'inden MUAFTIR (forexOnly() kapısı YOK) → forex-only modda
-// bile kendi kanalına yayın yapar. Kanal env'i ayarlı değilse kendi içinde sessiz
-// kalır. TR resmi tatilinde sessiz. Idempotluk içeride (lastCandleDate).
+// bile kendi kanalına yayın yapar. Kanal env'i yoksa sessiz. TR resmi tatilinde
+// sessiz. Idempotluk TF-bazlı (her bar bir kez).
 async function runTema34Scanner() {
   try {
     const dateKey = todayKeyTR();
@@ -484,17 +486,15 @@ async function runTema34Scanner() {
       logger.info(`⏭️ TEMA34 tarama: ${dateKey} resmi tatil — tarama atlandı`);
       return null;
     }
-    logger.info('⏰ TEMA34 taraması başlatıldı');
+    logger.info('⏰ TEMA34 taraması başlatıldı (4h + 1d)');
     const result = await tema34ScannerNotifier.runAndNotify();
     if (!result?.ok) {
       logger.error(`[TEMA34Scanner] tarama başarısız: ${result?.error || 'bilinmeyen hata'}`);
-    } else if (result.skippedReason) {
-      logger.info(`📊 TEMA34 tarama — atlandı (${result.skippedReason}), taranan ${result.scanned}, kırılım ${result.total}`);
     } else {
-      logger.info(
-        `📊 TEMA34 tarama — taranan ${result.scanned}, ↑${result.counts.temaUp}/↓${result.counts.temaDown}, ` +
-        `bildirildi: ${result.notified}`
+      const parts = Object.values(result.timeframes || {}).map((t) =>
+        `${t.tf}: ${t.skippedReason ? `atlandı(${t.skippedReason})` : `🟢${t.counts?.up ?? 0}/🔴${t.counts?.down ?? 0}`}`
       );
+      logger.info(`📊 TEMA34 tarama — ${parts.join(' · ')} · bildirildi: ${result.notified}`);
     }
     return result;
   } catch (e) {
@@ -1406,11 +1406,19 @@ class CronJobsService {
       { scheduled: false, ...TR_TZ }
     );
 
-    // 27c. TEMA34 Tarama bildirimcisi — 19:00 TR, Pzt-Cuma. Tüm BIST taranır;
-    //      YALNIZ TEMA34 yukarı/aşağı ilk kırılımları AYRI Telegram kanalına
-    //      (TELEGRAM_TEMA34_CHANNEL) gönderilir. 18:50 crossover'dan sonra
-    //      (Yahoo'yu boğmasın). FOREX_ONLY_MODE'dan MUAF — kendi kanalına yayın
-    //      yapar. Resmi tatil + idempotluk fonksiyonun içinde uygulanır.
+    // 27c. TEMA34 Tarama bildirimcisi — çok-zaman-dilimli (4h + 1d), Pzt-Cuma.
+    //      Tüm BIST taranır; YALNIZ "yeni giren" (cross_above) ve "sat bölgesine
+    //      yeni geçen" (cross_below) hisseler AYRI Telegram kanalına
+    //      (TELEGRAM_TEMA34_CHANNEL) gönderilir. Her TF kendi barına göre ayrı
+    //      dedup'lanır → aynı runner iki kez çağrılsa da yalnız ilerleyen bar gider.
+    //      FOREX_ONLY_MODE'dan MUAF. Resmi tatil + idempotluk fonksiyon içinde.
+    //        • 15:05 TR → öğle 4h barı kapandıktan sonra (4h tazelenir).
+    //        • 19:00 TR → kapanış 4h barı + günlük (1d) mum (18:50 crossover'dan sonra).
+    const tema34ScannerMiddayJob = cron.schedule(
+      '5 15 * * 1-5',
+      () => runTema34Scanner(),
+      { scheduled: false, ...TR_TZ }
+    );
     const tema34ScannerJob = cron.schedule(
       '0 19 * * 1-5',
       () => runTema34Scanner(),
@@ -1537,6 +1545,7 @@ class CronJobsService {
       botTickJob,
       tema34BotJob,
       crossoverAlertJob,
+      tema34ScannerMiddayJob,
       tema34ScannerJob,
       cryptoBotTickJob,
       customBotDailyJob,

@@ -1,15 +1,16 @@
 /**
- * TEMA34 Scanner Store — yalnız-TEMA34 günlük kırılım bildirimcisinin durum deposu.
+ * TEMA34 Scanner Store — çok-zaman-dilimli (4h + 1d) TEMA34 bildirimcisinin durum
+ * deposu.
  *
- * Tek dosya (data/tema34-scanner/runs.json) tutar:
- *   { lastCandleDate, lastResult, history: [...son N tur özeti] }
- * lastCandleDate idempotluk içindir: aynı işlem günü için mükerrer bildirim atılmaz
- * (deploy/restart sonrası da tekrar göndermesin diye Supabase'e write-through).
+ * Tek dosya (data/tema34-scanner/runs.json):
+ *   { lastBar: { '4h': <barKey>, '1d': <barKey> }, lastResult, history: [...son N] }
+ * lastBar idempotluk içindir: HER zaman dilimi için ayrı işlenmiş-bar işareti
+ * tutulur → aynı 4h barı / aynı günlük mum iki kez bildirilmez (deploy/restart
+ * sonrası da tekrar atmasın diye Supabase'e write-through). barKey: 1d → tarih
+ * (YYYY-MM-DD); 4h → son bar ISO zamanı.
  *
  * botPersistence ile 'tema34-scanner/runs.json' Supabase Storage'a yedeklenir;
- * Supabase kapalıysa (yerel) sessizce yalnız-yerel çalışır. Bu modül, ana kanala
- * giden crossover bildirimcisinden (crossoverStore) BAĞIMSIZ ayrı bir state tutar
- * → kendi (yeni) Telegram kanalı için ayrı dedup.
+ * Supabase kapalıysa (yerel) sessizce yalnız-yerel çalışır.
  */
 
 const fs = require('fs');
@@ -24,7 +25,7 @@ const DIR = path.join(DATA_ROOT, SUBDIR);
 const FILE = path.join(DIR, FILENAME);
 
 function emptyState() {
-  return { lastCandleDate: null, lastResult: null, history: [] };
+  return { lastBar: {}, lastResult: null, history: [] };
 }
 
 function read() {
@@ -32,7 +33,7 @@ function read() {
     if (!fs.existsSync(FILE)) return emptyState();
     const parsed = JSON.parse(fs.readFileSync(FILE, 'utf8'));
     return {
-      lastCandleDate: parsed?.lastCandleDate || null,
+      lastBar: parsed?.lastBar && typeof parsed.lastBar === 'object' ? parsed.lastBar : {},
       lastResult: parsed?.lastResult || null,
       history: Array.isArray(parsed?.history) ? parsed.history.slice(-HISTORY_LIMIT) : [],
     };
@@ -44,7 +45,7 @@ function read() {
 
 function write(state) {
   const safe = {
-    lastCandleDate: state?.lastCandleDate || null,
+    lastBar: state?.lastBar && typeof state.lastBar === 'object' ? state.lastBar : {},
     lastResult: state?.lastResult || null,
     history: Array.isArray(state?.history) ? state.history.slice(-HISTORY_LIMIT) : [],
   };
@@ -59,9 +60,9 @@ function write(state) {
   return safe;
 }
 
-// Bir turun özetini geçmişe + lastResult'a ekle. lastCandleDate'e DOKUNMAZ
-// (idempotluk işareti ayrı: markNotified). Böylece push kapalıyken (disabled)
-// kaydedilen tur, gün yeniden açıldığında bildirimi engellemez.
+// Bir turun özetini geçmişe + lastResult'a ekle. lastBar'a DOKUNMAZ
+// (idempotluk işareti ayrı: markBar). Böylece push kapalıyken (disabled)
+// kaydedilen tur, bar yeniden açıldığında bildirimi engellemez.
 function recordRun(summary) {
   const state = read();
   state.lastResult = summary;
@@ -69,15 +70,15 @@ function recordRun(summary) {
   return write(state);
 }
 
-// Bu işlem gününün işlendiğini işaretle → aynı gün mükerrer bildirim atılmaz.
-function markNotified(candleDate) {
-  if (!candleDate) return read();
+// Bu zaman diliminin verili barının işlendiğini işaretle → aynı bar tekrar bildirilmez.
+function markBar(tf, barKey) {
+  if (!tf || !barKey) return read();
   const state = read();
-  state.lastCandleDate = candleDate;
+  state.lastBar = { ...(state.lastBar || {}), [tf]: barKey };
   return write(state);
 }
 
-function getLastCandleDate() { return read().lastCandleDate; }
+function getLastBar(tf) { return read().lastBar?.[tf] || null; }
 function getLastResult() { return read().lastResult; }
 function listRuns(limit = 30) {
   return read().history.slice().reverse().slice(0, Math.min(HISTORY_LIMIT, Math.max(1, limit)));
@@ -88,4 +89,4 @@ function reset() {
   return { ok: true, reset: true };
 }
 
-module.exports = { read, recordRun, markNotified, getLastCandleDate, getLastResult, listRuns, reset, SUBDIR, FILENAME };
+module.exports = { read, recordRun, markBar, getLastBar, getLastResult, listRuns, reset, SUBDIR, FILENAME };

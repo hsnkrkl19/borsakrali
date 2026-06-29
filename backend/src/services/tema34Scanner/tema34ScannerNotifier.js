@@ -1,21 +1,21 @@
 /**
- * TEMA34 Scanner Notifier — YALNIZ TEMA34 günlük "ilk kırılım" bildirimcisi.
+ * TEMA34 Scanner Notifier — çok-zaman-dilimli (4h + 1d), YALNIZ TEMA34 kırılım
+ * bildirimcisi.
  *
- * Tüm BIST taranır (mevcut crossoverScanner yeniden kullanılır — aynı kapanış
- * dizisinden EMA34+TEMA34 hesaplar) ama bu bot YALNIZCA TEMA34 kovalarını
- * (yukarı = AL bölgesi, düşüşte = SAT bölgesi) kullanır ve sonucu AYRI, YENİ bir
- * Telegram kanalına gönderir:
- *   Kanal = TELEGRAM_TEMA34_CHANNEL  (zorunlu — kullanıcının kuracağı yeni kanal).
- *   ⚠️ Kanal env'i AYARLI DEĞİLSE hiçbir yere göndermez (ana/forex kanalına ASLA
- *      düşmez — bu bot tamamen kendi kanalına özeldir).
+ * Tüm BIST taranır (tema34ScanEngine; 4h = 1h'ten resample, 1d = günlük). Her
+ * zaman dilimi için YALNIZ "yeni giren" (cross_above → AL bölgesi) ve "sat
+ * bölgesine yeni geçen" (cross_below → SAT bölgesi) hisseler raporlanır; süregelen
+ * above/below DURUMLARI gönderilmez. Sonuç AYRI/yeni Telegram kanalına gider:
+ *   Kanal = TELEGRAM_TEMA34_CHANNEL  (kullanıcının kurduğu kanal; örn. @tema34sinyal).
+ *   ⚠️ Env ayarlı değilse hiçbir yere göndermez (ana/forex kanalına ASLA düşmez).
  *
- * Bu bot uygulama/web push GÖNDERMEZ; yalnız Telegram kanalı (kullanıcı isteği).
- * Idempotluk: aynı işlem günü için (markNotified/lastCandleDate) yalnız bir kez
- * gönderir; restart/deploy sonrası tekrar atmaz. Kırılım yoksa sessizdir.
+ * Her zaman dilimi KENDİ barına göre bağımsız dedup'lanır (store.lastBar[tf]) →
+ * aynı 4h barı / aynı günlük mum iki kez bildirilmez; biri yenilenince diğeri
+ * beklemeden gider. Kırılım yoksa o TF sessizdir. Uygulama/web push YOK.
  * Kill-switch: TEMA34_SCANNER_DISABLED=1 → tarar + kaydeder ama bildirim atmaz.
  */
 
-const scanner = require('../crossover/crossoverScanner');
+const engine = require('./tema34ScanEngine');
 const store = require('./tema34ScannerStore');
 const telegramService = require('../telegramService');
 const logger = require('../../utils/logger');
@@ -24,6 +24,8 @@ const DEEP_LINK = '/firsatlar?tab=tarama';
 const TELEGRAM_MAX = 3900;          // 4096 limitin altında güvenli pay
 const SECTION_CAP = 80;             // bir kovada Telegram'da listelenecek en fazla hisse
 const HARD_TIMEOUT_MS = 16000;      // tek bir dış çağrı asla cron'u dondurmasın
+
+const TF_LABEL = { '4h': '4 SAATLİK', '1d': 'GÜNLÜK' };
 
 // Hiçbir dış çağrı (Telegram) işi dondurmasın — sert zaman aşımı.
 function withTimeout(promise, ms, label) {
@@ -46,6 +48,15 @@ function channelId() {
   return process.env.TELEGRAM_TEMA34_CHANNEL || '';
 }
 
+// Bir TF için idempotluk anahtarı: 1d → tarih; 4h → son bar ISO zamanı (gün-içi
+// birden çok 4h barı ayrışsın). Üreten veri yoksa null.
+function barKeyOf(tfResult) {
+  if (!tfResult) return null;
+  if (tfResult.tf === '1d') return tfResult.candleDate || null;
+  if (Number.isFinite(tfResult.barTime)) return new Date(tfResult.barTime).toISOString();
+  return tfResult.candleDate || null;
+}
+
 // ── Telegram mesaj gövdesi (≤3900 karakterlik parçalara bölünmüş) ───────────
 function buildTelegramSection(emoji, title, rows) {
   if (!rows.length) return '';
@@ -57,18 +68,23 @@ function buildTelegramSection(emoji, title, rows) {
   return lines.join('\n');
 }
 
-function buildTelegramMessages(result) {
-  const { candleDate, scanned, tema34 } = result;
+// Tek bir zaman dilimi sonucu → ≤TELEGRAM_MAX parçalara bölünmüş mesaj dizisi.
+function buildTimeframeMessages(tfResult) {
+  const tf = tfResult.tf;
+  const stamp = tf === '1d'
+    ? (tfResult.candleDate || '-')
+    : (Number.isFinite(tfResult.barTime)
+        ? new Date(tfResult.barTime).toLocaleString('tr-TR', { timeZone: 'Europe/Istanbul', dateStyle: 'short', timeStyle: 'short' })
+        : (tfResult.candleDate || '-'));
   const header =
-    `📊 <b>TEMA34 TARAMASI</b> — ${htmlEscape(candleDate || '-')}\n` +
-    `Taranan ${scanned} hisse · TEMA34 günlük kapanış kesişimi`;
+    `📊 <b>TEMA34 TARAMASI — ${TF_LABEL[tf] || tf}</b>\n` +
+    `${htmlEscape(stamp)} · Taranan ${tfResult.scanned} hisse · TEMA34 kapanış kesişimi`;
   const sections = [
-    buildTelegramSection('🟢', 'TEMA34 — Yukarı ilk kırılım (AL bölgesi)', tema34.up),
-    buildTelegramSection('🔴', 'TEMA34 — Düşüşte ilk kırılım (SAT bölgesi)', tema34.down),
+    buildTelegramSection('🟢', 'Yeni girenler (AL bölgesi)', tfResult.up),
+    buildTelegramSection('🔴', 'Sat bölgesine yeni geçenler', tfResult.down),
   ].filter(Boolean);
   const footer = `Detay: ${DEEP_LINK}\nNot: Yatırım tavsiyesi değildir.`;
 
-  // header + her bölüm + footer'ı boş satırla ayırıp ≤TELEGRAM_MAX parçalara böl
   const blocks = [header, ...sections, footer];
   const messages = [];
   let cur = '';
@@ -85,10 +101,9 @@ function buildTelegramMessages(result) {
   return messages;
 }
 
-async function sendTelegram(result) {
+async function sendMessages(messages) {
   const chatId = channelId();
-  if (!chatId) return { sent: 0, chatSet: false };  // yeni kanal ayarlı değil → sessiz
-  const messages = buildTelegramMessages(result);
+  if (!chatId) return { sent: 0, chatSet: false };
   let sent = 0;
   for (const msg of messages) {
     try {
@@ -102,59 +117,74 @@ async function sendTelegram(result) {
   return { sent, total: messages.length, chatSet: true };
 }
 
-/**
- * Tara + (gerekirse) bildir + durum kaydet. opts.force=true → dedup atlanır
- * (manuel/test). Dönen özet route + log için kullanılır.
- */
-async function runAndNotify(opts = {}) {
-  const force = !!opts.force;
-  const result = await scanner.scanAll();
-
-  if (!result.ok) {
-    logger.error(`[TEMA34Scanner] tarama başarısız: ${result.error || (result.busy ? 'meşgul' : 'bilinmeyen')}`);
-    return { ok: false, notified: false, error: result.error, busy: result.busy };
+// Tek bir TF sonucunu değerlendir + (gerekirse) gönder. Dönüş: per-TF özet.
+async function processTimeframe(tfResult, opts) {
+  const tf = tfResult?.tf;
+  if (!tfResult || !tfResult.ok) {
+    return { tf, ok: false, notified: false, skippedReason: 'scan-failed', error: tfResult?.error || null };
   }
-
-  const { candleDate, scanned, fetchErrors, counts } = result;
-  const total = counts.temaUp + counts.temaDown;     // YALNIZ TEMA34
-  const last = store.getLastCandleDate();
-  const alreadyDone = !!(last && candleDate && last === candleDate);
+  const force = !!opts.force;
   const disabled = process.env.TEMA34_SCANNER_DISABLED === '1';
+  const up = tfResult.up || [];
+  const down = tfResult.down || [];
+  const total = up.length + down.length;
+  const barKey = barKeyOf(tfResult);
+  const alreadyDone = !!(barKey && store.getLastBar(tf) === barKey);
 
   let notified = false;
   let skippedReason = null;
   let telegram = { sent: 0 };
 
   if (!force && alreadyDone) {
-    skippedReason = 'already-notified';      // bu işlem günü zaten bildirildi
+    skippedReason = 'already-notified';
   } else if (total === 0) {
-    skippedReason = 'no-crossings';          // TEMA34 kırılımı yok → sessiz
-    store.markNotified(candleDate);          // günü işlenmiş say
+    skippedReason = 'no-crossings';
+    if (barKey) store.markBar(tf, barKey);        // bar işlendi say
   } else if (disabled) {
-    skippedReason = 'disabled';              // kill-switch — lastCandleDate ilerletme
+    skippedReason = 'disabled';
   } else if (!channelId()) {
-    skippedReason = 'no-channel';            // yeni kanal henüz ayarlanmadı — sessiz, günü işaretleme
+    skippedReason = 'no-channel';                 // kanal yok → barı işaretleme (yayını kaçırma)
   } else {
-    telegram = await sendTelegram(result);
+    telegram = await sendMessages(buildTimeframeMessages(tfResult));
     notified = telegram.sent > 0;
-    if (notified) store.markNotified(candleDate);
-    logger.info(
-      `📊 TEMA34 tarama bildirim — ${candleDate}: ↑${counts.temaUp}/↓${counts.temaDown} · TG ${telegram.sent}`
-    );
+    if (notified && barKey) store.markBar(tf, barKey);
+    logger.info(`📊 TEMA34 ${tf} bildirim — ${barKey}: 🟢${up.length}/🔴${down.length} · TG ${telegram.sent}`);
+  }
+
+  return {
+    tf, ok: true, barKey,
+    scanned: tfResult.scanned, fetchErrors: tfResult.fetchErrors,
+    counts: { up: up.length, down: down.length }, total,
+    notified, skippedReason, telegramSent: telegram.sent || 0,
+    preview: { up: up.slice(0, 10).map(r => r.symbol), down: down.slice(0, 10).map(r => r.symbol) },
+  };
+}
+
+/**
+ * Tüm zaman dilimlerini tara + (gerekirse) bildir + durum kaydet.
+ * opts.force=true → dedup atlanır (manuel/test). Dönen özet route + log için.
+ */
+async function runAndNotify(opts = {}) {
+  const result = await engine.scanAll();
+
+  if (!result.ok) {
+    logger.error(`[TEMA34Scanner] tarama başarısız: ${result.error || (result.busy ? 'meşgul' : 'bilinmeyen')}`);
+    return { ok: false, notified: false, error: result.error, busy: result.busy };
+  }
+
+  const timeframes = {};
+  let anyNotified = false;
+  for (const tf of engine.TIMEFRAMES) {
+    const r = await processTimeframe(result[tf], opts);
+    timeframes[tf] = r;
+    if (r.notified) anyNotified = true;
   }
 
   const summary = {
     runAt: new Date().toISOString(),
-    candleDate, scanned, fetchErrors,
-    counts: { temaUp: counts.temaUp, temaDown: counts.temaDown },
-    total,
-    notified, skippedReason, forced: force,
-    telegramSent: telegram.sent || 0,
-    // Geçmişte sembol listesini sade tutmak için yalnız ilk birkaçını sakla
-    preview: {
-      temaUp: result.tema34.up.slice(0, 10).map(r => r.symbol),
-      temaDown: result.tema34.down.slice(0, 10).map(r => r.symbol),
-    },
+    forced: !!opts.force,
+    notified: anyNotified,
+    timeframes,
   };
   store.recordRun(summary);
   return { ok: true, ...summary };
@@ -162,9 +192,12 @@ async function runAndNotify(opts = {}) {
 
 module.exports = {
   runAndNotify,
+  processTimeframe,
   channelId,
+  barKeyOf,
   // pure builders — test edilebilir
-  buildTelegramMessages,
+  buildTimeframeMessages,
   buildTelegramSection,
   DEEP_LINK,
+  TF_LABEL,
 };
