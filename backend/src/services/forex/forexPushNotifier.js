@@ -37,29 +37,27 @@ function metrics(p) {
   };
 }
 
+// SADE mesaj (kullanıcı isteği): yalnız zaman dilimi + giriş/SL/TP. MT5/marj/
+// muhtemel-kâr/güven/RR YOK.
 function buildNew(p, reverseOf) {
-  const pr = p.precision ?? 4; const m = metrics(p);
+  const pr = p.precision ?? 4;
   const lines = [];
   if (reverseOf && reverseOf.length) lines.push(`🔴⚠️ <b>TERS SİNYAL</b> — zıt yönde açık pozisyon var (#${reverseOf.join(', #')})`);
   lines.push(`📊 <b>FOREX ${dirWord(p.direction)} — ${p.symbol}</b> · <b>#${p.code}</b>`);
-  lines.push(`TF: ${p.tfs.join(', ')}${p.tfs.length > 1 ? ` (${p.tfs.length} TF birleşik)` : ''}`);
-  lines.push(`Güven: <b>${p.confidence}/100</b>`);
-  lines.push(`Giriş: <b>${fmt(p.entry, pr)}</b> (piyasa)`);
-  lines.push(`Stop: ${fmt(p.stop, pr)} | TP1: ${fmt(p.target1, pr)} (R/R ${p.rr1}) | TP2: ${fmt(p.target2, pr)} (R/R ${p.rr2})`);
-  lines.push(`💼 Marj: ${usd(p.marginUsd)} (${p.marginPct}%) · Risk: ${usd(m.slPnl != null ? -Math.min(0, m.slPnl) : null, 0)}`);
-  lines.push(`Muhtemel: TP1 ${usd(m.tp1)} · TP2 ${usd(m.tp2)}`);
-  lines.push(`🤖 MT5: <code>${p.direction === 'long' ? 'BUY' : 'SELL'} ${p.mt5Symbol} @PİYASA · SL ${fmt(p.stop, pr)} · TP1 ${fmt(p.target1, pr)} · TP2 ${fmt(p.target2, pr)}</code>`);
+  lines.push(`⏱ Zaman dilimi: ${p.tfs.join(', ')}`);
+  lines.push(`Giriş: <b>${fmt(p.entry, pr)}</b>`);
+  lines.push(`Stop: ${fmt(p.stop, pr)}`);
+  lines.push(`TP1: ${fmt(p.target1, pr)} · TP2: ${fmt(p.target2, pr)}`);
   return lines.join('\n');
 }
 
+// Güncelleme: yalnız iz-süren yeni stop (MT5 satırı YOK).
 function buildUpdate(p, ev) {
   const pr = p.precision ?? 4;
-  const lines = [`🔄 <b>GÜNCELLEME — #${p.code} ${p.symbol} ${dirWord(p.direction)}</b>`];
-  if (ev.addedTfs && ev.addedTfs.length) lines.push(`➕ Yeni TF: ${ev.addedTfs.join(', ')} → birleşik: ${p.tfs.join(', ')}`);
-  if (ev.stopChanged) lines.push(`🛡 İz süren STOP: ${fmt(ev.prev.stop, pr)} → <b>${fmt(p.stop, pr)}</b>`);
-  if (ev.tpChanged) lines.push(`🎯 TP1: ${fmt(ev.prev.target1, pr)} → ${fmt(p.target1, pr)} · TP2: ${fmt(ev.prev.target2, pr)} → ${fmt(p.target2, pr)}`);
-  lines.push(`🤖 MT5 güncelle: <code>SL ${fmt(p.stop, pr)} · TP1 ${fmt(p.target1, pr)} · TP2 ${fmt(p.target2, pr)}</code>`);
-  return lines.join('\n');
+  return [
+    `🔄 <b>GÜNCELLEME — #${p.code} ${p.symbol} ${dirWord(p.direction)}</b> (${p.tfs.join(', ')})`,
+    `🛡 Yeni Stop: ${fmt(ev.prev.stop, pr)} → <b>${fmt(p.stop, pr)}</b>`,
+  ].join('\n');
 }
 
 function appNew(p) {
