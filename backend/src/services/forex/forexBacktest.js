@@ -28,7 +28,7 @@ const sidecar = require('../backtest/sidecarClient');
 const logger = require('../../utils/logger');
 
 const STORE_FILE = path.join(__dirname, '..', '..', 'data', 'forex-backtest.json');
-const TFS = ['5m', '15m', '1h', '4h', '1d'];
+const TFS = ['15m', '1h', '4h', '1d']; // 5m KALDIRILDI (forex 15dk+ tarar)
 const HORIZON = { '5m': 24, '15m': 16, '1h': 12, '4h': 10, '1d': 8 }; // ileri bar
 const MIN_CONFIDENCE = 40;
 const LOOKBACK_BARS = 120;     // kaç geçmiş bardan sinyal denesin

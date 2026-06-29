@@ -15,7 +15,7 @@ const tracker = require('./forexSignalTracker');
 const logger = require('../../utils/logger');
 
 const PUSH_CONFIDENCE = 60;
-const UPDATE_COOLDOWN_MS = 15 * 60 * 1000; // aynı pozisyon güncellemesi spam'ini engelle
+const UPDATE_COOLDOWN_MS = 60 * 60 * 1000; // aynı pozisyon güncellemesi spam'ini engelle (60 dk — düzeltmeleri azalt)
 const TARGET_USER_EMAIL = process.env.FOREX_PUSH_EMAIL || 'hsnkrkl19@gmail.com';
 
 const lastSent = new Map(); // code -> ts (son güncelleme push'u)
@@ -94,8 +94,11 @@ async function evaluateAndPush(signals) {
   for (const ev of events) {
     const p = ev.position;
     if (ev.type === 'update') {
+      // Düzeltme sinyallerini AZALT: YALNIZ stop iz sürünce (anlamlı) gönder —
+      // salt TF-katılım / TP değişimi mesajı atma. Üstüne uzun cooldown.
+      if (!ev.stopChanged) continue;
       const last = lastSent.get(p.code) || 0;
-      if ((!ev.addedTfs || ev.addedTfs.length === 0) && (now - last < UPDATE_COOLDOWN_MS)) continue; // güncelleme spam'i engeli
+      if (now - last < UPDATE_COOLDOWN_MS) continue;
     }
     const tgMsg = ev.type === 'new' ? buildNew(p, ev.reverseOf) : buildUpdate(p, ev);
     if (chatId) { try { const r = await withTimeout(telegramService.sendMessage(chatId, tgMsg), 16000, 'tg'); if (r?.success) { tg++; sent++; } } catch (e) { logger.error(`[ForexPush] tg #${p.code}: ${e.message}`); } }

@@ -179,10 +179,8 @@ async function evalOne(p) {
       if (tpHit) { outcome = 'TP1'; exit = p.target1; break; }
     }
   }
-  if (!outcome && nowSec() - p.issueTimeSec > maxExpire(p.tfs)) {
-    outcome = 'EXPIRE';
-    exit = candles && candles.length ? candles[candles.length - 1].close : p.entry;
-  }
+  // ⚠️ "SÜRE DOLDU" (EXPIRE) kapanışı KALDIRILDI (kullanıcı isteği). Pozisyon yalnız
+  // TP1 / SL / TRAIL ile kapanır; çok eskiyenler checkClosures'da SESSİZCE temizlenir.
   if (!outcome) return null;
   const dir = isLong ? 1 : -1;
   const pnlPct = +(((exit - p.entry) / p.entry) * 100 * dir).toFixed(3);
@@ -193,10 +191,15 @@ async function evalOne(p) {
 async function checkClosures() {
   await load();
   const events = [];
+  let changed = false;
   for (const p of openList()) {
-    try { const ev = await evalOne(p); if (ev) { events.push(ev); delete state.open[p.code]; } } catch (_) {}
+    try {
+      const ev = await evalOne(p);
+      if (ev) { events.push(ev); delete state.open[p.code]; changed = true; }
+      else if (nowSec() - p.issueTimeSec > maxExpire(p.tfs)) { delete state.open[p.code]; changed = true; } // SESSİZ süre temizliği (mesaj YOK)
+    } catch (_) {}
   }
-  if (events.length) persist();
+  if (changed) persist();
   return events;
 }
 

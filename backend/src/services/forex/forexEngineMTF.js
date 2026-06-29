@@ -23,7 +23,7 @@ const { computeSizing } = require('./riskSizing');
 const forexBacktest = require('./forexBacktest');
 const { INSTRUMENTS, getInstrument } = require('./forexInstruments');
 
-const TFS = ['5m', '15m', '1h', '4h', '1d'];
+const TFS = ['15m', '1h', '4h', '1d']; // 5m KALDIRILDI (kullanıcı: az sinyal/düzeltme, az yanlış)
 const STALE_MINUTES = 15;
 const MIN_CONFIDENCE = 40;     // altı → "neutral" (işleme değer sinyal yok)
 const DEFAULT_EQUITY = 10000;
