@@ -27,6 +27,16 @@ const INSTRUMENTS = [
   // ── Endeksler (E-mini vadeli ~7/24) ─────────────────────────────────────
   { id: 'NAS100', name: 'Nasdaq 100', symbol: 'US100', yahoo: 'NQ=F',   class: 'index',  contractSize: 1,    unitLabel: 'kontrat', precision: 2, tvSymbol: 'CME_MINI:NQ1!', alwaysOpen: false, prefix: 'NQ', priority: true },
   { id: 'SPX500', name: 'S&P 500',    symbol: 'US500', yahoo: 'ES=F',   class: 'index',  contractSize: 1,    unitLabel: 'kontrat', precision: 2, tvSymbol: 'CME_MINI:ES1!', alwaysOpen: false, prefix: 'SP', priority: true },
+
+  // ── FX Major Pariteler (spot, hafta içi 24s) — MT5 auto-trade için kullanıcı isteğiyle geri eklendi.
+  // ⚠️ Bunlar 2026-06-18'de "tutarlı kenar yok" diye çıkarılmıştı; canlı işlemde ekstra dikkat.
+  { id: 'EURUSD', name: 'Euro / Dolar',        symbol: 'EUR/USD', yahoo: 'EURUSD=X', class: 'fx', contractSize: 100000, unitLabel: 'birim', precision: 5, tvSymbol: 'FX:EURUSD', alwaysOpen: false, prefix: 'EU', priority: false },
+  { id: 'GBPUSD', name: 'Sterlin / Dolar',     symbol: 'GBP/USD', yahoo: 'GBPUSD=X', class: 'fx', contractSize: 100000, unitLabel: 'birim', precision: 5, tvSymbol: 'FX:GBPUSD', alwaysOpen: false, prefix: 'GB', priority: false },
+  { id: 'USDJPY', name: 'Dolar / Yen',         symbol: 'USD/JPY', yahoo: 'USDJPY=X', class: 'fx', contractSize: 100000, unitLabel: 'birim', precision: 3, tvSymbol: 'FX:USDJPY', alwaysOpen: false, prefix: 'UJ', priority: false },
+  { id: 'AUDUSD', name: 'Avustralya D / Dolar', symbol: 'AUD/USD', yahoo: 'AUDUSD=X', class: 'fx', contractSize: 100000, unitLabel: 'birim', precision: 5, tvSymbol: 'FX:AUDUSD', alwaysOpen: false, prefix: 'AD', priority: false },
+  { id: 'USDCAD', name: 'Dolar / Kanada D',    symbol: 'USD/CAD', yahoo: 'USDCAD=X', class: 'fx', contractSize: 100000, unitLabel: 'birim', precision: 5, tvSymbol: 'FX:USDCAD', alwaysOpen: false, prefix: 'UC', priority: false },
+  { id: 'USDCHF', name: 'Dolar / Frank',       symbol: 'USD/CHF', yahoo: 'USDCHF=X', class: 'fx', contractSize: 100000, unitLabel: 'birim', precision: 5, tvSymbol: 'FX:USDCHF', alwaysOpen: false, prefix: 'UF', priority: false },
+  { id: 'NZDUSD', name: 'Y.Zelanda D / Dolar', symbol: 'NZD/USD', yahoo: 'NZDUSD=X', class: 'fx', contractSize: 100000, unitLabel: 'birim', precision: 5, tvSymbol: 'FX:NZDUSD', alwaysOpen: false, prefix: 'NZ', priority: false },
 ];
 
 const BY_ID = new Map(INSTRUMENTS.map(i => [i.id, i]));

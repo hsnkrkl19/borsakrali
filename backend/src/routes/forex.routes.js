@@ -13,6 +13,7 @@ const express = require('express');
 const router = express.Router();
 
 const forexEngine = require('../services/forex/forexEngineMTF');
+const forexTracker = require('../services/forex/forexSignalTracker');
 const { listInstruments } = require('../services/forex/forexInstruments');
 
 function parseEquity(req) {
@@ -43,6 +44,28 @@ router.post('/generate', async (req, res) => {
     const equity = parseEquity(req) || (parseFloat(req.body?.equity) > 0 ? parseFloat(req.body.equity) : undefined);
     const snap = await forexEngine.generate(equity || forexEngine.DEFAULT_EQUITY);
     res.json({ success: true, ...snap });
+  } catch (e) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
+// ── Otomatik yürütme akışı (MT5 köprüsü) ────────────────────────────────────
+// Tracker'ın AÇIK pozisyonları (Telegram'daki sinyallerin aynısı, #kod dahil).
+// Token korumalı: FOREX_EXEC_TOKEN env yoksa 503 (kapalı); eşleşmezse 401.
+router.get('/positions', async (req, res) => {
+  const need = process.env.FOREX_EXEC_TOKEN;
+  if (!need) return res.status(503).json({ success: false, error: 'exec-feed-disabled' });
+  const got = (req.get('authorization') || '').replace(/^Bearer\s+/i, '').trim() || req.query.token;
+  if (got !== need) return res.status(401).json({ success: false, error: 'unauthorized' });
+  try {
+    await forexTracker.load();
+    const positions = forexTracker.getOpen().map(p => ({
+      code: p.code, instrumentId: p.instrumentId, symbol: p.symbol, direction: p.direction,
+      precision: p.precision, entry: p.entry, stop: p.stop, target1: p.target1, target2: p.target2,
+      confidence: p.confidence, tfs: p.tfs, mt5Symbol: p.mt5Symbol || p.instrumentId,
+      issuedAt: p.issuedAt, stopSetSec: p.stopSetSec,
+    }));
+    res.json({ success: true, count: positions.length, generatedAt: new Date().toISOString(), positions });
   } catch (e) {
     res.status(500).json({ success: false, error: e.message });
   }
