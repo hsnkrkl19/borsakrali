@@ -42,9 +42,10 @@ jest.mock('../../src/services/bistAlScanner/bistAlScannerStore', () => ({
 
 const notifier = require('../../src/services/bistAlScanner/bistAlScannerNotifier');
 
-// Bir sinyal nesnesi (engine snap.all üyesi gibi)
-const sig = (symbol, confidence, over = {}) => ({
-  symbol, name: symbol, direction: 'long', confidence, grade: 'GÜÇLÜ',
+// Bir sinyal nesnesi (engine snap.all üyesi gibi). 2. arg = avgVoteScore (kalite
+// ölçütü); confidence düşük kalır (BIST'te consensus-güven ~45'te takılır).
+const sig = (symbol, avgVoteScore, over = {}) => ({
+  symbol, name: symbol, direction: 'long', avgVoteScore, confidence: 45,
   entry: 100, stop: 95, target1: 110, rr1: 2, target2: 120, rr2: 4, precision: 2, ...over,
 });
 
@@ -59,10 +60,11 @@ function candleHist({ close = 100, ema34Closes = null, lastVol = 1000, baseVol =
 }
 
 describe('bistAlScannerNotifier — saf kurucular', () => {
-  test('buildSignalBlock — sembol/güven/giriş/SL/TP + trend&hacim satırı', () => {
+  test('buildSignalBlock — sembol/güç(avgScore)/giriş/SL/TP + trend&hacim satırı', () => {
     const b = notifier.buildSignalBlock({ ...sig('THYAO', 86), gate: { ema34: 98.5 } });
     expect(b).toContain('THYAO');
-    expect(b).toContain('86/100');
+    expect(b).toContain('Güç');
+    expect(b).toContain('86/100');   // avgVoteScore gösterilir
     expect(b).toContain('Giriş');
     expect(b).toContain('TP1');
     expect(b).toContain('EMA34');
@@ -148,9 +150,9 @@ describe('bistAlScannerNotifier.runAndNotify — skip & dedup yolları', () => {
     expect(mockTgSend).not.toHaveBeenCalled();
   });
 
-  test('güven < eşik (80) → aday yok → no-signals', async () => {
+  test('avgScore < eşik (75) → aday yok → no-signals', async () => {
     process.env.TELEGRAM_BIST_AL_CHANNEL = '-100777';
-    mockScan.mockResolvedValue({ scanned: 510, all: [sig('THYAO', 78), sig('GARAN', 75)] });
+    mockScan.mockResolvedValue({ scanned: 510, all: [sig('THYAO', 70), sig('GARAN', 60)] });
     const r = await notifier.runAndNotify();
     expect(r.candidates).toBe(0);
     expect(r.skippedReason).toBe('no-signals');

@@ -27,7 +27,10 @@ const store = require('./bistAlScannerStore');
 const logger = require('../../utils/logger');
 
 function envNum(name, def) { const v = Number(process.env[name]); return Number.isFinite(v) ? v : def; }
-const MIN_CONFIDENCE = envNum('BIST_AL_MIN_CONFIDENCE', 80);
+// Kalite ölçütü: motorun "consensus-güven"i BIST'te ≥75 üretemiyor (5 strateji
+// nadiren anlaşır → güven ~45'te takılır). Bunun yerine 5 stratejinin ORTALAMA
+// puanı (avgVoteScore, 0-100) kullanılır — kaliteli hisseler 75-82'ye ulaşır.
+const MIN_AVGSCORE = envNum('BIST_AL_MIN_AVGSCORE', 75);
 const TOP_N = envNum('BIST_AL_TOP_N', 5);
 const VOL_MULT = envNum('BIST_AL_VOL_MULT', 1.0);
 const EMA_PERIOD = 34;
@@ -104,7 +107,7 @@ async function passesGate(sig) {
 function buildSignalBlock(p) {
   const pr = p.precision ?? 2;
   return [
-    `📈 <b>${htmlEscape(p.symbol)}</b> — AL · Güven <b>${p.confidence}/100</b>${p.grade ? ` (${htmlEscape(p.grade)})` : ''}`,
+    `📈 <b>${htmlEscape(p.symbol)}</b> — AL · Güç <b>${p.avgVoteScore}/100</b>`,
     p.name && p.name !== p.symbol ? htmlEscape(p.name) : null,
     `Giriş: <b>${fmt(p.entry, pr)} TL</b>`,
     `Stop: ${fmt(p.stop, pr)} | TP1: ${fmt(p.target1, pr)} (R/R ${p.rr1}) | TP2: ${fmt(p.target2, pr)} (R/R ${p.rr2})`,
@@ -116,7 +119,7 @@ function buildTelegramMessages(result) {
   const { tradingDate, scanned, signals } = result;
   const header =
     `📈 <b>BIST AL SİNYALLERİ</b> — ${htmlEscape(tradingDate || '-')}\n` +
-    `Taranan ${scanned} hisse · Güven≥${MIN_CONFIDENCE} + trend (EMA34) + hacim teyidi`;
+    `Taranan ${scanned} hisse · Güç≥${MIN_AVGSCORE} (5 strateji ort.) + trend (EMA34) + hacim teyidi`;
   const footer = `Detay: ${DEEP_LINK}\nNot: Yatırım tavsiyesi değildir.`;
 
   const blocks = [header, ...signals.map(buildSignalBlock), footer];
@@ -162,17 +165,19 @@ async function runAndNotify(opts = {}) {
 
   let snap;
   try {
-    snap = await bistScoreEngine.scan({ force: true });
+    // minConfidence:0 → motor güven ön-filtresini ATLAR, TÜM long adayları
+    // avgVoteScore ile döner (BIST'te consensus-güven ≥75 üretemiyor).
+    snap = await bistScoreEngine.scan({ force: true, minConfidence: 0 });
   } catch (e) {
     logger.error(`[BistAlScanner] tarama başarısız: ${e.message}`);
     return { ok: false, notified: false, error: e.message };
   }
 
   const scanned = snap?.scanned || 0;
-  // Engine çıktısından güven ≥ eşik LONG adayları (engine zaten long-only + ≥75)
+  // Kalite kapısı: LONG + 5-strateji ORTALAMA puanı (avgVoteScore) ≥ eşik.
   const candidates = (snap?.all || [])
-    .filter(s => s && s.direction === 'long' && s.confidence >= MIN_CONFIDENCE)
-    .sort((a, b) => b.confidence - a.confidence);
+    .filter(s => s && s.direction === 'long' && (s.avgVoteScore || 0) >= MIN_AVGSCORE)
+    .sort((a, b) => b.avgVoteScore - a.avgVoteScore);
 
   // SIKI KAPI: trend + hacim teyidi (küçük batch'lerle)
   const gated = [];
@@ -182,7 +187,7 @@ async function runAndNotify(opts = {}) {
     for (const r of res) if (r) gated.push(r);
     if (i + GATE_BATCH < candidates.length) await sleep(GATE_PAUSE_MS);
   }
-  gated.sort((a, b) => b.confidence - a.confidence);
+  gated.sort((a, b) => b.avgVoteScore - a.avgVoteScore);
   const qualified = gated.slice(0, TOP_N);
 
   const disabled = process.env.BIST_AL_SCANNER_DISABLED === '1';
@@ -217,7 +222,7 @@ async function runAndNotify(opts = {}) {
     notified, skippedReason, forced: force,
     telegramSent: telegram.sent || 0,
     signals: qualified.map(s => ({
-      symbol: s.symbol, confidence: s.confidence, grade: s.grade,
+      symbol: s.symbol, avgScore: s.avgVoteScore, confidence: s.confidence,
       entry: s.entry, stop: s.stop, target1: s.target1, target2: s.target2,
       fresh: fresh.includes(s),
     })),
@@ -232,5 +237,5 @@ module.exports = {
   passesGate,
   buildTelegramMessages,
   buildSignalBlock,
-  MIN_CONFIDENCE, TOP_N, VOL_MULT, DEEP_LINK,
+  MIN_AVGSCORE, TOP_N, VOL_MULT, DEEP_LINK,
 };

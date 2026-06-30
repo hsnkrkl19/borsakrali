@@ -52,7 +52,11 @@ function toCandles(hist) {
 }
 
 // Tek hisse: 5 tekniği çalıştır → LONG + ≥eşik ise sinyal nesnesi, değilse null.
-async function scoreSymbol(stock) {
+// opts.minConfidence: güven eşiğini geçici geçersiz kıl (vars. MIN_CONFIDENCE=75).
+//   BIST AL tarayıcısı gibi avgScore-tabanlı süzenler için 0 geçebilir → tüm long
+//   adaylar (avgVoteScore ile) döner; ≥75 ana sistem bu param'ı GEÇMEZ, değişmez.
+async function scoreSymbol(stock, opts = {}) {
+  const minConf = Number.isFinite(opts.minConfidence) ? opts.minConfidence : MIN_CONFIDENCE;
   const symbol = (stock.symbol || stock).replace('.IS', '');
   try {
     const hist = await liveDataService.fetchHistoricalData(symbol, '1y', '1d');
@@ -86,7 +90,7 @@ async function scoreSymbol(stock) {
     const calHistory = CALIBRATION_ACTIVE ? bistBacktest.getHistory(rawConfidence) : null;
     const cal = calibrateConfidence(rawConfidence, calHistory);
     const confidence = CALIBRATION_ACTIVE ? cal.confidence : rawConfidence;
-    if (confidence < MIN_CONFIDENCE) return null;
+    if (confidence < minConf) return null;
 
     const conditions = [];
     for (const m of agg.modules) {
@@ -112,31 +116,39 @@ async function scoreSymbol(stock) {
 
 // Tüm evreni batch'lerle tara. force=true cache'i atlar. Eşzamanlı çağrı tek tur.
 async function scan(opts = {}) {
-  const { force = false, universe } = opts;
-  if (!force && _cache && Date.now() - new Date(_cache.generatedAt).getTime() < SCAN_CACHE_MS) {
+  const { force = false, universe, minConfidence } = opts;
+  // Override mod (ör. BIST AL tarayıcısı minConfidence:0): paylaşılan _cache/_scanning'e
+  // DOKUNMA — ≥75 ana sistemin cache'ini kirletmesin. Her zaman taze döner.
+  const override = Number.isFinite(minConfidence) && minConfidence !== MIN_CONFIDENCE;
+  if (!override && !force && _cache && Date.now() - new Date(_cache.generatedAt).getTime() < SCAN_CACHE_MS) {
     return _cache;
   }
-  if (_scanning) return _scanning;      // süren tarama varsa onu bekle (mükerrer Yahoo yükü yok)
-  _scanning = (async () => {
+  if (!override && _scanning) return _scanning;   // süren tarama varsa onu bekle (mükerrer Yahoo yükü yok)
+
+  const runner = (async () => {
     const stocks = universe || allBistStocks;
     const all = [];
     for (let i = 0; i < stocks.length; i += BATCH_SIZE) {
       const batch = stocks.slice(i, i + BATCH_SIZE);
-      const res = await Promise.all(batch.map(s => scoreSymbol(s)));
+      const res = await Promise.all(batch.map(s => scoreSymbol(s, override ? { minConfidence } : undefined)));
       for (const r of res) if (r) all.push(r);
       if (i + BATCH_SIZE < stocks.length) await sleep(BATCH_PAUSE_MS);
     }
     all.sort((a, b) => b.confidence - a.confidence);
-    _cache = {
+    const snap = {
       generatedAt: new Date().toISOString(),
       scanned: stocks.length,
-      minConfidence: MIN_CONFIDENCE,
+      minConfidence: override ? minConfidence : MIN_CONFIDENCE,
       qualified: all.length,
       all,
       top: all.slice(0, TOP_N),
     };
-    return _cache;
+    if (!override) _cache = snap;
+    return snap;
   })();
+
+  if (override) return await runner;    // izole: _scanning kilidine dokunma
+  _scanning = runner;
   try { return await _scanning; }
   finally { _scanning = null; }
 }
