@@ -72,6 +72,7 @@ DEFAULTS = {
     "min_rr": 0.7,
     "close_on_backend_close": False,
     "trail_stops": True,
+    "push_prices": True,
     "symbols": {},
 }
 
@@ -299,6 +300,33 @@ def poll_feed(cfg):
         return None
 
 
+def push_broker_prices(cfg):
+    """MT5'in CANLI bid/ask'lerini Render'a yolla → engine sinyalleri broker fiyatıyla
+    üretsin (Yahoo vadeli basis'ini giderir). instrumentId bazlı."""
+    if not cfg.get("push_prices", True):
+        return
+    prices = {}
+    for inst, sym in cfg["symbols"].items():
+        try:
+            info = mt5.symbol_info(sym)
+            if info is None:
+                continue
+            if not info.visible:
+                mt5.symbol_select(sym, True)
+            t = mt5.symbol_info_tick(sym)
+            if t and t.bid > 0 and t.ask > 0:
+                prices[inst] = {"bid": t.bid, "ask": t.ask}
+        except Exception:  # noqa
+            continue
+    if not prices:
+        return
+    try:
+        url = cfg["backend_url"].rstrip("/") + "/api/forex/broker-prices"
+        requests.post(url, json={"token": cfg["exec_token"], "prices": prices}, timeout=15)
+    except Exception as e:  # noqa
+        log.error("broker fiyat gönderilemedi: %s", e)
+
+
 def our_positions(cfg):
     # by_code: comment'ten #kod → pozisyon. by_sym_dir: (sembol, long?) kümesi —
     # comment silinse bile aynı sembol+yönde İKİNCİ pozisyon açılmasını engeller.
@@ -361,6 +389,8 @@ def main():
                 if ai is None or not ai.trade_allowed:
                     log.warning("Algo Trading KAPALI / hesap yok — bu tur emir yok.")
                     time.sleep(int(cfg["poll_seconds"])); continue
+
+            push_broker_prices(cfg)  # canlı broker fiyatlarını Render'a yolla (fiyat hizalama)
 
             feed = poll_feed(cfg)
             if feed is None:
