@@ -209,8 +209,9 @@ def open_trade(cfg, s, info):
     }
     r = send_with_filling(req)
     if r and r.retcode == mt5.TRADE_RETCODE_DONE:
+        fill = r.price if (r.price and r.price > 0) else price  # bazı brokerlar result.price=0 döner
         log.info("✅ AÇILDI %s %s %s lot=%s @%.*f SL=%.*f TP=%.*f ticket=%s",
-                 code, info.name, label, lot, d, r.price, d, sl, d, tp, r.order)
+                 code, info.name, label, lot, d, fill, d, sl, d, tp, r.order)
     else:
         rc = r.retcode if r else "None"
         cm = r.comment if r else mt5.last_error()
