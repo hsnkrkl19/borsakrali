@@ -157,6 +157,18 @@ async function fetchHistoricalData(symbol, period = '3mo', interval = '1d') {
       volume: quote.volume?.[i]
     })).filter(d => d.close != null);
 
+    // Render (ABD IP) Yahoo, BIST günlüğünü bazen range'den bağımsız ~64 barla
+    // kısıtlı döndürür → motorlar 100+ mum ister, hepsi elenir, sinyal üretilmez.
+    // Günlük interval'de Yahoo beklenenden çok AZ bar döndüyse İş Yatırım'ı dene;
+    // hangisi daha çok mum verirse onu kullan (BIST için tam yıl ≈ 250 bar).
+    // Kripto/forex ('-' içeren) İş Yatırım'da yok → onlara dokunma.
+    const MIN_DAILY_BARS = { '6mo': 80, '1y': 150, '2y': 300, '5y': 600 };
+    const need = MIN_DAILY_BARS[period];
+    if (interval === '1d' && !symbol.includes('-') && need && data.length < need) {
+      const alt = await fetchHistoricalFromIsYatirim(symbol, period);
+      if (alt && alt.length > data.length) return alt;
+    }
+
     return data;
   } catch (error) {
     console.error(`Historical veri hatasi ${symbol}:`, error.message);
