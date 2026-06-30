@@ -69,6 +69,7 @@ DEFAULTS = {
     "lot_max": 0.03,
     "conf_min": 60,
     "conf_max": 100,
+    "min_rr": 0.7,
     "close_on_backend_close": False,
     "trail_stops": True,
     "symbols": {},
@@ -120,8 +121,8 @@ def ensure_symbol(broker_sym):
 
 
 def min_stop_dist(info):
-    # Broker'ın izin verdiği asgari SL/TP mesafesi (fiyat cinsinden).
-    lvl = getattr(info, "trade_stops_level", 0) or 0
+    # Broker'ın izin verdiği asgari SL/TP mesafesi (fiyat cinsinden) — stops + freeze.
+    lvl = max(getattr(info, "trade_stops_level", 0) or 0, getattr(info, "trade_freeze_level", 0) or 0)
     return lvl * info.point
 
 
@@ -152,20 +153,33 @@ def open_trade(cfg, s, info):
         return
     price = tick.ask if is_long else tick.bid
 
-    # SL/TP = sinyalin girişe göre YÜZDE mesafesi (feed farkını nötrler), broker fiyatına uygula
-    entry, stop, tp1 = float(s["entry"]), float(s["stop"]), float(s["target1"])
-    stop_pct = abs(entry - stop) / entry
-    tp_pct = abs(tp1 - entry) / entry
-    sl = price * (1 - stop_pct) if is_long else price * (1 + stop_pct)
-    tp = price * (1 + tp_pct) if is_long else price * (1 - tp_pct)
+    # SL/TP = sinyalin MUTLAK seviyeleri (Telegram ile AYNI). Giriş piyasa emriyle
+    # broker fiyatından olur → Telegram girişi (geçmiş anlık fiyat) birebir tutmaz.
+    sl, tp = float(s["stop"]), float(s["target1"])
 
-    # Broker asgari mesafesine it
+    # Geçerlilik: fiyat SL–TP arasında DOĞRU tarafta olmalı; değilse sinyal bayat
+    # (hareket çoktan olmuş) → kovalama, ATLA.
+    if is_long and not (sl < price < tp):
+        log.info("#%s %s LONG atlandı: fiyat %.5f SL/TP (%.5f–%.5f) aralığı dışında (bayat).", code, info.name, price, sl, tp)
+        return
+    if (not is_long) and not (tp < price < sl):
+        log.info("#%s %s SHORT atlandı: fiyat %.5f TP/SL (%.5f–%.5f) aralığı dışında (bayat).", code, info.name, price, tp, sl)
+        return
+
+    # Kalan risk/ödül: hareketin çoğu olmuşsa (R:R düşük) girme — ETH gibi bayatları eler.
+    reward, risk = abs(tp - price), abs(price - sl)
+    rr = reward / risk if risk > 0 else 0.0
+    min_rr = float(cfg.get("min_rr", 0.7))
+    if rr < min_rr:
+        log.info("#%s %s atlandı: kalan R:R %.2f < %.2f (hareket olmuş).", code, info.name, rr, min_rr)
+        return
+
+    # Broker asgari SL/TP mesafesi — bu kadar yakınsa (bayat/dar) broker reddeder → ATLA.
     md = min_stop_dist(info)
-    if md > 0:
-        if is_long:
-            sl = min(sl, price - md); tp = max(tp, price + md)
-        else:
-            sl = max(sl, price + md); tp = min(tp, price - md)
+    if md > 0 and (risk < md or reward < md):
+        log.info("#%s %s atlandı: SL/TP broker min mesafesine (%.5f) çok yakın.", code, info.name, md)
+        return
+
     d = info.digits
     sl, tp = round(sl, d), round(tp, d)
     lot = lot_for_confidence(cfg, s.get("confidence", cfg["conf_min"]), info)
@@ -210,20 +224,21 @@ def maybe_trail(cfg, pos, s):
         log.warning("TRAIL atlandı %s %s: feed yönü=%s ama pozisyon=%s",
                     parse_code(pos.comment), pos.symbol, s["direction"], "long" if is_long else "short")
         return
-    entry, stop = float(s["entry"]), float(s["stop"])
-    if not (entry > 0):
-        return
-    anchor = pos.price_open
     info = mt5.symbol_info(pos.symbol)
     if info is None:
         return
-    # İŞARETLİ oran: long stop<giriş → SL fill ALTINDA (zarar); stop girişi geçince
-    # (kilitli kâr) → SL fill ÜSTÜNDE (kâr). Short için simetrik. abs() KULLANMA —
-    # yoksa kâra geçen stop yanlış tarafa düşer ve iz-süren donar.
-    frac = (stop - entry) / entry
-    new_sl = anchor * (1 + frac)
     d = info.digits
-    new_sl = round(new_sl, d)
+    new_sl = round(float(s["stop"]), d)  # MUTLAK stop (Telegram'ın iz-süren stop'uyla aynı)
+    tick = mt5.symbol_info_tick(pos.symbol)
+    if tick is None:
+        return
+    price = tick.bid if is_long else tick.ask  # kapanış tarafı
+    md = min_stop_dist(info)
+    # SL doğru tarafta ve yeterince uzak olmalı (yoksa broker reddeder / anında kapanır).
+    if is_long and not (new_sl < price - md):
+        return
+    if (not is_long) and not (new_sl > price + md):
+        return
     eps = info.point / 2
     cur = pos.sl or 0.0
     favorable = (is_long and (cur == 0 or new_sl > cur + eps)) or \

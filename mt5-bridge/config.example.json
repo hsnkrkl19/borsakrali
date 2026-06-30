@@ -12,6 +12,7 @@
   "lot_max": 0.03,
   "conf_min": 60,
   "conf_max": 100,
+  "min_rr": 0.7,
   "close_on_backend_close": false,
   "trail_stops": true,
   "symbols": {
