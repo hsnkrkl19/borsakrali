@@ -1445,17 +1445,12 @@ class CronJobsService {
     //      Tüm BIST taranır; YALNIZ "yeni giren" (cross_above) ve "sat bölgesine
     //      yeni geçen" (cross_below) hisseler AYRI Telegram kanalına
     //      (TELEGRAM_TEMA34_CHANNEL) gönderilir. Her TF kendi barına göre ayrı
-    //      dedup'lanır → aynı runner iki kez çağrılsa da yalnız ilerleyen bar gider.
+    //      dedup'lanır → SAATLİK çalışsa da yalnız ilerleyen bar gönderilir (spam yok):
+    //      4h barı kırılınca beklemeden gider, 1d kapanışta bir kez. İşlem
+    //      saatlerinde HER SAAT 10:00–19:00 TR (kapanış 4h ≈19:00 + günlük bar dahil).
     //      FOREX_ONLY_MODE'dan MUAF. Resmi tatil + idempotluk fonksiyon içinde.
-    //        • 15:05 TR → öğle 4h barı kapandıktan sonra (4h tazelenir).
-    //        • 19:00 TR → kapanış 4h barı + günlük (1d) mum (18:50 crossover'dan sonra).
-    const tema34ScannerMiddayJob = cron.schedule(
-      '5 15 * * 1-5',
-      () => runTema34Scanner(),
-      { scheduled: false, ...TR_TZ }
-    );
     const tema34ScannerJob = cron.schedule(
-      '0 19 * * 1-5',
+      '0 10-19 * * 1-5',
       () => runTema34Scanner(),
       { scheduled: false, ...TR_TZ }
     );
@@ -1591,7 +1586,6 @@ class CronJobsService {
       botTickJob,
       tema34BotJob,
       crossoverAlertJob,
-      tema34ScannerMiddayJob,
       tema34ScannerJob,
       bistAlScannerJob,
       cryptoBotTickJob,
