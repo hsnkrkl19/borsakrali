@@ -25,7 +25,6 @@ function withTimeout(promise, ms, label) {
   return Promise.race([Promise.resolve(promise), new Promise((_, rej) => setTimeout(() => rej(new Error('timeout:' + label)), ms))]);
 }
 function fmt(v, p) { return v == null ? '-' : Number(v).toLocaleString('en-US', { minimumFractionDigits: p, maximumFractionDigits: p }); }
-function usd(v, d = 0) { return v == null ? '-' : (v < 0 ? '-$' : '$') + Math.abs(Number(v)).toLocaleString('en-US', { maximumFractionDigits: d }); }
 function dirWord(d) { return d === 'long' ? 'LONG' : 'SHORT'; }
 
 function metrics(p) {
@@ -55,10 +54,12 @@ function buildNew(p, reverseOf) {
 // Güncelleme: yalnız iz-süren yeni stop (MT5 satırı YOK).
 function buildUpdate(p, ev) {
   const pr = p.precision ?? 4;
-  return [
-    `🔄 <b>GÜNCELLEME — #${p.code} ${p.symbol} ${dirWord(p.direction)}</b> (${p.tfs.join(', ')})`,
-    `🛡 Yeni Stop: ${fmt(ev.prev.stop, pr)} → <b>${fmt(p.stop, pr)}</b>`,
-  ].join('\n');
+  const lines = [`🔄 <b>GÜNCELLEME — #${p.code} ${p.symbol} ${dirWord(p.direction)}</b> (${p.tfs.join(', ')})`];
+  // Giriş açılış-anı piyasa fiyatıdır (limit değil); pozisyon sürerken güncel
+  // fiyatı da göster ki "ulaşılmamış limit" gibi görünmesin (BUG1).
+  if (ev.curPrice != null) lines.push(`Giriş (açılış): ${fmt(p.entry, pr)} · Güncel piyasa: <b>${fmt(ev.curPrice, pr)}</b>`);
+  lines.push(`🛡 Yeni Stop: ${fmt(ev.prev.stop, pr)} → <b>${fmt(p.stop, pr)}</b>`);
+  return lines.join('\n');
 }
 
 function appNew(p) {
@@ -117,10 +118,12 @@ function buildClosureTelegram(ev) {
     : ev.outcome === 'SL' ? '🛑 <b>STOP OLDU</b>'
     : '⏱️ <b>SÜRE DOLDU (kapandı)</b>';
   const sign = ev.pnlPct >= 0 ? '+' : '';
+  // Sonuç = Giriş→Çıkış fiyat hareketi %. $ (muhtemel kâr) satırı KALDIRILDI:
+  // sanal 10k$ hesaba göre hesaplanıyordu, % ile çelişip yanlış görünüyordu (BUG2).
   return [
     `${head} — <b>#${ev.code}</b> ${ev.symbol} ${dirWord(ev.direction)} (${(ev.tfs || []).join(', ')})`,
     `Giriş ${fmt(ev.entry, pr)} → Çıkış ${fmt(ev.exit, pr)}`,
-    `Sonuç: <b>${sign}${ev.pnlPct}%</b>${ev.pnlUsd != null ? ` (${usd(ev.pnlUsd, 2)})` : ''} · süre ${sure}`,
+    `Sonuç: <b>${sign}${ev.pnlPct}%</b> · süre ${sure}`,
   ].join('\n');
 }
 

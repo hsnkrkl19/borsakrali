@@ -20,7 +20,7 @@ try { const m = require('../../lib/supabase'); supa = m.supabaseAdmin; supaEnabl
 
 const BUCKET = 'bot-state';
 const SUPA_KEY = 'forex/open-signals.json';
-const DISK_FILE = path.join(__dirname, '..', '..', 'data', 'forex-open-signals.json');
+const DISK_FILE = process.env.FOREX_OPEN_FILE || path.join(__dirname, '..', '..', 'data', 'forex-open-signals.json');
 
 const TF_ORDER = ['5m', '15m', '1h', '4h', '1d'];
 const EXPIRE_SEC = { '5m': 3 * 3600, '15m': 6 * 3600, '1h': 18 * 3600, '4h': 2 * 86400, '1d': 4 * 86400 };
@@ -156,7 +156,7 @@ async function syncPositions(eligible) {
         existing.tfs = sortTfs([...existing.tfs, ...tfs]);
         existing.confidence = Math.max(existing.confidence, basis.confidence);
         existing.lastUpdateSec = nowSec();
-        events.push({ type: 'update', position: existing, addedTfs: newTfs, stopChanged, tpChanged: false, prev, reverseOf });
+        events.push({ type: 'update', position: existing, addedTfs: newTfs, stopChanged, tpChanged: false, prev, reverseOf, curPrice: basis.entry });
       }
     }
   }
@@ -174,14 +174,30 @@ async function evalOne(p) {
   // stop yukarı kayınca eski geri-çekilmeler geriye dönük "stop" tetiklemesin).
   const stopSince = p.stopSetSec || p.issueTimeSec;
   let outcome = null, exit = null;
-  if (candles && candles.length) {
-    for (const b of candles) {
-      if (b.time <= p.issueTimeSec) continue;
-      const slHit = (b.time > stopSince) && (isLong ? b.low <= p.stop : b.high >= p.stop);
-      const tpHit = isLong ? b.high >= p.target1 : b.low <= p.target1;
-      if (slHit) { outcome = (isLong ? p.stop >= p.entry : p.stop <= p.entry) ? 'TRAIL' : 'SL'; exit = p.stop; break; }
-      if (tpHit) { outcome = 'TP1'; exit = p.target1; break; }
-    }
+  // YALNIZ KAPANMIŞ mumlar: son mum hâlâ oluşuyor (5m TTL 4dk) → geçici fitil
+  // gerçekleşmemiş bir TP/SL'i tetiklerdi (hayalet kapanış + yanlış %).
+  const closed = (candles && candles.length) ? candles.slice(0, -1) : [];
+  for (const b of closed) {
+    if (b.time <= p.issueTimeSec) continue;
+    const slHit = (b.time > stopSince) && (isLong ? b.low <= p.stop : b.high >= p.stop);
+    const tpHit = isLong ? b.high >= p.target1 : b.low <= p.target1;
+    if (!slHit && !tpHit) continue;
+    // Çıkış fiyatı seviyeye PİNLENMEZ: mum SEVİYEYİ AŞARAK açıldıysa (hafta sonu
+    // gap'i vb.) gerçekleşebilir dolum = açılış fiyatı. Normal içi-mum değişte
+    // açılış seviyenin güvenli tarafında olduğundan Math.min/max seviyeyi döndürür.
+    const slExit = isLong ? Math.min(p.stop, b.open) : Math.max(p.stop, b.open);
+    const tpExit = isLong ? Math.max(p.target1, b.open) : Math.min(p.target1, b.open);
+    // TRAIL/SL ayrımı GERÇEK çıkışa göre (gap zararı "kilitli kâr" görünmesin).
+    const takeSl = () => { exit = slExit; outcome = (isLong ? exit >= p.entry : exit <= p.entry) ? 'TRAIL' : 'SL'; };
+    const takeTp = () => { exit = tpExit; outcome = 'TP1'; };
+    if (slHit && tpHit) {
+      // Aynı mumda hem stop hem hedef değdi: mum AÇILIŞINA daha yakın seviyeye
+      // fiyat ÖNCE değmiştir → kazananı stop'a yazma (BUG3), açılışa göre karar ver.
+      const dStop = Math.abs(b.open - p.stop), dTp = Math.abs(b.open - p.target1);
+      if (dTp <= dStop) takeTp(); else takeSl();
+    } else if (slHit) { takeSl(); }
+    else { takeTp(); }
+    break;
   }
   // ⚠️ "SÜRE DOLDU" (EXPIRE) kapanışı KALDIRILDI (kullanıcı isteği). Pozisyon yalnız
   // TP1 / SL / TRAIL ile kapanır; çok eskiyenler checkClosures'da SESSİZCE temizlenir.
