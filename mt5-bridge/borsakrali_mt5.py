@@ -48,11 +48,10 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 CONFIG_PATH = sys.argv[1] if len(sys.argv) > 1 else os.path.join(HERE, "config.json")
 STOP_FILE = os.path.join(HERE, "STOP")
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s %(levelname)s %(message)s",
-    handlers=[logging.StreamHandler(), logging.FileHandler(os.path.join(HERE, "bridge.log"), encoding="utf-8")],
-)
+# Konsol her zaman; bridge.log dosyası YALNIZ bot çalışırken (main) — test/diag import'u
+# canlı log'u kirletmesin diye FileHandler main()'de eklenir.
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s",
+                    handlers=[logging.StreamHandler()])
 log = logging.getLogger("bk-mt5")
 
 DEFAULTS = {
@@ -70,7 +69,7 @@ DEFAULTS = {
     "conf_min": 60,
     "conf_max": 100,
     "min_rr": 0.7,
-    "close_on_backend_close": False,
+    "close_on_backend_close": True,
     "trail_stops": True,
     "push_prices": True,
     "allow_hedge": False,
@@ -378,6 +377,7 @@ def connect(cfg):
 
 
 def main():
+    logging.getLogger().addHandler(logging.FileHandler(os.path.join(HERE, "bridge.log"), encoding="utf-8"))
     if not os.path.exists(CONFIG_PATH):
         log.error("config yok: %s (config.example.json'u kopyala)", CONFIG_PATH)
         sys.exit(1)
@@ -443,8 +443,8 @@ def main():
                     if (not cfg.get("allow_hedge", False)) and ((broker_sym, (not is_long)) in held_sym_dir):
                         log.info("#%s %s: TERS yön zaten açık — hedge kapalı, açılmadı.", code, broker_sym); continue
                     if (broker_sym, is_long) in held_sym_dir:
-                        log.warning("#%s: %s %s zaten açık (comment kayıp olabilir) — çift açılış engellendi.",
-                                    code, broker_sym, s["direction"]); continue
+                        log.info("#%s: %s %s zaten açık (aynı yönde başka pozisyon/eski kod) — çift açılış engellendi.",
+                                 code, broker_sym, s["direction"]); continue
                     if stop_kill:
                         log.warning("STOP dosyası var — #%s açılmadı.", code); continue
                     if len(open_by_code) >= int(cfg["max_open_positions"]):
@@ -457,9 +457,13 @@ def main():
                 except Exception as e:  # noqa — tek bozuk satır tüm turu düşürmesin
                     log.error("sinyal işlenemedi %s: %s", s.get("code"), e); continue
 
-            if cfg["close_on_backend_close"]:
+            # Backend bir sinyali kapatınca (telefona STOP/TP gider, feed'den düşer) MT5
+            # pozisyonunu da kapat → bot = telefon; aynı paritede yeni sinyale yer açılır.
+            # ⚠️ Boş feed = backend geçici arızası → toplu kapatma YAPMA (güvenlik).
+            if cfg["close_on_backend_close"] and feed:
                 for code, p in list(open_by_code.items()):
                     if code not in feed_codes:
+                        log.info("#%s %s: backend kapattı (feed'den düştü) — MT5 kapatılıyor.", code, p.symbol)
                         close_position(cfg, p)
 
             log.info("tur ok · feed=%d · açık(bizim)=%d%s", len(feed), len(open_by_code),

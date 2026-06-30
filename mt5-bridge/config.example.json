@@ -13,7 +13,7 @@
   "conf_min": 60,
   "conf_max": 100,
   "min_rr": 0.7,
-  "close_on_backend_close": false,
+  "close_on_backend_close": true,
   "trail_stops": true,
   "push_prices": true,
   "allow_hedge": false,
