@@ -109,6 +109,17 @@ def t_trail_dir_mismatch():
     print("OK maybe_trail yön uyuşmazlığında dokunmuyor")
 
 
+def t_no_hedge_suppress():
+    feed = [
+        {"instrumentId": "BTCUSD", "direction": "long", "code": "010A", "confidence": 70},
+        {"instrumentId": "BTCUSD", "direction": "short", "code": "011A", "confidence": 60},
+        {"instrumentId": "EURUSD", "direction": "long", "code": "012A", "confidence": 55},
+    ]
+    assert bk.suppressed_codes(feed, {"allow_hedge": False}) == {"011A"}, "düşük güvenli ters yön bastırılmalı"
+    assert bk.suppressed_codes(feed, {"allow_hedge": True}) == set(), "hedge açıkken bastırma yok"
+    print("OK no-hedge: çatışan düşük-güvenli yön bastırılıyor")
+
+
 def t_dry_run_no_send():
     setup_stubs(ask=100.05, bid=100.04)
     dry = dict(CFG); dry["dry_run"] = True
@@ -120,5 +131,6 @@ def t_dry_run_no_send():
 
 if __name__ == "__main__":
     t_lot(); t_open_long_absolute(); t_open_short_absolute(); t_skip_stale_rr()
-    t_skip_out_of_bracket(); t_trail_absolute(); t_trail_dir_mismatch(); t_dry_run_no_send()
+    t_skip_out_of_bracket(); t_trail_absolute(); t_trail_dir_mismatch()
+    t_no_hedge_suppress(); t_dry_run_no_send()
     print("\nTUM TESTLER GECTI - OK")

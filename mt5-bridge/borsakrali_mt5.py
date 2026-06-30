@@ -73,6 +73,7 @@ DEFAULTS = {
     "close_on_backend_close": False,
     "trail_stops": True,
     "push_prices": True,
+    "allow_hedge": False,
     "symbols": {},
 }
 
@@ -341,6 +342,23 @@ def our_positions(cfg):
     return by_code, by_sym_dir
 
 
+def suppressed_codes(feed, cfg):
+    """Hedge yoksa: aynı enstrümanda hem long hem short varsa DÜŞÜK güvenli olanı
+    bastır (yüksek güvenli yön açılsın). Çakışmayan (tek yönlü) enstrümana dokunmaz."""
+    if cfg.get("allow_hedge", False):
+        return set()
+    by_inst = {}  # instrumentId -> list of (confidence, code)
+    for s in feed:
+        by_inst.setdefault(s["instrumentId"], []).append((s.get("confidence", 0), s["code"]))
+    supp = set()
+    for lst in by_inst.values():
+        if len(lst) > 1:  # aynı enstrümanda birden fazla yön → en yükseği tut, gerisini bastır
+            lst.sort(reverse=True)  # güvene göre azalan
+            for _, code in lst[1:]:
+                supp.add(code)
+    return supp
+
+
 def connect(cfg):
     if not mt5.initialize():
         log.error("MT5'e bağlanılamadı: %s — Terminal açık ve giriş yapılmış mı?", mt5.last_error())
@@ -398,6 +416,7 @@ def main():
                 time.sleep(int(cfg["poll_seconds"])); continue
 
             open_by_code, held_sym_dir = our_positions(cfg)
+            supp = suppressed_codes(feed, cfg)  # hedge yoksa: çatışan düşük-güvenli yönleri bastır
             feed_codes = set()
             stop_kill = os.path.exists(STOP_FILE)
 
@@ -417,6 +436,12 @@ def main():
                         continue
                     # yeni pozisyon
                     is_long = s["direction"] == "long"
+                    # Hedge yoksa: paritede tek yön. Çatışan düşük-güvenli tarafı VEYA
+                    # ters yön zaten açıksa açma (farklı TF'ler ters sinyal üretebiliyor).
+                    if code in supp:
+                        log.info("#%s %s: çatışan DÜŞÜK güvenli yön — hedge kapalı, açılmadı.", code, broker_sym); continue
+                    if (not cfg.get("allow_hedge", False)) and ((broker_sym, (not is_long)) in held_sym_dir):
+                        log.info("#%s %s: TERS yön zaten açık — hedge kapalı, açılmadı.", code, broker_sym); continue
                     if (broker_sym, is_long) in held_sym_dir:
                         log.warning("#%s: %s %s zaten açık (comment kayıp olabilir) — çift açılış engellendi.",
                                     code, broker_sym, s["direction"]); continue

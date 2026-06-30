@@ -16,6 +16,7 @@
   "close_on_backend_close": false,
   "trail_stops": true,
   "push_prices": true,
+  "allow_hedge": false,
   "symbols": {
     "BTCUSD": "BTCUSD",
     "ETHUSD": "ETHUSD",
