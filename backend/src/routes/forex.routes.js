@@ -14,7 +14,16 @@ const router = express.Router();
 
 const forexEngine = require('../services/forex/forexEngineMTF');
 const forexTracker = require('../services/forex/forexSignalTracker');
+const brokerPrices = require('../services/forex/brokerPrices');
 const { listInstruments } = require('../services/forex/forexInstruments');
+
+function checkExecToken(req) {
+  const need = process.env.FOREX_EXEC_TOKEN;
+  if (!need) return { ok: false, code: 503, error: 'exec-feed-disabled' };
+  const got = (req.get('authorization') || '').replace(/^Bearer\s+/i, '').trim() || req.query.token || (req.body && req.body.token);
+  if (got !== need) return { ok: false, code: 401, error: 'unauthorized' };
+  return { ok: true };
+}
 
 function parseEquity(req) {
   const e = parseFloat(req.query.equity);
@@ -53,10 +62,8 @@ router.post('/generate', async (req, res) => {
 // Tracker'ın AÇIK pozisyonları (Telegram'daki sinyallerin aynısı, #kod dahil).
 // Token korumalı: FOREX_EXEC_TOKEN env yoksa 503 (kapalı); eşleşmezse 401.
 router.get('/positions', async (req, res) => {
-  const need = process.env.FOREX_EXEC_TOKEN;
-  if (!need) return res.status(503).json({ success: false, error: 'exec-feed-disabled' });
-  const got = (req.get('authorization') || '').replace(/^Bearer\s+/i, '').trim() || req.query.token;
-  if (got !== need) return res.status(401).json({ success: false, error: 'unauthorized' });
+  const auth = checkExecToken(req);
+  if (!auth.ok) return res.status(auth.code).json({ success: false, error: auth.error });
   try {
     await forexTracker.load();
     const positions = forexTracker.getOpen().map(p => ({
@@ -69,6 +76,20 @@ router.get('/positions', async (req, res) => {
   } catch (e) {
     res.status(500).json({ success: false, error: e.message });
   }
+});
+
+// Köprü (PC'de) canlı broker bid/ask'lerini buraya yollar → engine livePrice olarak kullanır.
+router.post('/broker-prices', (req, res) => {
+  const auth = checkExecToken(req);
+  if (!auth.ok) return res.status(auth.code).json({ success: false, error: auth.error });
+  const n = brokerPrices.set(req.body && req.body.prices);
+  res.json({ success: true, stored: n });
+});
+
+router.get('/broker-prices', (req, res) => {
+  const auth = checkExecToken(req);
+  if (!auth.ok) return res.status(auth.code).json({ success: false, error: auth.error });
+  res.json({ success: true, prices: brokerPrices.all() });
 });
 
 router.get('/signal/:id', async (req, res) => {

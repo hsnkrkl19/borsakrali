@@ -21,6 +21,7 @@ const { aggregate, computeConfidence, gradeFor, bandFor } = require('./forexAggr
 const levelsLib = require('./forexLevels');
 const { computeSizing } = require('./riskSizing');
 const forexBacktest = require('./forexBacktest');
+const brokerPrices = require('./brokerPrices');
 const { INSTRUMENTS, getInstrument } = require('./forexInstruments');
 
 const TFS = ['15m', '1h', '4h', '1d']; // 5m KALDIRILDI (kullanıcı: az sinyal/düzeltme, az yanlış)
@@ -91,7 +92,11 @@ async function evalInstrument(inst, equity) {
   const open = inst.alwaysOpen || ageMin <= STALE_MINUTES;
   if (!open) return { ...meta, status: 'closed', ageMin: Math.round(ageMin), perTf: {} };
 
-  const livePrice = ref.close;
+  // Fiyat kaynağı: köprü taze broker bid/ask gönderdiyse ONU kullan (Yahoo vadeli
+  // basis'ini giderir → sinyal seviyeleri broker'a oturur); yoksa Yahoo son kapanış.
+  const bp = brokerPrices.get(inst.id);
+  const livePrice = (bp && bp.mid > 0) ? bp.mid : ref.close;
+  const priceSource = (bp && bp.mid > 0) ? 'broker' : 'yahoo';
   const arr = await Promise.all(TFS.map(tf => evalTF(inst, tf, livePrice, equity)));
   const perTf = {};
   for (const r of arr) perTf[r.tf] = r;
@@ -116,7 +121,7 @@ async function evalInstrument(inst, equity) {
     if (confidence < MIN_CONFIDENCE) { perTf[tf] = { tf, status: 'low_conf', direction: s.direction, confidence, votes: s.votes }; }
   }
 
-  return { ...meta, status: 'open', livePrice, perTf };
+  return { ...meta, status: 'open', livePrice, priceSource, perTf };
 }
 
 // ── Tüm evren ──────────────────────────────────────────────────────────────
