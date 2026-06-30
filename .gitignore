@@ -54,3 +54,8 @@ frontend/public/icon-options/
 backtest-service/.venv/
 backtest-service/**/__pycache__/
 backtest-service/.pytest_cache/
+
+# MT5 köprüsü — yerel gizli config (exec token) + runtime dosyaları (asla commit'leme)
+mt5-bridge/config.json
+mt5-bridge/__pycache__/
+mt5-bridge/STOP
