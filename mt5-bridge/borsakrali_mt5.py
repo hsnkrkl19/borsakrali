@@ -377,7 +377,9 @@ def connect(cfg):
 
 
 def main():
-    logging.getLogger().addHandler(logging.FileHandler(os.path.join(HERE, "bridge.log"), encoding="utf-8"))
+    fh = logging.FileHandler(os.path.join(HERE, "bridge.log"), encoding="utf-8")
+    fh.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(message)s"))
+    logging.getLogger().addHandler(fh)
     if not os.path.exists(CONFIG_PATH):
         log.error("config yok: %s (config.example.json'u kopyala)", CONFIG_PATH)
         sys.exit(1)
