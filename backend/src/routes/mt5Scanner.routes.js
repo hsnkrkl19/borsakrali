@@ -18,6 +18,15 @@ const engine = require('../services/mt5Scanner/mt5Engine');
 const tracker = require('../services/mt5Scanner/mt5Tracker');
 const { listInstruments } = require('../services/mt5Scanner/mt5Instruments');
 
+// MT5 köprüsü yürütme beslemesi — forex.routes ile AYNI token (FOREX_EXEC_TOKEN).
+function checkExecToken(req) {
+  const need = process.env.FOREX_EXEC_TOKEN;
+  if (!need) return { ok: false, code: 503, error: 'exec-feed-disabled' };
+  const got = (req.get('authorization') || '').replace(/^Bearer\s+/i, '').trim() || req.query.token || (req.body && req.body.token);
+  if (got !== need) return { ok: false, code: 401, error: 'unauthorized' };
+  return { ok: true };
+}
+
 function parseEquity(v) {
   const e = parseFloat(v);
   if (!(e > 0)) return undefined;
@@ -60,6 +69,29 @@ router.post('/equity', async (req, res) => {
     const saved = tracker.setEquity(equity);
     const snap = await engine.generate(saved);
     res.json({ success: true, equity: saved, counts: snap.counts, budget: snap.budget });
+  } catch (e) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
+// ── Otomatik yürütme akışı (yerel MT5 tarayıcı köprüsü) ─────────────────────
+// Tracker'ın AÇIK gün-içi pozisyonları (Telegram'daki #Gxx kodlarının aynısı).
+// Token korumalı: FOREX_EXEC_TOKEN yoksa 503, eşleşmezse 401. Köprü lot'u
+// AYNEN kullanır (backend broker-adımına oturtmuş durumda); SL/TP MUTLAK.
+router.get('/positions', async (req, res) => {
+  const auth = checkExecToken(req);
+  if (!auth.ok) return res.status(auth.code).json({ success: false, error: auth.error });
+  try {
+    await tracker.load();
+    const positions = tracker.getOpen().map((p) => ({
+      code: p.code, instrumentId: p.instrumentId, symbol: p.symbol, tf: p.tf,
+      direction: p.direction, precision: p.precision,
+      entry: p.entry, stop: p.stop, target1: p.target1, target2: p.target2,
+      lots: p.lots, riskUsd: p.riskUsd, confidence: p.confidence,
+      mt5Symbol: p.mt5Symbol || p.instrumentId,
+      issuedAt: p.issuedAt, issueTimeSec: p.issueTimeSec, eodDeadlineSec: p.eodDeadlineSec,
+    }));
+    res.json({ success: true, count: positions.length, generatedAt: new Date().toISOString(), positions });
   } catch (e) {
     res.status(500).json({ success: false, error: e.message });
   }
