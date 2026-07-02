@@ -58,5 +58,10 @@ backtest-service/.pytest_cache/
 
 # MT5 köprüsü — yerel gizli config (exec token) + runtime dosyaları (asla commit'leme)
 mt5-bridge/config.json
+mt5-bridge/config_scanner.json
 mt5-bridge/__pycache__/
 mt5-bridge/STOP
+mt5-bridge/STOP_SCANNER
+mt5-bridge/scanner_state.json
+mt5-bridge/scanner_bridge.log
+mt5-bridge/bridge.log

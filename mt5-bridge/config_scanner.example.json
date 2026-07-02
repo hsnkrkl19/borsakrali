@@ -1,0 +1,27 @@
+{
+  "backend_url": "https://www.borsakrali.com",
+  "exec_token": "BURAYA-FOREX_EXEC_TOKEN-DEGERI",
+  "poll_seconds": 60,
+  "dry_run": true,
+  "enabled": true,
+  "magic": 550066,
+  "deviation_points": 30,
+  "max_open_positions": 12,
+  "max_lot": 10,
+  "min_rr": 0.7,
+  "close_on_backend_close": true,
+  "push_prices": false,
+  "no_new_after_tr_min": 1380,
+  "eod_close_tr_min": 1425,
+  "symbols": {
+    "BTCUSD": "BTCUSD",
+    "ETHUSD": "ETHUSD",
+    "XRPUSD": "XRPUSD",
+    "SOLUSD": "SOLUSD",
+    "XAUUSD": "XAUUSD",
+    "XAGUSD": "XAGUSD",
+    "NAS100": "US100.cash",
+    "SPX500": "US500.cash",
+    "EURUSD": "EURUSD"
+  }
+}
