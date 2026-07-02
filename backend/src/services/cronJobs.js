@@ -43,6 +43,10 @@ const tema34Engine = require('./tema34Bot/tema34Engine');
 const crossoverNotifier = require('./crossover/crossoverNotifier');
 const tema34ScannerNotifier = require('./tema34Scanner/tema34ScannerNotifier');
 const bistAlScannerNotifier = require('./bistAlScanner/bistAlScannerNotifier');
+// MT5 GÜN-İÇİ tarayıcı — 9 enstrüman × 5 TF, her dk; gün-içi + risk bütçeli
+const mt5Engine = require('./mt5Scanner/mt5Engine');
+const mt5Tracker = require('./mt5Scanner/mt5Tracker');
+const mt5Notifier = require('./mt5Scanner/mt5Notifier');
 const waveScanEngine = require('./waveScan/waveScanEngine');
 const waveScanNotifier = require('./waveScan/waveScanNotifier');
 const waveScanTracker = require('./waveScan/waveScanTracker');
@@ -130,6 +134,9 @@ let _cryptoCadenceLockAt = 0;
 // Forex turu her dk çalışır → daha kısa bayatlama penceresi (üst üste binmesin).
 const FOREX_STALE_MS = 90 * 1000;
 let _forexCadenceLockAt = 0;
+// MT5 gün-içi tarayıcı da her dk → aynı kısa bayatlama penceresi.
+const MT5_STALE_MS = 90 * 1000;
+let _mt5CadenceLockAt = 0;
 // Yeni Robot turu her 3 dk → 150 sn bayatlama penceresi (üst üste binmesin).
 const PRO_STALE_MS = 150 * 1000;
 let _proCadenceLockAt = 0;
@@ -752,6 +759,63 @@ async function runForexSignalCadence() {
   }
 }
 
+// ── MT5 GÜN-İÇİ tarayıcı kadansı — HER DAKİKA, 7/24 ───────────────────────
+//    9 enstrüman (BTC/ETH/XRP/SOL + Altın + Gümüş + EURUSD + Nasdaq + S&P500,
+//    hepsi forex/CFD fiyatı) × 5 TF (5m/15m/1h/4h/1d). Tüm tarayıcı teknikleri
+//    + TEMA34 → 0-100 güven; LOT (broker adımlı) + MUTLAK SL/TP + risk bütçesi
+//    (günlük %5 / toplam %10 — bütçeyi aşacak işlem VERİLMEZ). Gün-içi kural:
+//    23:00'ten sonra yeni işlem yok, açık pozisyonlar 23:45'te gün sonu kapanışı.
+//    ⚠️ Kullanıcının açık isteğiyle eklenen bu bot FOREX_ONLY_MODE freeze'inden
+//    MUAFTIR (forexOnly() kapısı YOK). Kill-switch: MT5_SCANNER_DISABLED=1.
+async function runMt5Scanner() {
+  if (process.env.MT5_SCANNER_DISABLED === '1') return null;
+  const now = Date.now();
+  if (_mt5CadenceLockAt && now - _mt5CadenceLockAt < MT5_STALE_MS) {
+    return null; // önceki tur hâlâ çalışıyor — bu dk tetiği atla
+  }
+  _mt5CadenceLockAt = now;
+  try {
+    const snap = await mt5Engine.generate();       // kalıcı portföy ayarı (vars. 10k$)
+    // Telegram kanal + uygulama-içi (hsnkrkl19@gmail.com) push — 45 sn tavan
+    let pushed = { telegram: 0, app: 0, opened: 0 };
+    try {
+      pushed = await Promise.race([
+        mt5Notifier.evaluateAndPush(snap),
+        new Promise((_, r) => setTimeout(() => r(new Error('mt5push-timeout-45s')), 45000)),
+      ]);
+    } catch (pe) {
+      logger.error(`MT5 tarayıcı push hata: ${pe.message}`);
+    }
+    if (pushed?.opened) {
+      logger.info(`⚡ MT5 gün-içi turu — ${snap?.counts?.signal || 0} sinyal · açılan ${pushed.opened} · TG ${pushed.telegram} · app ${pushed.app}`);
+    }
+    // Açık pozisyonların kapanış kontrolü (TP1/SL/GÜN SONU → aynı NO ile teyit)
+    try {
+      const closures = await mt5Tracker.checkClosures();
+      if (closures.length) await mt5Notifier.pushClosures(closures);
+    } catch (clErr) { logger.error(`MT5 kapanış kontrol hata: ${clErr.message}`); }
+    return snap;
+  } catch (e) {
+    logger.error(`MT5 tarayıcı turu hata: ${e.message}`, e.stack);
+    return null;
+  } finally {
+    _mt5CadenceLockAt = 0;
+  }
+}
+
+// ── MT5 GÜN-İÇİ günlük rapor — her gün 23:50 TR (gün sonu kapanışlarından sonra) ──
+async function runMt5DailyReport() {
+  if (process.env.MT5_SCANNER_DISABLED === '1') return null;
+  try {
+    const r = await mt5Notifier.pushDailyReport();
+    logger.info(`⚡📊 MT5 gün-içi rapor turu — TG ${r?.telegram || 0}`);
+    return r;
+  } catch (e) {
+    logger.error(`MT5 rapor hata: ${e.message}`, e.stack);
+    return null;
+  }
+}
+
 // ── Forex backtest — geçmiş başarı oranı (günde 1, ağır) ──────────────────
 let _forexBacktestRunning = false;
 async function runForexBacktest() {
@@ -1230,6 +1294,21 @@ class CronJobsService {
       { scheduled: false, ...TR_TZ }
     );
 
+    // 14b-2. MT5 GÜN-İÇİ tarayıcı — HER DAKİKA, 7/24 (FOREX_ONLY'den MUAF).
+    //        9 enstrüman × 5 TF; push kendi risk-bütçesi + eşiğiyle sınırlı.
+    const mt5ScannerJob = cron.schedule(
+      '* * * * *',
+      () => runMt5Scanner(),
+      { scheduled: false, ...TR_TZ }
+    );
+
+    // 14b-3. MT5 GÜN-İÇİ günlük rapor — her gün 23:50 TR (gün sonu kapanışı 23:45).
+    const mt5ReportJob = cron.schedule(
+      '50 23 * * *',
+      () => runMt5DailyReport(),
+      { scheduled: false, ...TR_TZ }
+    );
+
     // 14c. Forex backtest — geçmiş başarı oranı, günde 1 kez 03:35 TR (ağır).
     //      Açılıştan ~90 sn sonra bir kez de tetiklenir (ilk veri dolsun).
     const forexBacktestJob = cron.schedule(
@@ -1561,6 +1640,8 @@ class CronJobsService {
       bistFullSignalJob,
       cryptoSignalJob,
       forexSignalJob,
+      mt5ScannerJob,
+      mt5ReportJob,
       forexBacktestJob,
       bistBacktestJob,
       forexStatsJob,
@@ -1647,6 +1728,17 @@ class CronJobsService {
    */
   async triggerForexStats() {
     return runForexStats();
+  }
+
+  /**
+   * Manuel tetikleme — MT5 gün-içi tarayıcı turu / günlük raporu (test/admin)
+   */
+  async triggerMt5Scanner() {
+    return runMt5Scanner();
+  }
+
+  async triggerMt5Report() {
+    return runMt5DailyReport();
   }
 
   /**
