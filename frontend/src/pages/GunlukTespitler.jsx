@@ -12,6 +12,7 @@ import BugununSinyalleri from '../components/BugununSinyalleri'
 import SpotAlSinyalleri from '../components/SpotAlSinyalleri'
 import KriptoSinyalleri from '../components/KriptoSinyalleri'
 import ForexSinyalleri from '../components/ForexSinyalleri'
+import Mt5Sinyalleri from '../components/Mt5Sinyalleri'
 import YeniRobotSinyalleri from '../components/YeniRobotSinyalleri'
 import AltinSinyalleri from '../components/AltinSinyalleri'
 import BeastSinyalleri from '../components/BeastSinyalleri'
@@ -55,7 +56,7 @@ export default function GunlukTespitler() {
     const rawTab = searchParams.get('tab')
     const rawSub = searchParams.get('sub')
     // 1) Yeni 5'li yapı: tab geçerli ise direkt kullan
-    if (['bugun', 'sinyaller', 'yenirobot', 'beast', 'altin', 'kripto', 'forex', 'emtia', 'analiz', 'araclar'].includes(rawTab)) {
+    if (['bugun', 'sinyaller', 'yenirobot', 'beast', 'altin', 'kripto', 'forex', 'mt5', 'emtia', 'analiz', 'araclar'].includes(rawTab)) {
       const validSub = SUB_TABS[rawTab]?.includes(rawSub) ? rawSub : (SUB_TABS[rawTab]?.[0] || null)
       return { tab: rawTab, sub: validSub }
     }
@@ -323,6 +324,7 @@ export default function GunlukTespitler() {
     { id: 'altin',   label: '🥇 Altın',           shortLabel: 'Altın', icon: Gem, isNew: true },
     { id: 'kripto',  label: 'Kripto',             shortLabel: 'Kripto', icon: Coins },
     { id: 'forex',   label: 'Forex / Parite',     shortLabel: 'Forex',  icon: Wallet,  isNew: true },
+    { id: 'mt5',     label: '⚡ MT5 Gün-içi',      shortLabel: 'MT5',    icon: Zap,     isNew: true },
     { id: 'emtia',   label: 'Altın & Gümüş',      shortLabel: 'Emtia',  icon: Coins },
     { id: 'analiz',  label: 'Analiz',             shortLabel: 'Analiz', icon: Layers },
     { id: 'araclar', label: 'Araçlar',            shortLabel: 'Araçlar',icon: Filter,  badge: unreadCount },
@@ -589,6 +591,9 @@ export default function GunlukTespitler() {
 
       {/* Forex / Parite Tab — 8 enstrüman gün-içi long/short + risk planı */}
       {activeTab === 'forex' && <ForexSinyalleri />}
+
+      {/* MT5 Gün-içi Tab — 9 enstrüman × 5 TF, her dk; lot + risk bütçesi (günlük %5/toplam %10) */}
+      {activeTab === 'mt5' && <Mt5Sinyalleri />}
 
       {/* Emtia Tab — Altın & Gümüş Malaysian SNR sinyalleri */}
       {activeTab === 'emtia' && <EmtiaSinyalleri />}

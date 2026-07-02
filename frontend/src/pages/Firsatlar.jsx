@@ -11,8 +11,8 @@ import { Button, PageHeader } from '../components/ui'
 // Başlık aktif sekmeye göre değişir, navbar'dan "Tarayıcılar" diye girmiş
 // kullanıcı tutarlı bir başlık görür.
 const GUNLUK_TABS = new Set([
-  // Yeni 5'li yapı (2026-05-18) + forex/parite (2026-06-17) + spot-al ≥75 (2026-06-18)
-  'gunluk', 'bugun', 'sinyaller', 'yenirobot', 'beast', 'altin', 'kripto', 'forex', 'emtia', 'analiz', 'araclar',
+  // Yeni 5'li yapı (2026-05-18) + forex/parite (2026-06-17) + spot-al ≥75 (2026-06-18) + MT5 gün-içi (2026-07-02)
+  'gunluk', 'bugun', 'sinyaller', 'yenirobot', 'beast', 'altin', 'kripto', 'forex', 'mt5', 'emtia', 'analiz', 'araclar',
   // Eski tab ID'leri — GunlukTespitler içinde yeni yapıya yönlendirilir
   'today', 'mtf', 'likidasyon', 'backtest', 'akilli-suzgec', 'canli-takip', 'detayli-analiz',
 ])
