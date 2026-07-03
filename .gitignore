@@ -65,3 +65,5 @@ mt5-bridge/STOP_SCANNER
 mt5-bridge/scanner_state.json
 mt5-bridge/scanner_bridge.log
 mt5-bridge/bridge.log
+mt5-bridge/watchdog_scanner.log
+mt5-bridge/watchdog_forex.log
