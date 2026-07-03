@@ -214,6 +214,9 @@ def send_with_filling(req):
 
 
 def open_trade(cfg, s, info, state):
+    # SON hesap doğrulaması — emir göndermeden hemen önce (tik-içi hesap değişimine karşı)
+    if not account_allowed(cfg, mt5.account_info()):
+        return
     code = str(s["code"])
     is_long = s["direction"] == "long"
     tick = mt5.symbol_info_tick(info.name)
@@ -287,6 +290,9 @@ def open_trade(cfg, s, info, state):
 
 
 def close_position(cfg, pos, reason):
+    # Emir öncesi hesap doğrulaması: yanlış hesaba KAPATMA göndermeyelim
+    if not account_allowed(cfg, mt5.account_info()):
+        return
     code = parse_code(pos.comment) or "?"
     is_long = pos.type == mt5.POSITION_TYPE_BUY
     tick = mt5.symbol_info_tick(pos.symbol)
@@ -442,9 +448,15 @@ def _mt5_init(cfg):
 
 
 def account_allowed(cfg, ai):
-    """HESAP KİLİDİ: allowed_account ayarlıysa YALNIZ o login kabul edilir."""
+    """HESAP KİLİDİ: allowed_account ayarlıysa YALNIZ o login kabul edilir.
+    FAIL-CLOSED: kilit ayarlıyken hesap bilgisi yoksa (ai None) işleme İZİN YOK."""
     want = int(cfg.get("allowed_account") or 0)
-    if want and ai is not None and int(ai.login) != want:
+    if not want:
+        return True
+    if ai is None:
+        log.error("🔒 HESAP KİLİDİ: hesap bilgisi yok — güvenlik için işlem YOK.")
+        return False
+    if int(ai.login) != want:
         log.error("🔒 HESAP KİLİDİ: bağlı hesap %s ≠ izinli %s — bu köprü İŞLEM AÇMAZ.",
                   ai.login, want)
         return False
