@@ -83,6 +83,13 @@ DEFAULTS = {
     "poll_seconds": 60,
     "dry_run": True,
     "enabled": True,
+    # ── VPS GÜVENLİĞİ (iki terminal / iki hesap) — forex köprüsüyle aynı ─────
+    # terminal_path: bağlanılacak terminal64.exe tam yolu (VPS'te birden çok
+    #   terminal varsa yanlış hesabı önler). Boşsa çalışan/varsayılan terminal.
+    # allowed_account: İZİNLİ hesap no. Ayarlıysa köprü YALNIZ o login'de işlem
+    #   açar; başka hesaba bağlıysa REDDEDER. 0 = kapalı (iki hesaplı VPS'te ŞART).
+    "terminal_path": "",
+    "allowed_account": 0,
     "magic": 550066,
     "deviation_points": 30,
     "max_open_positions": 12,
@@ -425,32 +432,57 @@ def past_deadline_positions(state, by_code, now_epoch=None):
     return out
 
 
-def try_reconnect():
-    """Terminal koptuysa (account_info None) yeniden bağlanmayı dene."""
+def _mt5_init(cfg):
+    """terminal_path verilmişse O terminale bağlan (VPS'te birden çok terminal
+    varken yanlış hesaba bağlanmayı önler); yoksa çalışan/varsayılan terminale."""
+    path = (cfg.get("terminal_path") or "").strip()
+    if path:
+        return mt5.initialize(path=path)
+    return mt5.initialize()
+
+
+def account_allowed(cfg, ai):
+    """HESAP KİLİDİ: allowed_account ayarlıysa YALNIZ o login kabul edilir."""
+    want = int(cfg.get("allowed_account") or 0)
+    if want and ai is not None and int(ai.login) != want:
+        log.error("🔒 HESAP KİLİDİ: bağlı hesap %s ≠ izinli %s — bu köprü İŞLEM AÇMAZ.",
+                  ai.login, want)
+        return False
+    return True
+
+
+def try_reconnect(cfg):
+    """Terminal koptuysa (account_info None) yeniden bağlanmayı dene.
+    Yeniden bağlanmada HESAP KİLİDİNİ yeniden doğrula — VPS'te yanlış terminale
+    kapılmasın."""
     try:
         mt5.shutdown()
     except Exception:  # noqa
         pass
-    if mt5.initialize():
+    if _mt5_init(cfg):
         ai = mt5.account_info()
-        if ai is not None:
+        if ai is not None and account_allowed(cfg, ai):
             log.info("Yeniden bağlanıldı: login=%s server=%s", ai.login, ai.server)
             return True
-    log.error("MT5 bağlantısı yok — terminal açık mı? (%s)", mt5.last_error())
+    log.error("MT5 bağlantısı yok / yanlış hesap — terminal açık mı? (%s)", mt5.last_error())
     return False
 
 
 def connect(cfg):
-    if not mt5.initialize():
+    if not _mt5_init(cfg):
         log.error("MT5'e bağlanılamadı: %s — Terminal açık ve giriş yapılmış mı?", mt5.last_error())
         return False
     ai = mt5.account_info()
     if ai is None:
         log.error("account_info yok — MT5'te bir hesaba giriş yapılmalı.")
         return False
+    if not account_allowed(cfg, ai):
+        return False        # yanlış hesap: bağlanmayı reddet (dry_run olsa bile)
     mode = {0: "DEMO", 1: "CONTEST", 2: "🔴 GERÇEK (REAL)"}.get(ai.trade_mode, str(ai.trade_mode))
     log.info("Bağlandı: login=%s server=%s tür=%s bakiye=%.2f %s algo=%s",
              ai.login, ai.server, mode, ai.balance, ai.currency, ai.trade_allowed)
+    if int(cfg.get("allowed_account") or 0):
+        log.info("🔒 Hesap kilidi AKTİF: yalnız %s", cfg["allowed_account"])
     if not cfg["dry_run"] and not ai.trade_allowed:
         log.error("Algo Trading KAPALI (terminalde 'Algo Trading' düğmesini aç). Canlı emir açılamaz.")
         return False
@@ -490,9 +522,13 @@ def main():
             # Bağlantı sağlığı: koptuysa yeniden bağlan (terminal restart'ına dayanıklılık)
             ai = mt5.account_info()
             if ai is None:
-                if not try_reconnect():
+                if not try_reconnect(cfg):
                     time.sleep(int(cfg["poll_seconds"])); continue
                 ai = mt5.account_info()
+
+            # Her tur hesap kilidi: terminal sessizce başka hesaba düşerse işlem yok
+            if not account_allowed(cfg, ai):
+                time.sleep(int(cfg["poll_seconds"])); continue
 
             if not cfg["dry_run"] and (ai is None or not ai.trade_allowed):
                 log.warning("Algo Trading KAPALI / hesap yok — bu tur emir yok.")

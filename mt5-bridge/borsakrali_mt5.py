@@ -60,6 +60,15 @@ DEFAULTS = {
     "poll_seconds": 60,
     "dry_run": True,
     "enabled": True,
+    # ── VPS GÜVENLİĞİ (iki terminal / iki hesap) ──────────────────────────
+    # terminal_path: bu köprünün bağlanacağı TERMİNAL (terminal64.exe tam yolu).
+    #   VPS'te birden çok MT5 kuruluysa YANLIŞ terminale bağlanmayı önler. Boşsa
+    #   çalışan/varsayılan terminale bağlanır (tek terminalli PC için yeterli).
+    # allowed_account: İZİNLİ hesap numarası. Ayarlıysa köprü YALNIZ bu login'de
+    #   işlem açar; başka hesaba bağlıysa bağlanmayı REDDEDER ve her tur atlar.
+    #   0 = kilit kapalı (dikkat: iki hesaplı VPS'te MUTLAKA ayarla).
+    "terminal_path": "",
+    "allowed_account": 0,
     "magic": 550055,
     "deviation_points": 30,
     "max_open_positions": 8,
@@ -358,17 +367,41 @@ def suppressed_codes(feed, cfg):
     return supp
 
 
+def _mt5_init(cfg):
+    """terminal_path verilmişse O terminale bağlan (VPS'te birden çok terminal
+    varken yanlış hesaba bağlanmayı önler); yoksa çalışan/varsayılan terminale."""
+    path = (cfg.get("terminal_path") or "").strip()
+    if path:
+        return mt5.initialize(path=path)
+    return mt5.initialize()
+
+
+def account_allowed(cfg, ai):
+    """HESAP KİLİDİ: allowed_account ayarlıysa YALNIZ o login kabul edilir.
+    VPS'te iki hesap açıkken bot yanlış hesaba işlem AÇAMAZ."""
+    want = int(cfg.get("allowed_account") or 0)
+    if want and ai is not None and int(ai.login) != want:
+        log.error("🔒 HESAP KİLİDİ: bağlı hesap %s ≠ izinli %s — bu köprü İŞLEM AÇMAZ.",
+                  ai.login, want)
+        return False
+    return True
+
+
 def connect(cfg):
-    if not mt5.initialize():
+    if not _mt5_init(cfg):
         log.error("MT5'e bağlanılamadı: %s — Terminal açık ve giriş yapılmış mı?", mt5.last_error())
         return False
     ai = mt5.account_info()
     if ai is None:
         log.error("account_info yok — MT5'te bir hesaba giriş yapılmalı.")
         return False
+    if not account_allowed(cfg, ai):
+        return False        # yanlış hesap: bağlanmayı reddet (dry_run olsa bile)
     mode = {0: "DEMO", 1: "CONTEST", 2: "🔴 GERÇEK (REAL)"}.get(ai.trade_mode, str(ai.trade_mode))
     log.info("Bağlandı: login=%s server=%s tür=%s bakiye=%.2f %s algo=%s",
              ai.login, ai.server, mode, ai.balance, ai.currency, ai.trade_allowed)
+    if int(cfg.get("allowed_account") or 0):
+        log.info("🔒 Hesap kilidi AKTİF: yalnız %s", cfg["allowed_account"])
     if not cfg["dry_run"] and not ai.trade_allowed:
         log.error("Algo Trading KAPALI (terminalde 'Algo Trading' düğmesini aç). Canlı emir açılamaz.")
         return False
@@ -409,6 +442,9 @@ def main():
                 ai = mt5.account_info()
                 if ai is None or not ai.trade_allowed:
                     log.warning("Algo Trading KAPALI / hesap yok — bu tur emir yok.")
+                    time.sleep(int(cfg["poll_seconds"])); continue
+                # Her tur hesap kilidi (terminal sessizce başka hesaba düşerse koru)
+                if not account_allowed(cfg, ai):
                     time.sleep(int(cfg["poll_seconds"])); continue
 
             push_broker_prices(cfg)  # canlı broker fiyatlarını Render'a yolla (fiyat hizalama)
