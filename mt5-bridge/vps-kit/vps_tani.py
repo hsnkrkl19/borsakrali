@@ -189,56 +189,106 @@ def section_gold(out, since_ts, gunluk):
 
 
 # ── 2) MT5 KÖPRÜLERİ ────────────────────────────────────────────────────────
+# ZAMAN-FARKINDALIK: bir hata GÜNCEL mi (son RECENT_MIN dk) yoksa çözülmüş/eski mi?
+# 3 günlük pencerede biriken eski hatalar (ör. düğme sonradan açıldı) yanlış alarm
+# vermesin — anormallik YALNIZ güncel hatalar için işaretlenir.
 _RE_TS = re.compile(r"^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})")
+RECENT_MIN = 30
+
+
+def _line_ts(ln):
+    m = _RE_TS.match(ln)
+    if not m:
+        return None
+    try:
+        return dt.datetime.strptime(m.group(1), "%Y-%m-%d %H:%M:%S")
+    except ValueError:
+        return None
+
+
+def _fmt_ago(ts, now):
+    if ts is None:
+        return "?"
+    dmin = (now - ts).total_seconds() / 60
+    if dmin < 60:
+        return f"{int(dmin)} dk once"
+    if dmin < 1440:
+        return f"{dmin / 60:.1f} saat once"
+    return f"{dmin / 1440:.1f} gun once"
+
 
 def _bridge_report(out, name, logfile, since_ts, gunluk):
+    now = dt.datetime.now()
+    recent_cut = now - dt.timedelta(minutes=RECENT_MIN)
     path = os.path.join(BRIDGE_DIR, logfile)
     lines = _tail_lines(path)
     if not lines:
         out.append(f"  [{name}] log yok: {logfile}")
         return
-    # sadece son N gün
     cutoff = dt.datetime.fromtimestamp(since_ts) if since_ts else None
     kept = []
     for ln in lines:
-        m = _RE_TS.match(ln)
-        if m and cutoff:
-            try:
-                if dt.datetime.strptime(m.group(1), "%Y-%m-%d %H:%M:%S") < cutoff:
-                    continue
-            except ValueError:
-                pass
-        kept.append(ln.rstrip())
-    errs = [l for l in kept if " ERROR " in l]
-    warns = [l for l in kept if " WARNING " in l]
-    orders = [l for l in kept if re.search(r"AÇILDI|acildi|retcode|kapandi|KAPANDI|emir", l, re.I)]
-    recon = [l for l in kept if re.search(r"eniden bağlan|reconnect|bağlantı yok", l, re.I)]
-    locks = [l for l in kept if "HESAP KİLİDİ" in l or "HESAP KILIDI" in l]
-    out.append(f"  [{name}] satır={len(kept)} · ERROR={len(errs)} WARNING={len(warns)} "
-               f"emir/işlem={len(orders)} reconnect={len(recon)}")
+        ts = _line_ts(ln)
+        if ts and cutoff and ts < cutoff:
+            continue
+        kept.append((ln.rstrip(), ts))
+
+    def recent(sub):
+        return [x for x in sub if x[1] and x[1] >= recent_cut]
+
+    def last_ts(sub):
+        tss = [x[1] for x in sub if x[1]]
+        return max(tss) if tss else None
+
+    errs      = [x for x in kept if " ERROR " in x[0]]
+    warns     = [x for x in kept if " WARNING " in x[0]]
+    autotr    = [x for x in errs if "AutoTrading disabled" in x[0]]
+    invstops  = [x for x in kept if "Invalid stops" in x[0] or "retcode=10016" in x[0]]
+    recon     = [x for x in kept if re.search(r"eniden bağlan|reconnect|bağlantı yok", x[0], re.I)]
+    locks     = [x for x in kept if "HESAP KİLİDİ" in x[0] or "HESAP KILIDI" in x[0]]
+    orders_ok = [x for x in kept if re.search(r"AÇILDI|KAPANDI", x[0]) and "AMADI" not in x[0]]
+    other     = [x for x in errs if x not in autotr and x not in invstops]
+
+    out.append(f"  [{name}] satir={len(kept)} · ERROR={len(errs)} WARNING={len(warns)}")
+    lo = last_ts(orders_ok)
+    if lo:
+        out.append(f"    ✅ son basarili emir/kapanis: {lo:%H:%M} ({_fmt_ago(lo, now)})")
+
     if locks:
-        out.append(f"    🔒🔴 HESAP KİLİDİ İHLALİ ({len(locks)}) — YANLIŞ HESABA bağlanma denendi!")
-        for l in locks[-3:]:
-            out.append(f"      {l[:120]}")
-        flag(f"{name}: HESAP KİLİDİ tetiklendi ({len(locks)}×) — terminal_path/hesap yanlış!")
+        rl = recent(locks)
+        out.append(f"    🔒 HESAP KILIDI kaydi: {len(locks)} (son {_fmt_ago(last_ts(locks), now)})")
+        if rl:
+            flag(f"{name}: HESAP KILIDI GUNCEL ({len(rl)} son {RECENT_MIN}dk) — terminal_path/hesap yanlis!")
+
+    if autotr:
+        r = recent(autotr)
+        if r:
+            out.append(f"    ⚠️🔴 AutoTrading DUGMESI KAPALI — GUNCEL ({len(r)} son {RECENT_MIN}dk). Ctrl+E ile ac!")
+            flag(f"{name}: AutoTrading dugmesi KAPALI (guncel) — terminalde Ctrl+E ile ac (YESIL).")
+        else:
+            out.append(f"    ✓ AutoTrading: {len(autotr)} eski hata (son {_fmt_ago(last_ts(autotr), now)}) — dugme acildi, COZULDU.")
+
     if recon:
-        out.append(f"    🔁 son reconnect: {recon[-1][:110]}")
-        if len(recon) >= 5:
-            flag(f"{name}: {len(recon)}× yeniden bağlanma — terminal/VPS kararsız.")
-    if errs:
-        for l in errs[-5:]:
-            out.append(f"    ❌ {l[:120]}")
-        if len(errs) >= 5:
-            flag(f"{name}: {len(errs)} ERROR satırı — köprü logunu incele.")
-    if orders:
-        out.append(f"    son emir/işlem: {orders[-1][:110]}")
-    # retcode reddi (Invalid stops / no money vb.)
-    rejects = [l for l in kept if re.search(r"retcode=(?!10009|10008|10010)\d+", l)]
-    if rejects:
-        out.append(f"    ⛔ reddedilen emir ({len(rejects)}):")
-        for l in rejects[-3:]:
-            out.append(f"      {l[:120]}")
-        flag(f"{name}: {len(rejects)} emir REDDEDİLDİ (retcode) — sembol/stop/marj sorunu.")
+        r = recent(recon)
+        out.append(f"    🔁 reconnect: {len(recon)} (son {_fmt_ago(last_ts(recon), now)})")
+        if len(r) >= 3:
+            flag(f"{name}: {len(r)} reconnect son {RECENT_MIN}dk — terminal/VPS kararsiz.")
+
+    if invstops:
+        r = recent(invstops)
+        tag = "GUNCEL" if r else "eski/cozulmus"
+        out.append(f"    ⛔ Invalid stops (retcode 10016): {len(invstops)} [{tag}], son {_fmt_ago(last_ts(invstops), now)}")
+        for l, _ in invstops[-2:]:
+            out.append(f"      {l[:110]}")
+        if r:
+            flag(f"{name}: 'Invalid stops' GUNCEL ({len(r)} son {RECENT_MIN}dk) — o sembollerin min-stop mesafesi; kod-fix adayi.")
+
+    if other:
+        r = recent(other)
+        for l, _ in other[-3:]:
+            out.append(f"    ❌ {l[:110]}")
+        if len(r) >= 3:
+            flag(f"{name}: {len(r)} baska ERROR son {RECENT_MIN}dk (son {_fmt_ago(last_ts(other), now)}) — logu incele.")
 
 
 def section_bridges(out, since_ts, gunluk):
