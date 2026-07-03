@@ -207,9 +207,13 @@ async function evaluateAndPush(signals) {
   try { events = await withTimeout(tracker.syncPositions(eligible), 12000, 'sync'); }
   catch (e) { logger.error(`[ProPush] sync: ${e.message}`); return { telegram: 0, considered: 0, eligible: eligible.length }; }
 
-  let tg = 0, sent = 0;
+  let tg = 0, sent = 0, shadowCount = 0;
   for (const ev of events) { // syncPositions YALNIZ 'new' döndürür
     const p = ev.position;
+    // Öğrenme devre-kesicisi: GÖLGE pozisyon sanal izlenir, DUYURULMAZ —
+    // halka açık istatistiğe (statsStore) ve adli loga da yazılmaz, cooldown'a
+    // işaretlenmez (gerçeğe dönünce ilk gerçek sinyal engellenmesin).
+    if (p.shadow) { shadowCount++; continue; }
     const meta = pickMeta(eligible, p);
     statsStore.recordOpen(p).catch(() => {});
     // Adli log: karar bağlamı + kapı sonucu.
@@ -234,19 +238,22 @@ async function evaluateAndPush(signals) {
     }
   }
   if (tg) logger.info(`🤖 YENİ ROBOT — ${events.length} yeni sinyal · TG ${tg} (eşik ${threshold})`);
-  return { telegram: tg, considered: sent, eligible: eligible.length, threshold, chatSet: !!chatId };
+  return { telegram: tg, considered: sent, shadow: shadowCount, eligible: eligible.length, threshold, chatSet: !!chatId };
 }
 
 // ── R-merdiveni stop güncellemeleri (≥4h) ───────────────────────────────────
 async function pushManagementUpdates(events) {
   if (process.env.PRO_PUSH_DISABLED === '1') return { telegram: 0 };
   const chatId = chan();
-  let tg = 0;
+  let tg = 0, shadowCount = 0;
   for (const ev of (events || [])) {
+    // GÖLGE pozisyonun izi (stop) manageOpenPositions'da sürer (sanal gerçekçilik)
+    // ama DUYURULMAZ — halka açık kanala sızmaz.
+    if (ev.position?.shadow) { shadowCount++; continue; }
     if (chatId) { try { const r = await withTimeout(telegramService.sendMessage(chatId, buildManage(ev), 'HTML'), 16000, 'mgmtTg'); if (r?.success) tg++; } catch (e) { logger.error(`[ProPush] mgmtTg #${ev.position.code}: ${e.message}`); } }
   }
   if (tg) logger.info(`🤖🪜 YENİ ROBOT stop güncelleme — ${events.length} · TG ${tg}`);
-  return { telegram: tg };
+  return { telegram: tg, shadow: shadowCount };
 }
 
 // ── Kapanış / teyit (aynı NO) ───────────────────────────────────────────────

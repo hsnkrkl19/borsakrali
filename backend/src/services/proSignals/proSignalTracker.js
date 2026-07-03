@@ -17,6 +17,7 @@ const fs = require('fs');
 const path = require('path');
 const forexKlines = require('../forex/forexKlines');
 const { getInstrument } = require('../proSignals/proInstruments');
+const learning = require('./proLearning');
 
 let supa = null, supaEnabled = () => false;
 try { const m = require('../../lib/supabase'); supa = m.supabaseAdmin; supaEnabled = m.isSupabaseEnabled; } catch (_) {}
@@ -35,7 +36,10 @@ let saveTimer = null;
 function nowSec() { return Math.floor(Date.now() / 1000); }
 function sortTfs(tfs) { return [...new Set(tfs)].sort((a, b) => TF_ORDER.indexOf(a) - TF_ORDER.indexOf(b)); }
 function openList() { return Object.values(state.open); }
-function findPosition(id, dir) { return openList().find(p => p.instrumentId === id && p.direction === dir); }
+// (id,dir) pozisyonu KENDİ evreninde aranır: gerçek sinyal gerçek pozisyona,
+// gölge sinyal gölge pozisyona katılır — devre-kesilmiş bir TF, sağlıklı bir
+// TF'in canlı (gerçek) pozisyonuna ASLA sızmaz (kombo izolasyonu korunur).
+function findPosition(id, dir, shadow = false) { return openList().find(p => p.instrumentId === id && p.direction === dir && !!p.shadow === !!shadow); }
 function maxExpire(tfs) { return Math.max(...tfs.map(t => EXPIRE_SEC[t] || 86400)); }
 
 // Eski (v1, TF başına kayıt) formatını v2'ye taşı; bozuk/uyumsuzları at.
@@ -132,8 +136,27 @@ async function syncPositions(eligible) {
     const id = basis.id, dir = basis.direction, p = basis.precision ?? 4;
     const tfs = sortTfs(sigs.map(s => s.tf));
     const opp = dir === 'long' ? 'short' : 'long';
-    const reverseOf = openList().filter(x => x.instrumentId === id && x.direction === opp).map(x => x.code);
-    const existing = findPosition(id, dir);
+    // Öğrenme: kombo = enstrüman:TF. basis.tf = pozisyonun GİRİŞ/STOP/hedef
+    // seviyelerini kuran (en yüksek güvenli) sinyalin TF'i → R atıfı o TF'e
+    // dürüst. Devre-kesilmiş kombonun YENİ pozisyonu GÖLGE (sanal izlenir;
+    // Telegram YOK, halka açık istatistik kirlenmez). Mevcut açıklar etkilenmez.
+    const learnTf = basis.tf;
+    const shadow = learning.modeFor(`${id}:${learnTf}`) === 'shadow';
+    // Ters bayrağı KENDİ evreninde (gölge, gerçek pozisyonun ters uyarısını kirletmesin)
+    const reverseOf = openList().filter(x => x.instrumentId === id && x.direction === opp && !!x.shadow === shadow).map(x => x.code);
+
+    // Slot tahliyesi: bu kombo GERÇEĞE dönmüşse, AYNI komboya (learnTf) ait eski
+    // GÖLGE (sanal) pozisyon artık bayattır → silinir. Gölge, gerçeğin ters
+    // evreninde durur; farklı bir sağlıklı TF'in canlı pozisyonunu bloklamaz.
+    if (!shadow) {
+      const ghost = openList().find(x => x.instrumentId === id && x.direction === dir && x.shadow && x.learnTf === learnTf);
+      if (ghost) delete state.open[ghost.code];
+    }
+
+    // Sinyal YALNIZ kendi evrenindeki (id,dir) pozisyonuna katılır (evren-ayrık):
+    // gölge sinyal gerçeği KİRLETEMEZ, gerçek sinyal gölgeye karışamaz. Böylece
+    // devre-kesilmiş bir TF, aynı yöndeki gerçek pozisyona sinsice eklenemez.
+    const existing = findPosition(id, dir, shadow);
 
     if (!existing) {
       const code = nextCode(id);
@@ -144,9 +167,10 @@ async function syncPositions(eligible) {
         tfs, confidence: basis.confidence, rr1: basis.rr1, rr2: basis.rr2,
         mt5Symbol: basis.mt5?.symbol || id,
         marginUsd: basis.sizing?.requiredMarginUsd ?? null, marginPct: basis.sizing?.marginPct ?? null, units,
-        origStopDist: Math.abs(basis.entry - basis.stop),
+        origStopDist: Math.abs(basis.entry - basis.stop), learnTf,
         issuedAt: new Date().toISOString(), issueTimeSec: nowSec(), lastUpdateSec: nowSec(), stopSetSec: nowSec(),
       };
+      if (shadow) pos.shadow = true;
       state.open[code] = pos;
       events.push({ type: 'new', position: pos, addedTfs: tfs, reverseOf });
     } else {
@@ -174,34 +198,56 @@ async function evalOne(p) {
   // Stop, YALNIZ o seviye konduktan sonraki mumlarla değerlendirilir (iz süren
   // stop yukarı kayınca eski geri-çekilmeler geriye dönük "stop" tetiklemesin).
   const stopSince = p.stopSetSec || p.issueTimeSec;
-  let outcome = null, exit = null;
+  let outcome = null, exit = null, exitTimeSec = null;
   if (candles && candles.length) {
     for (const b of candles) {
       if (b.time <= p.issueTimeSec) continue;
       const slHit = (b.time > stopSince) && (isLong ? b.low <= p.stop : b.high >= p.stop);
       const tpHit = isLong ? b.high >= p.target1 : b.low <= p.target1;
-      if (slHit) { outcome = (isLong ? p.stop >= p.entry : p.stop <= p.entry) ? 'TRAIL' : 'SL'; exit = p.stop; break; }
-      if (tpHit) { outcome = 'TP1'; exit = p.target1; break; }
+      if (slHit) { outcome = (isLong ? p.stop >= p.entry : p.stop <= p.entry) ? 'TRAIL' : 'SL'; exit = p.stop; exitTimeSec = b.time; break; }
+      if (tpHit) { outcome = 'TP1'; exit = p.target1; exitTimeSec = b.time; break; }
     }
   }
   if (!outcome && nowSec() - p.issueTimeSec > maxExpire(p.tfs)) {
     outcome = 'EXPIRE';
     exit = candles && candles.length ? candles[candles.length - 1].close : p.entry;
+    exitTimeSec = candles && candles.length ? candles[candles.length - 1].time : nowSec();
   }
   if (!outcome) return null;
   const dir = isLong ? 1 : -1;
   const pnlPct = +(((exit - p.entry) / p.entry) * 100 * dir).toFixed(3);
   const pnlUsd = p.units != null ? +(p.units * (exit - p.entry) * dir).toFixed(2) : null;
-  return { code: p.code, instrumentId: p.instrumentId, symbol: p.symbol, direction: p.direction, tfs: p.tfs, precision: p.precision, entry: p.entry, exit, outcome, pnlPct, pnlUsd, issuedAt: p.issuedAt };
+  // R-katsayısı = fiyat hareketi / açılıştaki (orijinal) stop mesafesi — lot'tan
+  // bağımsız; öğrenmenin ana ölçüsü. İz-sürmüş stop değil ORİJİNAL risk baz alınır.
+  const rMultiple = p.origStopDist > 0 ? +(((exit - p.entry) * dir) / p.origStopDist).toFixed(2) : null;
+  return {
+    code: p.code, instrumentId: p.instrumentId, symbol: p.symbol, direction: p.direction,
+    tfs: p.tfs, precision: p.precision, entry: p.entry, exit, outcome, pnlPct, pnlUsd,
+    rMultiple, origStopDist: p.origStopDist ?? null, learnTf: p.learnTf || null,
+    shadow: !!p.shadow, exitTimeSec, issuedAt: p.issuedAt,
+  };
 }
 
 async function checkClosures() {
   await load();
   const events = [];
+  let changed = false;
   for (const p of openList()) {
-    try { const ev = await evalOne(p); if (ev) { events.push(ev); delete state.open[p.code]; } } catch (_) {}
+    try {
+      const ev = await evalOne(p);
+      if (!ev) continue;
+      delete state.open[p.code];
+      changed = true;
+      // Öğrenme: R kombonun (enstrüman:TF) rolling penceresine akar. Anahtar
+      // AÇILIŞTAKİ modeFor ile BİREBİR aynı (learnTf); eski/legacy pozisyonda
+      // learnTf yoksa en yüksek TF'e düşülür. Öğrenme hatası kapanışı düşürmesin.
+      const learnTf = ev.learnTf || (Array.isArray(ev.tfs) && ev.tfs[ev.tfs.length - 1]) || '';
+      try { learning.recordClose(`${ev.instrumentId}:${learnTf}`, { r: ev.rMultiple, usd: ev.pnlUsd, outcome: ev.outcome, t: ev.exitTimeSec, shadow: ev.shadow }); } catch (_) {}
+      // GÖLGE kapanış Telegram'a/istatistiğe GİTMEZ — yalnız öğrenmeye aktı
+      if (!ev.shadow) events.push(ev);
+    } catch (_) {}
   }
-  if (events.length) persist();
+  if (changed) persist();
   return events;
 }
 
@@ -244,9 +290,12 @@ async function manageOpenPositions() {
   return events;
 }
 
-function getOpen() { return openList(); }
+// getOpen = yalnız GERÇEK pozisyonlar: Telegram/UI/istatistik bundan beslenir.
+// Gölge (sanal) pozisyonlar ayrı sorgulanır — halka açık yüzeye SIZMAZ.
+function getOpen() { return openList().filter(p => !p.shadow); }
+function getOpenShadow() { return openList().filter(p => p.shadow); }
 
 // ── Test kancaları (golden testler için; üretimde kullanılmaz) ───────────────
 function __resetForTest() { state = { counters: {}, open: {}, version: 3 }; loaded = true; if (saveTimer) { clearTimeout(saveTimer); saveTimer = null; } }
 
-module.exports = { load, syncPositions, manageOpenPositions, checkClosures, getOpen, nextCode, ladderLockR, isManageable, __resetForTest };
+module.exports = { load, syncPositions, manageOpenPositions, checkClosures, getOpen, getOpenShadow, nextCode, ladderLockR, isManageable, __resetForTest };
