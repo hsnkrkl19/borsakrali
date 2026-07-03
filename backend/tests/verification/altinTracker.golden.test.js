@@ -16,8 +16,10 @@
 const os = require('os');
 const path = require('path');
 
-// Diski tmp'ye yönlendir (üretim data/ dosyalarına dokunma).
+// Diski tmp'ye yönlendir (üretim data/ dosyalarına dokunma). Öğrenme durumu da
+// izole edilir — yoksa koşular arası tmp'de birikir (paylaşılan dosya tuzağı).
 process.env.ALTIN_OPEN_FILE = path.join(os.tmpdir(), `altin-open-test-${process.pid}.json`);
+process.env.ALTIN_LEARNING_FILE = path.join(os.tmpdir(), `altin-learning-test-${process.pid}-${Date.now()}.json`);
 
 // altinData mock: testler candleStore'a TF mumları koyar.
 const candleStore = {};

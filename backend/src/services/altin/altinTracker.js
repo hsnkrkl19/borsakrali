@@ -20,6 +20,7 @@
 const fs = require('fs');
 const path = require('path');
 const altinData = require('./altinData');
+const learning = require('./altinLearning');
 
 let supa = null, supaEnabled = () => false;
 try { const m = require('../../lib/supabase'); supa = m.supabaseAdmin; supaEnabled = m.isSupabaseEnabled; } catch (_) {}
@@ -201,6 +202,9 @@ async function ingest(signals) {
   for (const [tf, s] of byTf) {
     // Tek-pozisyon-per-TF kuralı: o TF'te zaten açık pozisyon varsa atla (ters yön dahil)
     if (findOpenForTf(tf)) continue;
+    // Öğrenme: devre-kesilmiş TF'in YENİ pozisyonu GÖLGE (sanal izleme —
+    // Telegram YOK, halka açık istatistik kirlenmez). Mevcut açıklar etkilenmez.
+    const shadow = learning.modeFor(tf) === 'shadow';
     const code = nextCode(tf);
     const ts = nowSec();
     const pos = {
@@ -212,9 +216,12 @@ async function ingest(signals) {
       issuedAt: new Date().toISOString(), issueTimeSec: s.barTime || ts, stopSetSec: ts,
       peak: s.entry, trough: s.entry,
     };
+    if (shadow) pos.shadow = true;
     state.open[code] = pos;
-    stats.totalOpened++;
-    if (!stats.since) stats.since = new Date().toISOString();
+    if (!shadow) {
+      stats.totalOpened++;
+      if (!stats.since) stats.since = new Date().toISOString();
+    }
     opened.push({ ...pos });
   }
   if (opened.length) { persistOpen(); persistStats(); }
@@ -228,7 +235,7 @@ async function evalOne(p) {
   const isLong = p.direction === 'long';
   const slAtr = p.slAtr, atr = p.atr;
   const stopSince = p.stopSetSec || p.issueTimeSec;
-  let outcome = null, exit = null, trailed = false;
+  let outcome = null, exit = null, trailed = false, exitTimeSec = null;
 
   if (candles && candles.length) {
     // Yalnız GİRİŞ barından SONRAki mumlar (forward-only)
@@ -255,9 +262,9 @@ async function evalOne(p) {
         // Stop entry'yi lehte geçtiyse → 'TRAIL' (kâr kilidi), yoksa 'SL'
         const movedPastEntry = isLong ? p.stop >= p.entry : p.stop <= p.entry;
         outcome = movedPastEntry ? 'TRAIL' : 'SL';
-        exit = p.stop; break;
+        exit = p.stop; exitTimeSec = b.time; break;
       }
-      if (tpHit) { outcome = 'TP'; exit = p.target; break; }
+      if (tpHit) { outcome = 'TP'; exit = p.target; exitTimeSec = b.time; break; }
     }
   }
 
@@ -280,6 +287,7 @@ async function evalOne(p) {
   return {
     code: p.code, tf: p.tf, symbol: p.symbol, type: p.type, label: p.label, direction: p.direction,
     entry: p.entry, exit, pnlPct, pnlUsd, R, outcome, win,
+    shadow: !!p.shadow, exitTimeSec,
     openedAt: p.issuedAt, closedAt: new Date().toISOString(),
   };
 }
@@ -293,11 +301,16 @@ async function manageOpen() {
     try { ev = await evalOne(p); } catch (_) { ev = null; }
     if (!ev) continue;
     if (ev.trailedOnly) { p.stopSetSec = nowSec(); dirty = true; continue; }
-    // Kapanış
+    // Kapanış — işlem defterine HER kapanış yazılır (denetim; shadow bayrağıyla)
     state.trades.push(ev);
-    recordClosure(ev);
+    // Gölge kapanış halka açık istatistiği KİRLETMEZ (yalnız öğrenmeye akar)
+    if (!ev.shadow) recordClosure(ev);
     delete state.open[p.code];
-    closures.push(ev);
+    // Öğrenme: R-katsayısı kombonun (TF) rolling penceresine akar; öğrenme
+    // hatası kapanışı asla düşürmesin.
+    try { learning.recordClose(ev.tf, { r: ev.R, usd: ev.pnlUsd, outcome: ev.outcome, t: ev.exitTimeSec, shadow: ev.shadow }); } catch (_) {}
+    // Gölge kapanış Telegram teyidine GİTMEZ (sessiz izleme)
+    if (!ev.shadow) closures.push(ev);
     dirty = true;
   }
   if (dirty || closures.length) persistOpen();

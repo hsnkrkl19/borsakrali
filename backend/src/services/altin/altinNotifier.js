@@ -182,8 +182,11 @@ async function evaluateAndPush(snapshot) {
   try { events = await withTimeout(tracker.ingest(snapshot.signals || []), 12000, 'ingest'); }
   catch (e) { logger.error(`[AltinPush] ingest: ${e.message}`); return { telegram: 0, considered: 0, opened: 0 }; }
 
-  let tg = 0, considered = 0;
+  let tg = 0, considered = 0, shadowCount = 0;
   for (const p of (events || [])) {
+    // Öğrenme devre-kesicisi: GÖLGE pozisyon sanal izlenir, DUYURULMAZ
+    // (soğuma haritasına da yazılmaz — gerçeğe dönünce ilk sinyal engellenmesin).
+    if (p.shadow) { shadowCount++; continue; }
     considered++;
     if (inSigCooldown(p)) continue;
     markSigPushed(p);
@@ -197,7 +200,7 @@ async function evaluateAndPush(snapshot) {
     }
   }
   if (tg) logger.info(`🥇 ALTIN — ${events.length} yeni sinyal · TG ${tg}`);
-  return { telegram: tg, considered, opened: (events || []).length };
+  return { telegram: tg, considered, opened: (events || []).length, shadow: shadowCount };
 }
 
 // ── Kapanış / teyit (aynı NO) ────────────────────────────────────────────────
