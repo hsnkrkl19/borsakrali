@@ -2,13 +2,15 @@
  * BIST AL Scanner Notifier — TÜM BIST'i tarar, SIKI koşullu "AL" (spot-long)
  * sinyallerini AYRI, YENİ bir Telegram kanalına gönderir.
  *
- * Mevcut bistScoreEngine TÜM BIST'i (510) 5 teknikle 0-100 güvene indirger ve
- * LONG sinyalleri döndürür. Bu bot onun çıktısını yeniden kullanır (mükerrer
- * Yahoo yükü yok — engine 15 dk cache'li) ve ÜZERİNE SIKI KALİTE KAPISI uygular:
- *   1) Güven ≥ BIST_AL_MIN_CONFIDENCE (vars. 80)
- *   2) Fiyat EMA34'ün ÜSTÜNDE (trend yukarı)
- *   3) Son hacim 20-gün ortalamanın üstünde × BIST_AL_VOL_MULT (vars. 1.0) (teyit)
- * Kalanlardan güvene göre top BIST_AL_TOP_N (vars. 5) sinyal yayınlanır.
+ * Mevcut bistScoreEngine TÜM BIST'i (510) 5 teknikle puanlar ve LONG adayları
+ * döndürür. Bu bot onun çıktısını yeniden kullanır ve ÜZERİNE SIKI KALİTE KAPISI
+ * uygular (kullanıcı "daha eleyici" istedi):
+ *   1) avgVoteScore (5 strateji ort.) ≥ BIST_AL_MIN_AVGSCORE (vars. 80)
+ *   2) ADX ≥ BIST_AL_MIN_ADX (vars. 20) — gerçek trend (yatay/choppy elenir)
+ *   3) RSI < BIST_AL_MAX_RSI (vars. 78) — aşırı-alım/geç giriş elenir
+ *   4) Fiyat EMA34'ün ÜSTÜNDE (trend yukarı)
+ *   5) Son hacim 20-gün ortalamanın üstünde × BIST_AL_VOL_MULT (vars. 1.3) (teyit)
+ * Kalanlardan avgScore'a göre top BIST_AL_TOP_N (vars. 3) sinyal yayınlanır.
  *
  * Hedef kanal = TELEGRAM_BIST_AL_CHANNEL (zorunlu — kullanıcının kuracağı yeni
  * kanal). ⚠️ Kanal env'i AYARLI DEĞİLSE hiçbir yere göndermez (ana/forex kanalına
@@ -30,9 +32,14 @@ function envNum(name, def) { const v = Number(process.env[name]); return Number.
 // Kalite ölçütü: motorun "consensus-güven"i BIST'te ≥75 üretemiyor (5 strateji
 // nadiren anlaşır → güven ~45'te takılır). Bunun yerine 5 stratejinin ORTALAMA
 // puanı (avgVoteScore, 0-100) kullanılır — kaliteli hisseler 75-82'ye ulaşır.
-const MIN_AVGSCORE = envNum('BIST_AL_MIN_AVGSCORE', 75);
-const TOP_N = envNum('BIST_AL_TOP_N', 5);
-const VOL_MULT = envNum('BIST_AL_VOL_MULT', 1.0);
+const MIN_AVGSCORE = envNum('BIST_AL_MIN_AVGSCORE', 80);
+const TOP_N = envNum('BIST_AL_TOP_N', 3);
+const VOL_MULT = envNum('BIST_AL_VOL_MULT', 1.3);
+// Ek eleyici kapılar (motorun verdiği indikatörlerden — yeniden veri çekmeden):
+//   ADX ≥ MIN_ADX → gerçek trend (yatay piyasa elenir); RSI < MAX_RSI → aşırı-alım
+//   değil (geç/riskli giriş elenir).
+const MIN_ADX = envNum('BIST_AL_MIN_ADX', 20);
+const MAX_RSI = envNum('BIST_AL_MAX_RSI', 78);
 const EMA_PERIOD = 34;
 const MIN_CANDLES = 50;            // EMA34 + 20-gün hacim ortalaması için yeterli geçmiş
 const GATE_BATCH = 6;              // gate için az sayıda aday → küçük batch
@@ -119,7 +126,7 @@ function buildTelegramMessages(result) {
   const { tradingDate, scanned, signals } = result;
   const header =
     `📈 <b>BIST AL SİNYALLERİ</b> — ${htmlEscape(tradingDate || '-')}\n` +
-    `Taranan ${scanned} hisse · Güç≥${MIN_AVGSCORE} (5 strateji ort.) + trend (EMA34) + hacim teyidi`;
+    `Taranan ${scanned} hisse · Güç≥${MIN_AVGSCORE} (5 strateji ort.) + trend (EMA34/ADX) + hacim + RSI süzgeci`;
   const footer = `Detay: ${DEEP_LINK}\nNot: Yatırım tavsiyesi değildir.`;
 
   const blocks = [header, ...signals.map(buildSignalBlock), footer];
@@ -174,9 +181,14 @@ async function runAndNotify(opts = {}) {
   }
 
   const scanned = snap?.scanned || 0;
-  // Kalite kapısı: LONG + 5-strateji ORTALAMA puanı (avgVoteScore) ≥ eşik.
+  // Kalite kapısı: LONG + avgVoteScore ≥ eşik + gerçek trend (ADX) + aşırı-alım
+  // değil (RSI). ADX/RSI motorun indicators çıktısından okunur (ek veri çekmeden);
+  // değer yoksa güvenli tarafta ELE (null ADX→0<eşik, null RSI→100≥eşik).
   const candidates = (snap?.all || [])
-    .filter(s => s && s.direction === 'long' && (s.avgVoteScore || 0) >= MIN_AVGSCORE)
+    .filter(s => s && s.direction === 'long'
+      && (s.avgVoteScore || 0) >= MIN_AVGSCORE
+      && (s.indicators?.adx ?? 0) >= MIN_ADX
+      && (s.indicators?.rsi ?? 100) < MAX_RSI)
     .sort((a, b) => b.avgVoteScore - a.avgVoteScore);
 
   // SIKI KAPI: trend + hacim teyidi (küçük batch'lerle)
@@ -237,5 +249,5 @@ module.exports = {
   passesGate,
   buildTelegramMessages,
   buildSignalBlock,
-  MIN_AVGSCORE, TOP_N, VOL_MULT, DEEP_LINK,
+  MIN_AVGSCORE, TOP_N, VOL_MULT, MIN_ADX, MAX_RSI, DEEP_LINK,
 };

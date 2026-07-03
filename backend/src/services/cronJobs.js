@@ -1534,13 +1534,14 @@ class CronJobsService {
       { scheduled: false, ...TR_TZ }
     );
 
-    // 27d. BIST "≥80 kaliteli AL" taraması — işlem saatlerinde SAATLİK (10:30–18:30
-    //      TR, Pzt-Cuma; HH:30). Tüm BIST taranır; güven≥80 + trend(EMA34) + hacim
-    //      teyidi geçen top 5 AL sinyali AYRI yeni kanala (TELEGRAM_BIST_AL_CHANNEL).
-    //      FOREX_ONLY_MODE'dan MUAF — kendi kanalına yayın yapar. isBistOpen() +
-    //      günlük dedup fonksiyonun içinde uygulanır.
+    // 27d. BIST "kaliteli AL" taraması — işlem saatlerinde HER 15 DK (10:00–18:xx
+    //      TR, Pzt-Cuma). Tüm BIST taranır; avgScore≥80 + ADX≥20 + RSI<78 +
+    //      trend(EMA34) + hacim×1.3 geçen top 3 AL sinyali AYRI yeni kanala
+    //      (TELEGRAM_BIST_AL_CHANNEL). FOREX_ONLY_MODE'dan MUAF. isBistOpen() +
+    //      GÜNLÜK dedup (aynı hisse günde 1 kez → 15 dk'lık kadans spam yapmaz)
+    //      fonksiyonun içinde uygulanır.
     const bistAlScannerJob = cron.schedule(
-      '30 10-18 * * 1-5',
+      '*/15 10-18 * * 1-5',
       () => runBistAlScanner(),
       { scheduled: false, ...TR_TZ }
     );

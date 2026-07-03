@@ -43,7 +43,7 @@ router.get('/status', (_req, res) => {
       lastResult: store.getLastResult(),
       channelSet: !!notifier.channelId(),
       pushDisabled: process.env.BIST_AL_SCANNER_DISABLED === '1',
-      config: { minAvgScore: notifier.MIN_AVGSCORE, topN: notifier.TOP_N, volMult: notifier.VOL_MULT },
+      config: { minAvgScore: notifier.MIN_AVGSCORE, topN: notifier.TOP_N, volMult: notifier.VOL_MULT, minAdx: notifier.MIN_ADX, maxRsi: notifier.MAX_RSI },
     });
   } catch (e) {
     res.status(500).json({ ok: false, error: e.message });

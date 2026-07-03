@@ -46,6 +46,7 @@ const notifier = require('../../src/services/bistAlScanner/bistAlScannerNotifier
 // ölçütü); confidence düşük kalır (BIST'te consensus-güven ~45'te takılır).
 const sig = (symbol, avgVoteScore, over = {}) => ({
   symbol, name: symbol, direction: 'long', avgVoteScore, confidence: 45,
+  indicators: { adx: 25, rsi: 60 },   // yeni eleyici kapıları (ADX≥20, RSI<78) GEÇEN varsayılan
   entry: 100, stop: 95, target1: 110, rr1: 2, target2: 120, rr2: 4, precision: 2, ...over,
 });
 
@@ -150,9 +151,27 @@ describe('bistAlScannerNotifier.runAndNotify — skip & dedup yolları', () => {
     expect(mockTgSend).not.toHaveBeenCalled();
   });
 
-  test('avgScore < eşik (75) → aday yok → no-signals', async () => {
+  test('avgScore < eşik (80) → aday yok → no-signals', async () => {
     process.env.TELEGRAM_BIST_AL_CHANNEL = '-100777';
-    mockScan.mockResolvedValue({ scanned: 510, all: [sig('THYAO', 70), sig('GARAN', 60)] });
+    mockScan.mockResolvedValue({ scanned: 510, all: [sig('THYAO', 78), sig('GARAN', 60)] });
+    const r = await notifier.runAndNotify();
+    expect(r.candidates).toBe(0);
+    expect(r.skippedReason).toBe('no-signals');
+    expect(mockTgSend).not.toHaveBeenCalled();
+  });
+
+  test('ADX < eşik (20) → gerçek trend yok → elenir, no-signals', async () => {
+    process.env.TELEGRAM_BIST_AL_CHANNEL = '-100777';
+    mockScan.mockResolvedValue({ scanned: 510, all: [sig('THYAO', 88, { indicators: { adx: 12, rsi: 60 } })] });
+    const r = await notifier.runAndNotify();
+    expect(r.candidates).toBe(0);
+    expect(r.skippedReason).toBe('no-signals');
+    expect(mockTgSend).not.toHaveBeenCalled();
+  });
+
+  test('RSI ≥ eşik (78) → aşırı-alım → elenir, no-signals', async () => {
+    process.env.TELEGRAM_BIST_AL_CHANNEL = '-100777';
+    mockScan.mockResolvedValue({ scanned: 510, all: [sig('THYAO', 88, { indicators: { adx: 30, rsi: 82 } })] });
     const r = await notifier.runAndNotify();
     expect(r.candidates).toBe(0);
     expect(r.skippedReason).toBe('no-signals');
