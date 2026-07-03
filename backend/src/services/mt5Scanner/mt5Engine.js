@@ -32,6 +32,7 @@ const forexBacktest = require('../forex/forexBacktest');
 const brokerPrices = require('../forex/brokerPrices');
 const levelsLib = require('./mt5Levels');
 const tracker = require('./mt5Tracker');
+const learning = require('./mt5Learning');
 const { INSTRUMENTS, getInstrument } = require('./mt5Instruments');
 
 const TFS = ['5m', '15m', '1h', '4h', '1d'];  // kullanıcı isteği: 5 TF, hepsi ayrı sinyal
@@ -40,6 +41,12 @@ const MIN_CONFIDENCE = 40;
 function riskPct() {
   const v = Number(process.env.MT5_RISK_PER_TRADE_PCT);
   return Number.isFinite(v) && v > 0 && v <= 0.05 ? v : 0.01; // vars. işlem başına %1
+}
+// Öğrenme çarpanı dahil efektif işlem-başı risk — MUTLAK tavan %2
+// (bütçe kapıları — günlük %5 / toplam %10 — her koşulda ayrıca geçerli).
+const RISK_PCT_HARD_CAP = 0.02;
+function effectiveRiskPct(id, tf) {
+  return Math.min(riskPct() * learning.riskMultFor(id, tf), RISK_PCT_HARD_CAP);
 }
 
 let latest = null;
@@ -68,10 +75,10 @@ async function evalTF(inst, tf, livePrice, equity, dailyAtr) {
   const levels = levelsLib.buildLevels(agg.direction, entry, atrVal, tf, inst.precision, dailyAtr);
   if (!levels) return { tf, status: 'neutral', votes: agg.votes };
 
-  // %1 hedef risk → kural kıskacı → kaldıraç/marj → broker lot adımı
+  // %1 hedef risk × öğrenme çarpanı → kural kıskacı → kaldıraç/marj → broker lot adımı
   const raw = computeSizing(
     { instrument: inst, entry: levels.entry, stop: levels.stop, direction: agg.direction },
-    { equity, riskPerTradePct: riskPct() }
+    { equity, riskPerTradePct: effectiveRiskPct(inst.id, tf) }
   );
   const sizing = raw && levelsLib.snapSizingToBroker(raw, inst, levels.entry, levels.stop, {
     maxRiskUsd: equity * tracker.DAILY_MAX_LOSS_PCT,
@@ -86,8 +93,13 @@ async function evalTF(inst, tf, livePrice, equity, dailyAtr) {
 
   const confComponents = { consensus: agg.consensus, avgScore: agg.avgScore, trendStrength: agg.trendStrength, momentum: agg.momentum, rr1: levels.rr1 };
 
+  // Öğrenme damgası: UI + notifier bu sinyalin gölge/gerçek olduğunu görür
+  const lMode = learning.modeFor(inst.id, tf);
+  const lMult = learning.riskMultFor(inst.id, tf);
+
   return {
     tf, status: 'signal',
+    learning: { mode: lMode, riskMult: lMult },
     direction: agg.direction, action: agg.direction === 'long' ? 'LONG' : 'SHORT',
     horizon: levelsLib.tradeHorizon(),
     consensus: +agg.consensus.toFixed(2), avgVoteScore: Math.round(agg.avgScore),
@@ -157,7 +169,8 @@ async function generate(equityOverride) {
       if (s && s.status === 'signal') {
         const sig = { id: it.id, name: it.name, symbol: it.symbol, class: it.class, precision: it.precision, tvSymbol: it.tvSymbol, ...s };
         // Damga: bu sinyal ŞU AN verilebilir mi (bütçe/pencere/yön kilidi/dedup)?
-        const g = tracker.gate(sig, equity);
+        // Gölge kombolar kendi evreninde (bütçesiz) değerlendirilir.
+        const g = tracker.gate(sig, equity, { shadow: sig.learning?.mode === 'shadow' });
         sig.riskGate = g.ok ? { ok: true } : { ok: false, reason: g.reason, code: g.code || null };
         signals.push(sig);
       }
@@ -202,7 +215,7 @@ function rescale(equity) {
     if (!i) return s;
     const raw = computeSizing(
       { instrument: i, entry: s.entry, stop: s.stop, direction: s.direction },
-      { equity, riskPerTradePct: riskPct() }
+      { equity, riskPerTradePct: effectiveRiskPct(s.id, s.tf) }
     );
     const sizing = raw && levelsLib.snapSizingToBroker(raw, i, s.entry, s.stop, { maxRiskUsd: equity * tracker.DAILY_MAX_LOSS_PCT });
     if (!sizing) return s;

@@ -23,6 +23,7 @@ const telegramService = require('../telegramService');
 const pushNotificationService = require('../pushNotificationService');
 const signalDelivery = require('../signalDelivery');
 const tracker = require('./mt5Tracker');
+const learning = require('./mt5Learning');
 const logger = require('../../utils/logger');
 
 const PUSH_CONFIDENCE = (() => {
@@ -117,19 +118,20 @@ async function evaluateAndPush(snap) {
   if (pushDisabled()) return { telegram: 0, app: 0, opened: 0, disabled: true };
   const signals = (snap?.signals || []).filter((s) => s.status === 'signal' && s.confidence >= PUSH_CONFIDENCE);
   signals.sort((a, b) => b.confidence - a.confidence);
-  let tg = 0, app = 0, opened = 0;
+  let tg = 0, app = 0, opened = 0, shadowOpened = 0;
   const skipped = {};
   for (const sig of signals) {
     let res;
     try { res = await tracker.openPosition(sig, snap.equity); }
     catch (e) { logger.error(`[MT5Push] open ${sig.id} ${sig.tf}: ${e.message}`); continue; }
     if (!res.ok) { skipped[res.reason] = (skipped[res.reason] || 0) + 1; continue; }
+    if (res.position.shadow) { shadowOpened += 1; continue; }   // gölge: izlenir, DUYURULMAZ
     opened += 1;
     const budget = tracker.budget(snap.equity);
     const sent = await sendBoth(buildNew(res.position, sig, budget), appNew(res.position, sig));
     tg += sent.tg; app += sent.app;
   }
-  return { telegram: tg, app, opened, eligible: signals.length, skipped, chatSet: !!channelId() };
+  return { telegram: tg, app, opened, shadowOpened, eligible: signals.length, skipped, chatSet: !!channelId() };
 }
 
 async function pushClosures(events) {
@@ -153,13 +155,26 @@ async function pushDailyReport() {
   const closedToday = d.tp + d.sl + d.eod;
   const hitToday = closedToday > 0 ? Math.round((d.tp / closedToday) * 100) : null;
   const hitTotal = t.closed > 0 ? Math.round((t.wins / t.closed) * 100) : null;
-  const msg = [
+  const lines = [
     `⚡ <b>MT5 GÜN-İÇİ — GÜNLÜK RAPOR</b> (${d.date})`,
     `Bugün: ${d.opened} işlem açıldı · ✅ TP ${d.tp} · 🛑 SL ${d.sl} · 🌙 Gün sonu ${d.eod}`,
     `Bugün net: <b>${usd(d.realizedUsd)}</b>${hitToday != null ? ` · isabet <b>%${hitToday}</b>` : ''}`,
     `Toplam: ${t.closed} kapalı işlem · net <b>${usd(t.realizedUsd)}</b>${hitTotal != null ? ` · isabet <b>%${hitTotal}</b>` : ''}`,
     `Bütçe: günlük kalan $${fmt(b.remainingDailyUsd, 0)}/$${fmt(b.dailyCapUsd, 0)} · toplam kalan $${fmt(b.remainingTotalUsd, 0)}/$${fmt(b.totalCapUsd, 0)}`,
-  ].join('\n');
+  ];
+  // Öğrenme katmanı özeti: mod değişimleri + aktif çarpanlar + gölge kombolar
+  try {
+    const ls = learning.summary();
+    if (ls.enabled) {
+      const dec = learning.recentDecisions(26);
+      if (dec.length) lines.push(`🧠 Öğrenme: ${dec.map((x) => `${x.combo}: ${x.to}`).join(' · ')}`);
+      if (ls.shadowCombos.length) lines.push(`🌑 Gölgede (işlem verilmiyor): ${ls.shadowCombos.join(', ')}`);
+      if (ls.boostedCombos.length) lines.push(`📈 Risk artırıldı: ${ls.boostedCombos.join(', ')}`);
+      if (ls.reducedCombos.length) lines.push(`📉 Risk kısıldı: ${ls.reducedCombos.join(', ')}`);
+      if (d.shadowClosed) lines.push(`👻 Gölge kapanış: ${d.shadowClosed} (sanal izleme)`);
+    }
+  } catch (_) { /* rapor öğrenme yüzünden düşmesin */ }
+  const msg = lines.join('\n');
   const sent = await sendBoth(msg, {
     title: `⚡ MT5 Gün-içi rapor — net ${usd(d.realizedUsd)}`,
     body: `TP ${d.tp} · SL ${d.sl} · Gün sonu ${d.eod}${hitToday != null ? ` · isabet %${hitToday}` : ''}`,

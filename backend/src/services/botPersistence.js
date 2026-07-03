@@ -26,9 +26,10 @@ const DATA_ROOT = process.env.BOT_DATA_DIR || path.join(__dirname, '..', 'data')
 // (loadAll, registry.json'ı okuyup bunları runtime'da keşfeder).
 const SUBDIRS = ['bot', 'crypto-bot', 'tema34-bot', 'custom-bots', 'crossover-alerts', 'tema34-scanner', 'bist-al-scanner', 'pro-signals', 'altin', 'mt5-scanner'];
 // signal-log.json → BIST/kripto botları; runs.json → TEMA34 botu + EMA34/TEMA34
-// kırılım bildirimcisi (state); registry.json → custom bot tanım defteri. Liste
-// tüm alt-dizinlere uygulanır; olmayan dosyalar loadAll'da sessizce atlanır.
-const FILES = ['portfolio.json', 'positions.json', 'trades.json', 'signal-log.json', 'runs.json', 'registry.json'];
+// kırılım bildirimcisi (state); registry.json → custom bot tanım defteri;
+// learning.json → mt5-scanner öğrenme katmanı (kombo istatistik + mod kararları).
+// Liste tüm alt-dizinlere uygulanır; olmayan dosyalar loadAll'da sessizce atlanır.
+const FILES = ['portfolio.json', 'positions.json', 'trades.json', 'signal-log.json', 'runs.json', 'registry.json', 'learning.json'];
 const DEBOUNCE_MS = 2500;
 
 // Bir custom bot portföy alt-dizini mi? ('custom-<id>', registry'nin 'custom-bots'u hariç)

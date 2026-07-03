@@ -16,6 +16,7 @@ const router = express.Router();
 
 const engine = require('../services/mt5Scanner/mt5Engine');
 const tracker = require('../services/mt5Scanner/mt5Tracker');
+const learning = require('../services/mt5Scanner/mt5Learning');
 const { listInstruments } = require('../services/mt5Scanner/mt5Instruments');
 
 // MT5 köprüsü yürütme beslemesi — forex.routes ile AYNI token (FOREX_EXEC_TOKEN).
@@ -107,6 +108,8 @@ router.get('/open', async (req, res) => {
       equity: tracker.getEquity(),
       budget: tracker.budget(),
       positions: tracker.getOpen(),
+      // Öğrenme katmanının devre-kestiği kombolardan sanal izlenen pozisyonlar
+      shadowPositions: tracker.getOpenShadow(),
     });
   } catch (e) {
     res.status(500).json({ success: false, error: e.message });
@@ -141,9 +144,12 @@ router.get('/status', async (req, res) => {
       lastGeneratedAt: snap?.generatedAt || null,
       counts: snap?.counts || null,
       openCount: tracker.getOpen().length,
+      shadowOpenCount: tracker.getOpenShadow().length,
+      learning: learning.summary(),
       env: {
         scannerDisabled: process.env.MT5_SCANNER_DISABLED === '1',
         pushDisabled: process.env.MT5_PUSH_DISABLED === '1',
+        learningDisabled: process.env.MT5_LEARNING_DISABLED === '1',
         channelSet: !!(process.env.TELEGRAM_MT5_CHANNEL || process.env.TELEGRAM_FOREX_CHANNEL || process.env.TELEGRAM_SIGNAL_CHANNEL),
       },
     });

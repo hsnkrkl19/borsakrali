@@ -25,6 +25,7 @@ const fs = require('fs');
 const path = require('path');
 const forexKlines = require('../forex/forexKlines');
 const { getInstrument } = require('./mt5Instruments');
+const learning = require('./mt5Learning');
 
 let botPersistence = null;
 try { botPersistence = require('../botPersistence'); } catch (_) {}
@@ -127,10 +128,13 @@ function setEquity(v) {
 }
 
 // ── Risk bütçesi ───────────────────────────────────────────────────────────
+// GÖLGE pozisyonlar (öğrenme katmanının devre-kestiği kombolar) bütçe TÜKETMEZ.
 function openList() { return Object.values(state.open); }
+function openRealList() { return openList().filter((p) => !p.shadow); }
+function openShadowList() { return openList().filter((p) => p.shadow); }
 function openRiskUsd() {
   let s = 0;
-  for (const p of openList()) s += (p.units || 0) * Math.abs(p.entry - p.stop);
+  for (const p of openRealList()) s += (p.units || 0) * Math.abs(p.entry - p.stop);
   return +s.toFixed(2);
 }
 function budget(equity = getEquity()) {
@@ -155,24 +159,30 @@ function budget(equity = getEquity()) {
 
 /**
  * Yeni sinyal açılabilir mi? (dedup + yön kilidi + cooldown + pencere + bütçe)
- * Sadece kontrol — pozisyon AÇMAZ.
+ * Sadece kontrol — pozisyon AÇMAZ. opts.shadow=true → GÖLGE evreni: bütçe
+ * kontrolü yok (gerçek para yok), yön kilidi yalnız gölge pozisyonlara bakar.
  */
-function gate(signal, equity = getEquity()) {
+function gate(signal, equity = getEquity(), opts = {}) {
   rollDay();
+  const wantShadow = !!opts.shadow;
   const id = signal.id, tf = signal.tf, dir = signal.direction;
   const key = `${id}:${tf}`;
   if (!tradeWindowOpen()) return { ok: false, reason: 'window-closed' };
+  // (enstrüman,TF) tek kayıt — tür fark etmez (kombo ya gerçek ya gölge)
   const dup = openList().find((p) => p.instrumentId === id && p.tf === tf);
   if (dup) return { ok: false, reason: dup.direction === dir ? 'open-exists' : 'conflict', code: dup.code };
-  const opp = openList().find((p) => p.instrumentId === id && p.direction !== dir);
+  // Yön kilidi kendi evreninde: gölge long, GERÇEK short'u BLOKLAMAZ (ve tersi)
+  const opp = openList().find((p) => p.instrumentId === id && p.direction !== dir && !!p.shadow === wantShadow);
   if (opp) return { ok: false, reason: 'conflict', code: opp.code };
   const cd = state.cooldownUntil[key] || 0;
   if (cd > nowSec()) return { ok: false, reason: 'cooldown', untilSec: cd };
   const riskUsd = signal.sizing?.riskUsd;
   if (!(riskUsd > 0)) return { ok: false, reason: 'no-sizing' };
-  const b = budget(equity);
-  if (riskUsd > b.remainingDailyUsd) return { ok: false, reason: 'budget-daily', remaining: b.remainingDailyUsd };
-  if (riskUsd > b.remainingTotalUsd) return { ok: false, reason: 'budget-total', remaining: b.remainingTotalUsd };
+  if (!wantShadow) {
+    const b = budget(equity);
+    if (riskUsd > b.remainingDailyUsd) return { ok: false, reason: 'budget-daily', remaining: b.remainingDailyUsd };
+    if (riskUsd > b.remainingTotalUsd) return { ok: false, reason: 'budget-total', remaining: b.remainingTotalUsd };
+  }
   return { ok: true };
 }
 
@@ -188,7 +198,9 @@ function nextCode(inst) {
  */
 async function openPosition(signal, equity = getEquity()) {
   await load();
-  const g = gate(signal, equity);
+  // Öğrenme katmanı: devre-kesilmiş kombo GÖLGE olarak izlenir (para yok)
+  const shadow = learning.modeFor(signal.id, signal.tf) === 'shadow';
+  const g = gate(signal, equity, { shadow });
   if (!g.ok) return g;
   const inst = getInstrument(signal.id);
   if (!inst) return { ok: false, reason: 'unknown-instrument' };
@@ -204,9 +216,15 @@ async function openPosition(signal, equity = getEquity()) {
     issuedAt: new Date().toISOString(), issueTimeSec: nowSec(),
     eodDeadlineSec: eodDeadlineSec(),
   };
+  if (shadow) pos.shadow = true;
   state.open[code] = pos;
-  state.day.opened += 1;
-  state.total.opened += 1;
+  if (shadow) {
+    state.day.shadowOpened = (state.day.shadowOpened || 0) + 1;
+    state.total.shadowOpened = (state.total.shadowOpened || 0) + 1;
+  } else {
+    state.day.opened += 1;
+    state.total.opened += 1;
+  }
   persist();
   return { ok: true, position: pos };
 }
@@ -249,10 +267,14 @@ async function evalOne(p) {
   const dir = isLong ? 1 : -1;
   const pnlPct = +(((exit - p.entry) / p.entry) * 100 * dir).toFixed(3);
   const pnlUsd = p.units != null ? +(p.units * (exit - p.entry) * dir).toFixed(2) : null;
+  // R-katsayısı: öğrenme katmanının ana ölçüsü (kazanç/risk, boyuttan bağımsız)
+  const rMultiple = (pnlUsd != null && p.riskUsd > 0) ? +(pnlUsd / p.riskUsd).toFixed(2) : null;
   return {
     code: p.code, instrumentId: p.instrumentId, symbol: p.symbol, tf: p.tf,
     direction: p.direction, precision: p.precision, entry: p.entry, exit,
-    outcome, pnlPct, pnlUsd, lots: p.lots, issuedAt: p.issuedAt,
+    outcome, pnlPct, pnlUsd, rMultiple, lots: p.lots,
+    riskUsd: p.riskUsd ?? null, confidence: p.confidence ?? null, rr1: p.rr1 ?? null,
+    shadow: !!p.shadow, issuedAt: p.issuedAt,
     exitTimeSec, closedAt: new Date().toISOString(),
   };
 }
@@ -273,18 +295,25 @@ async function checkClosures() {
     try {
       const ev = await evalOne(p);
       if (!ev) continue;
-      events.push(ev);
       delete state.open[p.code];
       state.cooldownUntil[`${p.instrumentId}:${p.tf}`] = nowSec() + REOPEN_COOLDOWN_SEC;
-      const usd = ev.pnlUsd || 0;
-      state.day.realizedUsd = +(state.day.realizedUsd + usd).toFixed(2);
-      state.total.realizedUsd = +(state.total.realizedUsd + usd).toFixed(2);
-      state.total.closed += 1;
-      if (usd > 0) state.total.wins += 1; else if (usd < 0) state.total.losses += 1;
-      if (ev.outcome === 'TP1') state.day.tp += 1;
-      else if (ev.outcome === 'SL') state.day.sl += 1;
-      else state.day.eod += 1;
+      if (ev.shadow) {
+        // GÖLGE: gün/toplam sayaçlarına ve bütçeye DOKUNMAZ — yalnız öğrenmeye akar
+        state.day.shadowClosed = (state.day.shadowClosed || 0) + 1;
+        state.total.shadowClosed = (state.total.shadowClosed || 0) + 1;
+      } else {
+        events.push(ev);
+        const usd = ev.pnlUsd || 0;
+        state.day.realizedUsd = +(state.day.realizedUsd + usd).toFixed(2);
+        state.total.realizedUsd = +(state.total.realizedUsd + usd).toFixed(2);
+        state.total.closed += 1;
+        if (usd > 0) state.total.wins += 1; else if (usd < 0) state.total.losses += 1;
+        if (ev.outcome === 'TP1') state.day.tp += 1;
+        else if (ev.outcome === 'SL') state.day.sl += 1;
+        else state.day.eod += 1;
+      }
       appendTrade(ev);
+      try { learning.recordClose(ev); } catch (_) { /* öğrenme hatası kapanışı düşürmesin */ }
       changed = true;
     } catch (_) { /* tek pozisyon hatası turu düşürmesin */ }
   }
@@ -295,7 +324,10 @@ async function checkClosures() {
   return events;
 }
 
-function getOpen() { return openList(); }
+// getOpen = yalnız GERÇEK pozisyonlar (köprü beslemesi + UI varsayılanı);
+// gölge pozisyonlar getOpenShadow ile ayrı sorgulanır.
+function getOpen() { return openRealList(); }
+function getOpenShadow() { return openShadowList(); }
 function getRecentTrades(limit = 50) {
   const cur = readJson(TRADES_FILE) || { trades: [] };
   return cur.trades.slice(-limit).reverse();
@@ -304,7 +336,8 @@ function getDayStats() { rollDay(); return { ...state.day }; }
 function getTotalStats() { return { ...state.total }; }
 
 module.exports = {
-  load, gate, openPosition, checkClosures, budget, getOpen, getRecentTrades,
-  getDayStats, getTotalStats, getEquity, setEquity, tradeWindowOpen, minutesToEod,
+  load, gate, openPosition, checkClosures, budget, getOpen, getOpenShadow,
+  getRecentTrades, getDayStats, getTotalStats, getEquity, setEquity,
+  tradeWindowOpen, minutesToEod,
   DEFAULT_EQUITY, LEVERAGE, DAILY_MAX_LOSS_PCT, TOTAL_MAX_LOSS_PCT, SUBDIR,
 };
