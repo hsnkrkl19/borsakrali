@@ -58,8 +58,26 @@ bunu `GSB_MT5_TERMINAL` env'ine geçirir). Hesap kilidi (`1513857844`) gold bot
 koduna zaten gömülü.
 
 > 🔒 `allowed_account` ayarlıyken bot **başka hesaba bağlıysa emir AÇMAZ** ve
-> logda `HESAP KİLİDİ` yazar. `terminal_path` verildiğinde bot **doğru terminali
-> kendi başlatıp** ona bağlanır — yanlış terminale kapılmaz.
+> logda `HESAP KİLİDİ` yazar. `terminal_path` verildiğinde bot doğru terminali
+> başlatıp ona bağlanmayı dener.
+
+> ### ⚠️⚠️ İKİ TERMİNAL — EN ÖNEMLİ OPERASYONEL KURAL
+> MetaTrader5'in Python modülü bir process'te **aynı anda tek terminale**
+> bağlanır ve **iki terminal birden açık + ikisinde de API/Algo açıksa**,
+> `terminal_path` hangisine bağlanacağını **garanti ETMEZ** (Python modülü
+> erişebildiği ilk terminale kapılabilir). Hesap kilidi bunu yakalar (yanlış
+> hesapta **işlem açılmaz**) ama botun ÇALIŞMASI için doğru terminale bağlanması
+> gerekir. **Kesin çözüm — şu ikisinden birini yap:**
+>
+> 1. **YALNIZ FTMO terminalinde "Algo Trading"i AÇIK bırak; diğer hesabın
+>    terminalinde KAPAT** (Araçlar > Seçenekler > Uzman Danışmanlar, veya üstteki
+>    Algo Trading düğmesi kapalı). Python modülü API/algo açık olan FTMO
+>    terminaline bağlanır. Diğer hesapta elle işlem yapmaya devam edebilirsin.
+> 2. VEYA botları çalıştıracağın terminal DIŞINDAKİ terminali, botları
+>    başlatırken kapalı tut; sadece FTMO açıkken botları başlat, sonra diğerini aç.
+>
+> Her koşulda: başlatınca her pencerede **`login=1513857844`** gör. Yanlış login
+> görürsen yukarıdaki 1. maddeyi uygula.
 
 ## 4. Başlat
 
