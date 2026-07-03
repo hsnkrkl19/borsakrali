@@ -17,6 +17,7 @@
 
 const engine = require('./tema34ScanEngine');
 const store = require('./tema34ScannerStore');
+const tracker = require('./tema34ScannerTracker');
 const telegramService = require('../telegramService');
 const logger = require('../../utils/logger');
 
@@ -117,6 +118,47 @@ async function sendMessages(messages) {
   return { sent, total: messages.length, chatSet: true };
 }
 
+// ── SONUÇ (ters-kesişim) bildirimi ──────────────────────────────────────────
+// Bir kapanış olayı → Telegram bloğu. Sonuç kâr/zarara göre renklenir.
+function buildClosureBlock(ev) {
+  const s = ev.pnlPct >= 0 ? '+' : '';
+  const mark = ev.pnlPct >= 0 ? '🟢' : '🔴';
+  const days = ev.daysHeld != null ? ` · ${ev.daysHeld} gün` : '';
+  return [
+    `${mark} <b>${htmlEscape(ev.symbol)}</b> — TEMA34 AL→SAT (ters kesişim)`,
+    `Giriş ${fmtPrice(ev.entry)}${ev.entryDate ? ` (${htmlEscape(ev.entryDate)})` : ''} → Çıkış ${fmtPrice(ev.exit)}${ev.exitDate ? ` (${htmlEscape(ev.exitDate)})` : ''}${days}`,
+    `Sonuç: <b>${s}${ev.pnlPct}%</b>`,
+  ].join('\n');
+}
+
+// Kapanış olayları → ≤TELEGRAM_MAX parçalara bölünmüş mesaj dizisi.
+function buildClosureMessages(events) {
+  const list = events || [];
+  if (!list.length) return [];
+  const header =
+    '📊 <b>TEMA34 SONUÇ — Ters kesişim</b>\n' +
+    'Daha önce AL bölgesine giren hisseler sat bölgesine geçti (sinyal sonucu).';
+  const footer = `Detay: ${DEEP_LINK}\nNot: Yatırım tavsiyesi değildir.`;
+  const blocks = [header, ...list.map(buildClosureBlock), footer];
+  const messages = [];
+  let cur = '';
+  for (const block of blocks) {
+    const candidate = cur ? `${cur}\n\n${block}` : block;
+    if (candidate.length > TELEGRAM_MAX && cur) { messages.push(cur); cur = block; }
+    else cur = candidate;
+  }
+  if (cur) messages.push(cur);
+  return messages;
+}
+
+// Kapanışları @tema34sinyal kanalına gönder. Kanal yoksa/kapalıysa sessiz.
+async function pushClosures(events) {
+  const list = events || [];
+  if (!list.length) return { sent: 0, total: 0 };
+  if (process.env.TEMA34_SCANNER_DISABLED === '1') return { sent: 0, total: list.length, disabled: true };
+  return sendMessages(buildClosureMessages(list));
+}
+
 // Tek bir TF sonucunu değerlendir + (gerekirse) gönder. Dönüş: per-TF özet.
 async function processTimeframe(tfResult, opts) {
   const tf = tfResult?.tf;
@@ -180,10 +222,30 @@ async function runAndNotify(opts = {}) {
     if (r.notified) anyNotified = true;
   }
 
+  // SONUÇ takibi (yalnız 1d): AL bölgesine girenleri kaydet, sat bölgesine geçince
+  // (ters kesişim) kapat + bildir. Taramanın kendi up/down listesinden türetilir
+  // (mum yeniden çekilmez → gecikmeli veriyle uyumlu). Kanal yok/kapalıysa izleme.
+  let closed = 0;
+  const trackingOn = !!channelId() && process.env.TEMA34_SCANNER_DISABLED !== '1';
+  if (trackingOn && result['1d']?.ok) {
+    try {
+      const { closures, opened } = await tracker.sync(result['1d']);
+      if (opened.length) logger.info(`📊 TEMA34 takip — ${opened.length} yeni AL izlemede`);
+      if (closures.length) {
+        const push = await pushClosures(closures);
+        closed = push.sent || 0;
+        logger.info(`📊 TEMA34 sonuç — ${closures.length} ters-kesişim · TG ${closed}`);
+      }
+    } catch (e) {
+      logger.error(`[TEMA34Scanner] sonuç takibi hata: ${e.message}`);
+    }
+  }
+
   const summary = {
     runAt: new Date().toISOString(),
     forced: !!opts.force,
     notified: anyNotified,
+    closures: closed,
     timeframes,
   };
   store.recordRun(summary);
@@ -195,9 +257,12 @@ module.exports = {
   processTimeframe,
   channelId,
   barKeyOf,
+  pushClosures,
   // pure builders — test edilebilir
   buildTimeframeMessages,
   buildTelegramSection,
+  buildClosureBlock,
+  buildClosureMessages,
   DEEP_LINK,
   TF_LABEL,
 };

@@ -38,6 +38,13 @@ jest.mock('../../src/services/tema34Scanner/tema34ScannerStore', () => ({
   recordRun: () => {},
 }));
 
+// Tracker'ı no-op mock'la — runAndNotify diske dokunmasın (sonuç/ters-kesişim
+// mantığı AYRI dosyada: tema34ScannerTracker.golden.test.js).
+const mockSync = jest.fn(async () => ({ closures: [], opened: [] }));
+jest.mock('../../src/services/tema34Scanner/tema34ScannerTracker', () => ({
+  sync: (...a) => mockSync(...a),
+}));
+
 const engine = require('../../src/services/tema34Scanner/tema34ScanEngine');
 const notifier = require('../../src/services/tema34Scanner/tema34ScannerNotifier');
 
@@ -217,5 +224,71 @@ describe('tema34ScannerNotifier.runAndNotify — TF dedup + skip yolları', () =
     const r = await notifier.runAndNotify();
     expect(r.timeframes['4h'].skippedReason).toBe('scan-failed');
     expect(r.timeframes['1d'].notified).toBe(true);
+  });
+
+  test('sonuç takibi — kanal + 1d başarılı → tracker.sync(1d) çağrılır', async () => {
+    process.env.TELEGRAM_TEMA34_CHANNEL = '@tema34sinyal';
+    mockSync.mockClear();
+    mockSync.mockResolvedValueOnce({ closures: [], opened: ['THYAO'] });
+    mockScanAll.mockResolvedValue(scanResult());
+    await notifier.runAndNotify();
+    expect(mockSync).toHaveBeenCalledTimes(1);
+    expect(mockSync.mock.calls[0][0].tf).toBe('1d');
+  });
+
+  test('sonuç takibi — kanal yoksa tracker.sync çağrılmaz (backlog önlenir)', async () => {
+    delete process.env.TELEGRAM_TEMA34_CHANNEL;
+    mockSync.mockClear();
+    mockScanAll.mockResolvedValue(scanResult());
+    await notifier.runAndNotify();
+    expect(mockSync).not.toHaveBeenCalled();
+  });
+
+  test('sonuç takibi — ters-kesişim kapanışı bildirilir (summary.closures)', async () => {
+    process.env.TELEGRAM_TEMA34_CHANNEL = '@tema34sinyal';
+    mockTgSend.mockClear();
+    mockSync.mockClear();
+    mockSync.mockResolvedValueOnce({
+      closures: [{ symbol: 'SISE', name: 'SISE', entry: 40, exit: 44, entryDate: '2026-06-20', exitDate: '2026-06-29', daysHeld: 9, outcome: 'CROSS_DOWN', pnlPct: 10 }],
+      opened: [],
+    });
+    mockScanAll.mockResolvedValue(scanResult());
+    const r = await notifier.runAndNotify();
+    expect(r.closures).toBe(1);
+    // Kapanış mesajı @tema34sinyal kanalına gitti (TF bildirimleri + kapanış)
+    const closureCall = mockTgSend.mock.calls.find(c => String(c[1]).includes('SONUÇ'));
+    expect(closureCall).toBeTruthy();
+    expect(closureCall[0]).toBe('@tema34sinyal');
+  });
+});
+
+// ── Kapanış (ters-kesişim sonucu) saf kurucular ──────────────────────────────
+describe('tema34ScannerNotifier — kapanış (ters-kesişim) mesajları', () => {
+  const ev = (over = {}) => ({ symbol: 'THYAO', name: 'THYAO', entry: 100, exit: 120, entryDate: '2026-06-15', exitDate: '2026-06-29', daysHeld: 14, outcome: 'CROSS_DOWN', pnlPct: 20, ...over });
+
+  test('buildClosureBlock — AL→SAT, giriş/çıkış, gün, sonuç %', () => {
+    const b = notifier.buildClosureBlock(ev());
+    expect(b).toContain('THYAO');
+    expect(b).toContain('AL→SAT');
+    expect(b).toContain('14 gün');
+    expect(b).toContain('+20%');
+    expect(b).toContain('🟢');
+    const loss = notifier.buildClosureBlock(ev({ exit: 90, pnlPct: -10 }));
+    expect(loss).toContain('-10%');
+    expect(loss).toContain('🔴');
+  });
+
+  test('buildClosureMessages — başlık + footer; büyük liste ≤4096 parçalanır', () => {
+    const one = notifier.buildClosureMessages([ev()]);
+    expect(one.length).toBe(1);
+    expect(one[0]).toContain('TEMA34 SONUÇ');
+    expect(one[0]).toContain(notifier.DEEP_LINK);
+    const big = notifier.buildClosureMessages(Array.from({ length: 200 }, (_, i) => ev({ symbol: `S${i}` })));
+    expect(big.length).toBeGreaterThan(1);
+    for (const m of big) expect(m.length).toBeLessThanOrEqual(4096);
+  });
+
+  test('buildClosureMessages — boş liste → boş dizi', () => {
+    expect(notifier.buildClosureMessages([])).toEqual([]);
   });
 });
