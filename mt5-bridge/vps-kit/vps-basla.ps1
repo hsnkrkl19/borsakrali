@@ -67,6 +67,14 @@ if (Test-Path "$BRIDGE_DIR\watchdog_scanner.ps1") {
   Start-Process -FilePath "powershell.exe" -ArgumentList "-ExecutionPolicy","Bypass","-File","$BRIDGE_DIR\watchdog_scanner.ps1" -WindowStyle Normal
 } else { Write-Host "!!! watchdog_scanner.ps1 yok" -ForegroundColor Red }
 
+Start-Sleep -Seconds 2
+
+# GERCEK KAR/ZARAR RAPORLAYICI (yalniz-okur; deftere yazar + Telegram'a P/L basar)
+if (Test-Path "$BRIDGE_DIR\run_pnl.bat") {
+  Write-Host "-> Gercek P/L raporlayici baslatiliyor (Telegram + defter)" -ForegroundColor Green
+  Start-Process -FilePath "$BRIDGE_DIR\run_pnl.bat" -WorkingDirectory $BRIDGE_DIR -WindowStyle Normal
+} else { Write-Host "!!! run_pnl.bat yok" -ForegroundColor Yellow }
+
 Write-Host ""
 Write-Host "=== 3 bot baslatildi (ayri pencereler) ===" -ForegroundColor Cyan
 Write-Host "Her pencerede: login=1513857844 + Hesap kilidi AKTIF gormelisin." -ForegroundColor Yellow

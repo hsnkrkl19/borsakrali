@@ -154,6 +154,24 @@ botu yeniden başlatırsın. Kusursuz bot çıkana kadar bu döngü döner.
 > Botların kendi otomatik öğrenmesi (devre-kesici + gölge + selftune) zaten
 > çalışıyor; `vps_tani.py` **kod-seviyesi** iyileştirmeler için gözümüz.
 
+## 6.5 💰 Gerçek kâr/zarar → Telegram + haftalık defter
+
+`vps-basla.ps1` **4. bir pencere** daha açar: `run_pnl.bat` (gerçek P/L raporlayıcı,
+yalnız-okur, emir açmaz). Bu:
+- FTMO hesabının MT5 **deal geçmişinden GERÇEK** (broker) kapanan işlem P/L'ini okur,
+- her açılış/kapanışı `pnl_ledger.jsonl`'a yazar → **hafta boyunca inceleyeceğimiz kayıt**,
+- yeni gerçek kapanışları **Telegram'a** basar (backend üzerinden),
+- gün sonu (23:55 TR) günlük özet: net / isabet / en iyi-en kötü / bakiye.
+
+Telegram kanalı: Render env `TELEGRAM_PNL_CHANNEL` (yoksa mevcut sinyal kanalı).
+Kapatma: `PNL_REPORT_DISABLED=1` (Render env) veya `STOP_PNL` dosyası (VPS).
+İlk açılışta geçmiş işlemleri **deftere alır ama Telegram'a basmaz** (spam olmasın);
+bundan sonraki kapanışlar raporlanır.
+
+> Not: Bu, sanal/backend muhasebesi değil — **hesapta gerçekten kazanılan/kaybedilen
+> para**. Haftalık `pnl_ledger.jsonl` + `vps_tani.py` raporlarını bize getir; hata
+> tespiti → düzeltme → tekrar test döngüsüyle oranı yükseltiriz.
+
 ## 7. Durdurma / acil durum
 
 | Ne | Nasıl |

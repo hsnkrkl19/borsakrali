@@ -16,7 +16,7 @@ foreach ($p in @("$GOLD_DIR\STOP", "$BRIDGE_DIR\STOP", "$BRIDGE_DIR\STOP_SCANNER
 }
 Write-Host "STOP dosyalari kondu (yeni emir acilmaz)." -ForegroundColor Yellow
 
-$patterns = 'watchdog_forex|watchdog_scanner|borsakrali_mt5|live\.py'
+$patterns = 'watchdog_forex|watchdog_scanner|borsakrali_mt5|live\.py|mt5_hesap_rapor|run_pnl'
 $procs = Get-CimInstance Win32_Process -Filter "Name='python.exe' or Name='powershell.exe' or Name='cmd.exe'" -ErrorAction SilentlyContinue |
          Where-Object { $_.CommandLine -match $patterns }
 foreach ($pr in $procs) {
