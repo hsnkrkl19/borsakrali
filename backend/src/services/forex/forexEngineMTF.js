@@ -17,7 +17,7 @@ const ema34 = require('./strategies/ema34');
 const tema34 = require('./strategies/tema34');
 const snrStrat = require('./strategies/snr');
 const smcStrat = require('./strategies/smc');
-const { aggregate, computeConfidence, gradeFor, bandFor } = require('./forexAggregator');
+const { aggregate, computeConfidence, calibrateConfidence, gradeFor, bandFor } = require('./forexAggregator');
 const levelsLib = require('./forexLevels');
 const { computeSizing } = require('./riskSizing');
 const forexBacktest = require('./forexBacktest');
@@ -108,14 +108,24 @@ async function evalInstrument(inst, equity) {
     if (!s || s.status !== 'signal') continue;
     const sameCount = dirs.filter(d => d === s.direction).length;
     const confluence = Math.max(0, (sameCount - 1) / (TFS.length - 1));
-    const confidence = computeConfidence({ ...s._c, confluence });
+    const rawConfidence = computeConfidence({ ...s._c, confluence });
+    // Backtest-tabanlı geçmiş başarı (Sinyaller komuta merkezi mantığı)
+    const h = forexBacktest.getHistory(meta.id, tf, rawConfidence);
+    // AKTİF KALİBRASYON: ampirik PF/expectancy güveni SINIRLI delta (±15) ile
+    // düzeltir — daha önce yalnız görüntülenip hiç UYGULANMIYORDU (ölü koddu).
+    // Kapatma: FOREX_CALIBRATION_ACTIVE=0
+    let confidence = rawConfidence;
+    if (process.env.FOREX_CALIBRATION_ACTIVE !== '0' && h) {
+      const cal = calibrateConfidence(rawConfidence, h);
+      confidence = cal.confidence;
+      if (cal.delta) s.calibration = { delta: cal.delta, empirical: cal.empirical, trust: cal.trust };
+    }
     s.confluence = +confluence.toFixed(2);
     s.sameTfCount = sameCount;
+    s.rawConfidence = rawConfidence;
     s.confidence = confidence;
     s.grade = gradeFor(confidence);
     s.confidenceBand = bandFor(confidence);
-    // Backtest-tabanlı geçmiş başarı (Sinyaller komuta merkezi mantığı)
-    const h = forexBacktest.getHistory(meta.id, tf, confidence);
     if (h) { s.historicalWinRate = h.winRate; s.sampleSize = h.sampleSize; s.historicalAvgReturn = h.avgReturn; s.historyBand = h.band; }
     delete s._c;
     if (confidence < MIN_CONFIDENCE) { perTf[tf] = { tf, status: 'low_conf', direction: s.direction, confidence, votes: s.votes }; }

@@ -14,6 +14,7 @@ const fs = require('fs');
 const path = require('path');
 const forexKlines = require('./forexKlines');
 const { getInstrument } = require('./forexInstruments');
+const learning = require('./forexLearning');
 
 let supa = null, supaEnabled = () => false;
 try { const m = require('../../lib/supabase'); supa = m.supabaseAdmin; supaEnabled = m.isSupabaseEnabled; } catch (_) {}
@@ -21,11 +22,29 @@ try { const m = require('../../lib/supabase'); supa = m.supabaseAdmin; supaEnabl
 const BUCKET = 'bot-state';
 const SUPA_KEY = 'forex/open-signals.json';
 const DISK_FILE = process.env.FOREX_OPEN_FILE || path.join(__dirname, '..', '..', 'data', 'forex-open-signals.json');
+// Varsayılan: open-signals dosyasının yanı (testler FOREX_OPEN_FILE'ı tmp'e
+// yönlendirir — kapanış kaydı da otomatik aynı yere gider, repo data/ kirlenmez)
+const CLOSED_FILE = process.env.FOREX_CLOSED_FILE || path.join(path.dirname(DISK_FILE), 'forex-closed-trades.json');
+const CLOSED_CAP = 500;
 
 const TF_ORDER = ['5m', '15m', '1h', '4h', '1d'];
 const EXPIRE_SEC = { '5m': 3 * 3600, '15m': 6 * 3600, '1h': 18 * 3600, '4h': 2 * 86400, '1d': 4 * 86400 };
 
-let state = { counter: 0, open: {}, version: 2 };
+// ── Flip-flop fren kapıları (teşhis 2026: cooldown + ters-kilit + konfluans
+// yokluğu sürekli aç-kapa üretiyordu). Her biri env ile AYRI kapatılabilir.
+const REOPEN_COOLDOWN_SEC = (() => {
+  const v = Number(process.env.FOREX_REOPEN_COOLDOWN_MIN);
+  return (Number.isFinite(v) && v >= 0 ? v : 30) * 60;
+})();
+const cooldownOff = () => process.env.FOREX_COOLDOWN_DISABLED === '1';
+const reverseLockOff = () => process.env.FOREX_REVERSE_LOCK_DISABLED === '1';
+const confluenceGateOff = () => process.env.FOREX_CONFLUENCE_GATE_DISABLED === '1';
+const SINGLE_TF_MIN_CONF = (() => {
+  const v = Number(process.env.FOREX_SINGLE_TF_MIN_CONF);
+  return Number.isFinite(v) && v >= 40 && v <= 100 ? v : 80;
+})();
+
+let state = { counter: 0, open: {}, cooldownUntil: {}, version: 2 };
 let loaded = false;
 let saveTimer = null;
 
@@ -59,18 +78,18 @@ async function load() {
       if (data) {
         const text = typeof data.text === 'function' ? await data.text() : Buffer.from(await data.arrayBuffer()).toString('utf8');
         const p = JSON.parse(text);
-        if (p && p.open) { state = { counter: p.counter || 0, open: p.open || {}, version: 2, resetTag: p.resetTag || null }; got = true; }
+        if (p && p.open) { state = { counter: p.counter || 0, open: p.open || {}, cooldownUntil: p.cooldownUntil || {}, version: 2, resetTag: p.resetTag || null }; got = true; }
       }
     } catch (_) {}
   }
   if (!got) {
-    try { if (fs.existsSync(DISK_FILE)) { const p = JSON.parse(fs.readFileSync(DISK_FILE, 'utf8')); if (p && p.open) state = { counter: p.counter || 0, open: p.open || {}, version: 2, resetTag: p.resetTag || null }; } } catch (_) {}
+    try { if (fs.existsSync(DISK_FILE)) { const p = JSON.parse(fs.readFileSync(DISK_FILE, 'utf8')); if (p && p.open) state = { counter: p.counter || 0, open: p.open || {}, cooldownUntil: p.cooldownUntil || {}, version: 2, resetTag: p.resetTag || null }; } } catch (_) {}
   }
   sanitizeOpen();
   // Tek-seferlik SIFIRLAMA: FOREX_RESET etiketi değişince TÜM açık sinyaller + sayaç
   // sıfırlanır (kullanıcı "önceki sinyalleri sil, sıfırdan başla"). NO #001'den başlar.
   const tag = process.env.FOREX_RESET;
-  if (tag && state.resetTag !== tag) { state = { counter: 0, open: {}, version: 2, resetTag: tag }; persist(); }
+  if (tag && state.resetTag !== tag) { state = { counter: 0, open: {}, cooldownUntil: {}, version: 2, resetTag: tag }; persist(); }
 }
 
 function persist() {
@@ -127,10 +146,22 @@ async function syncPositions(eligible) {
     const id = basis.id, dir = basis.direction, p = basis.precision ?? 4;
     const tfs = sortTfs(sigs.map(s => s.tf));
     const opp = dir === 'long' ? 'short' : 'long';
-    const reverseOf = openList().filter(x => x.instrumentId === id && x.direction === opp).map(x => x.code);
+    // Öğrenme: devre-kesilmiş enstrümanın YENİ pozisyonu gölge (sanal izleme)
+    const shadow = learning.modeFor(id) === 'shadow';
+    // Ters bayrağı KENDİ evreninde (gölge, gerçek ters-kilidini tetiklemesin)
+    const reverseOf = openList().filter(x => x.instrumentId === id && x.direction === opp && !!x.shadow === shadow).map(x => x.code);
     const existing = findPosition(id, dir);
 
     if (!existing) {
+      // ── Flip-flop frenleri (yalnız YENİ pozisyon; mevcutların izi sürer) ──
+      // 1) Kapanış-sonrası cooldown: aynı enstrüman+yön hemen yeniden açılamaz
+      if (!cooldownOff() && (state.cooldownUntil[`${id}:${dir}`] || 0) > nowSec()) continue;
+      // 2) Ters-yön kilidi: aynı evrende zıt pozisyon açıkken yenisi açılmaz
+      //    (köprü hedge karmaşasının KAYNAK çözümü)
+      if (!reverseLockOff() && reverseOf.length) continue;
+      // 3) Konfluans kapısı: tek TF'lik sinyal ancak çok yüksek güvenle açılır
+      if (!confluenceGateOff() && tfs.length < 2 && basis.confidence < SINGLE_TF_MIN_CONF) continue;
+
       const code = nextCode();
       const units = (basis.sizing && basis.entry && basis.stop) ? basis.sizing.riskUsd / Math.abs(basis.entry - basis.stop) : null;
       const pos = {
@@ -142,6 +173,7 @@ async function syncPositions(eligible) {
         origStopDist: Math.abs(basis.entry - basis.stop),
         issuedAt: new Date().toISOString(), issueTimeSec: nowSec(), lastUpdateSec: nowSec(), stopSetSec: nowSec(),
       };
+      if (shadow) pos.shadow = true;
       state.open[code] = pos;
       events.push({ type: 'new', position: pos, addedTfs: tfs, reverseOf });
     } else {
@@ -173,7 +205,7 @@ async function evalOne(p) {
   // Stop, YALNIZ o seviye konduktan sonraki mumlarla değerlendirilir (iz süren
   // stop yukarı kayınca eski geri-çekilmeler geriye dönük "stop" tetiklemesin).
   const stopSince = p.stopSetSec || p.issueTimeSec;
-  let outcome = null, exit = null;
+  let outcome = null, exit = null, exitTimeSec = null;
   // YALNIZ KAPANMIŞ mumlar: son mum hâlâ oluşuyor (5m TTL 4dk) → geçici fitil
   // gerçekleşmemiş bir TP/SL'i tetiklerdi (hayalet kapanış + yanlış %).
   const closed = (candles && candles.length) ? candles.slice(0, -1) : [];
@@ -197,6 +229,7 @@ async function evalOne(p) {
       if (dTp <= dStop) takeTp(); else takeSl();
     } else if (slHit) { takeSl(); }
     else { takeTp(); }
+    exitTimeSec = b.time;
     break;
   }
   // ⚠️ "SÜRE DOLDU" (EXPIRE) kapanışı KALDIRILDI (kullanıcı isteği). Pozisyon yalnız
@@ -205,7 +238,31 @@ async function evalOne(p) {
   const dir = isLong ? 1 : -1;
   const pnlPct = +(((exit - p.entry) / p.entry) * 100 * dir).toFixed(3);
   const pnlUsd = p.units != null ? +(p.units * (exit - p.entry) * dir).toFixed(2) : null;
-  return { code: p.code, instrumentId: p.instrumentId, symbol: p.symbol, direction: p.direction, tfs: p.tfs, precision: p.precision, entry: p.entry, exit, outcome, pnlPct, pnlUsd, issuedAt: p.issuedAt };
+  // R-katsayısı = fiyat hareketi / açılıştaki stop mesafesi (lot'tan bağımsız —
+  // öğrenme katmanının ana ölçüsü)
+  const rMultiple = p.origStopDist > 0 ? +(((exit - p.entry) * dir) / p.origStopDist).toFixed(2) : null;
+  return {
+    code: p.code, instrumentId: p.instrumentId, symbol: p.symbol, direction: p.direction,
+    tfs: p.tfs, precision: p.precision, entry: p.entry, exit, outcome, pnlPct, pnlUsd,
+    rMultiple, origStopDist: p.origStopDist ?? null, confidence: p.confidence ?? null,
+    shadow: !!p.shadow, issuedAt: p.issuedAt, issueTimeSec: p.issueTimeSec ?? null,
+    exitTimeSec, closedAt: new Date().toISOString(),
+  };
+}
+
+// Kapanan işlemler KALICI kaydedilir (öğrenme + denetim; eskiden yalnız
+// Telegram'a basılıp kayboluyordu — öğrenmenin ön şartı bu dosya).
+function appendClosed(ev) {
+  try {
+    let cur = { trades: [] };
+    try { if (fs.existsSync(CLOSED_FILE)) cur = JSON.parse(fs.readFileSync(CLOSED_FILE, 'utf8')) || { trades: [] }; } catch (_) {}
+    if (!Array.isArray(cur.trades)) cur.trades = [];
+    cur.trades.push(ev);
+    if (cur.trades.length > CLOSED_CAP) cur.trades = cur.trades.slice(-CLOSED_CAP);
+    const dir = path.dirname(CLOSED_FILE);
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(CLOSED_FILE, JSON.stringify(cur, null, 2), 'utf8');
+  } catch (_) {}
 }
 
 async function checkClosures() {
@@ -215,14 +272,37 @@ async function checkClosures() {
   for (const p of openList()) {
     try {
       const ev = await evalOne(p);
-      if (ev) { events.push(ev); delete state.open[p.code]; changed = true; }
-      else if (nowSec() - p.issueTimeSec > maxExpire(p.tfs)) { delete state.open[p.code]; changed = true; } // SESSİZ süre temizliği (mesaj YOK)
+      if (ev) {
+        delete state.open[p.code];
+        // Flip-flop freni: kapanan enstrüman+yön cooldown'a girer
+        state.cooldownUntil[`${p.instrumentId}:${p.direction}`] = nowSec() + REOPEN_COOLDOWN_SEC;
+        appendClosed(ev);
+        try { learning.recordClose(ev.instrumentId, { r: ev.rMultiple, usd: ev.pnlUsd, outcome: ev.outcome, t: ev.exitTimeSec, shadow: ev.shadow }); } catch (_) {}
+        // GÖLGE kapanışlar Telegram'a/istatistiğe GİTMEZ — yalnız öğrenmeye aktı
+        if (!ev.shadow) events.push(ev);
+        changed = true;
+      } else if (nowSec() - p.issueTimeSec > maxExpire(p.tfs)) { delete state.open[p.code]; changed = true; } // SESSİZ süre temizliği (mesaj YOK)
     } catch (_) {}
   }
+  // cooldown sözlüğü şişmesin
+  for (const k of Object.keys(state.cooldownUntil)) if (state.cooldownUntil[k] <= nowSec()) delete state.cooldownUntil[k];
   if (changed) persist();
   return events;
 }
 
-function getOpen() { return openList(); }
+// getOpen = yalnız GERÇEK pozisyonlar: köprü beslemesi (/api/forex/positions)
+// ve Telegram bu listeden beslenir. Gölge pozisyonlar ayrı sorgulanır.
+function getOpen() { return openList().filter(p => !p.shadow); }
+function getOpenShadow() { return openList().filter(p => p.shadow); }
 
-module.exports = { load, syncPositions, checkClosures, getOpen };
+function getRecentClosed(limit = 50) {
+  try {
+    if (fs.existsSync(CLOSED_FILE)) {
+      const cur = JSON.parse(fs.readFileSync(CLOSED_FILE, 'utf8'));
+      if (cur && Array.isArray(cur.trades)) return cur.trades.slice(-limit).reverse();
+    }
+  } catch (_) {}
+  return [];
+}
+
+module.exports = { load, syncPositions, checkClosures, getOpen, getOpenShadow, getRecentClosed };

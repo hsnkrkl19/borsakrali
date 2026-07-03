@@ -90,9 +90,10 @@ async function evaluateAndPush(signals) {
   catch (e) { logger.error(`[ForexPush] sync: ${e.message}`); return { telegram: 0, app: 0, considered: 0, eligible: eligible.length }; }
 
   const now = Date.now();
-  let tg = 0, app = 0, sent = 0;
+  let tg = 0, app = 0, sent = 0, shadowCount = 0;
   for (const ev of events) {
     const p = ev.position;
+    if (p.shadow) { shadowCount++; continue; }   // gölge: sanal izlenir, DUYURULMAZ
     if (ev.type === 'update') {
       // Düzeltme sinyallerini AZALT: YALNIZ stop iz sürünce (anlamlı) gönder —
       // salt TF-katılım / TP değişimi mesajı atma. Üstüne uzun cooldown.
@@ -105,7 +106,7 @@ async function evaluateAndPush(signals) {
     if (chatId) { try { const r = await withTimeout(telegramService.sendMessage(chatId, tgMsg), 16000, 'tg'); if (r?.success) { tg++; sent++; } } catch (e) { logger.error(`[ForexPush] tg #${p.code}: ${e.message}`); } }
     lastSent.set(p.code, now);
   }
-  return { telegram: tg, app, considered: sent, eligible: eligible.length, chatSet: !!chatId };
+  return { telegram: tg, app, considered: sent, shadow: shadowCount, eligible: eligible.length, chatSet: !!chatId };
 }
 
 // ── Kapanış / teyit (aynı NO) ───────────────────────────────────────────────
