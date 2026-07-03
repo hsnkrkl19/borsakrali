@@ -5,7 +5,16 @@
  *   • sidecarClient env yokken devre dışı (canlı sinyaller JS'e düşer, ölmez).
  *   • forexBacktest yerel özet (JS fallback) winRate/expectancy/profitFactor doğru.
  *   • bistBacktest kova birleştirme (global kalibrasyon) ve getHistory NO-OP güvenliği.
+ *
+ * bistBacktest diskini tmp'ye yönlendir (üretim data/bist-signals-backtest.json
+ * dosyasına DOKUNMA) — yoksa diskte gerçek bir backtest artefaktı varken getHistory
+ * NO-OP testi o veriyi okur ve patlar. Env, modül require'ından ÖNCE set edilmeli.
  */
+
+const os = require('os');
+const path = require('path');
+
+process.env.BIST_BACKTEST_FILE = path.join(os.tmpdir(), `bist-backtest-test-${process.pid}.json`);
 
 describe('sidecarClient — env yoksa devre dışı (fail-safe)', () => {
   const sidecar = require('../../src/services/backtest/sidecarClient');
