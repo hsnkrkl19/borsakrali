@@ -10,6 +10,8 @@
  *   3) RSI < BIST_AL_MAX_RSI (vars. 78) — aşırı-alım/geç giriş elenir
  *   4) Fiyat EMA34'ün ÜSTÜNDE (trend yukarı)
  *   5) Son hacim 20-gün ortalamanın üstünde × BIST_AL_VOL_MULT (vars. 1.3) (teyit)
+ *   6) Likidite: ort. günlük ciro (avgVol20×fiyat) ≥ BIST_AL_MIN_TURNOVER
+ *      (vars. 200M TL) — küçük-cap/spekülatif isimleri eler
  * Kalanlardan avgScore'a göre top BIST_AL_TOP_N (vars. 3) sinyal yayınlanır.
  *
  * Hedef kanal = TELEGRAM_BIST_AL_CHANNEL (zorunlu — kullanıcının kuracağı yeni
@@ -40,6 +42,12 @@ const VOL_MULT = envNum('BIST_AL_VOL_MULT', 1.3);
 //   değil (geç/riskli giriş elenir).
 const MIN_ADX = envNum('BIST_AL_MIN_ADX', 20);
 const MAX_RSI = envNum('BIST_AL_MAX_RSI', 78);
+// Likidite tabanı: ort. 20-gün günlük İŞLEM HACMİ (TL cirosu = avgVol20 × fiyat)
+// bu eşiğin altındaysa ELE → küçük-cap/spekülatif isimler çıkar (kullanıcı isteği).
+// Kalibrasyon (2026-07-03): gelen küçük-cap junk ≤~140M TL/gün; avgScore≥80 geçen
+// LİKİT adaylar (YKBNK 6132M, SELEC 1533M, AKFYE 249M) ≥~250M → 200M TL/gün eşiği
+// junk'ı eler ama likit kaliteli isimleri (AKFYE dahil) tutar. Env ile ayarlanır.
+const MIN_TURNOVER = envNum('BIST_AL_MIN_TURNOVER', 200000000);
 const EMA_PERIOD = 34;
 const MIN_CANDLES = 50;            // EMA34 + 20-gün hacim ortalaması için yeterli geçmiş
 const GATE_BATCH = 6;              // gate için az sayıda aday → küçük batch
@@ -93,7 +101,9 @@ async function passesGate(sig) {
     if (ema34 == null || avgVol20 == null) return null;
     const priceAboveEma = close > ema34;
     const volConfirms = volNow > avgVol20 * VOL_MULT;
-    if (!priceAboveEma || !volConfirms) return null;
+    const avgTurnover = avgVol20 * close;               // ort. 20-gün günlük TL cirosu
+    const liquid = avgTurnover >= MIN_TURNOVER;         // likidite tabanı (küçük-cap eler)
+    if (!priceAboveEma || !volConfirms || !liquid) return null;
 
     return {
       ...sig,
@@ -103,6 +113,8 @@ async function passesGate(sig) {
         volNow,
         avgVol20: Math.round(avgVol20),
         volConfirms,
+        turnoverM: +(avgTurnover / 1e6).toFixed(1),
+        liquid,
       },
     };
   } catch (e) {
@@ -118,7 +130,7 @@ function buildSignalBlock(p) {
     p.name && p.name !== p.symbol ? htmlEscape(p.name) : null,
     `Giriş: <b>${fmt(p.entry, pr)} TL</b>`,
     `Stop: ${fmt(p.stop, pr)} | TP1: ${fmt(p.target1, pr)} (R/R ${p.rr1}) | TP2: ${fmt(p.target2, pr)} (R/R ${p.rr2})`,
-    `📊 Trend ✓ (EMA34 ${fmt(p.gate?.ema34, pr)} üzeri) · Hacim ✓`,
+    `📊 Trend ✓ (EMA34 ${fmt(p.gate?.ema34, pr)} üzeri) · Hacim ✓ · Ciro ~${fmt(p.gate?.turnoverM, 0)}M TL`,
   ].filter(Boolean).join('\n');
 }
 
@@ -249,5 +261,5 @@ module.exports = {
   passesGate,
   buildTelegramMessages,
   buildSignalBlock,
-  MIN_AVGSCORE, TOP_N, VOL_MULT, MIN_ADX, MAX_RSI, DEEP_LINK,
+  MIN_AVGSCORE, TOP_N, VOL_MULT, MIN_ADX, MAX_RSI, MIN_TURNOVER, DEEP_LINK,
 };

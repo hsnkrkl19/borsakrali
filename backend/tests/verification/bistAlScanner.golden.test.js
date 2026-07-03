@@ -40,6 +40,8 @@ jest.mock('../../src/services/bistAlScanner/bistAlScannerStore', () => ({
   recordRun: () => {},
 }));
 
+// Likidite tabanını test için düşür (mum hacimleri küçük) — modül YÜKLENMEDEN önce.
+process.env.BIST_AL_MIN_TURNOVER = '1000';
 const notifier = require('../../src/services/bistAlScanner/bistAlScannerNotifier');
 
 // Bir sinyal nesnesi (engine snap.all üyesi gibi). 2. arg = avgVoteScore (kalite
@@ -127,6 +129,23 @@ describe('bistAlScannerNotifier.passesGate — trend + hacim kapısı', () => {
   test('yetersiz mum → null', async () => {
     mockHist.mockResolvedValue(candleHist({ n: 10 }));
     expect(await notifier.passesGate(sig('XU100', 85))).toBeNull();
+  });
+
+  test('düşük ciro (likidite tabanı altı) → elenir (null)', async () => {
+    // Yükselen fiyat + hacim teyidi var AMA baseVol=1 → ciro≈130 TL « 1000 eşiği.
+    const closes = Array.from({ length: 80 }, (_, i) => 50 + i);
+    mockHist.mockResolvedValue(candleHist({ ema34Closes: closes, lastVol: 2, baseVol: 1 }));
+    const r = await notifier.passesGate(sig('TINY', 85));
+    expect(r).toBeNull();
+  });
+
+  test('yeterli ciro → gate.turnoverM döner', async () => {
+    const closes = Array.from({ length: 80 }, (_, i) => 50 + i);
+    mockHist.mockResolvedValue(candleHist({ ema34Closes: closes, lastVol: 2000, baseVol: 500 }));
+    const r = await notifier.passesGate(sig('THYAO', 85));
+    expect(r).not.toBeNull();
+    expect(r.gate.liquid).toBe(true);
+    expect(r.gate.turnoverM).toBeGreaterThan(0);
   });
 });
 
