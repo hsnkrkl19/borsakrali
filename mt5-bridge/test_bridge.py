@@ -157,9 +157,21 @@ def t_wrong_account_no_order():
     print("OK yanlis hesapta emir yok / dogru hesapta emir var")
 
 
+def t_autotrading_button():
+    # 'AutoTrading disabled by client' = terminal_info().trade_allowed (buton),
+    # account_info().trade_allowed DEGIL. Dogru alani okumali.
+    mt5.terminal_info = lambda: SimpleNamespace(trade_allowed=True)
+    assert bk.autotrading_on() is True, "buton acik"
+    mt5.terminal_info = lambda: SimpleNamespace(trade_allowed=False)
+    assert bk.autotrading_on() is False, "buton kapali"
+    mt5.terminal_info = lambda: None
+    assert bk.autotrading_on() is False, "terminal_info None -> kapali say"
+    print("OK autotrading butonu (terminal_info.trade_allowed)")
+
+
 if __name__ == "__main__":
     t_lot(); t_open_long_absolute(); t_open_short_absolute(); t_skip_stale_rr()
     t_skip_out_of_bracket(); t_trail_absolute(); t_trail_dir_mismatch()
     t_no_hedge_suppress(); t_dry_run_no_send()
-    t_account_lock(); t_wrong_account_no_order()
+    t_account_lock(); t_wrong_account_no_order(); t_autotrading_button()
     print("\nTUM TESTLER GECTI - OK")

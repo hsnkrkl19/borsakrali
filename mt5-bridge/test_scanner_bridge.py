@@ -247,6 +247,16 @@ def t_wrong_account_no_order():
     print("OK yanlis hesapta emir yok / dogru hesapta emir var")
 
 
+def t_autotrading_button():
+    mt5.terminal_info = lambda: SimpleNamespace(trade_allowed=True)
+    assert bk.autotrading_on() is True
+    mt5.terminal_info = lambda: SimpleNamespace(trade_allowed=False)
+    assert bk.autotrading_on() is False
+    mt5.terminal_info = lambda: None
+    assert bk.autotrading_on() is False
+    print("OK autotrading butonu (terminal_info.trade_allowed)")
+
+
 if __name__ == "__main__":
     t_snap_lot()
     t_tr_minutes()
@@ -254,6 +264,7 @@ if __name__ == "__main__":
     t_open_short()
     t_account_lock()
     t_wrong_account_no_order()
+    t_autotrading_button()
     t_partial_fill_is_success()
     t_stale_guards()
     t_identity()

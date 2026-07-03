@@ -463,6 +463,14 @@ def account_allowed(cfg, ai):
     return True
 
 
+def autotrading_on():
+    """Terminaldeki 'Algo Trading' DÜĞMESİ açık mı? (Ctrl+E). 'AutoTrading
+    disabled by client' (retcode 10027) buna bağlıdır — account_info().trade_allowed
+    BUNU YANSITMAZ (o hesap-izni; bu terminal-düğmesi)."""
+    ti = mt5.terminal_info()
+    return bool(ti and ti.trade_allowed)
+
+
 def try_reconnect(cfg):
     """Terminal koptuysa (account_info None) yeniden bağlanmayı dene.
     Yeniden bağlanmada HESAP KİLİDİNİ yeniden doğrula — VPS'te yanlış terminale
@@ -495,9 +503,13 @@ def connect(cfg):
              ai.login, ai.server, mode, ai.balance, ai.currency, ai.trade_allowed)
     if int(cfg.get("allowed_account") or 0):
         log.info("🔒 Hesap kilidi AKTİF: yalnız %s", cfg["allowed_account"])
-    if not cfg["dry_run"] and not ai.trade_allowed:
-        log.error("Algo Trading KAPALI (terminalde 'Algo Trading' düğmesini aç). Canlı emir açılamaz.")
-        return False
+    if not cfg["dry_run"]:
+        if not ai.trade_allowed:
+            log.error("Hesap trade izni YOK (read-only / investor şifresi?). Canlı emir açılamaz.")
+            return False
+        if not autotrading_on():
+            log.warning("⚠️ AutoTrading DÜĞMESİ KAPALI — terminalde 'Algo Trading'e bas "
+                        "(Ctrl+E, YEŞİL olmalı). Buton açılana dek emir YOK; köprü bekliyor.")
     log.info("MOD: %s · magic=%s", "DRY-RUN (emir YOK, sadece log)" if cfg["dry_run"] else "⚡ CANLI EMİR AKTİF", cfg["magic"])
     return True
 
@@ -542,11 +554,15 @@ def main():
             if not account_allowed(cfg, ai):
                 time.sleep(int(cfg["poll_seconds"])); continue
 
-            if not cfg["dry_run"] and (ai is None or not ai.trade_allowed):
-                log.warning("Algo Trading KAPALI / hesap yok — bu tur emir yok.")
-                time.sleep(int(cfg["poll_seconds"])); continue
+            push_broker_prices(cfg)   # fiyat beslemesi AutoTrading'den bağımsız (önce yolla)
 
-            push_broker_prices(cfg)
+            if not cfg["dry_run"]:
+                if ai is None or not ai.trade_allowed:
+                    log.warning("Hesap yok / trade izni yok — bu tur emir yok.")
+                    time.sleep(int(cfg["poll_seconds"])); continue
+                if not autotrading_on():
+                    log.warning("⚠️ AutoTrading DÜĞMESİ KAPALI (Ctrl+E ile aç) — bu tur emir yok.")
+                    time.sleep(int(cfg["poll_seconds"])); continue
 
             # ⚠️ positions_get None = IPC hatası → TUR ATLANIR (inceleme bulgusu):
             # None'ı boş liste saymak state'i siler + aynı koda ÇİFT açılış açardı.
