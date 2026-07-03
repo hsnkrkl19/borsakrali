@@ -161,6 +161,31 @@ describe('forex öğrenme + flip-flop frenleri', () => {
     expect(learning.modeFor('TEST')).toBe('real');
   });
 
+  test('slot tahliyesi: gerçeğe dönüşte eski GÖLGE pozisyon silinir, gerçek açılır', async () => {
+    for (let i = 0; i < 10; i++) learning.recordClose('TEST', { r: -1, outcome: 'SL' });
+    await tracker.syncPositions([longSig()]);            // gölge pozisyon slotu tuttu
+    expect(tracker.getOpenShadow()).toHaveLength(1);
+    for (let i = 0; i < 8; i++) learning.recordClose('TEST', { r: 1, outcome: 'TP1', shadow: true });
+    expect(learning.modeFor('TEST')).toBe('real');
+    const ev = await tracker.syncPositions([longSig()]); // gerçek sinyal geldi
+    expect(ev).toHaveLength(1);
+    expect(ev[0].position.shadow).toBeUndefined();       // GERÇEK pozisyon açıldı
+    expect(tracker.getOpen()).toHaveLength(1);
+    expect(tracker.getOpenShadow()).toHaveLength(0);     // hayalet tahliye edildi
+  });
+
+  test('gölge kapanış cooldownu GERÇEK evreni kilitlemez (evren-ayrık anahtar)', async () => {
+    for (let i = 0; i < 10; i++) learning.recordClose('TEST', { r: -1, outcome: 'SL' });
+    await tracker.syncPositions([longSig()]);
+    await closeAtTp();                                    // gölge kapanış → shadow-cooldown
+    // gölge o kapanışla 1 kayıt aldı; 7 kayıt daha → geri açılma
+    for (let i = 0; i < 7; i++) learning.recordClose('TEST', { r: 1, outcome: 'TP1', shadow: true });
+    expect(learning.modeFor('TEST')).toBe('real');
+    const ev = await tracker.syncPositions([longSig()]); // gölge cooldown'una TAKILMAMALI
+    expect(ev).toHaveLength(1);
+    expect(ev[0].position.shadow).toBeUndefined();
+  });
+
   // ── 6) Kill-switch ────────────────────────────────────────────────────────
   test('FOREX_LEARNING_DISABLED=1 → kayıplara rağmen gerçek modda kalır', async () => {
     process.env.FOREX_LEARNING_DISABLED = '1';

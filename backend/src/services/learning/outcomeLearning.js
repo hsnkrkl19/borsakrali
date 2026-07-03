@@ -51,20 +51,26 @@ function createLearning(opts) {
 
   function load() {
     if (loaded) return;
-    loaded = true;
     try {
       if (file && fs.existsSync(file)) {
         const p = JSON.parse(fs.readFileSync(file, 'utf8'));
         if (p && p.combos) state = { version: 1, combos: p.combos, decisions: p.decisions || [] };
+        loaded = true;                  // okunabilir (veya bozuk-ama-var) dosya → kilitle
       }
-    } catch (_) {}
+      // Dosya YOKSA kilitleme: boot'ta botPersistence.loadAll restore'u bizden
+      // SONRA diski doldurabilir — erken boş-latch Supabase state'ini ezerdi.
+    } catch (_) { loaded = true; }      // bozuk dosya: üzerine temiz yazılacak
   }
+  function reloadFromDisk() { loaded = false; load(); }
   function persist() {
     try {
       if (file) {
         const dir = path.dirname(file);
         if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-        fs.writeFileSync(file, JSON.stringify(state, null, 2), 'utf8');
+        const tmp = `${file}.tmp`;      // atomik — yarım learning dosyası kalmasın
+        fs.writeFileSync(tmp, JSON.stringify(state, null, 2), 'utf8');
+        fs.renameSync(tmp, file);
+        loaded = true;
       }
     } catch (_) {}
     try { if (persistHook) persistHook(state); } catch (_) {}
@@ -152,7 +158,7 @@ function createLearning(opts) {
   }
   function _resetForTest() { state = { version: 1, combos: {}, decisions: [] }; loaded = true; }
 
-  return { recordClose, modeFor, riskMultFor, summary, recentDecisions, load, disabled, _resetForTest, RULES: rules };
+  return { recordClose, modeFor, riskMultFor, summary, recentDecisions, load, reloadFromDisk, disabled, _resetForTest, RULES: rules };
 }
 
 module.exports = { createLearning, statsOf };

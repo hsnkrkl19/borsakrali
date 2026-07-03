@@ -63,15 +63,20 @@ function readJson(file) {
 function persist() {
   try {
     if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
-    fs.writeFileSync(FILE, JSON.stringify(state, null, 2), 'utf8');
+    const tmp = `${FILE}.tmp`;          // atomik — yarım learning dosyası kalmasın
+    fs.writeFileSync(tmp, JSON.stringify(state, null, 2), 'utf8');
+    fs.renameSync(tmp, FILE);
+    loaded = true;
   } catch (_) {}
   try { if (botPersistence) botPersistence.save(SUBDIR, path.basename(FILE), state); } catch (_) {}
 }
 function load() {
   if (loaded) return;
-  loaded = true;
   const p = readJson(FILE);
-  if (p && p.combos) state = { ...freshState(), ...p };
+  if (p && p.combos) { state = { ...freshState(), ...p }; loaded = true; }
+  else if (fs.existsSync(FILE)) loaded = true;   // bozuk dosya: üzerine yazılacak
+  // Dosya YOKSA kilitleme: boot'ta botPersistence.loadAll restore'u bizden sonra
+  // gelebilir — erken boş-latch Supabase'teki öğrenme durumunu ezerdi.
 }
 
 function comboKey(id, tf) { return `${id}:${tf}`; }

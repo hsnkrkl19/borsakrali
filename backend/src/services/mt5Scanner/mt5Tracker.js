@@ -166,7 +166,9 @@ function gate(signal, equity = getEquity(), opts = {}) {
   rollDay();
   const wantShadow = !!opts.shadow;
   const id = signal.id, tf = signal.tf, dir = signal.direction;
-  const key = `${id}:${tf}`;
+  // Cooldown anahtarı EVRENE ayrık: gölge (sanal) kapanış, gerçek evrenin
+  // yeniden-açılışını bloklamaz (ve tersi).
+  const key = `${wantShadow ? 'shadow:' : ''}${id}:${tf}`;
   if (!tradeWindowOpen()) return { ok: false, reason: 'window-closed' };
   // (enstrüman,TF) tek kayıt — tür fark etmez (kombo ya gerçek ya gölge)
   const dup = openList().find((p) => p.instrumentId === id && p.tf === tf);
@@ -200,6 +202,13 @@ async function openPosition(signal, equity = getEquity()) {
   await load();
   // Öğrenme katmanı: devre-kesilmiş kombo GÖLGE olarak izlenir (para yok)
   const shadow = learning.modeFor(signal.id, signal.tf) === 'shadow';
+  // Slot tahliyesi: kombo GERÇEĞE dönmüş ama eski bir GÖLGE pozisyonu slotu
+  // işgal ediyorsa, sanal pozisyon silinir — gerçek işlem gölge yüzünden
+  // günlerce bastırılamaz (gölge zaten paradan bağımsız).
+  if (!shadow) {
+    const ghost = openList().find((p) => p.instrumentId === signal.id && p.tf === signal.tf && p.shadow);
+    if (ghost) { delete state.open[ghost.code]; persist(); }
+  }
   const g = gate(signal, equity, { shadow });
   if (!g.ok) return g;
   const inst = getInstrument(signal.id);
@@ -296,7 +305,8 @@ async function checkClosures() {
       const ev = await evalOne(p);
       if (!ev) continue;
       delete state.open[p.code];
-      state.cooldownUntil[`${p.instrumentId}:${p.tf}`] = nowSec() + REOPEN_COOLDOWN_SEC;
+      // cooldown evrene ayrık anahtarla (gölge kapanış gerçeği kilitlemesin)
+      state.cooldownUntil[`${p.shadow ? 'shadow:' : ''}${p.instrumentId}:${p.tf}`] = nowSec() + REOPEN_COOLDOWN_SEC;
       if (ev.shadow) {
         // GÖLGE: gün/toplam sayaçlarına ve bütçeye DOKUNMAZ — yalnız öğrenmeye akar
         state.day.shadowClosed = (state.day.shadowClosed || 0) + 1;

@@ -86,6 +86,8 @@ async function load() {
     try { if (fs.existsSync(DISK_FILE)) { const p = JSON.parse(fs.readFileSync(DISK_FILE, 'utf8')); if (p && p.open) state = { counter: p.counter || 0, open: p.open || {}, cooldownUntil: p.cooldownUntil || {}, version: 2, resetTag: p.resetTag || null }; } } catch (_) {}
   }
   sanitizeOpen();
+  // Öğrenme durumunu da restore et (devre-kesiciler deploy'u atlatır)
+  try { await learning.restore(); } catch (_) {}
   // Tek-seferlik SIFIRLAMA: FOREX_RESET etiketi değişince TÜM açık sinyaller + sayaç
   // sıfırlanır (kullanıcı "önceki sinyalleri sil, sıfırdan başla"). NO #001'den başlar.
   const tag = process.env.FOREX_RESET;
@@ -150,12 +152,21 @@ async function syncPositions(eligible) {
     const shadow = learning.modeFor(id) === 'shadow';
     // Ters bayrağı KENDİ evreninde (gölge, gerçek ters-kilidini tetiklemesin)
     const reverseOf = openList().filter(x => x.instrumentId === id && x.direction === opp && !!x.shadow === shadow).map(x => x.code);
-    const existing = findPosition(id, dir);
+    let existing = findPosition(id, dir);
+
+    // Slot tahliyesi: enstrüman GERÇEĞE dönmüş ama eski GÖLGE pozisyonu slotu
+    // işgal ediyorsa sanal pozisyon silinir — gerçek sinyal 4 güne kadar
+    // bastırılmasın (gölge paradan bağımsız, sessizce düşer).
+    if (!shadow && existing && existing.shadow) {
+      delete state.open[existing.code];
+      existing = null;
+    }
 
     if (!existing) {
       // ── Flip-flop frenleri (yalnız YENİ pozisyon; mevcutların izi sürer) ──
       // 1) Kapanış-sonrası cooldown: aynı enstrüman+yön hemen yeniden açılamaz
-      if (!cooldownOff() && (state.cooldownUntil[`${id}:${dir}`] || 0) > nowSec()) continue;
+      //    (anahtar evrene ayrık: gölge kapanış gerçeği kilitlemez)
+      if (!cooldownOff() && (state.cooldownUntil[`${shadow ? 'shadow:' : ''}${id}:${dir}`] || 0) > nowSec()) continue;
       // 2) Ters-yön kilidi: aynı evrende zıt pozisyon açıkken yenisi açılmaz
       //    (köprü hedge karmaşasının KAYNAK çözümü)
       if (!reverseLockOff() && reverseOf.length) continue;
@@ -274,8 +285,8 @@ async function checkClosures() {
       const ev = await evalOne(p);
       if (ev) {
         delete state.open[p.code];
-        // Flip-flop freni: kapanan enstrüman+yön cooldown'a girer
-        state.cooldownUntil[`${p.instrumentId}:${p.direction}`] = nowSec() + REOPEN_COOLDOWN_SEC;
+        // Flip-flop freni: kapanan enstrüman+yön cooldown'a girer (evrene ayrık)
+        state.cooldownUntil[`${p.shadow ? 'shadow:' : ''}${p.instrumentId}:${p.direction}`] = nowSec() + REOPEN_COOLDOWN_SEC;
         appendClosed(ev);
         try { learning.recordClose(ev.instrumentId, { r: ev.rMultiple, usd: ev.pnlUsd, outcome: ev.outcome, t: ev.exitTimeSec, shadow: ev.shadow }); } catch (_) {}
         // GÖLGE kapanışlar Telegram'a/istatistiğe GİTMEZ — yalnız öğrenmeye aktı

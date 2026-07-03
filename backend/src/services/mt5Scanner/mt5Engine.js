@@ -42,11 +42,14 @@ function riskPct() {
   const v = Number(process.env.MT5_RISK_PER_TRADE_PCT);
   return Number.isFinite(v) && v > 0 && v <= 0.05 ? v : 0.01; // vars. işlem başına %1
 }
-// Öğrenme çarpanı dahil efektif işlem-başı risk — MUTLAK tavan %2
-// (bütçe kapıları — günlük %5 / toplam %10 — her koşulda ayrıca geçerli).
+// Öğrenme çarpanı dahil efektif işlem-başı risk — tavan %2, AMA tavan asla
+// env taban riskinin altına inmez: MT5_LEARNING_DISABLED=1 iken davranış
+// birebir eskisi olmalı (kill-switch saflığı — env tabanını kırpmak yasak).
+// Bütçe kapıları (günlük %5 / toplam %10) her koşulda ayrıca geçerli.
 const RISK_PCT_HARD_CAP = 0.02;
 function effectiveRiskPct(id, tf) {
-  return Math.min(riskPct() * learning.riskMultFor(id, tf), RISK_PCT_HARD_CAP);
+  const base = riskPct();
+  return Math.min(base * learning.riskMultFor(id, tf), Math.max(base, RISK_PCT_HARD_CAP));
 }
 
 let latest = null;

@@ -241,6 +241,21 @@ describe('mt5Tracker + learning — gölge pozisyonlar', () => {
     expect(last.shadow).toBe(true);
   });
 
+  test('slot tahliyesi: kombo gerçeğe dönünce eski GÖLGE pozisyon silinir, gerçek açılır', async () => {
+    const m = fresh();
+    for (let i = 0; i < 12; i++) m.learning.recordClose(loseEv());   // gölgeye düşür
+    await m.tracker.load();
+    await m.tracker.openPosition(makeSignal(m), 10000);              // gölge slotu tuttu
+    expect(m.tracker.getOpenShadow()).toHaveLength(1);
+    for (let i = 0; i < 10; i++) m.learning.recordClose(winEv({ shadow: true }));
+    expect(m.learning.modeFor('XAUUSD', '15m')).toBe('real');
+    const res = await m.tracker.openPosition(makeSignal(m), 10000);  // gerçek sinyal
+    expect(res.ok).toBe(true);
+    expect(res.position.shadow).toBeUndefined();
+    expect(m.tracker.getOpen()).toHaveLength(1);
+    expect(m.tracker.getOpenShadow()).toHaveLength(0);               // hayalet gitti
+  });
+
   test('gerçek kapanışta rMultiple = pnlUsd/riskUsd kaydedilir', async () => {
     const m = fresh();
     await m.tracker.load();
