@@ -69,3 +69,4 @@ mt5-bridge/watchdog_scanner.log
 mt5-bridge/watchdog_forex.log
 mt5-bridge/MT5/
 mt5-bridge/vps-kit/tani_*.txt
+mt5-bridge/vps-kit/detected_terminal.txt

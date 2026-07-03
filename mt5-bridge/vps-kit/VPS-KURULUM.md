@@ -6,8 +6,30 @@ dosyaya toplayıp bize getirirsin; biz manuel iyileştirmeleri yaparız.
 
 > ⚠️ **VPS'te İKİ MT5 hesabı/terminali açık.** Botlar **asla** yanlış hesaba
 > işlem açmaz — üç bota da **hesap kilidi + terminal-yolu sabitleme** eklendi.
-> Ama bunu **config'te doğru ayarlaman şart** (aşağıda 3. adım). Yanlış hesap
-> görürse bot işlem açmadan durur.
+> Yanlış hesap görürse bot işlem açmadan durur.
+
+---
+
+## 🚀 HIZLI KURULUM (tek komut — önerilen)
+
+Aşağıdaki manuel adımların **hepsini otomatik yapar**: paketleri kurar, FTMO
+terminalini (1513857844) kendi bulur, config'leri yazar, oto-başlatı kurar,
+botları başlatır ve doğrular.
+
+1. İki klasörü VPS'e kopyala: `gold-structure-bot` + `site\borsasanati-clone\mt5-bridge`.
+2. **FTMO hesabına (1513857844) bir MT5 terminalinde giriş yap + Algo Trading AÇ.**
+   (Varsa diğer hesabın terminalinde Algo Trading'i KAPAT — bkz. aşağıdaki uyarı.)
+3. PowerShell aç, `mt5-bridge\vps-kit` klasörüne gel ve çalıştır:
+   ```powershell
+   powershell -ExecutionPolicy Bypass -File vps-kur.ps1
+   ```
+4. Bitince açılan pencerelerde **`login=1513857844` + `Hesap kilidi AKTİF`** gör.
+
+> `config.json` yoksa `vps-kur.ps1` örnekten oluşturur ama **`exec_token`'ı elle
+> doldurman gerekir** (Render'daki `FOREX_EXEC_TOKEN` ile aynı). Klasörü olduğu
+> gibi kopyaladıysan config.json zaten token'lı gelir — dokunmana gerek yok.
+
+Kurulum bitti. Aşağıdaki bölümler **manuel/ayrıntı** referansıdır (sorun çıkarsa).
 
 ---
 

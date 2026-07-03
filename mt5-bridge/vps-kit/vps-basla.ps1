@@ -14,18 +14,26 @@
 #  DURDURMAK: vps-durdur.ps1  (veya klasorlere STOP dosyasi koy).
 # ==========================================================================
 
-# --- DUZENLE: kendi VPS yollarin -----------------------------------------
-$FTMO_TERMINAL = "C:\Program Files\FTMO MetaTrader 5\terminal64.exe"
-$GOLD_DIR      = "$env:USERPROFILE\Desktop\gold-structure-bot"
-$BRIDGE_DIR    = "$env:USERPROFILE\Desktop\site\borsasanati-clone\mt5-bridge"
-# -------------------------------------------------------------------------
-
 $ErrorActionPreference = "Continue"
 Write-Host "=== BORSA KRALI VPS BASLATICI ===" -ForegroundColor Cyan
 
+# --- Yollar: script konumundan otomatik (vps-kur.ps1 ile uyumlu) ----------
+$KIT_DIR    = $PSScriptRoot
+$BRIDGE_DIR = Split-Path $KIT_DIR -Parent
+$goldCands  = @("$env:USERPROFILE\Desktop\gold-structure-bot", "C:\gold-structure-bot",
+                (Join-Path (Split-Path (Split-Path $BRIDGE_DIR -Parent) -Parent) "gold-structure-bot"))
+$GOLD_DIR   = $goldCands | Where-Object { Test-Path (Join-Path $_ "live.py") } | Select-Object -First 1
+if (-not $GOLD_DIR) { $GOLD_DIR = $goldCands[0] }
+
+# FTMO terminal yolu: once vps-kur.ps1'in tespit dosyasi, sonra env, sonra elle
+$detFile = Join-Path $KIT_DIR "detected_terminal.txt"
+if (Test-Path $detFile)         { $FTMO_TERMINAL = (Get-Content $detFile -Raw).Trim() }
+elseif ($env:GSB_MT5_TERMINAL)  { $FTMO_TERMINAL = $env:GSB_MT5_TERMINAL }
+else                            { $FTMO_TERMINAL = "C:\Program Files\FTMO MetaTrader 5\terminal64.exe" }
+
 if (-not (Test-Path $FTMO_TERMINAL)) {
   Write-Host "!!! FTMO terminal bulunamadi: $FTMO_TERMINAL" -ForegroundColor Red
-  Write-Host "    vps-basla.ps1 icindeki FTMO_TERMINAL yolunu duzelt." -ForegroundColor Yellow
+  Write-Host "    Once 'vps-kur.ps1' calistir (otomatik tespit) veya bu yolu duzelt." -ForegroundColor Yellow
   Read-Host "Devam icin Enter"
 }
 
