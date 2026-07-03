@@ -15,6 +15,7 @@ const router = express.Router();
 const forexEngine = require('../services/forex/forexEngineMTF');
 const forexTracker = require('../services/forex/forexSignalTracker');
 const brokerPrices = require('../services/forex/brokerPrices');
+const accountReport = require('../services/forex/accountReport');
 const { listInstruments } = require('../services/forex/forexInstruments');
 
 function checkExecToken(req) {
@@ -90,6 +91,19 @@ router.get('/broker-prices', (req, res) => {
   const auth = checkExecToken(req);
   if (!auth.ok) return res.status(auth.code).json({ success: false, error: auth.error });
   res.json({ success: true, prices: brokerPrices.all() });
+});
+
+// VPS köprüsü MT5'ten okuduğu GERÇEK (broker) kâr/zararı buraya POST'lar →
+// backend Telegram kanalına basar (VPS token tutmaz). kind: 'close' | 'daily'.
+router.post('/account-report', async (req, res) => {
+  const auth = checkExecToken(req);
+  if (!auth.ok) return res.status(auth.code).json({ success: false, error: auth.error });
+  try {
+    const r = await accountReport.push(req.body || {});
+    res.json({ success: true, ...r });
+  } catch (e) {
+    res.status(500).json({ success: false, error: e.message });
+  }
 });
 
 router.get('/signal/:id', async (req, res) => {
