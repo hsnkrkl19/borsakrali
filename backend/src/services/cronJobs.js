@@ -529,6 +529,12 @@ async function runBistAlScanner() {
     } else {
       logger.info(`📈 BIST AL tarama — taranan ${result.scanned}, nitelikli ${result.qualified}, yeni ${result.freshCount}, TG ${result.telegramSent}`);
     }
+    // Verilen AL sinyallerinin TP/SL kapanışını kontrol et + (gecikmeli de olsa) bildir
+    try {
+      await bistAlScannerNotifier.checkAndPushClosures();
+    } catch (clErr) {
+      logger.error(`[BistAlScanner] kapanış kontrolü hata: ${clErr.message}`);
+    }
     return result;
   } catch (e) {
     logger.error(`[BistAlScanner] hata: ${e.message}`, e.stack);

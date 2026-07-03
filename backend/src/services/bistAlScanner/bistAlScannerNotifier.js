@@ -28,6 +28,7 @@ const liveDataService = require('../liveDataService');
 const { ema, sma } = require('../forex/indicators');
 const telegramService = require('../telegramService');
 const store = require('./bistAlScannerStore');
+const tracker = require('./bistAlScannerTracker');
 const logger = require('../../utils/logger');
 
 function envNum(name, def) { const v = Number(process.env[name]); return Number.isFinite(v) ? v : def; }
@@ -174,6 +175,54 @@ async function sendTelegram(result) {
   return { sent, total: messages.length, chatSet: true };
 }
 
+// ── TP/SL kapanış bildirimi (verilen sinyalin sonucu — gecikmeli de olsa) ─────
+function closureHead(outcome) {
+  if (outcome === 'TP1') return '✅ <b>TP OLDU (Hedef)</b>';
+  if (outcome === 'SL') return '🛑 <b>STOP OLDU</b>';
+  return '⏱️ <b>SÜRE DOLDU (kapandı)</b>';
+}
+// Tek kapanış olayı → Telegram gövdesi. AL kanalı "Güç" (avgVoteScore) diliyle konuşur.
+function buildClosureBlock(ev) {
+  const pr = ev.precision ?? 2;
+  const sign = ev.pnlPct >= 0 ? '+' : '';
+  return [
+    `${closureHead(ev.outcome)} — <b>${htmlEscape(ev.symbol)}</b> AL${ev.score != null ? ` · Güç ${ev.score}/100` : ''}`,
+    `Giriş ${fmt(ev.entry, pr)} → Çıkış ${fmt(ev.exit, pr)}${ev.exitDate ? ` (${htmlEscape(ev.exitDate)})` : ''}`,
+    `Sonuç: <b>${sign}${ev.pnlPct}%</b>`,
+  ].join('\n');
+}
+
+// Kapanış olaylarını AL kanalına (@borsasinyal34) gönder. Kill-switch: bot kapalıysa
+// (BIST_AL_SCANNER_DISABLED) veya kanal ayarlı değilse gönderme (takip yine tutulur).
+async function pushClosures(events) {
+  const list = events || [];
+  if (!list.length) return { sent: 0, total: 0 };
+  if (process.env.BIST_AL_SCANNER_DISABLED === '1') return { sent: 0, total: list.length, disabled: true };
+  const chatId = channelId();
+  if (!chatId) return { sent: 0, total: list.length, chatSet: false };
+  let sent = 0;
+  for (const ev of list) {
+    try {
+      const r = await withTimeout(telegramService.sendMessage(chatId, buildClosureBlock(ev)), HARD_TIMEOUT_MS, 'closeTg');
+      if (r?.success) sent++;
+      else logger.error(`[BistAlScanner] kapanış Telegram başarısız (${ev.symbol}): ${r?.error || '?'}`);
+    } catch (e) {
+      logger.error(`[BistAlScanner] kapanış Telegram hata (${ev.symbol}): ${e.message}`);
+    }
+  }
+  if (sent) logger.info(`📈✅ BIST AL kapanış — ${list.length} olay · TG ${sent}`);
+  return { sent, total: list.length, chatSet: true };
+}
+
+// Açık AL sinyallerinin TP/SL kapanışını kontrol et + bildir (cron'dan çağrılır).
+async function checkAndPushClosures() {
+  let closures = [];
+  try { closures = await tracker.checkClosures(); }
+  catch (e) { logger.error(`[BistAlScanner] kapanış kontrolü hata: ${e.message}`); return { closed: 0, sent: 0 }; }
+  const push = await pushClosures(closures);
+  return { closed: closures.length, sent: push.sent || 0 };
+}
+
 /**
  * Tara + sıkı kapı + (günlük yeni olanları) bildir + durum kaydet.
  * opts.force=true → günlük dedup atlanır (manuel/test; aynı hisse tekrar gidebilir).
@@ -233,7 +282,12 @@ async function runAndNotify(opts = {}) {
   } else {
     telegram = await sendTelegram({ tradingDate, scanned, signals: fresh });
     notified = telegram.sent > 0;
-    if (notified) store.markSent(tradingDate, fresh.map(s => s.symbol));
+    if (notified) {
+      store.markSent(tradingDate, fresh.map(s => s.symbol));
+      // Gönderilen sinyalleri TP/SL takibine al (sonuç — gecikmeli de olsa — sonra bildirilecek)
+      try { await tracker.registerSignals(fresh); }
+      catch (e) { logger.error(`[BistAlScanner] takip kaydı hata: ${e.message}`); }
+    }
     logger.info(`📈 BIST AL tarama — ${tradingDate}: ${fresh.length} yeni AL · TG ${telegram.sent}`);
   }
 
@@ -261,5 +315,6 @@ module.exports = {
   passesGate,
   buildTelegramMessages,
   buildSignalBlock,
+  buildClosureBlock, pushClosures, checkAndPushClosures,
   MIN_AVGSCORE, TOP_N, VOL_MULT, MIN_ADX, MAX_RSI, MIN_TURNOVER, DEEP_LINK,
 };

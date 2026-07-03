@@ -40,6 +40,15 @@ jest.mock('../../src/services/bistAlScanner/bistAlScannerStore', () => ({
   recordRun: () => {},
 }));
 
+// Tracker'ı no-op mock'la — runAndNotify yolları diske/ağa dokunmasın (kayıt/kapanış
+// mantığı AYRI dosyada test edilir: bistAlScannerTracker.golden.test.js).
+const mockRegister = jest.fn(async () => []);
+const mockCheckClosures = jest.fn(async () => []);
+jest.mock('../../src/services/bistAlScanner/bistAlScannerTracker', () => ({
+  registerSignals: (...a) => mockRegister(...a),
+  checkClosures: (...a) => mockCheckClosures(...a),
+}));
+
 // Likidite tabanını test için düşür (mum hacimleri küçük) — modül YÜKLENMEDEN önce.
 process.env.BIST_AL_MIN_TURNOVER = '1000';
 const notifier = require('../../src/services/bistAlScanner/bistAlScannerNotifier');
@@ -228,5 +237,76 @@ describe('bistAlScannerNotifier.runAndNotify — skip & dedup yolları', () => {
     const r = await notifier.runAndNotify({ force: true });
     expect(r.notified).toBe(true);                 // force → tekrar gönderildi
     expect(mockTgSend).toHaveBeenCalled();
+  });
+
+  test('gönderilen sinyaller TP/SL takibine kaydedilir (registerSignals çağrılır)', async () => {
+    process.env.TELEGRAM_BIST_AL_CHANNEL = '-100777';
+    mockRegister.mockClear();
+    mockScan.mockResolvedValue({ scanned: 510, all: [sig('THYAO', 86)] });
+    await notifier.runAndNotify();
+    expect(mockRegister).toHaveBeenCalledTimes(1);
+    const fresh = mockRegister.mock.calls[0][0];
+    expect(fresh.map(s => s.symbol)).toContain('THYAO');
+  });
+});
+
+// ── Kapanış (TP/SL sonucu) bildirimi ─────────────────────────────────────────
+describe('bistAlScannerNotifier — kapanış mesajı + push', () => {
+  const ev = (over = {}) => ({ symbol: 'THYAO', outcome: 'TP1', entry: 100, exit: 110, exitDate: '2026-07-10', pnlPct: 10, score: 86, precision: 2, ...over });
+
+  test('buildClosureBlock — TP/STOP/SÜRE başlıkları + sembol + sonuç %', () => {
+    expect(notifier.buildClosureBlock(ev())).toContain('TP OLDU');
+    expect(notifier.buildClosureBlock(ev())).toContain('THYAO');
+    expect(notifier.buildClosureBlock(ev())).toContain('+10%');
+    const sl = notifier.buildClosureBlock(ev({ outcome: 'SL', exit: 95, pnlPct: -5 }));
+    expect(sl).toContain('STOP OLDU');
+    expect(sl).toContain('-5%');
+    expect(notifier.buildClosureBlock(ev({ outcome: 'EXPIRE' }))).toContain('SÜRE DOLDU');
+  });
+
+  test('pushClosures — kanal yoksa gönderim yok', async () => {
+    mockTgSend.mockClear();
+    delete process.env.TELEGRAM_BIST_AL_CHANNEL;
+    const r = await notifier.pushClosures([ev()]);
+    expect(r.sent).toBe(0);
+    expect(r.chatSet).toBe(false);
+    expect(mockTgSend).not.toHaveBeenCalled();
+  });
+
+  test('pushClosures — kill-switch açık → gönderim yok (takip yine tutulur)', async () => {
+    mockTgSend.mockClear();
+    process.env.TELEGRAM_BIST_AL_CHANNEL = '-100777';
+    process.env.BIST_AL_SCANNER_DISABLED = '1';
+    const r = await notifier.pushClosures([ev()]);
+    expect(r.disabled).toBe(true);
+    expect(mockTgSend).not.toHaveBeenCalled();
+    delete process.env.BIST_AL_SCANNER_DISABLED;
+  });
+
+  test('pushClosures — kanal + olay → doğru kanala gönderilir', async () => {
+    mockTgSend.mockClear();
+    process.env.TELEGRAM_BIST_AL_CHANNEL = '-100777';
+    delete process.env.BIST_AL_SCANNER_DISABLED;
+    const r = await notifier.pushClosures([ev(), ev({ symbol: 'ASELS', outcome: 'SL', exit: 95, pnlPct: -5 })]);
+    expect(r.sent).toBe(2);
+    expect(mockTgSend.mock.calls[0][0]).toBe('-100777');
+  });
+
+  test('checkAndPushClosures — tracker.checkClosures boşsa gönderim yok', async () => {
+    mockTgSend.mockClear();
+    mockCheckClosures.mockResolvedValueOnce([]);
+    const r = await notifier.checkAndPushClosures();
+    expect(r.closed).toBe(0);
+    expect(r.sent).toBe(0);
+  });
+
+  test('checkAndPushClosures — kapanış varsa push edilir', async () => {
+    mockTgSend.mockClear();
+    process.env.TELEGRAM_BIST_AL_CHANNEL = '-100777';
+    delete process.env.BIST_AL_SCANNER_DISABLED;
+    mockCheckClosures.mockResolvedValueOnce([ev()]);
+    const r = await notifier.checkAndPushClosures();
+    expect(r.closed).toBe(1);
+    expect(r.sent).toBe(1);
   });
 });
