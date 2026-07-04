@@ -7980,6 +7980,85 @@ app.get('/api/economic-calendar', async (req, res) => {
   });
 });
 
+// ============ MARKET GUARD (bot işlem koruması — ABD haber molası) ============
+// KAMUYA açık uç (hassas veri YOK → token gerekmez). MT5 forex köprüsü (550055),
+// gün-içi tarayıcı (550066) ve bağımsız Altın botu bunu pollar. Yaklaşan ABD
+// yüksek-etkili veri olaylarını (TÜFE/NFP/işsizlik/FOMC/Fed konuşmaları) ±30 dk'lık
+// "işlem molası" pencerelerine çevirir → botlar bu pencerelerde TÜM pozisyonları
+// kapatır ve yeni işlem açmaz. Saatler TSI (Europe/Istanbul, sabit UTC+3).
+// Kaynak: statik ECONOMIC_CALENDAR_2026 (güvenilir taban) + canlı Forex Factory
+// (Fed konuşmaları dahil). Yalnız importance:'high' + country:'US'.
+const NEWS_BLACKOUT_MIN = 30;
+
+// 'YYYY-MM-DD' + 'HH:mm' (TSI/UTC+3 sabit) → epoch ms. Türkiye DST uygulamaz.
+function trEventToMs(dateStr, timeStr) {
+  if (!dateStr || !timeStr || !/^\d{2}:\d{2}/.test(timeStr)) return null;
+  const ms = Date.parse(`${dateStr}T${timeStr.slice(0, 5)}:00+03:00`);
+  return Number.isFinite(ms) ? ms : null;
+}
+
+app.get('/api/market-guard', async (req, res) => {
+  try {
+    const nowMs = Date.now();
+    const halfMs = NEWS_BLACKOUT_MIN * 60 * 1000;
+    const fromMs = nowMs - 2 * 86400000;   // dünden itibaren (süregelen pencereyi kaçırma)
+    const toMs = nowMs + 7 * 86400000;     // +7 gün (bot diske cache'ler → çok günlük backend
+                                           // kesintisinde bile haftalık pencereler elde kalır)
+
+    const seen = new Set();
+    const evts = [];
+    const pushEvt = (e) => {
+      if (!e || e.country !== 'US' || e.importance !== 'high') return;
+      const ms = trEventToMs(e.date, e.time);
+      if (ms == null || ms < fromMs || ms > toMs) return;
+      const key = `${e.date}T${(e.time || '').slice(0, 5)}|${(e.title || '').slice(0, 24)}`;
+      if (seen.has(key)) return;
+      seen.add(key);
+      evts.push({ ms, title: e.title || 'ABD verisi', date: e.date, time: (e.time || '').slice(0, 5) });
+    };
+
+    // 1) Statik taban (ağ gerektirmez, her zaman var)
+    for (const e of ECONOMIC_CALENDAR_2026) pushEvt(e);
+
+    // 2) Canlı Forex Factory (Fed konuşmaları dahil) — best-effort, hata yut
+    let liveOk = false;
+    try {
+      const ff = await fetchForexFactoryCalendar(false);
+      for (const e of (ff.events || [])) pushEvt(e);
+      liveOk = (ff.events || []).length > 0;
+    } catch (_) { /* statik yeterli */ }
+
+    evts.sort((a, b) => a.ms - b.ms);
+    const windows = evts.map(e => ({
+      startSec: Math.round((e.ms - halfMs) / 1000),
+      endSec: Math.round((e.ms + halfMs) / 1000),
+      eventSec: Math.round(e.ms / 1000),
+      title: e.title, dateTR: e.date, timeTR: e.time,
+    }));
+    const nowSec = Math.round(nowMs / 1000);
+    const active = windows.find(w => w.startSec <= nowSec && nowSec <= w.endSec) || null;
+
+    res.set('Cache-Control', 'no-store');
+    res.json({
+      nowSec,
+      tz: 'Europe/Istanbul (UTC+3)',
+      blackoutMin: NEWS_BLACKOUT_MIN,
+      source: liveOk ? 'static+forexfactory' : 'static',
+      blackout: active
+        ? { active: true, sinceSec: active.startSec, untilSec: active.endSec, title: active.title, eventSec: active.eventSec }
+        : { active: false },
+      windows,
+    });
+  } catch (e) {
+    // Bot tarafı fail-open (son cache) → hata olsa da 200 + boş pencere (500 döner
+    // ve bot cache'siz olsaydı bile boş = işlem serbest; yerel hafta-sonu korur).
+    res.status(200).json({
+      nowSec: Math.round(Date.now() / 1000), windows: [], blackout: { active: false },
+      error: String((e && e.message) || e),
+    });
+  }
+});
+
 // ─────────────────────────────────────────────────────────────────
 // DEBUG / TEST Endpoints — Mali Tablo tanı araçları
 // ─────────────────────────────────────────────────────────────────
