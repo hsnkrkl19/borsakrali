@@ -107,8 +107,9 @@ function buildBroadcast(result) {
 }
 
 async function sendTelegram(result) {
-  // Crossover kanalı yoksa ANA kanala düşer (kullanıcı DM'ine ASLA). Broadcast (uygulama) ayrı.
-  const chatId = process.env.TELEGRAM_CROSSOVER_CHANNEL || require('../signalDelivery').signalChannel();
+  // YALNIZ kendi kanalına (TELEGRAM_CROSSOVER_CHANNEL). Ayarlı DEĞİLSE Telegram'a
+  // GÖNDERMEZ — hisse (BIST) kırılımı ana/kripto kanalına SIZMASIN. Broadcast ayrı.
+  const chatId = process.env.TELEGRAM_CROSSOVER_CHANNEL || '';
   if (!chatId) return { sent: 0, chatSet: false };
   const messages = buildTelegramMessages(result);
   let sent = 0;

@@ -23,8 +23,11 @@ function withTimeout(promise, ms, label) {
   return Promise.race([Promise.resolve(promise), new Promise((_, rej) => setTimeout(() => rej(new Error('timeout:' + label)), ms))]);
 }
 function fmt(v, p = 2) { return v == null ? '-' : Number(v).toLocaleString('tr-TR', { minimumFractionDigits: p, maximumFractionDigits: p }); }
-// BIST kanalı yoksa ANA kanala düşer (kullanıcı DM'ine ASLA). Broadcast (uygulama) ayrı.
-function chatId() { return process.env.TELEGRAM_BIST_CHANNEL || require('../signalDelivery').signalChannel(); }
+// YALNIZ kendi kanalına (TELEGRAM_BIST_CHANNEL). Ayarlı DEĞİLSE Telegram'a
+// GÖNDERMEZ — hisse (BIST) sinyali ana/kripto kanalına (signalChannel) SIZMASIN.
+// (Eski davranış signalChannel'a düşüyordu → kripto kanalında hisse önerisi görünüyordu.)
+// Broadcast (uygulama-içi) AYRI, etkilenmez.
+function chatId() { return process.env.TELEGRAM_BIST_CHANNEL || ''; }
 
 // ── Saf mesaj kurucular (test edilebilir) ───────────────────────────────────
 function buildNewTelegram(p) {
