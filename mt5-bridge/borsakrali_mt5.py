@@ -45,8 +45,12 @@ except ImportError:
     sys.exit(1)
 
 HERE = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, HERE)               # yerel modüller (trade_guard) için
 CONFIG_PATH = sys.argv[1] if len(sys.argv) > 1 else os.path.join(HERE, "config.json")
 STOP_FILE = os.path.join(HERE, "STOP")
+NEWS_CACHE = os.path.join(HERE, "news_windows.json")
+
+import trade_guard  # ortak İŞLEM KORUMASI: hafta sonu (kripto-dışı) + ABD haber molası
 
 # Konsol her zaman; bridge.log dosyası YALNIZ bot çalışırken (main) — test/diag import'u
 # canlı log'u kirletmesin diye FileHandler main()'de eklenir.
@@ -72,9 +76,9 @@ DEFAULTS = {
     "magic": 550055,
     "deviation_points": 30,
     "max_open_positions": 8,
-    "max_lot": 0.05,
-    "lot_min": 0.01,
-    "lot_max": 0.03,
+    "max_lot": 1.1,
+    "lot_min": 0.1,
+    "lot_max": 1.1,
     "conf_min": 60,
     "conf_max": 100,
     "min_rr": 0.7,
@@ -82,6 +86,13 @@ DEFAULTS = {
     "trail_stops": True,
     "push_prices": True,
     "allow_hedge": False,
+    # İŞLEM KORUMASI (trade_guard) — ikisi de vars. AÇIK; config'ten kapatılabilir:
+    "weekend_flatten": True,    # Cuma 23:45→Pzt 03:00 TSI: kripto-dışı kapat + açma
+    "news_blackout": True,      # ABD önemli verisi ±30 dk: TÜMÜNÜ kapat + açma
+    # FAZ 2: carry_to_reversal — TP1'i broker emrine KOYMA (target2 uzak hard-cap koy) →
+    # pozisyon TP1'de erken kapanmaz, backend'in reversal/akıllı-trailing'ine bırakılır.
+    # VARSAYILAN KAPALI (geri-dönüş güvenli); backend FOREX_CARRY_TO_REVERSAL ile eşleşmeli.
+    "carry_to_reversal": False,
     "symbols": {},
 }
 
@@ -167,21 +178,23 @@ def open_trade(cfg, s, info):
         return
     price = tick.ask if is_long else tick.bid
 
-    # SL/TP = sinyalin MUTLAK seviyeleri (Telegram ile AYNI). Giriş piyasa emriyle
+    # SL = sinyalin MUTLAK stop'u (felaket koruması; carry modda bile KALIR).
+    # Geçerlilik + R:R referansı = target1 (broker TP'si carry'de target2 olsa da
+    # "fiyat target1'i geçmişse kovalama" kapısı KORUNUR). Giriş piyasa emriyle
     # broker fiyatından olur → Telegram girişi (geçmiş anlık fiyat) birebir tutmaz.
-    sl, tp = float(s["stop"]), float(s["target1"])
+    sl = float(s["stop"])
+    tp1 = float(s["target1"])
 
-    # Geçerlilik: fiyat SL–TP arasında DOĞRU tarafta olmalı; değilse sinyal bayat
-    # (hareket çoktan olmuş) → kovalama, ATLA.
-    if is_long and not (sl < price < tp):
-        log.info("#%s %s LONG atlandı: fiyat %.5f SL/TP (%.5f–%.5f) aralığı dışında (bayat).", code, info.name, price, sl, tp)
+    # Geçerlilik: fiyat SL–target1 arasında DOĞRU tarafta olmalı; değilse bayat → ATLA.
+    if is_long and not (sl < price < tp1):
+        log.info("#%s %s LONG atlandı: fiyat %.5f SL/TP1 (%.5f–%.5f) aralığı dışında (bayat).", code, info.name, price, sl, tp1)
         return
-    if (not is_long) and not (tp < price < sl):
-        log.info("#%s %s SHORT atlandı: fiyat %.5f TP/SL (%.5f–%.5f) aralığı dışında (bayat).", code, info.name, price, tp, sl)
+    if (not is_long) and not (tp1 < price < sl):
+        log.info("#%s %s SHORT atlandı: fiyat %.5f TP1/SL (%.5f–%.5f) aralığı dışında (bayat).", code, info.name, price, tp1, sl)
         return
 
     # Kalan risk/ödül: hareketin çoğu olmuşsa (R:R düşük) girme — ETH gibi bayatları eler.
-    reward, risk = abs(tp - price), abs(price - sl)
+    reward, risk = abs(tp1 - price), abs(price - sl)
     rr = reward / risk if risk > 0 else 0.0
     min_rr = float(cfg.get("min_rr", 0.7))
     if rr < min_rr:
@@ -193,6 +206,18 @@ def open_trade(cfg, s, info):
     if md > 0 and (risk < md or reward < md):
         log.info("#%s %s atlandı: SL/TP broker min mesafesine (%.5f) çok yakın.", code, info.name, md)
         return
+
+    # Broker'a GİDEN TP: carry modda uzak hard-cap (target2 / ~10R sentetik) → TP1'e
+    # değince ERKEN kapanmaz; klasik modda target1. ASLA 0 (0 = geçersiz long + broker/
+    # backend-down'da korumasız). target2 feed'de gelir; yoksa risk×10 sentetik emniyet TP.
+    if bool(cfg.get("carry_to_reversal", False)):
+        t2 = s.get("target2")
+        # target2 GEÇERLİ mi: sayı, >0 ve DOĞRU tarafta (long: >price). Değilse ~10R sentetik
+        # uzak hard-cap. 'ASLA 0' invariant'ı garanti (0 / None / ters-taraf → sentetiğe düşer).
+        valid_t2 = t2 is not None and float(t2) > 0 and (float(t2) > price if is_long else float(t2) < price)
+        tp = float(t2) if valid_t2 else (price + (risk * 10.0 if is_long else -risk * 10.0))
+    else:
+        tp = tp1
 
     d = info.digits
     sl, tp = round(sl, d), round(tp, d)
@@ -316,6 +341,17 @@ def poll_feed(cfg):
     except Exception as e:  # noqa
         log.error("feed alınamadı: %s", e)
         return None
+
+
+def notify_backend_closed(cfg, code, reason):
+    """Köprü bir pozisyonu kapatınca (haber/hafta sonu/broker stop-out/TP2) backend'e
+    bildir → backend 'hâlâ açık' sanıp aynı kodu TERS fiyattan yeniden AÇMASIN
+    (bot=telefon desync çözümü). En iyi çaba: hata sessizce loglanır."""
+    try:
+        url = cfg["backend_url"].rstrip("/") + "/api/forex/closed"
+        requests.post(url, json={"token": cfg["exec_token"], "code": code, "reason": reason}, timeout=10)
+    except Exception as e:  # noqa
+        log.warning("kapatma bildirimi gönderilemedi #%s: %s", code, e)
 
 
 def push_broker_prices(cfg):
@@ -453,7 +489,26 @@ def main():
         mt5.shutdown()
         sys.exit(1)
 
-    log.info("Köprü başladı. Yoklama %ss. Semboller: %s", cfg["poll_seconds"], ", ".join(cfg["symbols"].keys()))
+    guard = trade_guard.NewsGuard(cfg["backend_url"], NEWS_CACHE)  # ABD haber penceresi cache'i
+    log.info("Köprü başladı. Yoklama %ss. Koruma: hafta-sonu=%s haber-molası=%s. Semboller: %s",
+             cfg["poll_seconds"], cfg.get("weekend_flatten", True), cfg.get("news_blackout", True),
+             ", ".join(cfg["symbols"].keys()))
+    prev_open_codes = set()  # geçen turda MT5'te açık olan kodlar (desync/vanish tespiti için)
+    # BOOT RECONCILE: restart anında broker'da kapanmış (stop-out/TP2) ama backend feed'inde
+    # HÂLÂ açık görünen kodları bir kez senkronla → ilk turda TERS fiyattan yeniden AÇILMASIN.
+    if not cfg["dry_run"]:
+        try:
+            _bf = poll_feed(cfg)
+            if _bf:
+                _live = set(our_positions(cfg)[0].keys())
+                for _s in _bf:
+                    _c = _s.get("code")
+                    if _c and _c not in _live:
+                        log.info("BOOT: #%s feed'de var ama MT5'te yok — backend'e kapandı bildir (yeniden açma).", _c)
+                        notify_backend_closed(cfg, _c, "boot_reconcile")
+                prev_open_codes = _live  # ilk-tur vanished tespiti için tohum
+        except Exception as e:  # noqa
+            log.warning("boot reconcile atlandı: %s", e)
     try:
         while True:
             try:
@@ -481,11 +536,41 @@ def main():
                 if not account_allowed(cfg, ai):
                     time.sleep(int(cfg["poll_seconds"])); continue
 
+            # ── İŞLEM KORUMASI (feed'den ÖNCE — pozisyon kapatma feed'e bağlı değil) ──
+            news_black, news_ev = (guard.blackout_now() if cfg.get("news_blackout", True) else (False, None))
+            weekend_closed = (trade_guard.in_weekend_closed() if cfg.get("weekend_flatten", True) else False)
+            if news_black:
+                # ABD haber penceresi: TÜM pozisyonları kapat (kripto DAHİL), yeni açma.
+                gopen, _g = our_positions(cfg)
+                if gopen:
+                    log.info("📰 HABER MOLASI (%s) — tüm pozisyonlar kapatılıyor, yeni işlem yok.",
+                             (news_ev or {}).get("title", "ABD verisi"))
+                for code, p in list(gopen.items()):
+                    close_position(cfg, p)
+                    notify_backend_closed(cfg, code, "news")  # backend senkron → yeniden açmasın
+                time.sleep(int(cfg["poll_seconds"])); continue
+            if weekend_closed:
+                # Hafta sonu (Cuma 23:45→Pzt 03:00 TSI): kripto-DIŞI kapat; kripto sürer.
+                gopen, _g = our_positions(cfg)
+                for code, p in list(gopen.items()):
+                    if not trade_guard.is_crypto(trade_guard.inst_for_symbol(cfg, p.symbol)):
+                        log.info("🗓 HAFTA SONU — #%s %s (kripto-dışı) kapatılıyor.", code, p.symbol)
+                        close_position(cfg, p)
+                        notify_backend_closed(cfg, code, "weekend")  # backend senkron
+
             feed = poll_feed(cfg)
             if feed is None:
                 time.sleep(int(cfg["poll_seconds"])); continue
 
             open_by_code, held_sym_dir = our_positions(cfg)
+            # DESYNC KORUMASI: MT5'te artık OLMAYAN ama feed'de DURAN kodlar = backend'in
+            # habersiz olduğu köprü/broker kapanışı (haber, hafta sonu, broker stop-out, TP2
+            # dolumu). Backend'e bildir → "hâlâ açık" sanıp TERS fiyattan yeniden AÇMASIN.
+            feed_code_set = {x.get("code") for x in feed}
+            vanished = {c for c in prev_open_codes if c not in open_by_code and c in feed_code_set}
+            for c in vanished:
+                log.info("#%s: MT5'te yok ama feed'de var (broker/haber/hafta-sonu kapatmış) — backend'e bildir, yeniden açma.", c)
+                notify_backend_closed(cfg, c, "bridge_vanished")
             supp = suppressed_codes(feed, cfg)  # hedge yoksa: çatışan düşük-güvenli yönleri bastır
             feed_codes = set()
             stop_kill = os.path.exists(STOP_FILE)
@@ -493,6 +578,8 @@ def main():
             for s in feed:
                 try:
                     code = s["code"]; feed_codes.add(code)
+                    if code in vanished:
+                        continue  # broker/haber bu tur kapattı → backend'e bildirdik, yeniden AÇMA
                     inst = s["instrumentId"]
                     entry = float(s["entry"])
                     if not (entry > 0):
@@ -504,6 +591,9 @@ def main():
                         if cfg["trail_stops"]:
                             maybe_trail(cfg, open_by_code[code], s)
                         continue
+                    # Hafta sonu penceresi: kripto-DIŞI YENİ işlem yok (kripto sürer).
+                    if weekend_closed and not trade_guard.is_crypto(inst):
+                        log.info("#%s %s: hafta sonu — kripto-dışı yeni işlem yok.", code, broker_sym); continue
                     # yeni pozisyon
                     is_long = s["direction"] == "long"
                     # Hedge yoksa: paritede tek yön. Çatışan düşük-güvenli tarafı VEYA
@@ -536,7 +626,9 @@ def main():
                         log.info("#%s %s: backend kapattı (feed'den düştü) — MT5 kapatılıyor.", code, p.symbol)
                         close_position(cfg, p)
 
-            log.info("tur ok · feed=%d · açık(bizim)=%d%s", len(feed), len(open_by_code),
+            # Tur sonu: MT5'teki güncel açık kodları sakla → gelecek turda vanish tespiti.
+            prev_open_codes = set(our_positions(cfg)[0].keys())
+            log.info("tur ok · feed=%d · açık(bizim)=%d%s", len(feed), len(prev_open_codes),
                      " · [STOP]" if stop_kill else "")
             time.sleep(int(cfg["poll_seconds"]))
     except KeyboardInterrupt:
