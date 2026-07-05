@@ -16,6 +16,7 @@ const forexKlines = require('./forexKlines');
 const { getInstrument } = require('./forexInstruments');
 const learning = require('./forexLearning');
 const logger = require('../../utils/logger');
+const beast = require('../beast/beastIndicators'); // seri-dönen, ileri-bakışsız göstergeler (reversal + trailing)
 
 let supa = null, supaEnabled = () => false;
 try { const m = require('../../lib/supabase'); supa = m.supabaseAdmin; supaEnabled = m.isSupabaseEnabled; } catch (_) {}
@@ -103,6 +104,33 @@ function weekendCryptoBlock(s) {
     : null;
 }
 
+// ── FAZ 1+2: Akıllı trailing + 1dk reversal-exit ("dönüşe kadar tut") ─────────
+// HEPSİ VARSAYILAN KAPALI (geri-dönüş güvenli). FOREX_CARRY_TO_REVERSAL=1 ile açılır:
+// TP1 artık pozisyonu KAPATMAZ (target2 hard-cap kalır), pozisyon GERÇEK dönüşe kadar
+// taşınır; koruma = sinyalden-bağımsız akıllı trailing (kâr kilidi) + 1dk yapı-kırılımı/
+// momentum reversal. Adversaryal review'un mustFix'leri gömülü (donuk-trailing, tp=0
+// tehlikesi, veri fail-SAFE, whipsaw sağlamlaştırma).
+const carryToReversal = () => process.env.FOREX_CARRY_TO_REVERSAL === '1';
+const reversalOff = () => process.env.FOREX_REVERSAL_DISABLED === '1';
+// Akıllı trailing carry AÇIKKEN ZORUNLU (yoksa TP1 kalkınca kâr geri verilir —
+// review #1 kritik); ayrıca tek başına test için FOREX_SMART_TRAIL=1.
+const smartTrailOn = () => process.env.FOREX_SMART_TRAIL === '1' || carryToReversal();
+const tf5mGuardOn = () => process.env.FOREX_REVERSAL_TF5M_GUARD !== '0'; // vars. AÇIK
+const TRAIL_ATR_MULT = () => envNum('FOREX_TRAIL_ATR_MULT', 2.0);
+const REV = {
+  confirmBars: () => Math.max(1, Math.round(envNum('FOREX_REVERSAL_CONFIRM_BARS', 3))),
+  minHoldMin: () => envNum('FOREX_REVERSAL_MIN_HOLD_MIN', 5),
+  minProfitR: () => envNum('FOREX_REVERSAL_MIN_PROFIT_R', 0.5),
+  stPeriod: () => Math.max(2, Math.round(envNum('FOREX_REVERSAL_ST_PERIOD', 10))),
+  stMult: () => envNum('FOREX_REVERSAL_ST_MULT', 4),
+  volFrac: () => envNum('FOREX_REVERSAL_VOL_FRAC', 0.8),
+  staleSec: () => envNum('FOREX_REVERSAL_STALE_SEC', 120),
+  swingLookback: () => Math.max(10, Math.round(envNum('FOREX_REVERSAL_SWING_LOOKBACK', 40))),
+};
+// Reversal ile kapanan pozisyon KISA cooldown'a girer (trende geri katılabilmek —
+// review: uzun cooldown+anti-FOMO trendin kalanını kaçırtır).
+const reversalReopenCooldownSec = () => Math.max(0, envNum('FOREX_REVERSAL_REOPEN_COOLDOWN_MIN', 8)) * 60;
+
 let state = { counter: 0, open: {}, cooldownUntil: {}, version: 2 };
 let loaded = false;
 let saveTimer = null;
@@ -119,7 +147,14 @@ function sanitizeOpen() {
     const p = state.open[code];
     if (!p || !Array.isArray(p.tfs)) {
       if (p && typeof p.tf === 'string') { p.tfs = [p.tf]; if (p.mt5Symbol == null) p.mt5Symbol = p.instrumentId; delete p.tf; }
-      else delete state.open[code];
+      else { delete state.open[code]; continue; }
+    }
+    // FAZ1+2 alanları eski/geri-yüklenen kayıtlarda yoksa güvenli backfill (carry/trailing
+    // R hesabı bozulmasın; savunmaci — normalde her açılışta yazılır).
+    const q = state.open[code];
+    if (q) {
+      if (!(q.origStopDist > 0) && q.entry != null && q.stop != null) q.origStopDist = Math.abs(q.entry - q.stop);
+      if (q.hwm == null && q.entry != null) q.hwm = q.entry;
     }
   }
 }
@@ -272,57 +307,170 @@ async function syncPositions(eligible) {
   return events;
 }
 
-// Tek pozisyonun kapanış kontrolü (iz-sürmüş stop/TP1, 5m mumlar)
+// ── Sinyalden BAĞIMSIZ akıllı trailing stop ─────────────────────────────────
+// Her kapanış turunda 5m ATR (chandelier) + R-kilidiyle stop'u LEHE ilerletir (asla
+// gevşetmez). syncPositions'ın taze-sinyale bağlı trail'i güçlü trendde (anti-FOMO/
+// cooldown yeni sinyali blokladığında) DONUYORDU → TP1 kalkınca kâr geri veriliyordu
+// (review #1 kritik). p.hwm = lehte görülen en uç fiyat. p'yi mutate eder, stop değiştiyse true.
+function advanceSmartTrail(p, closed5m) {
+  if (!smartTrailOn() || !closed5m || closed5m.length < 15) return false;
+  const isLong = p.direction === 'long';
+  const dist = p.origStopDist > 0 ? p.origStopDist : Math.abs(p.entry - p.stop);
+  if (!(dist > 0)) return false;
+  const atrArr = beast.atrSeries(closed5m, 14);
+  const atr = atrArr[atrArr.length - 1];
+  if (!(atr > 0)) return false;
+  let ext = p.hwm != null ? p.hwm : p.entry; // yüksek/düşük su seviyesi
+  for (const b of closed5m) {
+    if (b.time <= p.issueTimeSec) continue;
+    ext = isLong ? Math.max(ext, b.high) : Math.min(ext, b.low);
+  }
+  p.hwm = ext;
+  const price = closed5m[closed5m.length - 1].close;
+  const r = ((price - p.entry) * (isLong ? 1 : -1)) / dist;
+  const cands = [p.stop];
+  if (r >= 2) cands.push(p.entry + (isLong ? 1 : -1) * dist);      // +1R kilit
+  else if (r >= 1) cands.push(p.entry);                            // başabaş
+  cands.push(isLong ? ext - TRAIL_ATR_MULT() * atr : ext + TRAIL_ATR_MULT() * atr); // chandelier
+  let newStop = isLong ? Math.max(...cands) : Math.min(...cands);
+  const eps = Math.abs(p.entry) * 1e-9;
+  // Chandelier fiyatın ÜSTÜNE (long) / ALTINA (short) çıkamaz → aksi halde sonraki turda
+  // tepede aniden-TRAIL stop-out olur (review kritik). Fiyata küçük tampon (0.25·ATR) bırak:
+  // pullback chandelier'i aşmışsa temiz bir iz-süren çıkışa dönüşür, market-üstü SL olmaz.
+  const buf = Math.max(eps, 0.25 * atr);
+  newStop = isLong ? Math.min(newStop, price - buf) : Math.max(newStop, price + buf);
+  const better = isLong ? (newStop > p.stop + eps) : (newStop < p.stop - eps);
+  if (!better) return false;
+  p.stop = +Number(newStop).toFixed(p.precision ?? 4);
+  p.stopSetSec = nowSec(); // iz süren stop ileri-yönlü değerlendirilir
+  return true;
+}
+
+// ── 1dk REVERSAL dedektörü ("dönüşe kadar tut, gerçek dönüşte çık") ──────────
+// ÇEKİRDEK = 1m YAPI KIRILIMI (önceki swing dip/tepe kapanışla kırıldı) — pullback
+// swing'i kırmaz, GERÇEK dönüş kırar (review: ham Supertrend flip whipsaw yapar).
+// + Teyit katmanları (≥1): Supertrend flip / momentum (StochRSI&RSI=TEK oy, korelasyonlu)
+// / hacim azalması (yalnız hacimli sınıf). + N-bar teyit + 5m trend-teyit freni.
+// Dönüş: { hit, exitPrice, reason, stale }. Veri bayat/yoksa stale:true → çağıran
+// carry'yi askıya alır (TP1 tekrar kapatıcı = FAIL-SAFE, review kritik).
+async function detectReversal(p, inst, closed5m) {
+  try {
+    const m1 = await forexKlines.fetchCandles(inst.yahoo, '1m', 300);
+    if (!m1 || m1.length < 60) return { hit: false, stale: true };
+    const closed = m1.slice(0, -1);
+    if (closed.length < 50) return { hit: false, stale: true };
+    const last = closed[closed.length - 1];
+    if (nowSec() - last.time > REV.staleSec()) return { hit: false, stale: true }; // bayat mum
+    const prev = closed[closed.length - 2];
+    if (prev && last.time === prev.time) return { hit: false, stale: true }; // Yahoo tekrar-bar artefaktı (aynı timestamp)
+    const isLong = p.direction === 'long';
+    const CB = REV.confirmBars();
+    const n = closed.length - 1;
+    const closes = closed.map(c => c.close);
+    // 1) ÇEKİRDEK — yapı kırılımı: teyit penceresinden ÖNCEKİ swing'i son CB mum kapanışla kırdı mı
+    const sw = beast.recentSwing(closed, n - CB, 3, 3, REV.swingLookback());
+    const level = isLong ? sw.swingLow : sw.swingHigh;
+    if (level == null) return { hit: false, stale: false };
+    for (let k = n - CB + 1; k <= n; k++) {
+      if (isLong ? !(closes[k] < level) : !(closes[k] > level)) return { hit: false, stale: false };
+    }
+    // 2) TEYİT katmanları (≥1)
+    const dir1 = beast.supertrendSeries(closed, REV.stPeriod(), REV.stMult()).dir;
+    let stFlip = true;
+    for (let k = n - CB + 1; k <= n; k++) { if (dir1[k] !== (isLong ? -1 : 1)) { stFlip = false; break; } }
+    const kArr = beast.stochRsiSeries(closes).k;
+    const rArr = beast.rsiSeries(closes);
+    const momentum = isLong
+      ? (kArr[n] != null && kArr[n - 1] != null && kArr[n] < kArr[n - 1] && rArr[n] != null && rArr[n - 1] != null && rArr[n] < rArr[n - 1])
+      : (kArr[n] != null && kArr[n - 1] != null && kArr[n] > kArr[n - 1] && rArr[n] != null && rArr[n - 1] != null && rArr[n] > rArr[n - 1]);
+    const vols = closed.map(c => c.volume || 0);
+    const volSum = vols.slice(-20).reduce((a, b) => a + b, 0);
+    const hasVol = (inst.class === 'crypto' || inst.class === 'index') && volSum > 0;
+    const volFade = hasVol ? (vols[n] < (volSum / 20) * REV.volFrac()) : false;
+    const layers = (stFlip ? 1 : 0) + (momentum ? 1 : 0) + (volFade ? 1 : 0);
+    if (layers < 1) return { hit: false, stale: false };
+    // 3) 5m TREND-TEYİT FRENİ: 5m Supertrend hâlâ pozisyon yönünde → pullback, çıkma
+    if (tf5mGuardOn() && closed5m && closed5m.length >= 30) {
+      const dir5 = beast.supertrendSeries(closed5m, REV.stPeriod(), REV.stMult()).dir;
+      if (dir5[dir5.length - 1] === (isLong ? 1 : -1)) return { hit: false, stale: false };
+    }
+    return { hit: true, exitPrice: closes[n], reason: `1m yapı kırılımı + ${layers} teyit`, stale: false };
+  } catch (_) { return { hit: false, stale: true }; }
+}
+
+// Tek pozisyonun kapanış kontrolü + akıllı trailing + carry/reversal (5m mumlar)
+// Dönüş: { ev, trailed } — ev=kapanış olayı|null, trailed=akıllı stop ilerledi mi.
 async function evalOne(p) {
   const inst = getInstrument(p.instrumentId);
-  if (!inst) return null;
+  if (!inst) return { ev: null, trailed: false };
   const candles = await forexKlines.fetchCandles(inst.yahoo, '5m', 300);
   const isLong = p.direction === 'long';
-  // Stop, YALNIZ o seviye konduktan sonraki mumlarla değerlendirilir (iz süren
-  // stop yukarı kayınca eski geri-çekilmeler geriye dönük "stop" tetiklemesin).
+  // YALNIZ KAPANMIŞ mumlar: son mum hâlâ oluşuyor → geçici fitil hayalet TP/SL tetiklemesin.
+  const closed = (candles && candles.length) ? candles.slice(0, -1) : [];
+  // (1) Akıllı trailing — kapanış taramasından ÖNCE (yeni stop taramada kullanılsın)
+  const trailed = advanceSmartTrail(p, closed);
+  // (2) Carry/reversal hazırlığı: carry AÇIK ise TP1 KAPATMAZ (target2 hard-cap) +
+  //     akıllı trailing korur. Reversal exit AYRICA açıksa 1m veri TAZE ise aktif;
+  //     veri bayat/yoksa GÜVENLİ FALLBACK → klasik TP1 (fail-SAFE, korumasız taşıma).
+  let reversal = null;
+  let carrySafe = false;
+  if (carryToReversal()) {
+    if (reversalOff()) {
+      carrySafe = true; // carry açık, reversal exit kapalı → TP2 + akıllı trailing'e bırak
+    } else {
+      reversal = await detectReversal(p, inst, closed);
+      carrySafe = reversal != null && reversal.stale === false; // bayat 1m → klasik TP1'e düş
+    }
+  }
+  const tpLevel = carrySafe ? (p.target2 || p.target1) : p.target1; // target2 null ise TP1'e düş (korumasız kalma)
+  const tpOutcome = carrySafe ? 'TP2' : 'TP1';
+  // (3) Kapanış taraması: iz-süren stop (koruma) + tpLevel
   const stopSince = p.stopSetSec || p.issueTimeSec;
   let outcome = null, exit = null, exitTimeSec = null;
-  // YALNIZ KAPANMIŞ mumlar: son mum hâlâ oluşuyor (5m TTL 4dk) → geçici fitil
-  // gerçekleşmemiş bir TP/SL'i tetiklerdi (hayalet kapanış + yanlış %).
-  const closed = (candles && candles.length) ? candles.slice(0, -1) : [];
   for (const b of closed) {
     if (b.time <= p.issueTimeSec) continue;
     const slHit = (b.time > stopSince) && (isLong ? b.low <= p.stop : b.high >= p.stop);
-    const tpHit = isLong ? b.high >= p.target1 : b.low <= p.target1;
+    const tpHit = tpLevel != null && (isLong ? b.high >= tpLevel : b.low <= tpLevel);
     if (!slHit && !tpHit) continue;
-    // Çıkış fiyatı seviyeye PİNLENMEZ: mum SEVİYEYİ AŞARAK açıldıysa (hafta sonu
-    // gap'i vb.) gerçekleşebilir dolum = açılış fiyatı. Normal içi-mum değişte
-    // açılış seviyenin güvenli tarafında olduğundan Math.min/max seviyeyi döndürür.
+    // Çıkış fiyatı seviyeye PİNLENMEZ: mum seviyeyi AŞARAK açıldıysa (gap) dolum = açılış.
     const slExit = isLong ? Math.min(p.stop, b.open) : Math.max(p.stop, b.open);
-    const tpExit = isLong ? Math.max(p.target1, b.open) : Math.min(p.target1, b.open);
-    // TRAIL/SL ayrımı GERÇEK çıkışa göre (gap zararı "kilitli kâr" görünmesin).
+    const tpExit = isLong ? Math.max(tpLevel, b.open) : Math.min(tpLevel, b.open);
     const takeSl = () => { exit = slExit; outcome = (isLong ? exit >= p.entry : exit <= p.entry) ? 'TRAIL' : 'SL'; };
-    const takeTp = () => { exit = tpExit; outcome = 'TP1'; };
+    const takeTp = () => { exit = tpExit; outcome = tpOutcome; };
     if (slHit && tpHit) {
-      // Aynı mumda hem stop hem hedef değdi: mum AÇILIŞINA daha yakın seviyeye
-      // fiyat ÖNCE değmiştir → kazananı stop'a yazma (BUG3), açılışa göre karar ver.
-      const dStop = Math.abs(b.open - p.stop), dTp = Math.abs(b.open - p.target1);
+      // Aynı mumda hem stop hem hedef: açılışa daha yakın seviyeye fiyat ÖNCE değmiştir (BUG3).
+      const dStop = Math.abs(b.open - p.stop), dTp = Math.abs(b.open - tpLevel);
       if (dTp <= dStop) takeTp(); else takeSl();
     } else if (slHit) { takeSl(); }
     else { takeTp(); }
     exitTimeSec = b.time;
     break;
   }
-  // ⚠️ "SÜRE DOLDU" (EXPIRE) kapanışı KALDIRILDI (kullanıcı isteği). Pozisyon yalnız
-  // TP1 / SL / TRAIL ile kapanır; çok eskiyenler checkClosures'da SESSİZCE temizlenir.
-  if (!outcome) return null;
+  // (4) REVERSAL çıkışı — yalnız SL/TP değmediyse + carry-safe + min-tutuş + min-kâr(+0.5R).
+  //     Min-kâr şartı: giriş sonrası ilk gürültü erken çıkış yaratmasın (kullanıcının ASIL derdi).
+  if (!outcome && carrySafe && reversal && reversal.hit) {
+    const heldMin = (nowSec() - p.issueTimeSec) / 60;
+    const price = closed.length ? closed[closed.length - 1].close : p.entry;
+    const rNow = p.origStopDist > 0 ? ((price - p.entry) * (isLong ? 1 : -1)) / p.origStopDist : 0;
+    if (heldMin >= REV.minHoldMin() && rNow >= REV.minProfitR()) {
+      outcome = 'REVERSAL'; exit = reversal.exitPrice; exitTimeSec = nowSec();
+    }
+  }
+  // ⚠️ "SÜRE DOLDU" (EXPIRE) kapanışı YOK; çok eskiyenler checkClosures'da SESSİZCE temizlenir.
+  if (!outcome) return { ev: null, trailed };
   const dir = isLong ? 1 : -1;
   const pnlPct = +(((exit - p.entry) / p.entry) * 100 * dir).toFixed(3);
   const pnlUsd = p.units != null ? +(p.units * (exit - p.entry) * dir).toFixed(2) : null;
-  // R-katsayısı = fiyat hareketi / açılıştaki stop mesafesi (lot'tan bağımsız —
-  // öğrenme katmanının ana ölçüsü)
   const rMultiple = p.origStopDist > 0 ? +(((exit - p.entry) * dir) / p.origStopDist).toFixed(2) : null;
   return {
-    code: p.code, instrumentId: p.instrumentId, symbol: p.symbol, direction: p.direction,
-    tfs: p.tfs, precision: p.precision, entry: p.entry, exit, outcome, pnlPct, pnlUsd,
-    rMultiple, origStopDist: p.origStopDist ?? null, confidence: p.confidence ?? null,
-    shadow: !!p.shadow, issuedAt: p.issuedAt, issueTimeSec: p.issueTimeSec ?? null,
-    exitTimeSec, closedAt: new Date().toISOString(),
+    ev: {
+      code: p.code, instrumentId: p.instrumentId, symbol: p.symbol, direction: p.direction,
+      tfs: p.tfs, precision: p.precision, entry: p.entry, exit, outcome, pnlPct, pnlUsd,
+      rMultiple, origStopDist: p.origStopDist ?? null, confidence: p.confidence ?? null,
+      shadow: !!p.shadow, issuedAt: p.issuedAt, issueTimeSec: p.issueTimeSec ?? null,
+      exitTimeSec, closedAt: new Date().toISOString(),
+    },
+    trailed,
   };
 }
 
@@ -347,23 +495,43 @@ async function checkClosures() {
   let changed = false;
   for (const p of openList()) {
     try {
-      const ev = await evalOne(p);
+      const { ev, trailed } = await evalOne(p);
       if (ev) {
         delete state.open[p.code];
-        // Flip-flop freni: kapanan enstrüman+yön cooldown'a girer (evrene ayrık)
-        state.cooldownUntil[`${p.shadow ? 'shadow:' : ''}${p.instrumentId}:${p.direction}`] = nowSec() + REOPEN_COOLDOWN_SEC;
+        // Flip-flop freni: kapanan enstrüman+yön cooldown'a girer (evrene ayrık).
+        // REVERSAL çıkışı KISA cooldown alır → doğrulanmış trende geri katılabilmek için.
+        const cd = ev.outcome === 'REVERSAL' ? reversalReopenCooldownSec() : REOPEN_COOLDOWN_SEC;
+        state.cooldownUntil[`${p.shadow ? 'shadow:' : ''}${p.instrumentId}:${p.direction}`] = nowSec() + cd;
         appendClosed(ev);
         try { learning.recordClose(ev.instrumentId, { r: ev.rMultiple, usd: ev.pnlUsd, outcome: ev.outcome, t: ev.exitTimeSec, shadow: ev.shadow }); } catch (_) {}
         // GÖLGE kapanışlar Telegram'a/istatistiğe GİTMEZ — yalnız öğrenmeye aktı
         if (!ev.shadow) events.push(ev);
         changed = true;
-      } else if (nowSec() - p.issueTimeSec > maxExpire(p.tfs)) { delete state.open[p.code]; changed = true; } // SESSİZ süre temizliği (mesaj YOK)
+      } else {
+        if (trailed) changed = true; // ilerleyen akıllı stop'u kalıcılaştır
+        if (nowSec() - p.issueTimeSec > maxExpire(p.tfs)) { delete state.open[p.code]; changed = true; } // SESSİZ süre temizliği
+      }
     } catch (_) {}
   }
   // cooldown sözlüğü şişmesin
   for (const k of Object.keys(state.cooldownUntil)) if (state.cooldownUntil[k] <= nowSec()) delete state.cooldownUntil[k];
   if (changed) persist();
   return events;
+}
+
+// Köprü kapatma-teyit geri-kanalı: MT5-tarafı kapanışları (haber/hafta-sonu/stop-out/
+// TP2 broker'da dolunca) backend'e senkronlar → backend "hâlâ açık" sanıp aynı kodu
+// TERS fiyattan yeniden AÇMAZ (review: bot=telefon desync kritik bulgu). Fiili para
+// P/L'i köprü zaten /account-report ile ayrı raporluyor → burada SESSİZ düşür + cooldown.
+async function dropClosed(code, reason = 'bridge') {
+  await load();
+  const p = state.open[code];
+  if (!p) return { dropped: false };
+  delete state.open[code];
+  state.cooldownUntil[`${p.shadow ? 'shadow:' : ''}${p.instrumentId}:${p.direction}`] = nowSec() + REOPEN_COOLDOWN_SEC;
+  persist();
+  logger.info(`[Forex] köprü kapatma teyidi #${code} (${reason}) — düşürüldü + cooldown`);
+  return { dropped: true, instrumentId: p.instrumentId, direction: p.direction };
 }
 
 // getOpen = yalnız GERÇEK pozisyonlar: köprü beslemesi (/api/forex/positions)
@@ -381,4 +549,4 @@ function getRecentClosed(limit = 50) {
   return [];
 }
 
-module.exports = { load, syncPositions, checkClosures, getOpen, getOpenShadow, getRecentClosed };
+module.exports = { load, syncPositions, checkClosures, getOpen, getOpenShadow, getRecentClosed, dropClosed };

@@ -79,6 +79,22 @@ router.get('/positions', async (req, res) => {
   }
 });
 
+// VPS köprüsü bir pozisyonu MT5'te kapatınca (haber molası / hafta sonu / broker
+// stop-out / TP2 dolumu / elle) buraya bildirir → backend "hâlâ açık" sanıp aynı
+// kodu TERS fiyattan yeniden AÇMAZ (bot=telefon desync çözümü). Token korumalı.
+router.post('/closed', async (req, res) => {
+  const auth = checkExecToken(req);
+  if (!auth.ok) return res.status(auth.code).json({ success: false, error: auth.error });
+  const code = req.body && req.body.code;
+  if (!code) return res.status(400).json({ success: false, error: 'code-required' });
+  try {
+    const r = await forexTracker.dropClosed(String(code), (req.body && req.body.reason) || 'bridge');
+    res.json({ success: true, ...r });
+  } catch (e) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
 // Köprü (PC'de) canlı broker bid/ask'lerini buraya yollar → engine livePrice olarak kullanır.
 router.post('/broker-prices', (req, res) => {
   const auth = checkExecToken(req);

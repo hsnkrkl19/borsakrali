@@ -115,6 +115,8 @@ function buildClosureTelegram(ev) {
   const mins = Math.max(1, Math.round((Date.now() - new Date(ev.issuedAt).getTime()) / 60000));
   const sure = mins >= 60 ? `${Math.floor(mins / 60)}s ${mins % 60}dk` : `${mins}dk`;
   const head = ev.outcome === 'TP1' ? '✅ <b>TP1 OLDU</b>'
+    : ev.outcome === 'TP2' ? '✅ <b>TP2 OLDU (hard-cap)</b>'
+    : ev.outcome === 'REVERSAL' ? '🔄 <b>DÖNÜŞ — momentum tersine döndü, kilitli kârla çıkıldı</b>'
     : ev.outcome === 'TRAIL' ? '✅ <b>İZ SÜREN STOP — kilitli kârla kapandı</b>'
     : ev.outcome === 'SL' ? '🛑 <b>STOP OLDU</b>'
     : '⏱️ <b>SÜRE DOLDU (kapandı)</b>';
