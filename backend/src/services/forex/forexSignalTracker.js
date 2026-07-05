@@ -15,6 +15,7 @@ const path = require('path');
 const forexKlines = require('./forexKlines');
 const { getInstrument } = require('./forexInstruments');
 const learning = require('./forexLearning');
+const logger = require('../../utils/logger');
 
 let supa = null, supaEnabled = () => false;
 try { const m = require('../../lib/supabase'); supa = m.supabaseAdmin; supaEnabled = m.isSupabaseEnabled; } catch (_) {}
@@ -43,6 +44,64 @@ const SINGLE_TF_MIN_CONF = (() => {
   const v = Number(process.env.FOREX_SINGLE_TF_MIN_CONF);
   return Number.isFinite(v) && v >= 40 && v <= 100 ? v : 80;
 })();
+
+function envNum(name, def) { const v = Number(process.env[name]); return Number.isFinite(v) ? v : def; }
+
+// ── Aşırı-uzama (anti-FOMO) kapısı ──────────────────────────────────────────
+// Sorun: güçlü trendde tüm teknikler aynı yönü oyluyor → konfluans+güven yüksek →
+// motor fiyat ÇOKTAN uzamışken (tepeden/dipten) yeni pozisyon açıyor = kovalama.
+// Kapı: RSI aşırı bölgedeyse VEYA fiyat o TF'in EMA20'sinden çok uzaksa YENİ
+// pozisyon açma (mevcutların izi sürmeye devam eder — kapı yalnız açılışa uygulanır).
+// Kapatma: FOREX_ANTIFOMO_DISABLED=1. Eşikler env ile ayarlanır.
+const antiFomoOff = () => process.env.FOREX_ANTIFOMO_DISABLED === '1';
+function extMaxFor(cls) {
+  if (cls === 'crypto') return envNum('FOREX_ANTIFOMO_EXT_CRYPTO', 5.0);
+  if (cls === 'metal') return envNum('FOREX_ANTIFOMO_EXT_METAL', 3.0);
+  if (cls === 'index') return envNum('FOREX_ANTIFOMO_EXT_INDEX', 2.5);
+  return envNum('FOREX_ANTIFOMO_EXT_FX', 1.2);  // fx (major pariteler)
+}
+// Engellenirse { reason } döner (loglanır); değilse null.
+function antiFomoBlock(s) {
+  if (antiFomoOff()) return null;
+  const ind = s.indicators;
+  if (!ind || ind.rsi == null) return null;  // veri yok → fail-open (engelleme)
+  const hot = envNum('FOREX_ANTIFOMO_RSI_HOT', 75);
+  const cold = envNum('FOREX_ANTIFOMO_RSI_COLD', 25);
+  const extMax = extMaxFor(s.class);
+  const extPct = (ind.ema20 && s.entry) ? ((s.entry - ind.ema20) / ind.ema20) * 100 : null;
+  if (s.direction === 'long') {
+    if (ind.rsi >= hot) return { reason: `RSI ${ind.rsi}≥${hot} (aşırı alım)` };
+    if (extPct != null && extPct >= extMax) return { reason: `fiyat EMA20'nin +%${extPct.toFixed(1)} üstünde (≥${extMax})` };
+  } else if (s.direction === 'short') {
+    if (ind.rsi <= cold) return { reason: `RSI ${ind.rsi}≤${cold} (aşırı satım)` };
+    if (extPct != null && extPct <= -extMax) return { reason: `fiyat EMA20'nin -%${(-extPct).toFixed(1)} altında (≥${extMax})` };
+  }
+  return null;
+}
+
+// ── Hafta sonu kripto freni ─────────────────────────────────────────────────
+// Forex/altın/endeks kapalıyken tek işleyen KRİPTO (7/24). Thin + gap'li piyasada
+// FOMO en çok burada vuruyor → hafta sonu yalnız ÇOK yüksek güvenle yeni kripto aç.
+// Pencere = trade_guard.py ile birebir: Cuma 23:45 TSI → Pazartesi 03:00 TSI.
+// Kapatma: FOREX_WEEKEND_CRYPTO_GATE_DISABLED=1 (eşik: FOREX_WEEKEND_CRYPTO_MIN_CONF).
+const TR_OFFSET_MS = 3 * 3600 * 1000;  // Türkiye sabit UTC+3 (DST yok)
+function inWeekendWindow(now = Date.now()) {
+  const tr = new Date(now + TR_OFFSET_MS);
+  const dow = tr.getUTCDay();  // 0=Paz 1=Pzt ... 5=Cuma 6=Cmt
+  const min = tr.getUTCHours() * 60 + tr.getUTCMinutes();
+  if (dow === 6 || dow === 0) return true;             // Cmt / Paz tam gün
+  if (dow === 5 && min >= 23 * 60 + 45) return true;   // Cuma 23:45+
+  if (dow === 1 && min < 3 * 60) return true;          // Pzt <03:00
+  return false;
+}
+function weekendCryptoBlock(s) {
+  if (process.env.FOREX_WEEKEND_CRYPTO_GATE_DISABLED === '1') return null;
+  if (s.class !== 'crypto' || !inWeekendWindow()) return null;
+  const minConf = envNum('FOREX_WEEKEND_CRYPTO_MIN_CONF', 85);
+  return (s.confidence < minConf)
+    ? { reason: `hafta sonu kripto — güven ${s.confidence}<${minConf}` }
+    : null;
+}
 
 let state = { counter: 0, open: {}, cooldownUntil: {}, version: 2 };
 let loaded = false;
@@ -172,6 +231,12 @@ async function syncPositions(eligible) {
       if (!reverseLockOff() && reverseOf.length) continue;
       // 3) Konfluans kapısı: tek TF'lik sinyal ancak çok yüksek güvenle açılır
       if (!confluenceGateOff() && tfs.length < 2 && basis.confidence < SINGLE_TF_MIN_CONF) continue;
+      // 4) Aşırı-uzama (anti-FOMO): yön doğru ama fiyat çoktan uzamışsa açma (kovalama)
+      const fomo = antiFomoBlock(basis);
+      if (fomo) { logger.info(`[Forex] anti-FOMO: ${id} ${dir.toUpperCase()} açılmadı — ${fomo.reason}`); continue; }
+      // 5) Hafta sonu kripto: thin/gap'li piyasada yalnız çok yüksek güvenle aç
+      const wknd = weekendCryptoBlock(basis);
+      if (wknd) { logger.info(`[Forex] ${id} ${dir.toUpperCase()} açılmadı — ${wknd.reason}`); continue; }
 
       const code = nextCode();
       const units = (basis.sizing && basis.entry && basis.stop) ? basis.sizing.riskUsd / Math.abs(basis.entry - basis.stop) : null;
