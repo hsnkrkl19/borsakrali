@@ -1,6 +1,6 @@
 # 🖥️ VPS Kurulum Rehberi — Borsa Kralı Botları (7/24)
 
-Üç bot, VPS'te **yalnız FTMO hesabı `1513857844`** üzerinde 7/24 işlem yapar,
+Üç bot, VPS'te **yalnız FTMO hesabı `1513908484`** üzerinde 7/24 işlem yapar,
 veri toplar, kendini ayarlar ve log çıkarır. Bu logları `vps_tani.py` ile tek
 dosyaya toplayıp bize getirirsin; biz manuel iyileştirmeleri yaparız.
 
@@ -13,17 +13,17 @@ dosyaya toplayıp bize getirirsin; biz manuel iyileştirmeleri yaparız.
 ## 🚀 HIZLI KURULUM (tek komut — önerilen)
 
 Aşağıdaki manuel adımların **hepsini otomatik yapar**: paketleri kurar, FTMO
-terminalini (1513857844) kendi bulur, config'leri yazar, oto-başlatı kurar,
+terminalini (1513908484) kendi bulur, config'leri yazar, oto-başlatı kurar,
 botları başlatır ve doğrular.
 
 1. İki klasörü VPS'e kopyala: `gold-structure-bot` + `site\borsasanati-clone\mt5-bridge`.
-2. **FTMO hesabına (1513857844) bir MT5 terminalinde giriş yap + Algo Trading AÇ.**
+2. **FTMO hesabına (1513908484) bir MT5 terminalinde giriş yap + Algo Trading AÇ.**
    (Varsa diğer hesabın terminalinde Algo Trading'i KAPAT — bkz. aşağıdaki uyarı.)
 3. PowerShell aç, `mt5-bridge\vps-kit` klasörüne gel ve çalıştır:
    ```powershell
    powershell -ExecutionPolicy Bypass -File vps-kur.ps1
    ```
-4. Bitince açılan pencerelerde **`login=1513857844` + `Hesap kilidi AKTİF`** gör.
+4. Bitince açılan pencerelerde **`login=1513908484` + `Hesap kilidi AKTİF`** gör.
 
 > `config.json` yoksa `vps-kur.ps1` örnekten oluşturur ama **`exec_token`'ı elle
 > doldurman gerekir** (Render'daki `FOREX_EXEC_TOKEN` ile aynı). Klasörü olduğu
@@ -52,7 +52,7 @@ Backend'i (Render) taşımana gerek yok — o zaten bulutta. VPS yalnız **botla
 pip install MetaTrader5 requests
 ```
 
-İki MT5 terminalini kur/aç, **FTMO hesabına** (`1513857844`) giriş yap, üstteki
+İki MT5 terminalini kur/aç, **FTMO hesabına** (`1513908484`) giriş yap, üstteki
 **"Algo Trading"** düğmesini **yeşil** yap (kapalıysa canlı emir açılmaz).
 
 ## 3. ⚠️ HESAP KİLİDİNİ AYARLA (en kritik adım)
@@ -71,12 +71,12 @@ Bu yolu **3 yere** yaz (hepsi aynı FTMO terminal64.exe):
 **a) `mt5-bridge\config.json`** (forex köprüsü):
 ```json
 "terminal_path": "C:\\Program Files\\FTMO MetaTrader 5\\terminal64.exe",
-"allowed_account": 1513857844,
+"allowed_account": 1513908484,
 ```
 **b) `mt5-bridge\config_scanner.json`** (gün-içi köprüsü): aynı iki satır.
 
 **c) Gold bot** — `vps-basla.ps1` içindeki `$FTMO_TERMINAL` değişkeni (başlatıcı
-bunu `GSB_MT5_TERMINAL` env'ine geçirir). Hesap kilidi (`1513857844`) gold bot
+bunu `GSB_MT5_TERMINAL` env'ine geçirir). Hesap kilidi (`1513908484`) gold bot
 koduna zaten gömülü.
 
 > 🔒 `allowed_account` ayarlıyken bot **başka hesaba bağlıysa emir AÇMAZ** ve
@@ -98,7 +98,7 @@ koduna zaten gömülü.
 > 2. VEYA botları çalıştıracağın terminal DIŞINDAKİ terminali, botları
 >    başlatırken kapalı tut; sadece FTMO açıkken botları başlat, sonra diğerini aç.
 >
-> Her koşulda: başlatınca her pencerede **`login=1513857844`** gör. Yanlış login
+> Her koşulda: başlatınca her pencerede **`login=1513908484`** gör. Yanlış login
 > görürsen yukarıdaki 1. maddeyi uygula.
 
 ## 4. Başlat
@@ -113,7 +113,7 @@ powershell -ExecutionPolicy Bypass -File vps-kit\vps-basla.ps1
 Üç pencere açılır (gold + forex köprü + gün-içi köprü). **Her pencerede ilk
 satırlarda şunu görmelisin:**
 ```
-Bağlandı: login=1513857844 ... 🔒 Hesap kilidi AKTİF: yalnız 1513857844
+Bağlandı: login=1513908484 ... 🔒 Hesap kilidi AKTİF: yalnız 1513908484
 MOD: ⚡ CANLI EMİR AKTİF
 ```
 Farklı login veya `HESAP KİLİDİ` uyarısı görürsen → `terminal_path` yanlış,
@@ -186,7 +186,7 @@ yönetimsiz zarar riski yok.
 
 ---
 
-### Magic numaraları (hesap tek: 1513857844, çakışma yok)
+### Magic numaraları (hesap tek: 1513908484, çakışma yok)
 - **660066** gold trend · **660067** gold scalp · **550055** forex köprü · **550066** gün-içi köprü
 
 ### Sık sorun

@@ -4,12 +4,12 @@
 #  VPS'te SADECE bunu calistir; gerisini kendisi halleder:
 #    1) Python + paketleri (MetaTrader5, requests) kontrol/kurar
 #    2) config.json yoksa ornekten olusturur (exec_token'i uyarir)
-#    3) FTMO terminalini (1513857844) OTOMATIK bulur + iki config'e yazar
+#    3) FTMO terminalini (1513908484) OTOMATIK bulur + iki config'e yazar
 #    4) GSB_MT5_TERMINAL kullanici env'ini kurar (gold bot icin)
 #    5) Reboot oto-baslat icin Gorev Zamanlayici gorevi kurar
 #    6) Uc botu baslatir + saglik raporu cikarir
 #
-#  ON KOSUL: FTMO hesabina (1513857844) bir MT5 terminalinde GIRIS yapilmis +
+#  ON KOSUL: FTMO hesabina (1513908484) bir MT5 terminalinde GIRIS yapilmis +
 #            Algo Trading ACIK olmali. (YALNIZ FTMO'da acik birak - digerinde kapat.)
 #
 #  CALISTIR (mt5-bridge\vps-kit klasorunde):
@@ -60,7 +60,7 @@ foreach ($pair in @(@("config.json","config.example.json"), @("config_scanner.js
 Write-Host "`n[3/6] FTMO terminali otomatik tespit..." -ForegroundColor White
 & python "$KIT_DIR\vps_tespit_terminal.py"
 if ($LASTEXITCODE -ne 0) {
-  Write-Host "[HATA] FTMO terminali bulunamadi. FTMO hesabina (1513857844) GIRIS yap, tekrar calistir." -ForegroundColor Red
+  Write-Host "[HATA] FTMO terminali bulunamadi. FTMO hesabina (1513908484) GIRIS yap, tekrar calistir." -ForegroundColor Red
   exit 1
 }
 $detFile = Join-Path $KIT_DIR "detected_terminal.txt"
@@ -90,13 +90,13 @@ try {
 Write-Host "`n[6/6] Botlar baslatiliyor..." -ForegroundColor White
 & powershell -ExecutionPolicy Bypass -File $baslaPs1
 Start-Sleep -Seconds 20
-Write-Host "`n=== Saglik raporu (login=1513857844 dogrulamasi) ===" -ForegroundColor Cyan
+Write-Host "`n=== Saglik raporu (login=1513908484 dogrulamasi) ===" -ForegroundColor Cyan
 if ($GOLD_DIR) { $env:GSB_DIR = $GOLD_DIR }
 & python "$KIT_DIR\vps_tani.py" --gunluk 1
 
 Write-Host "`n==================================================" -ForegroundColor Green
 Write-Host " KURULUM TAMAM." -ForegroundColor Green
-Write-Host " Acilan pencerelerde 'login=1513857844' + 'Hesap kilidi AKTIF' gormelisin." -ForegroundColor Yellow
+Write-Host " Acilan pencerelerde 'login=1513908484' + 'Hesap kilidi AKTIF' gormelisin." -ForegroundColor Yellow
 Write-Host " Saglik raporu icin: python vps-kit\vps_tani.py" -ForegroundColor Gray
 Write-Host " Durdurmak icin:     powershell -File vps-kit\vps-durdur.ps1" -ForegroundColor Gray
 Write-Host "==================================================" -ForegroundColor Green

@@ -5,7 +5,7 @@
 #  2) Forex koprusu   (watchdog_forex.ps1,   magic 550055)
 #  3) Gun-ici koprusu (watchdog_scanner.ps1, magic 550066)
 #
-#  HER SEY YALNIZ FTMO 1513857844 hesabinda islem acar (hesap kilidi kodda).
+#  HER SEY YALNIZ FTMO 1513908484 hesabinda islem acar (hesap kilidi kodda).
 #
 #  KULLANIM:
 #    1) Asagidaki UC YOLU kendi VPS kurulumuna gore duzenle.
@@ -77,6 +77,6 @@ if (Test-Path "$BRIDGE_DIR\run_pnl.bat") {
 
 Write-Host ""
 Write-Host "=== 3 bot baslatildi (ayri pencereler) ===" -ForegroundColor Cyan
-Write-Host "Her pencerede: login=1513857844 + Hesap kilidi AKTIF gormelisin." -ForegroundColor Yellow
+Write-Host "Her pencerede: login=1513908484 + Hesap kilidi AKTIF gormelisin." -ForegroundColor Yellow
 Write-Host "Yanlis hesap gorursen bot islem ACMAZ - terminal_path'i duzelt." -ForegroundColor Yellow
 Write-Host "Saglik raporu: python vps-kit\vps_tani.py" -ForegroundColor Gray

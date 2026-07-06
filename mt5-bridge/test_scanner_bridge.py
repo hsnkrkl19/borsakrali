@@ -242,9 +242,9 @@ def t_comment():
 def t_account_lock():
     # Saf mantık: kilit kapalı → izin; kilit açık → fail-closed + login eşleşmesi
     assert bk.account_allowed({"allowed_account": 0}, None) is True
-    assert bk.account_allowed({"allowed_account": 1513857844}, None) is False, "fail-closed"
-    assert bk.account_allowed({"allowed_account": 1513857844}, SimpleNamespace(login=999)) is False
-    assert bk.account_allowed({"allowed_account": 1513857844}, SimpleNamespace(login=1513857844)) is True
+    assert bk.account_allowed({"allowed_account": 1513908484}, None) is False, "fail-closed"
+    assert bk.account_allowed({"allowed_account": 1513908484}, SimpleNamespace(login=999)) is False
+    assert bk.account_allowed({"allowed_account": 1513908484}, SimpleNamespace(login=1513908484)) is True
     print("OK hesap kilidi (fail-closed + login eslesmesi)")
 
 
@@ -252,11 +252,11 @@ def t_wrong_account_no_order():
     # YANLIS hesaba bagliyken open_trade EMIR GONDERMEMELI
     use_temp_state()
     setup_stubs(ask=4000.5, bid=4000.3)
-    locked = dict(CFG); locked["allowed_account"] = 1513857844
+    locked = dict(CFG); locked["allowed_account"] = 1513908484
     mt5.account_info = lambda: SimpleNamespace(login=999, trade_allowed=True)
     bk.open_trade(locked, sig(), fake_info(), fresh_state())
     assert not sent, "yanlis hesapta emir ACILMAMALI"
-    mt5.account_info = lambda: SimpleNamespace(login=1513857844, trade_allowed=True)
+    mt5.account_info = lambda: SimpleNamespace(login=1513908484, trade_allowed=True)
     bk.open_trade(locked, sig(), fake_info(), fresh_state())
     assert sent, "dogru hesapta emir gitmeli"
     print("OK yanlis hesapta emir yok / dogru hesapta emir var")

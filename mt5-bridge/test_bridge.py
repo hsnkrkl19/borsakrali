@@ -133,11 +133,11 @@ def t_account_lock():
     # Saf mantık: kilit kapalı → hep izin; kilit açık → fail-closed + login eşleşmesi
     assert bk.account_allowed({"allowed_account": 0}, None) is True, "kilit kapali: izin"
     assert bk.account_allowed({}, None) is True, "anahtar yok: eski davranis"
-    assert bk.account_allowed({"allowed_account": 1513857844}, None) is False, "kilit acik + ai None: FAIL-CLOSED"
+    assert bk.account_allowed({"allowed_account": 1513908484}, None) is False, "kilit acik + ai None: FAIL-CLOSED"
     wrong = SimpleNamespace(login=999)
-    assert bk.account_allowed({"allowed_account": 1513857844}, wrong) is False, "yanlis hesap: RED"
-    right = SimpleNamespace(login=1513857844)
-    assert bk.account_allowed({"allowed_account": 1513857844}, right) is True, "dogru hesap: izin"
+    assert bk.account_allowed({"allowed_account": 1513908484}, wrong) is False, "yanlis hesap: RED"
+    right = SimpleNamespace(login=1513908484)
+    assert bk.account_allowed({"allowed_account": 1513908484}, right) is True, "dogru hesap: izin"
     print("OK hesap kilidi (fail-closed + login eslesmesi)")
 
 
@@ -145,12 +145,12 @@ def t_wrong_account_no_order():
     # YANLIS hesaba bagliyken open_trade EMIR GONDERMEMELI (emir-oncesi guard)
     setup_stubs(ask=100.05, bid=100.04)
     mt5.account_info = lambda: SimpleNamespace(login=999, trade_allowed=True)
-    locked = dict(CFG); locked["allowed_account"] = 1513857844
+    locked = dict(CFG); locked["allowed_account"] = 1513908484
     bk.open_trade(locked, {"code": "099", "direction": "long", "entry": 100.0, "stop": 98.0,
                            "target1": 104.0, "target2": 108.0, "confidence": 80}, fake_info())
     assert not sent, "yanlis hesapta emir ACILMAMALI (hesap kilidi)"
     # Dogru hesaba baglaninca ayni sinyal ACILIR
-    mt5.account_info = lambda: SimpleNamespace(login=1513857844, trade_allowed=True)
+    mt5.account_info = lambda: SimpleNamespace(login=1513908484, trade_allowed=True)
     bk.open_trade(locked, {"code": "099", "direction": "long", "entry": 100.0, "stop": 98.0,
                            "target1": 104.0, "target2": 108.0, "confidence": 80}, fake_info())
     assert sent, "dogru hesapta emir gitmeli"

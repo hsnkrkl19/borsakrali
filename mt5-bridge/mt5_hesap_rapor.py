@@ -11,7 +11,7 @@ FTMO hesabının MT5 deal geçmişinden GERÇEK (broker) kapanan işlem P/L'ini 
 
 Sanal/backend muhasebesi DEĞİL — FTMO hesabında gerçekten kazanılan/kaybedilen para.
 Köprülerden AYRI, yalnız-OKUR (emir açmaz). config.json'u paylaşır (terminal_path,
-allowed_account, exec_token, backend_url). Hesap kilidi: yalnız 1513857844.
+allowed_account, exec_token, backend_url). Hesap kilidi: yalnız 1513908484.
 
 Çalıştır:  python mt5_hesap_rapor.py
 Durdur:    STOP veya STOP_PNL dosyası.
@@ -48,7 +48,7 @@ log = logging.getLogger("bk-pnl")
 
 TR = timezone(timedelta(hours=3))         # TR = UTC+3 (FTMO server ~aynı), sabit
 DEFAULTS = {"backend_url": "https://borsakrali.com", "exec_token": "",
-            "terminal_path": "", "allowed_account": 1513857844,
+            "terminal_path": "", "allowed_account": 1513908484,
             "poll_seconds": 120, "lookback_days": 4, "daily_report_tr_min": 23 * 60 + 55}
 
 

@@ -4,13 +4,13 @@
 FTMO TERMİNAL OTOMATİK TESPİTİ + config yazımı.
 ================================================
 VPS'te birden çok MT5 kuruluysa, HANGİ terminal64.exe'nin FTMO hesabına
-(1513857844) bağlı olduğunu OTOMATİK bulur: her kurulumu tek tek `initialize`
+(1513908484) bağlı olduğunu OTOMATİK bulur: her kurulumu tek tek `initialize`
 edip `account_info().login`'e bakar. Bulunca:
   • config.json + config_scanner.json'a terminal_path + allowed_account yazar,
   • yolu detected_terminal.txt'ye yazar (kur.ps1 GSB env'i için okur),
   • ekrana yolu basar.
 
-ÖN KOŞUL: FTMO hesabı (1513857844) terminallerden BİRİNDE AÇIK/girişli olmalı.
+ÖN KOŞUL: FTMO hesabı (1513908484) terminallerden BİRİNDE AÇIK/girişli olmalı.
 Çalıştır:  python vps_tespit_terminal.py
 """
 from __future__ import annotations
@@ -20,7 +20,7 @@ import json
 import os
 import sys
 
-ALLOWED_ACCOUNT = 1513857844
+ALLOWED_ACCOUNT = 1513908484
 HERE = os.path.dirname(os.path.abspath(__file__))
 BRIDGE_DIR = os.path.dirname(HERE)
 CONFIGS = [os.path.join(BRIDGE_DIR, "config.json"),
@@ -118,7 +118,7 @@ def main():
         tag = ""
         if login == ALLOWED_ACCOUNT:
             ftmo_path = path
-            tag = "  <<< FTMO 1513857844 — BU!"
+            tag = "  <<< FTMO 1513908484 — BU!"
         _p(f"  login={login if login else '(giris yok/baglanamadi)'} server={server or '-'}  {path}{tag}")
         if ftmo_path:
             break
@@ -126,7 +126,7 @@ def main():
     if not ftmo_path:
         _p("")
         _p(f"!!! Hicbir terminal {ALLOWED_ACCOUNT} hesabina bagli DEGIL.")
-        _p("    FTMO hesabina (1513857844) bir terminalde GIRIS yap, sonra tekrar calistir.")
+        _p("    FTMO hesabina (1513908484) bir terminalde GIRIS yap, sonra tekrar calistir.")
         sys.exit(1)
 
     _p(f"\nFTMO terminali: {ftmo_path}")
