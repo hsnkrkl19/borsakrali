@@ -31,7 +31,9 @@ function checkExecToken(req) {
 function parseEquity(v) {
   const e = parseFloat(v);
   if (!(e > 0)) return undefined;
-  return Math.max(100, Math.min(10_000_000, e));
+  // ⚠️ Güvenlik (denetim 2026-07-06): POST /equity auth'suz ve KALICI lot ölçeği —
+  // tavan 10M lot'ları 1000× şişirebilirdi. Gerçekçi FTMO bandına kısıldı.
+  return Math.max(100, Math.min(150_000, e));
 }
 
 router.get('/instruments', (req, res) => {
@@ -64,8 +66,10 @@ router.post('/generate', async (req, res) => {
 // Portföy KALICI ayarı (vars. 10.000$) — değişince sıfırdan tarama (kullanıcı kuralı)
 router.post('/equity', async (req, res) => {
   try {
+    const rawEq = parseFloat(req.body?.equity);
     const equity = parseEquity(req.body?.equity);
     if (!equity) return res.status(400).json({ success: false, error: 'equity > 0 olmalı' });
+    if (rawEq > equity) console.warn(`[MT5Scanner] equity ${rawEq} güvenlik tavanına kısıldı → ${equity} (auth'suz endpoint; gerçek hesap büyükse tavanı koddan yükselt)`);
     await tracker.load();
     const saved = tracker.setEquity(equity);
     const snap = await engine.generate(saved);
