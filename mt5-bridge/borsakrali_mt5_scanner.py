@@ -464,7 +464,11 @@ def reconcile_closures(state, open_tickets, feed_codes):
         meta = state["tickets"].pop(t)
         changed = True
         code = (meta or {}).get("code") if isinstance(meta, dict) else meta
-        if code and feed_codes is not None and str(code) in feed_codes:
+        if code:
+            # KOŞULSUZ done (review): eskiden yalnız "kod feed'de duruyorsa" yazılıyordu —
+            # broker kapanışı tam bir feed boşluğuna/eksikliğine denk gelirse ticket silinip
+            # done YAZILMIYOR, feed dönünce stop-out pozisyon yeniden açılıyordu. Kod
+            # feed'den kalıcı düşünce 3-strike temizliği kaydı zaten kaldırır.
             state["done"][str(code)] = time.time()
             log.info("#%s: MT5 tarafında kapanmış (broker SL/TP/manuel) — done listesine alındı, YENİDEN AÇILMAZ.", code)
     if feed_codes:  # BOŞ feed'de done'a DOKUNMA (backend geçici arızası silmesin)
@@ -689,10 +693,12 @@ def main():
             now_epoch = time.time()
             blocked_syms = {p.symbol for p in unknown}  # kimliksiz pozisyonlu sembole yeni açılış yok
             # ── GÜNLÜK ZARAR DEVRE-KESİCİSİ + sembol freni + portföy freni (tur başına 1 kez;
-            # deal listesi TEK çekim — review: eski hali tur başına 3 history taramasıydı) ──
-            turn_deals = trade_guard.fetch_recent_deals(mt5, cfg.get("loss_reopen_cooldown_min", 45))
-            daily_blocked, _ = trade_guard.daily_loss_blocked(mt5, cfg, log, deals=turn_deals, positions=raw)
-            loss_syms = trade_guard.symbols_with_recent_loss(mt5, cfg["magic"], cfg.get("loss_reopen_cooldown_min", 45), deals=turn_deals)
+            # deal listesi TEK çekim; broker saat sapması tick'ten ölçülür — review:
+            # sapma düzeltilmezse frenler son saatlerin kapanışlarını görmezdi) ──
+            skew = trade_guard.server_clock_skew(mt5, cfg)
+            turn_deals = trade_guard.fetch_recent_deals(mt5, cfg.get("loss_reopen_cooldown_min", 45), skew=skew)
+            daily_blocked, _ = trade_guard.daily_loss_blocked(mt5, cfg, log, deals=turn_deals, positions=raw, skew=skew)
+            loss_syms = trade_guard.symbols_with_recent_loss(mt5, cfg["magic"], cfg.get("loss_reopen_cooldown_min", 45), deals=turn_deals, skew=skew)
             portfolio_blocked = portfolio_risk_exceeded(cfg, raw)  # yalnız açılış sonrası yenilenir
 
             for s in feed:

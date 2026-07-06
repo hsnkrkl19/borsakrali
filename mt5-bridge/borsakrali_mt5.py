@@ -629,13 +629,17 @@ def main():
         try:
             _bf = poll_feed(cfg)
             if _bf:
-                _live = set(our_positions(cfg)[0].keys())
+                _live_map = our_positions(cfg)[0]
                 for _s in _bf:
                     _c = _s.get("code")
-                    if _c and _c not in _live:
+                    if _c and _c not in _live_map:
                         log.info("BOOT: #%s feed'de var ama MT5'te yok — backend'e kapandı bildir (yeniden açma).", _c)
                         notify_backend_closed(cfg, _c, "boot_reconcile")
-                prev_open_codes = _live  # ilk-tur vanished tespiti için tohum
+                prev_open_codes = set(_live_map.keys())  # ilk-tur vanished tespiti için tohum
+                # ticket'ları da tohumla: ilk turdaki vanish kapanış P/L'ini bulabilsin
+                # (review: boşken restart-sonrası ilk kapanış P/L'siz bildiriliyor, backend
+                # kazançlı TP2'yi bile ihtiyatla zarar sayıyordu)
+                prev_open_meta = {c: p.ticket for c, p in _live_map.items()}
         except Exception as e:  # noqa
             log.warning("boot reconcile atlandı: %s", e)
     try:
@@ -678,7 +682,7 @@ def main():
                     close_position(cfg, p)
                     _pf, _px = deal_close_info(p.ticket)
                     notify_backend_closed(cfg, code, "news", _pf, _px)  # backend senkron → yeniden açmasın
-                    notified_closed[code] = (time.time(), _pf, _px)
+                    notified_closed[code] = (time.time(), "news", _pf, _px)
                 time.sleep(int(cfg["poll_seconds"])); continue
             if weekend_closed:
                 # Hafta sonu (Cuma 23:45→Pzt 03:00 TSI): kripto-DIŞI kapat; kripto sürer.
@@ -689,7 +693,7 @@ def main():
                         close_position(cfg, p)
                         _pf, _px = deal_close_info(p.ticket)
                         notify_backend_closed(cfg, code, "weekend", _pf, _px)  # backend senkron
-                        notified_closed[code] = (time.time(), _pf, _px)
+                        notified_closed[code] = (time.time(), "weekend", _pf, _px)
 
             feed = poll_feed(cfg)
             if feed is None:
@@ -707,16 +711,18 @@ def main():
                 log.info("#%s: MT5'te yok ama feed'de var (broker/haber/hafta-sonu kapatmış)%s — backend'e bildir, yeniden açma.",
                          c, (" P/L %.2f$" % _pf) if _pf is not None else "")
                 notify_backend_closed(cfg, c, "bridge_vanished", _pf, _px)
-                notified_closed[c] = (time.time(), _pf, _px)
+                notified_closed[c] = (time.time(), "bridge_vanished", _pf, _px)
             supp = suppressed_codes(feed, cfg)  # hedge yoksa: çatışan düşük-güvenli yönleri bastır
             feed_codes = set()
             stop_kill = os.path.exists(STOP_FILE)
             # ── GÜNLÜK ZARAR DEVRE-KESİCİSİ + zarar-sonrası sembol freni + portföy freni ──
-            # Deal listesi TUR BAŞINA BİR KEZ çekilir; iki fren de onu kullanır (review:
-            # eski hali tur başına 3 tam-gün history taraması yapıyordu).
-            turn_deals = trade_guard.fetch_recent_deals(mt5, cfg.get("loss_reopen_cooldown_min", 45))
-            daily_blocked, _ = trade_guard.daily_loss_blocked(mt5, cfg, log, deals=turn_deals)
-            loss_syms = trade_guard.symbols_with_recent_loss(mt5, cfg["magic"], cfg.get("loss_reopen_cooldown_min", 45), deals=turn_deals)
+            # Deal listesi TUR BAŞINA BİR KEZ çekilir; iki fren de onu kullanır. Broker
+            # saat sapması (FTMO EET epokları) tick'ten ölçülür — düzeltilmezse frenler
+            # son saatlerin kapanışlarını GÖRMEZDİ (review kritik bulgusu).
+            skew = trade_guard.server_clock_skew(mt5, cfg)
+            turn_deals = trade_guard.fetch_recent_deals(mt5, cfg.get("loss_reopen_cooldown_min", 45), skew=skew)
+            daily_blocked, _ = trade_guard.daily_loss_blocked(mt5, cfg, log, deals=turn_deals, skew=skew)
+            loss_syms = trade_guard.symbols_with_recent_loss(mt5, cfg["magic"], cfg.get("loss_reopen_cooldown_min", 45), deals=turn_deals, skew=skew)
             portfolio_blocked = portfolio_risk_exceeded(cfg)  # yalnız açılış SONRASI yenilenir
 
             for s in feed:
@@ -728,11 +734,13 @@ def main():
                         # YAPIŞKAN kapanış-teyidi: bildirim kaybolduysa/backend gecikirse bile
                         # kapattığımız kodu ASLA yeniden açma. Yeniden-bildirim 10dk'da bir
                         # (review: her turda bloklayan POST backend-down'da canlı pozisyon
-                        # yönetimini geciktirirdi); açılmama koruması KOŞULSUZ sürer.
-                        _ts, _pf, _px = notified_closed[code]
+                        # yönetimini geciktirirdi) ve ORİJİNAL sebeple (review: 'news' kapanışı
+                        # tekrar-bildirimde 'vanished'a dönüşüp zarar sayılıyordu); açılmama
+                        # koruması KOŞULSUZ sürer.
+                        _ts, _reason, _pf, _px = notified_closed[code]
                         if time.time() - _ts >= 600:
-                            notify_backend_closed(cfg, code, "bridge_vanished", _pf, _px)
-                            notified_closed[code] = (time.time(), _pf, _px)
+                            notify_backend_closed(cfg, code, _reason, _pf, _px)
+                            notified_closed[code] = (time.time(), _reason, _pf, _px)
                         continue
                     inst = s["instrumentId"]
                     entry = float(s["entry"])

@@ -81,7 +81,22 @@ async function restore() {
     if (!data) return;
     const text = typeof data.text === 'function' ? await data.text() : Buffer.from(await data.arrayBuffer()).toString('utf8');
     const p = JSON.parse(text);
-    if (p && typeof p === 'object' && p.day) { state = { ...state, ...p }; loaded = true; persist(false); }
+    // BAYAT snapshot koruması (review): Supabase upload 2.5s debounce'lu — çökme
+    // anında disk taze, bulut eski olabilir. Yalnız BUGÜNÜN snapshot'ı ve alan
+    // bazında EN MUHAFAZAKÂR (en negatif) değerlerle birleştirilir; dünün
+    // snapshot'ı bugünkü tetiklenmiş freni ASLA geri açamaz.
+    if (p && typeof p === 'object' && p.day === trDay()) {
+      load(); rollover();
+      state.backendPnlUsd = Math.min(state.backendPnlUsd || 0, Number(p.backendPnlUsd) || 0);
+      state.bridgeRealizedUsd = Math.min(state.bridgeRealizedUsd || 0, Number(p.bridgeRealizedUsd) || 0);
+      if (p.brokerRealized != null && Number.isFinite(Number(p.brokerRealized))
+          && (state.brokerRealized == null || (Number(p.brokerUpdatedSec) || 0) > (state.brokerUpdatedSec || 0))) {
+        state.brokerRealized = Number(p.brokerRealized);
+        state.brokerUpdatedSec = Number(p.brokerUpdatedSec) || 0;
+      }
+      if (state.brokerBalance == null && Number(p.brokerBalance) > 0) state.brokerBalance = Number(p.brokerBalance);
+      persist(false);
+    }
   } catch (_) {}
 }
 

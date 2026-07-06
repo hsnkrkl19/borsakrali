@@ -135,10 +135,13 @@ async function evalInstrument(inst, equity) {
     if (confidence < MIN_CONFIDENCE) { perTf[tf] = { tf, status: 'low_conf', direction: s.direction, confidence, votes: s.votes }; }
   }
 
-  // ── REJİM (2026-07-06): 4h VE 1d aynı yönü gösteriyorsa bu bir rejimdir. Her
-  // geçen sinyale eklenir (s.regime) — tracker'ın anti-FOMO trend istisnası buna
+  // ── REJİM (2026-07-06): 4h VE 1d aynı yönü GERÇEK sinyal statüsüyle gösteriyorsa
+  // bu bir rejimdir. low_conf/neutral yönler SAYILMAZ (review: güven<40 gürültü
+  // yönleri rejim oluşturup anti-FOMO vetosunu deliyor + karşı sinyalleri eziyordu).
+  // Her geçen sinyale eklenir (s.regime) — tracker'ın anti-FOMO trend istisnası buna
   // bakar (giriş-TF'inin kendi DI'sı kendi kendini onaylıyordu, review bulgusu).
-  const d4 = perTf['4h']?.direction, d1 = perTf['1d']?.direction;
+  const dirOf = (tf) => { const x = perTf[tf]; return (x && x.status === 'signal') ? x.direction : null; };
+  const d4 = dirOf('4h'), d1 = dirOf('1d');
   const regime = (d4 && d1 && d4 === d1) ? d4 : null;
   for (const tf of TFS) {
     const s = perTf[tf];

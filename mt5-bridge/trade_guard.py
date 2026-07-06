@@ -124,29 +124,54 @@ def _tr_day_start_utc(now_utc=None):
     return tr_midnight - TR_OFFSET
 
 
-def fetch_recent_deals(mt5mod, lookback_extra_min=60):
+def server_clock_skew(mt5mod, cfg=None):
+    """⚠️ MT5 deal/tick zaman damgaları BROKER-SAATİ epoklarıdır (FTMO EET = UTC+2/+3),
+    gerçek-UTC değil (review 2026-07-06: sapma düzeltilmezse fren pencereleri son
+    ~3 saatin kapanışlarını GÖRMEZ — devre-kesici tam ihtiyaç anında kör kalır).
+    Sapma en taze tick'ten ölçülür (kripto 7/24 → hafta sonu bile güvenilir);
+    ölçülemezse 0 (geniş fetch marjları yine korur)."""
+    try:
+        for sym in ((cfg or {}).get("symbols") or {}).values():
+            t = mt5mod.symbol_info_tick(sym)
+            ts = getattr(t, "time", 0) or 0
+            if ts > 0:
+                skew = ts - time.time()
+                if abs(skew) <= 26 * 3600:
+                    return skew
+    except Exception:  # noqa
+        pass
+    return 0.0
+
+
+def fetch_recent_deals(mt5mod, lookback_extra_min=60, skew=0.0):
     """TR-günü başından (veya sembol-freni penceresi daha erken başlıyorsa oradan)
-    şimdiye dek TÜM deal'ler. None = history okunamadı (çağıran fail-open)."""
+    şimdiye dek TÜM deal'ler. Sınırlar broker-saat sapmasıyla kaydırılır ve ±4h
+    marj bırakılır (kütüphane/terminal zaman-yorumu farkları emilsin; fazlası
+    zaten deal.time filtreleriyle elenir). None = history okunamadı (fail-open)."""
     now = datetime.now(timezone.utc)
     start = min(_tr_day_start_utc(), now - timedelta(minutes=float(lookback_extra_min) + 5))
-    return mt5mod.history_deals_get(start, now + timedelta(minutes=5))
+    start = start + timedelta(seconds=skew) - timedelta(hours=4)
+    end = now + timedelta(seconds=skew) + timedelta(hours=4)
+    return mt5mod.history_deals_get(start, end)
 
 
 def _deal_pnl(d):
     return (getattr(d, "profit", 0) or 0) + (getattr(d, "swap", 0) or 0) + (getattr(d, "commission", 0) or 0)
 
 
-def daily_pnl_usd(mt5mod, magic=None, now_utc=None, deals=None, positions=None):
+def daily_pnl_usd(mt5mod, magic=None, now_utc=None, deals=None, positions=None, skew=0.0):
     """(realized, floating, ok): bugünkü (TR) kapanan deal P/L toplamı
     (profit+swap+commission) + açık pozisyonların anlık P/L'i. magic verilirse
     yalnız o botun işlemleri; None → hesabın TÜMÜ. deals/positions verilmişse
-    yeniden çekilmez (tur-başı tek çekim); deal.time TR-gün başıyla filtrelenir.
-    History okunamazsa ok=False (çağıran FAIL-OPEN davranır)."""
+    yeniden çekilmez (tur-başı tek çekim); deal.time (broker-saati) skew ile
+    düzeltilmiş TR-gün başıyla filtrelenir. History okunamazsa ok=False (fail-open)."""
     if deals is None:
-        deals = fetch_recent_deals(mt5mod, 0)
+        deals = fetch_recent_deals(mt5mod, 0, skew=skew)
     if deals is None:
         return 0.0, 0.0, False
-    day_start_epoch = _tr_day_start_utc(now_utc).timestamp()
+    # 15 dk tolerans: sapma ölçümü tick-taze olmayabilir; fren için gün sınırının
+    # dakikalar düzeyinde oynaması kabul edilebilir, deal KAÇIRMAK edilemez.
+    day_start_epoch = _tr_day_start_utc(now_utc).timestamp() + skew - 900
     realized = 0.0
     for d in deals:
         if magic is not None and getattr(d, "magic", None) != int(magic):
@@ -165,7 +190,7 @@ def daily_pnl_usd(mt5mod, magic=None, now_utc=None, deals=None, positions=None):
     return realized, floating, True
 
 
-def daily_loss_blocked(mt5mod, cfg, logger=None, deals=None, positions=None):
+def daily_loss_blocked(mt5mod, cfg, logger=None, deals=None, positions=None, skew=0.0):
     """İki katmanlı kontrol (tek deal/pozisyon çekimiyle):
       • HESAP katmanı: TÜM magic'lerin toplamı ≤ -max_daily_loss_pct_account → blok
         (FTMO günlük %5 limitini diğer botlarla BİRLİKTE korur).
@@ -183,7 +208,7 @@ def daily_loss_blocked(mt5mod, cfg, logger=None, deals=None, positions=None):
     if not balance or balance <= 0:
         return False, None
     if deals is None:
-        deals = fetch_recent_deals(mt5mod, 0)
+        deals = fetch_recent_deals(mt5mod, 0, skew=skew)
     if deals is None:
         if logger:
             logger.warning("gunluk zarar freni: deal history okunamadi (fail-open).")
@@ -193,7 +218,7 @@ def daily_loss_blocked(mt5mod, cfg, logger=None, deals=None, positions=None):
     for name, magic, pct in layers:
         if pct <= 0:
             continue
-        realized, floating, ok = daily_pnl_usd(mt5mod, magic=magic, deals=deals, positions=positions)
+        realized, floating, ok = daily_pnl_usd(mt5mod, magic=magic, deals=deals, positions=positions, skew=skew)
         if not ok:
             continue
         day_start = balance - realized
@@ -206,20 +231,19 @@ def daily_loss_blocked(mt5mod, cfg, logger=None, deals=None, positions=None):
     return False, None
 
 
-def symbols_with_recent_loss(mt5mod, magic, minutes, deals=None):
+def symbols_with_recent_loss(mt5mod, magic, minutes, deals=None, skew=0.0):
     """Son `minutes` dakikada bu botun (magic) ZARARLA kapattığı semboller kümesi —
     köprü tarafı yeniden-giriş freni (backend cooldown'unun broker-tarafı sigortası).
-    deals verilmişse yeniden çekilmez (deal.time ile pencere filtrelenir; time alanı
-    olmayan stub-deal dahil edilir). History okunamazsa boş küme (fail-open)."""
+    deals verilmişse yeniden çekilmez; pencere deal.time'ın broker-saati olduğu
+    varsayımıyla skew-düzeltmeli kesilir (time alanı olmayan stub-deal dahil edilir).
+    History okunamazsa boş küme (fail-open)."""
     if not minutes or minutes <= 0:
         return set()
     if deals is None:
-        end = datetime.now(timezone.utc) + timedelta(minutes=5)
-        start = end - timedelta(minutes=float(minutes) + 5)
-        deals = mt5mod.history_deals_get(start, end)
+        deals = fetch_recent_deals(mt5mod, float(minutes), skew=skew)
     if deals is None:
         return set()
-    cutoff = time.time() - float(minutes) * 60 - 300
+    cutoff = time.time() + skew - float(minutes) * 60 - 300
     out = set()
     for d in deals:
         if getattr(d, "magic", None) != int(magic):
