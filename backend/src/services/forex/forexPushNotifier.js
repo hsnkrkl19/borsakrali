@@ -117,6 +117,7 @@ function buildClosureTelegram(ev) {
   const head = ev.outcome === 'TP1' ? '✅ <b>TP1 OLDU</b>'
     : ev.outcome === 'TP2' ? '✅ <b>TP2 OLDU (hard-cap)</b>'
     : ev.outcome === 'REVERSAL' ? '🔄 <b>DÖNÜŞ — momentum tersine döndü, kilitli kârla çıkıldı</b>'
+    : ev.outcome === 'REVERSAL_CUT' ? '✂️ <b>DÖNÜŞ TEYİDİ — ters gidiyordu, SL beklenmeden kesildi</b>'
     : ev.outcome === 'TRAIL' ? '✅ <b>İZ SÜREN STOP — kilitli kârla kapandı</b>'
     : ev.outcome === 'SL' ? '🛑 <b>STOP OLDU</b>'
     : '⏱️ <b>SÜRE DOLDU (kapandı)</b>';

@@ -34,14 +34,16 @@ const baseDir = process.env.FOREX_OPEN_FILE
   : path.join(__dirname, '..', '..', 'data');
 const FILE = process.env.FOREX_LEARNING_FILE || path.join(baseDir, 'forex-learning.json');
 
-let saveTimer = null;
-function persistRemote(state) {
-  if (!(supaEnabled && supaEnabled())) return;
-  if (saveTimer) clearTimeout(saveTimer);
-  saveTimer = setTimeout(async () => {
-    try { await supa.storage.from(BUCKET).upload(SUPA_KEY, Buffer.from(JSON.stringify(state), 'utf8'), { contentType: 'application/json', upsert: true }); } catch (_) {}
-  }, 2500);
-  if (saveTimer.unref) saveTimer.unref();
+function mkPersistRemote(supaKey) {
+  let saveTimer = null;
+  return function persistRemote(state) {
+    if (!(supaEnabled && supaEnabled())) return;
+    if (saveTimer) clearTimeout(saveTimer);
+    saveTimer = setTimeout(async () => {
+      try { await supa.storage.from(BUCKET).upload(supaKey, Buffer.from(JSON.stringify(state), 'utf8'), { contentType: 'application/json', upsert: true }); } catch (_) {}
+    }, 2500);
+    if (saveTimer.unref) saveTimer.unref();
+  };
 }
 
 const core = createLearning({
@@ -54,32 +56,59 @@ const core = createLearning({
     enableMinN: 8, enablePf: 1.05,
     multEnabled: false,
   },
-  persist: persistRemote,
+  persist: mkPersistRemote(SUPA_KEY),
+});
+
+// ── SİSTEM-GENELİ ('__ALL__') devre kesici — AYRI çekirdek, SİSTEM ölçekli kurallar ──
+// 2026-07-06 olayı: 28 kapanışlık zarar gecesinde enstrüman-başına 4-6 kapanış
+// per-enstrüman kesiciyi tetikleyemedi. Tek '__ALL__' anahtarı per-enstrüman
+// kurallarla (15 pencere/10 minN/-4R) kullanılamaz: ~15 enstrümanlı evrende 15
+// kapanış SAATLER içinde dolar, normal varyans (haber sıçramasında 8×-0.5R) bile
+// tüm sistemi karartırdı (review). Eşikler felaket-serisi ölçeğinde: son 30
+// kapanışta n≥20, toplam ≤ -12R, PF<0.75 → sistem gölgeye; gölgede 10 kapanış
+// +R & PF≥1.05 → geri. Olay gecesi (~28 kapanış, ~-15..20R) tetiklerdi.
+const GLOBAL_FILE = process.env.FOREX_LEARNING_GLOBAL_FILE || path.join(baseDir, 'forex-learning-global.json');
+const SUPA_KEY_GLOBAL = 'forex/learning-global.json';
+const globalCore = createLearning({
+  name: 'forex-global',
+  file: GLOBAL_FILE,
+  disabledEnv: 'FOREX_LEARNING_DISABLED',
+  rules: {
+    roll: 60,
+    disableWindow: 30, disableMinN: 20, disableSumR: -12, disablePf: 0.75,
+    enableMinN: 10, enablePf: 1.05,
+    multEnabled: false,
+  },
+  persist: mkPersistRemote(SUPA_KEY_GLOBAL),
 });
 
 // Boot restore (forexSignalTracker.load() çağırır, best-effort): Supabase'ten
 // indir → diske yaz → çekirdeği diskten yeniden yükle. İndirme başarısızsa
 // mevcut disk hali kullanılır (fail-safe).
 let restored = false;
-async function restore() {
-  if (restored) return;
-  restored = true;
-  if (!(supaEnabled && supaEnabled())) return;
+async function restoreOne(supaKey, file, target) {
   try {
     const { data } = await Promise.race([
-      supa.storage.from(BUCKET).download(SUPA_KEY),
+      supa.storage.from(BUCKET).download(supaKey),
       new Promise((_, rej) => setTimeout(() => rej(new Error('supa-timeout')), 8000)),
     ]);
     if (!data) return;
     const text = typeof data.text === 'function' ? await data.text() : Buffer.from(await data.arrayBuffer()).toString('utf8');
     const p = JSON.parse(text);
     if (p && p.combos) {
-      const dir = path.dirname(FILE);
+      const dir = path.dirname(file);
       if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-      fs.writeFileSync(FILE, JSON.stringify(p, null, 2), 'utf8');
-      core.reloadFromDisk();
+      fs.writeFileSync(file, JSON.stringify(p, null, 2), 'utf8');
+      target.reloadFromDisk();
     }
   } catch (_) {}
 }
+async function restore() {
+  if (restored) return;
+  restored = true;
+  if (!(supaEnabled && supaEnabled())) return;
+  await restoreOne(SUPA_KEY, FILE, core);
+  await restoreOne(SUPA_KEY_GLOBAL, GLOBAL_FILE, globalCore);
+}
 
-module.exports = { ...core, restore };
+module.exports = { ...core, restore, global: globalCore };

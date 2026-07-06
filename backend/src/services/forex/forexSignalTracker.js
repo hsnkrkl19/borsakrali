@@ -15,6 +15,8 @@ const path = require('path');
 const forexKlines = require('./forexKlines');
 const { getInstrument } = require('./forexInstruments');
 const learning = require('./forexLearning');
+const dailyGuard = require('./forexDailyGuard');
+const brokerPrices = require('./brokerPrices');
 const logger = require('../../utils/logger');
 const beast = require('../beast/beastIndicators'); // seri-dönen, ileri-bakışsız göstergeler (reversal + trailing)
 
@@ -62,6 +64,11 @@ function extMaxFor(cls) {
   return envNum('FOREX_ANTIFOMO_EXT_FX', 1.2);  // fx (major pariteler)
 }
 // Engellenirse { reason } döner (loglanır); değilse null.
+// ⚠️ TREND İSTİSNASI (2026-07-06): RSI-aşırı vetosu düşen piyasada TEK YÖNLÜ vana
+// oluyordu — RSI saatlerce ≤25 kaldığından TÜM trend-yönlü SHORT'lar veto edilirken
+// ters-yön dip-alım LONG'ları hiçbir eşiğe takılmıyordu (gece boyu yalnız-long,
+// tamamı zarar). Trend yönle UYUMLU ve güçlüyse (ADX + DI) RSI-aşırı bölge kovalama
+// değil TREND DEVAMIdır → RSI vetosu atlanır; EMA20 uzama vetosu HER DURUMDA sürer.
 function antiFomoBlock(s) {
   if (antiFomoOff()) return null;
   const ind = s.indicators;
@@ -70,11 +77,16 @@ function antiFomoBlock(s) {
   const cold = envNum('FOREX_ANTIFOMO_RSI_COLD', 25);
   const extMax = extMaxFor(s.class);
   const extPct = (ind.ema20 && s.entry) ? ((s.entry - ind.ema20) / ind.ema20) * 100 : null;
+  // Rejim = motorun 4h+1d mutabakatı (s.regime, forexEngineMTF ekler). Giriş-TF'inin
+  // kendi ADX/DI'sı KULLANILMAZ: RSI-aşırısı zaten aynı fiyat itişinin ürünü olduğundan
+  // kendi kendini onaylıyordu (review) — 15m sıçraması kendini "trend" sanıp vetoyu deler,
+  // olayın FOMO girişi geri gelirdi. Rejim yok/ters → veto aynen uygulanır.
+  const withTrend = s.regime != null && s.regime === s.direction;
   if (s.direction === 'long') {
-    if (ind.rsi >= hot) return { reason: `RSI ${ind.rsi}≥${hot} (aşırı alım)` };
+    if (ind.rsi >= hot && !withTrend) return { reason: `RSI ${ind.rsi}≥${hot} (aşırı alım)` };
     if (extPct != null && extPct >= extMax) return { reason: `fiyat EMA20'nin +%${extPct.toFixed(1)} üstünde (≥${extMax})` };
   } else if (s.direction === 'short') {
-    if (ind.rsi <= cold) return { reason: `RSI ${ind.rsi}≤${cold} (aşırı satım)` };
+    if (ind.rsi <= cold && !withTrend) return { reason: `RSI ${ind.rsi}≤${cold} (aşırı satım)` };
     if (extPct != null && extPct <= -extMax) return { reason: `fiyat EMA20'nin -%${(-extPct).toFixed(1)} altında (≥${extMax})` };
   }
   return null;
@@ -130,8 +142,48 @@ const REV = {
 // Reversal ile kapanan pozisyon KISA cooldown'a girer (trende geri katılabilmek —
 // review: uzun cooldown+anti-FOMO trendin kalanını kaçırtır).
 const reversalReopenCooldownSec = () => Math.max(0, envNum('FOREX_REVERSAL_REOPEN_COOLDOWN_MIN', 8)) * 60;
+// Carry modda pozisyon dönüş sinyali verip ZARARDAYSA tam SL beklemeden kes
+// (2026-07-06: reversal-exit +0.5R kâr şartıyla kaybedeni ASLA kesemiyordu →
+// her ters-yön pozisyon tam SL'e kadar taşındı). 0/negatif = kapalı.
+REV.cutLossR = () => envNum('FOREX_REVERSAL_CUTLOSS_R', 0.3);
 
-let state = { counter: 0, open: {}, cooldownUntil: {}, version: 2 };
+// ── KADEMELİ ZARAR-COOLDOWN'U (2026-07-06): düz 30dk cooldown gece boyu
+// 30-60dk'da bir aynı yöne yeniden girip zarar döngüsü yarattı (ETH/XAU/XAG 6'şar
+// kez). Üst üste zarar eden (enstrüman:yön) artan süreyle kilitlenir:
+// 1. zarar → 30dk · 2. → 2 saat · 3.+ → TR-günü sonuna kadar. YALNIZ KAZANÇ sıfırlar;
+// haber/hafta-sonu zorunlu kapanışı (nötr) seriye DOKUNMAZ (review: nötr kapanış
+// sıfırlasaydı kademeli fren tam haber pencerelerinde delinirdi).
+function nextTrMidnightSec(now = nowSec()) {
+  const tr = new Date(now * 1000 + TR_OFFSET_MS);
+  tr.setUTCHours(24, 0, 0, 0);
+  return Math.floor((tr.getTime() - TR_OFFSET_MS) / 1000);
+}
+function lossCooldownSec(streak) {
+  if (streak <= 1) return REOPEN_COOLDOWN_SEC;
+  if (streak === 2) return 2 * 3600;
+  return Math.max(REOPEN_COOLDOWN_SEC, nextTrMidnightSec() - nowSec()); // 3.+ → gün sonu
+}
+// Kapanışı sınıflandır + cooldown süresi seç + streak güncelle (state.lossStreak).
+// kind: 'loss' (seriyi artır+kilitle) | 'win' (seriyi sıfırla) | 'neutral' (seriye dokunma).
+function applyCloseCooldown(key, { kind, outcome }) {
+  if (!state.lossStreak) state.lossStreak = {};
+  const today = dailyGuard.trDay();
+  if (kind === 'loss') {
+    const cur = state.lossStreak[key];
+    const n = (cur && cur.day === today ? cur.n : 0) + 1; // yeni gün → seri baştan
+    state.lossStreak[key] = { n, day: today };
+    const cd = lossCooldownSec(n);
+    state.cooldownUntil[key] = nowSec() + cd;
+    if (n >= 2) logger.warn(`[Forex] kademeli fren: ${key} ${n}. üst üste zarar — ${Math.round(cd / 60)}dk kilit.`);
+    return cd;
+  }
+  if (kind === 'win') delete state.lossStreak[key];
+  const cd = outcome === 'REVERSAL' ? reversalReopenCooldownSec() : REOPEN_COOLDOWN_SEC;
+  state.cooldownUntil[key] = nowSec() + cd;
+  return cd;
+}
+
+let state = { counter: 0, open: {}, cooldownUntil: {}, lossStreak: {}, version: 2 };
 let loaded = false;
 let saveTimer = null;
 
@@ -172,20 +224,21 @@ async function load() {
       if (data) {
         const text = typeof data.text === 'function' ? await data.text() : Buffer.from(await data.arrayBuffer()).toString('utf8');
         const p = JSON.parse(text);
-        if (p && p.open) { state = { counter: p.counter || 0, open: p.open || {}, cooldownUntil: p.cooldownUntil || {}, version: 2, resetTag: p.resetTag || null }; got = true; }
+        if (p && p.open) { state = { counter: p.counter || 0, open: p.open || {}, cooldownUntil: p.cooldownUntil || {}, lossStreak: p.lossStreak || {}, version: 2, resetTag: p.resetTag || null }; got = true; }
       }
     } catch (_) {}
   }
   if (!got) {
-    try { if (fs.existsSync(DISK_FILE)) { const p = JSON.parse(fs.readFileSync(DISK_FILE, 'utf8')); if (p && p.open) state = { counter: p.counter || 0, open: p.open || {}, cooldownUntil: p.cooldownUntil || {}, version: 2, resetTag: p.resetTag || null }; } } catch (_) {}
+    try { if (fs.existsSync(DISK_FILE)) { const p = JSON.parse(fs.readFileSync(DISK_FILE, 'utf8')); if (p && p.open) state = { counter: p.counter || 0, open: p.open || {}, cooldownUntil: p.cooldownUntil || {}, lossStreak: p.lossStreak || {}, version: 2, resetTag: p.resetTag || null }; } } catch (_) {}
   }
   sanitizeOpen();
-  // Öğrenme durumunu da restore et (devre-kesiciler deploy'u atlatır)
+  // Öğrenme + günlük-zarar freni durumunu da restore et (devre-kesiciler deploy'u atlatır)
   try { await learning.restore(); } catch (_) {}
+  try { await dailyGuard.restore(); } catch (_) {}
   // Tek-seferlik SIFIRLAMA: FOREX_RESET etiketi değişince TÜM açık sinyaller + sayaç
   // sıfırlanır (kullanıcı "önceki sinyalleri sil, sıfırdan başla"). NO #001'den başlar.
   const tag = process.env.FOREX_RESET;
-  if (tag && state.resetTag !== tag) { state = { counter: 0, open: {}, cooldownUntil: {}, version: 2, resetTag: tag }; persist(); }
+  if (tag && state.resetTag !== tag) { state = { counter: 0, open: {}, cooldownUntil: {}, lossStreak: {}, version: 2, resetTag: tag }; persist(); }
 }
 
 function persist() {
@@ -236,14 +289,19 @@ async function syncPositions(eligible) {
     groups.get(k).push(s);
   }
   const events = [];
+  const dayBlocked = dailyGuard.blockedWithLog(); // günde bir loglar; tur başına tek kontrol
   for (const sigs of groups.values()) {
     sigs.sort((a, b) => b.confidence - a.confidence);
     const basis = sigs[0];
     const id = basis.id, dir = basis.direction, p = basis.precision ?? 4;
     const tfs = sortTfs(sigs.map(s => s.tf));
     const opp = dir === 'long' ? 'short' : 'long';
-    // Öğrenme: devre-kesilmiş enstrümanın YENİ pozisyonu gölge (sanal izleme)
-    const shadow = learning.modeFor(id) === 'shadow';
+    // Öğrenme: devre-kesilmiş enstrümanın YENİ pozisyonu gölge (sanal izleme).
+    // '__ALL__' = SİSTEM-GENELİ devre kesici (2026-07-06: 28 kapanışlık zarar
+    // gecesinde enstrüman-başına 4-6 kapanış hiçbir kesiciyi tetikleyemedi).
+    // AYRI çekirdek + SİSTEM-ölçekli eşikler (review: enstrüman kuralları evren
+    // genelinde normal varyansla saatler içinde yanlış tetiklenirdi).
+    const shadow = learning.modeFor(id) === 'shadow' || learning.global.modeFor('__ALL__') === 'shadow';
     // Ters bayrağı KENDİ evreninde (gölge, gerçek ters-kilidini tetiklemesin)
     const reverseOf = openList().filter(x => x.instrumentId === id && x.direction === opp && !!x.shadow === shadow).map(x => x.code);
     let existing = findPosition(id, dir);
@@ -258,6 +316,9 @@ async function syncPositions(eligible) {
 
     if (!existing) {
       // ── Flip-flop frenleri (yalnız YENİ pozisyon; mevcutların izi sürer) ──
+      // 0) GÜNLÜK ZARAR FRENİ: bugünkü gerçekleşen zarar eşiği aştıysa GERÇEK yeni
+      //    pozisyon yok (gölge muaf — öğrenme sürsün; mevcutlar yönetilmeye devam).
+      if (!shadow && dayBlocked) continue;
       // 1) Kapanış-sonrası cooldown: aynı enstrüman+yön hemen yeniden açılamaz
       //    (anahtar evrene ayrık: gölge kapanış gerçeği kilitlemez)
       if (!cooldownOff() && (state.cooldownUntil[`${shadow ? 'shadow:' : ''}${id}:${dir}`] || 0) > nowSec()) continue;
@@ -407,6 +468,10 @@ async function evalOne(p) {
   const isLong = p.direction === 'long';
   // YALNIZ KAPANMIŞ mumlar: son mum hâlâ oluşuyor → geçici fitil hayalet TP/SL tetiklemesin.
   const closed = (candles && candles.length) ? candles.slice(0, -1) : [];
+  // ARMED kararı ÖNCEKİ turun kanıtına bakar: aynı geçişte hwm güncellenip aynı barın
+  // spike'ı hem pozisyonu "arm" edip hem TP1'i kaldırmasın (review kritik bulgusu —
+  // aksi halde TP1'e değen tek volatil bar kârı bankalamak yerine carry'ye geçirirdi).
+  const hwmPrev = p.hwm;
   // (1) Akıllı trailing — kapanış taramasından ÖNCE (yeni stop taramada kullanılsın)
   const trailed = advanceSmartTrail(p, closed);
   // (2) Carry/reversal hazırlığı: carry AÇIK ise TP1 KAPATMAZ (target2 hard-cap) +
@@ -422,8 +487,16 @@ async function evalOne(p) {
       carrySafe = reversal != null && reversal.stale === false; // bayat 1m → klasik TP1'e düş
     }
   }
-  const tpLevel = carrySafe ? (p.target2 || p.target1) : p.target1; // target2 null ise TP1'e düş (korumasız kalma)
-  const tpOutcome = carrySafe ? 'TP2' : 'TP1';
+  // ARMED KAPISI (2026-07-06): carry TP1'i pozisyon KENDİNİ KANITLAYANA kadar
+  // kaldırmasın — hiç lehe gitmemiş pozisyon (hwm ilerlememiş) klasik TP1 ile
+  // yönetilir; +minProfitR görmüş pozisyon "dönüşe kadar tut"a geçer. Böylece
+  // ters açılan işlemler tam-SL'e mahkûm olmaz. Kapatma: FOREX_CARRY_ARM_DISABLED=1.
+  const armOff = process.env.FOREX_CARRY_ARM_DISABLED === '1';
+  const armed = armOff || (p.origStopDist > 0 && hwmPrev != null
+    && ((isLong ? hwmPrev - p.entry : p.entry - hwmPrev) / p.origStopDist) >= REV.minProfitR());
+  const carryArmed = carrySafe && armed;
+  const tpLevel = carryArmed ? (p.target2 || p.target1) : p.target1; // target2 null ise TP1'e düş (korumasız kalma)
+  const tpOutcome = carryArmed ? 'TP2' : 'TP1';
   // (3) Kapanış taraması: iz-süren stop (koruma) + tpLevel
   const stopSince = p.stopSetSec || p.issueTimeSec;
   let outcome = null, exit = null, exitTimeSec = null;
@@ -448,12 +521,19 @@ async function evalOne(p) {
   }
   // (4) REVERSAL çıkışı — yalnız SL/TP değmediyse + carry-safe + min-tutuş + min-kâr(+0.5R).
   //     Min-kâr şartı: giriş sonrası ilk gürültü erken çıkış yaratmasın (kullanıcının ASIL derdi).
+  //     ZARAR TARAFI (REVERSAL_CUT, 2026-07-06): dönüş pozisyonun ALEYHİNE teyit olduysa
+  //     ve pozisyon ≥cutLossR zarardaysa tam SL'i bekleme, kes — eski kod kaybedeni
+  //     hiçbir koşulda kesemiyordu, her ters işlem tam stop'a taşınıyordu.
   if (!outcome && carrySafe && reversal && reversal.hit) {
     const heldMin = (nowSec() - p.issueTimeSec) / 60;
     const price = closed.length ? closed[closed.length - 1].close : p.entry;
     const rNow = p.origStopDist > 0 ? ((price - p.entry) * (isLong ? 1 : -1)) / p.origStopDist : 0;
-    if (heldMin >= REV.minHoldMin() && rNow >= REV.minProfitR()) {
-      outcome = 'REVERSAL'; exit = reversal.exitPrice; exitTimeSec = nowSec();
+    if (heldMin >= REV.minHoldMin()) {
+      if (rNow >= REV.minProfitR()) {
+        outcome = 'REVERSAL'; exit = reversal.exitPrice; exitTimeSec = nowSec();
+      } else if (REV.cutLossR() > 0 && rNow <= -REV.cutLossR()) {
+        outcome = 'REVERSAL_CUT'; exit = reversal.exitPrice; exitTimeSec = nowSec();
+      }
     }
   }
   // ⚠️ "SÜRE DOLDU" (EXPIRE) kapanışı YOK; çok eskiyenler checkClosures'da SESSİZCE temizlenir.
@@ -498,12 +578,15 @@ async function checkClosures() {
       const { ev, trailed } = await evalOne(p);
       if (ev) {
         delete state.open[p.code];
-        // Flip-flop freni: kapanan enstrüman+yön cooldown'a girer (evrene ayrık).
-        // REVERSAL çıkışı KISA cooldown alır → doğrulanmış trende geri katılabilmek için.
-        const cd = ev.outcome === 'REVERSAL' ? reversalReopenCooldownSec() : REOPEN_COOLDOWN_SEC;
-        state.cooldownUntil[`${p.shadow ? 'shadow:' : ''}${p.instrumentId}:${p.direction}`] = nowSec() + cd;
+        // Kademeli flip-flop freni: zarar serisi artan kilit, kazanç sıfırlar
+        // (REVERSAL kazançlı çıkışı KISA cooldown alır — trende geri katılabilmek için).
+        const losing = ev.outcome === 'SL' || ev.outcome === 'REVERSAL_CUT' || (ev.pnlUsd != null && ev.pnlUsd < 0);
+        applyCloseCooldown(`${p.shadow ? 'shadow:' : ''}${p.instrumentId}:${p.direction}`, { kind: losing ? 'loss' : 'win', outcome: ev.outcome });
         appendClosed(ev);
-        try { learning.recordClose(ev.instrumentId, { r: ev.rMultiple, usd: ev.pnlUsd, outcome: ev.outcome, t: ev.exitTimeSec, shadow: ev.shadow }); } catch (_) {}
+        const rec = { r: ev.rMultiple, usd: ev.pnlUsd, outcome: ev.outcome, t: ev.exitTimeSec, shadow: ev.shadow };
+        try { learning.recordClose(ev.instrumentId, rec); } catch (_) {}
+        try { learning.global.recordClose('__ALL__', rec); } catch (_) {}  // sistem-geneli devre kesici (kendi ölçekli kuralları)
+        if (!ev.shadow) { try { dailyGuard.recordBackendClose(ev.pnlUsd); } catch (_) {} }
         // GÖLGE kapanışlar Telegram'a/istatistiğe GİTMEZ — yalnız öğrenmeye aktı
         if (!ev.shadow) events.push(ev);
         changed = true;
@@ -521,16 +604,55 @@ async function checkClosures() {
 
 // Köprü kapatma-teyit geri-kanalı: MT5-tarafı kapanışları (haber/hafta-sonu/stop-out/
 // TP2 broker'da dolunca) backend'e senkronlar → backend "hâlâ açık" sanıp aynı kodu
-// TERS fiyattan yeniden AÇMAZ (review: bot=telefon desync kritik bulgu). Fiili para
-// P/L'i köprü zaten /account-report ile ayrı raporluyor → burada SESSİZ düşür + cooldown.
-async function dropClosed(code, reason = 'bridge') {
+// TERS fiyattan yeniden AÇMAZ (review: bot=telefon desync kritik bulgu).
+// ⚠️ ÖĞRENME BESLEMESİ (2026-07-06): broker SL dolumları eskiden buradan SESSİZCE
+// düşüyordu → devre kesici tam da onu tetiklemesi gereken zararları HİÇ görmüyordu
+// (köprü 60s'de kapanışı backend'den önce yakalar). Artık köprünün yolladığı
+// profit/price ile (yoksa broker-fiyat ↔ stop karşılaştırmasıyla) sınıflandırılır
+// ve öğrenmeye + kademeli frene akar. Fiili para P/L'i /account-report'ta ayrıca raporlanır.
+async function dropClosed(code, reason = 'bridge', extra = {}) {
   await load();
   const p = state.open[code];
   if (!p) return { dropped: false };
   delete state.open[code];
-  state.cooldownUntil[`${p.shadow ? 'shadow:' : ''}${p.instrumentId}:${p.direction}`] = nowSec() + REOPEN_COOLDOWN_SEC;
+  const dirMul = p.direction === 'long' ? 1 : -1;
+  const pnlUsd = Number.isFinite(Number(extra.profit)) ? Number(extra.profit) : null;
+  const px = Number.isFinite(Number(extra.price)) ? Number(extra.price) : null;
+  let r = null;
+  if (px != null && p.origStopDist > 0 && p.entry != null) {
+    r = +(((px - p.entry) * dirMul) / p.origStopDist).toFixed(2);
+  }
+  if (r == null && pnlUsd == null && reason === 'bridge_vanished') {
+    // Köprü veri yollamadıysa: taze broker fiyatı stop'un ötesindeyse SL varsay (r=-1).
+    try {
+      const bp = brokerPrices.get(p.instrumentId);
+      const mid = bp && bp.mid > 0 ? bp.mid : null;
+      if (mid != null && p.stop != null && (p.direction === 'long' ? mid <= p.stop : mid >= p.stop)) r = -1;
+    } catch (_) {}
+  }
+  // Fiyat yok ama P/L var → kaba kazan/kaybet sinyali (öğrenme penceresi kör kalmasın;
+  // yeni köprü fiyatı da yollar, bu yol eski köprü uyumluluğu).
+  if (r == null && pnlUsd != null) r = pnlUsd < 0 ? -1 : 1;
+  // Sınıflandırma: bilinen zarar → zarar; hiçbir veri yoksa 'bridge_vanished' İHTİYATLA
+  // zarar sayılır (vanish tipik olarak broker stop-out'udur; yanlışta fren fazla, az değil).
+  // Haber/hafta-sonu/boot zorunlu kapanışı NÖTR: zarar serisini NE artırır NE sıfırlar
+  // (review: sıfırlasaydı kademeli fren tam haber pencerelerinde delinirdi).
+  const neutralReason = reason === 'news' || reason === 'weekend' || reason === 'boot_reconcile';
+  const losing = !neutralReason && ((pnlUsd != null && pnlUsd < 0) || (r != null && r < 0)
+    || (pnlUsd == null && r == null && reason === 'bridge_vanished'));
+  const kind = neutralReason ? 'neutral' : (losing ? 'loss' : 'win');
+  applyCloseCooldown(`${p.shadow ? 'shadow:' : ''}${p.instrumentId}:${p.direction}`, { kind, outcome: losing ? 'SL' : 'TP2' });
+  if (!neutralReason && (r != null || pnlUsd != null)) {
+    const rec = { r, usd: pnlUsd, outcome: losing ? 'SL' : 'TP2', t: nowSec(), shadow: !!p.shadow };
+    try { learning.recordClose(p.instrumentId, rec); } catch (_) {}
+    try { learning.global.recordClose('__ALL__', rec); } catch (_) {}
+    // Köprünün bildirdiği GERÇEK USD P/L günlük frene de akar (rapor sidecar'ı ölse
+    // bile fren kör kalmasın — review kritik bulgusu). Nötr kapanışlar da paradır ama
+    // yukarıda elendi; onları /account-report kanalı zaten sayar.
+    if (!p.shadow && pnlUsd != null) { try { dailyGuard.recordBridgeClose(pnlUsd); } catch (_) {} }
+  }
   persist();
-  logger.info(`[Forex] köprü kapatma teyidi #${code} (${reason}) — düşürüldü + cooldown`);
+  logger.info(`[Forex] köprü kapatma teyidi #${code} (${reason}${pnlUsd != null ? ` P/L ${pnlUsd}$` : ''}${r != null ? ` r=${r}` : ''}) — düşürüldü + ${losing ? 'kademeli zarar-freni' : 'cooldown'}`);
   return { dropped: true, instrumentId: p.instrumentId, direction: p.direction };
 }
 
@@ -549,4 +671,7 @@ function getRecentClosed(limit = 50) {
   return [];
 }
 
-module.exports = { load, syncPositions, checkClosures, getOpen, getOpenShadow, getRecentClosed, dropClosed };
+// _lossStreakFor: test görünürlüğü (kademeli fren serisi dışarıdan gözlemlenebilir olsun)
+function _lossStreakFor(key) { return (state.lossStreak && state.lossStreak[key] && state.lossStreak[key].n) || 0; }
+
+module.exports = { load, syncPositions, checkClosures, getOpen, getOpenShadow, getRecentClosed, dropClosed, _lossStreakFor };

@@ -28,7 +28,7 @@ function longSig(over = {}) {
     entry: 100, stop: 98, target1: 104, target2: 108, ...over };
 }
 
-const CARRY_ENVS = ['FOREX_CARRY_TO_REVERSAL', 'FOREX_REVERSAL_DISABLED', 'FOREX_SMART_TRAIL', 'FOREX_REVERSAL_TF5M_GUARD'];
+const CARRY_ENVS = ['FOREX_CARRY_TO_REVERSAL', 'FOREX_REVERSAL_DISABLED', 'FOREX_SMART_TRAIL', 'FOREX_REVERSAL_TF5M_GUARD', 'FOREX_COOLDOWN_DISABLED', 'FOREX_CARRY_ARM_DISABLED'];
 
 describe('forexSignalTracker — carry/reversal-exit (FAZ 1+2)', () => {
   let tracker, fileN = 0;
@@ -43,12 +43,25 @@ describe('forexSignalTracker — carry/reversal-exit (FAZ 1+2)', () => {
 
   const openPos = (sig) => tracker.syncPositions([sig]);
 
-  test('carry AÇIK + reversal kapalı: TP1 (104) KAPATMAZ, sadece TP2 (108) kapatır', async () => {
+  test('carry AÇIK + reversal kapalı: ARMED kapısı — kanıtsız pozisyon TP1 ile kapanır, kanıtlı (hwm ≥ +0.5R) TP2 taşır', async () => {
     process.env.FOREX_CARRY_TO_REVERSAL = '1';
     process.env.FOREX_REVERSAL_DISABLED = '1'; // reversal exit'i kapat → saf TP-seviye testi
+    process.env.FOREX_COOLDOWN_DISABLED = '1'; // testte hemen yeniden açabilmek için
     await openPos(longSig());
     const now = Math.floor(Date.now() / 1000);
-    // target1'i (104) aşan ama target2'yi (108) aşmayan mum → carry: KAPANMAZ
+    // ARMED DEĞİL (hwm=entry, 2026-07-06 düzeltmesi): kendini kanıtlamamış pozisyonda
+    // carry TP1'i KALDIRMAZ — ters açılan işlem tam-SL'e mahkûm olmasın.
+    mock5m = [
+      { time: now + 300, open: 100, high: 104.5, low: 99, close: 104 },
+      { time: now + 600, open: 104, high: 104, low: 104, close: 104 }, // forming
+    ];
+    let cl = await tracker.checkClosures();
+    expect(cl).toHaveLength(1);
+    expect(cl[0].outcome).toBe('TP1');
+    expect(cl[0].pnlPct).toBeCloseTo(4.0, 3);
+    // ARMED (+0.5R kanıt görmüş): TP1 (104) KAPATMAZ, sadece TP2 (108) kapatır
+    await openPos(longSig());
+    tracker.getOpen()[0].hwm = 102; // +1R görmüş → armed (origStopDist=2, minProfitR=0.5)
     mock5m = [
       { time: now + 300, open: 100, high: 104.5, low: 99, close: 104 },
       { time: now + 600, open: 104, high: 104, low: 104, close: 104 }, // forming
@@ -60,7 +73,7 @@ describe('forexSignalTracker — carry/reversal-exit (FAZ 1+2)', () => {
       { time: now + 600, open: 104, high: 108.5, low: 104, close: 108 },
       { time: now + 900, open: 108, high: 108, low: 108, close: 108 }, // forming
     ];
-    const cl = await tracker.checkClosures();
+    cl = await tracker.checkClosures();
     expect(cl).toHaveLength(1);
     expect(cl[0].outcome).toBe('TP2');
     expect(cl[0].pnlPct).toBeCloseTo(8.0, 3);
@@ -69,6 +82,9 @@ describe('forexSignalTracker — carry/reversal-exit (FAZ 1+2)', () => {
   test('carry AÇIK + reversal açık + 1m veri BAYAT (yetersiz mum) → FAIL-SAFE klasik TP1', async () => {
     process.env.FOREX_CARRY_TO_REVERSAL = '1'; // reversal açık (DISABLED yok)
     await openPos(longSig());
+    // Pozisyonu ARM et: TP1 sonucu armed-kapısından DEĞİL, bayat-1m fail-safe'inden
+    // gelmeli (review: armed kapısı bu testin eski invariantını maskeliyordu).
+    tracker.getOpen()[0].hwm = 102;
     const now = Math.floor(Date.now() / 1000);
     mock5m = [
       { time: now + 300, open: 100, high: 104.5, low: 99, close: 104 }, // target1'i aşar

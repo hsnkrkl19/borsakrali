@@ -16,6 +16,7 @@ const forexEngine = require('../services/forex/forexEngineMTF');
 const forexTracker = require('../services/forex/forexSignalTracker');
 const brokerPrices = require('../services/forex/brokerPrices');
 const accountReport = require('../services/forex/accountReport');
+const dailyGuard = require('../services/forex/forexDailyGuard');
 const { listInstruments } = require('../services/forex/forexInstruments');
 
 function checkExecToken(req) {
@@ -88,7 +89,12 @@ router.post('/closed', async (req, res) => {
   const code = req.body && req.body.code;
   if (!code) return res.status(400).json({ success: false, error: 'code-required' });
   try {
-    const r = await forexTracker.dropClosed(String(code), (req.body && req.body.reason) || 'bridge');
+    // profit (gerçek USD) + price (kapanış fiyatı) opsiyonel: öğrenme/fren sınıflandırması
+    // için (eski köprü göndermez — dropClosed onsuz da ihtiyatlı sınıflandırır).
+    const r = await forexTracker.dropClosed(String(code), (req.body && req.body.reason) || 'bridge', {
+      profit: req.body && req.body.profit,
+      price: req.body && req.body.price,
+    });
     res.json({ success: true, ...r });
   } catch (e) {
     res.status(500).json({ success: false, error: e.message });
@@ -115,6 +121,9 @@ router.post('/account-report', async (req, res) => {
   const auth = checkExecToken(req);
   if (!auth.ok) return res.status(auth.code).json({ success: false, error: auth.error });
   try {
+    // Gerçek broker günlük P/L'i GÜNLÜK ZARAR FRENİNE besle (2026-07-06 olayı):
+    // realizedToday eşiği aşarsa backend o gün yeni pozisyon üretmez.
+    try { dailyGuard.noteBroker(req.body || {}); } catch (_) {}
     const r = await accountReport.push(req.body || {});
     res.json({ success: true, ...r });
   } catch (e) {

@@ -71,12 +71,12 @@ async function recordOpen() {
   persist();
 }
 
-// ev.outcome: 'TP1' | 'TP2' | 'SL' | 'TRAIL' | 'REVERSAL'
+// ev.outcome: 'TP1' | 'TP2' | 'SL' | 'REVERSAL_CUT' | 'TRAIL' | 'REVERSAL'
 async function recordClosure(ev) {
   await load();
-  // TP1/TP2 = kazanç (tp); SL = zarar; TRAIL/REVERSAL = kilitli-kârla çıkış (trail sayacı).
+  // TP1/TP2 = kazanç (tp); SL/REVERSAL_CUT = zarar; TRAIL/REVERSAL = kilitli-kârla çıkış.
   const key = (ev.outcome === 'TP1' || ev.outcome === 'TP2') ? 'tp'
-    : ev.outcome === 'SL' ? 'sl'
+    : (ev.outcome === 'SL' || ev.outcome === 'REVERSAL_CUT') ? 'sl'
     : (ev.outcome === 'TRAIL' || ev.outcome === 'REVERSAL') ? 'trail' : null;
   if (!key) return;
   state[key]++; ensureDay(dayKey())[key]++;
