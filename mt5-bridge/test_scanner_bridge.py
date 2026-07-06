@@ -170,13 +170,28 @@ def t_reconcile_done():
     use_temp_state()
     state = {"tickets": {"10": {"code": "GBT01", "eod": None}, "11": {"code": "GET01", "eod": None}}, "done": {}}
     # ticket 10 MT5'te KAPANDI (broker SL) ama GBT01 hâlâ feed'de → done
-    # ticket 11 hâlâ açık. Feed'de olmayan eski done kaydı temizlenir.
+    # ticket 11 hâlâ açık. Feed'den düşen done kaydı 3 ARDIŞIK dolu-feed'de
+    # görünmeyince temizlenir (2026-07-06: tek geçici/eksik feed done'u silip
+    # broker-kapalı kodun yeniden açılmasına izin veriyordu).
     state["done"]["GXX99"] = 123.0
     bk.reconcile_closures(state, open_tickets={"11"}, feed_codes={"GBT01", "GET01"})
     assert "GBT01" in state["done"], "broker-kapanış → done (yeniden açılmaz — zincirleme stop koruması)"
     assert "10" not in state["tickets"] and "11" in state["tickets"]
-    assert "GXX99" not in state["done"], "feed'den düşen done kaydı temizlendi"
-    print("OK reconcile_closures (broker SL → done; done temizliği)")
+    assert "GXX99" in state["done"], "1. eksik dolu-feed done'u HENÜZ silmez (geçici feed koruması)"
+    bk.reconcile_closures(state, open_tickets={"11"}, feed_codes={"GBT01", "GET01"})
+    assert "GXX99" in state["done"], "2. eksik dolu-feed de silmez"
+    # araya kod feed'e GERİ gelirse sayaç sıfırlanır
+    bk.reconcile_closures(state, open_tickets={"11"}, feed_codes={"GBT01", "GET01", "GXX99"})
+    bk.reconcile_closures(state, open_tickets={"11"}, feed_codes={"GBT01", "GET01"})
+    bk.reconcile_closures(state, open_tickets={"11"}, feed_codes={"GBT01", "GET01"})
+    assert "GXX99" in state["done"], "geri gelen kod sayacı sıfırladı — 2 eksik yetmez"
+    bk.reconcile_closures(state, open_tickets={"11"}, feed_codes={"GBT01", "GET01"})
+    assert "GXX99" not in state["done"], "3 ardışık eksik dolu-feed → done temizlendi"
+    # BOŞ feed done'a asla dokunmaz
+    state["done"]["GYY88"] = 456.0
+    bk.reconcile_closures(state, open_tickets={"11"}, feed_codes=set())
+    assert "GYY88" in state["done"], "boş feed done'u SİLMEZ (backend arızası koruması)"
+    print("OK reconcile_closures (broker SL → done; 3-yoklama done temizliği + boş-feed koruması)")
 
 
 # ── saklanan gün-sonu vakti: pencereden/feed'den bağımsız kapanış listesi ────

@@ -64,13 +64,19 @@ except ImportError:
     sys.exit(1)
 
 HERE = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, HERE)               # yerel modüller (trade_guard) için
 CONFIG_PATH = sys.argv[1] if len(sys.argv) > 1 else os.path.join(HERE, "config_scanner.json")
 STOP_FILES = (os.path.join(HERE, "STOP"), os.path.join(HERE, "STOP_SCANNER"))
 STATE_PATH = os.path.join(HERE, "scanner_state.json")
+NEWS_CACHE = os.path.join(HERE, "news_windows_scanner.json")
+
+import trade_guard  # ortak İŞLEM KORUMASI: hafta sonu (kripto-dışı) + ABD haber molası + günlük zarar freni
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s",
                     handlers=[logging.StreamHandler()])
 log = logging.getLogger("bk-mt5-scanner")
+
+BRIDGE_VERSION = "2026-07-06-daily-guard"  # açılış banner'ında loglanır (VPS kod-sürümü teyidi)
 
 COMMENT_PREFIX = "BKG#"
 RETCODE_OK = 10009        # TRADE_RETCODE_DONE
@@ -94,11 +100,23 @@ DEFAULTS = {
     "deviation_points": 30,
     "max_open_positions": 12,
     "max_lot": 10.0,              # emniyet tavanı — feed lotu bunu aşarsa AÇILMAZ (kırpılmaz)
+    # B3: acik pozisyonlarin TOPLAM riski equity'nin bu %'sini asarsa YENI giris yok (0=kapali):
+    "max_portfolio_risk_pct": 8.0,
+    # GUNLUK ZARAR DEVRE-KESICISI (2026-07-06 olayi): bugunku (TR) gerceklesen+acik
+    # P/L esigi asarsa YENI islem yok. bot = yalniz bu magic; account = hesabin TUMU
+    # (forex koprusu + altin botuyla BIRLIKTE FTMO gunluk %5 limitini korur). 0 = kapali.
+    "max_daily_loss_pct": 3.0,
+    "max_daily_loss_pct_account": 4.5,
+    # Az once ZARARLA kapanan sembole bu kadar dakika yeni emir yok (yeniden-giris freni):
+    "loss_reopen_cooldown_min": 45,
     "min_rr": 0.7,
     "close_on_backend_close": True,
     "push_prices": False,
     "no_new_after_tr_min": 23 * 60,        # 23:00 TR sonrası yeni işlem yok
     "eod_close_tr_min": 23 * 60 + 45,      # 23:45 TR süpürmesi (2. katman)
+    # İŞLEM KORUMASI (trade_guard) — ikisi de vars. AÇIK; config'ten kapatılabilir:
+    "weekend_flatten": True,    # Cuma 23:45→Pzt 03:00 TSI: kripto-dışı YENİ işlem yok
+    "news_blackout": True,      # ABD önemli verisi ±30 dk: TÜMÜNÜ kapat + açma
     "symbols": {},
 }
 
@@ -189,6 +207,41 @@ def ensure_symbol(broker_sym):
 def min_stop_dist(info):
     lvl = max(getattr(info, "trade_stops_level", 0) or 0, getattr(info, "trade_freeze_level", 0) or 0)
     return lvl * info.point
+
+
+# --- PORTFOY RISK FRENI (denetim B3 - 2026-07-05) ---
+# Risk matematigi trade_guard'da ORTAK (iki kopru ayni formulu kullansin —
+# 2026-07-06 review: kopyalar ayrisirsa iki bot ayni hesapta farkli $ riski uygular).
+_contract_size = trade_guard.contract_size
+_per_lot_risk_usd = trade_guard.per_lot_risk_usd
+
+
+def _position_open_risk_usd(pos):
+    sl = getattr(pos, "sl", 0) or 0
+    if sl <= 0:
+        return 0.0
+    info = mt5.symbol_info(pos.symbol)
+    if info is None:
+        return 0.0
+    entry = getattr(pos, "price_open", 0) or 0
+    return _per_lot_risk_usd(info, abs(entry - sl)) * (getattr(pos, "volume", 0) or 0)
+
+
+def portfolio_risk_exceeded(cfg, raw_positions):
+    """Bizim magic'li acik pozisyonlarin TOPLAM riski >= equity * max_portfolio_risk_pct mi?
+    equity bilinmiyorsa fren uygulanmaz (fail-open)."""
+    cap_pct = float(cfg.get("max_portfolio_risk_pct", 0) or 0)
+    if cap_pct <= 0:
+        return False
+    ai = mt5.account_info()
+    equity = getattr(ai, "equity", None) if ai else None
+    if not equity or equity <= 0:
+        return False
+    total = 0.0
+    for p in (raw_positions or []):
+        if p.magic == int(cfg["magic"]):
+            total += _position_open_risk_usd(p)
+    return total >= equity * cap_pct / 100.0
 
 
 def send_ok(r):
@@ -401,8 +454,9 @@ def reconcile_closures(state, open_tickets, feed_codes):
     """MT5'te artık AÇIK OLMAYAN ticket kayıtlarını işle:
     • kodu hâlâ feed'de ise → broker tarafında kapanmış (SL/TP/manuel/bizim
       kapanışımız) → done'a yaz: bu kod bir daha AÇILMAZ (zincirleme stop yok).
-    • ticket kaydını sil. Feed'den düşen kodların done kaydını da temizle
-      (yaşam döngüsü bitti; MT5_RESET sonrası kod tekrar kullanımına hazır)."""
+    • ticket kaydını sil. Feed'den düşen kodların done kaydı 3 ARDIŞIK dolu-feed'de
+      görünmeyince temizlenir (denetim 2026-07-06: tek geçici/eksik feed done'u
+      silip broker-kapalı kodun yeniden açılmasına izin veriyordu)."""
     changed = False
     for t in list(state["tickets"].keys()):
         if t in open_tickets:
@@ -413,10 +467,18 @@ def reconcile_closures(state, open_tickets, feed_codes):
         if code and feed_codes is not None and str(code) in feed_codes:
             state["done"][str(code)] = time.time()
             log.info("#%s: MT5 tarafında kapanmış (broker SL/TP/manuel) — done listesine alındı, YENİDEN AÇILMAZ.", code)
-    if feed_codes is not None:
+    if feed_codes:  # BOŞ feed'de done'a DOKUNMA (backend geçici arızası silmesin)
+        state.setdefault("done_missing", {})
         for code in list(state["done"].keys()):
             if code not in feed_codes:
-                del state["done"][code]
+                miss = int(state["done_missing"].get(code, 0)) + 1
+                state["done_missing"][code] = miss
+                if miss >= 3:  # 3 ardışık dolu-feed'de yok → yaşam döngüsü gerçekten bitti
+                    del state["done"][code]
+                    del state["done_missing"][code]
+                changed = True
+            elif code in state["done_missing"]:
+                del state["done_missing"][code]
                 changed = True
     if changed:
         save_state(state)
@@ -530,8 +592,15 @@ def main():
         sys.exit(1)
 
     state = load_state()
-    log.info("⚡ Gün-içi köprü başladı. Yoklama %ss. Semboller: %s",
-             cfg["poll_seconds"], ", ".join(cfg["symbols"].keys()))
+    guard = trade_guard.NewsGuard(cfg["backend_url"], NEWS_CACHE)  # ABD haber penceresi cache'i
+    log.info("⚡ Gün-içi köprü v%s başladı. Yoklama %ss. Koruma: hafta-sonu=%s haber-molası=%s. Semboller: %s",
+             BRIDGE_VERSION, cfg["poll_seconds"], cfg.get("weekend_flatten", True), cfg.get("news_blackout", True),
+             ", ".join(cfg["symbols"].keys()))
+    # ETKİN AYAR BANNER'I: VPS'te hangi kod+ayarın koştuğu logdan kanıtlansın
+    log.info("AYAR: portföy freni %%%s · GÜNLÜK FREN bot %%%s / hesap %%%s · zarar-sonrası sembol freni %sdk · max_poz=%s",
+             cfg.get("max_portfolio_risk_pct"), cfg.get("max_daily_loss_pct"),
+             cfg.get("max_daily_loss_pct_account"), cfg.get("loss_reopen_cooldown_min"),
+             cfg.get("max_open_positions"))
     try:
         while True:
             try:
@@ -575,6 +644,18 @@ def main():
             by_code, unknown = identify_positions(cfg, raw, state)
             open_tickets = {str(p.ticket) for p in raw if p.magic == int(cfg["magic"])}
 
+            # ── HABER MOLASI (TÜM enstrümanlar, kripto DAHİL): ABD önemli verisi
+            #    ±30 dk → EOD süpürmesi gibi tümünü kapat + bu tur yeni açma.
+            news_black, news_ev = (guard.blackout_now() if cfg.get("news_blackout", True) else (False, None))
+            if news_black:
+                remaining = list(by_code.values()) + unknown
+                if remaining:
+                    log.info("📰 HABER MOLASI (%s) — tüm gün-içi pozisyonlar kapatılıyor.",
+                             (news_ev or {}).get("title", "ABD verisi"))
+                    for p in remaining:
+                        close_position(cfg, p, "haber molası")
+                time.sleep(int(cfg["poll_seconds"])); continue
+
             # ── failsafe 1. katman: saklanan gün-sonu vakti geçen pozisyonu HER
             #    TURDA kapat (pencere kaçsa / feed boş olsa / gece yarısı geçse bile)
             for p in past_deadline_positions(state, by_code):
@@ -604,8 +685,15 @@ def main():
 
             stop_kill = any(os.path.exists(f) for f in STOP_FILES)
             no_new_window = tr_min >= int(cfg["no_new_after_tr_min"])
+            weekend_closed = (trade_guard.in_weekend_closed() if cfg.get("weekend_flatten", True) else False)
             now_epoch = time.time()
             blocked_syms = {p.symbol for p in unknown}  # kimliksiz pozisyonlu sembole yeni açılış yok
+            # ── GÜNLÜK ZARAR DEVRE-KESİCİSİ + sembol freni + portföy freni (tur başına 1 kez;
+            # deal listesi TEK çekim — review: eski hali tur başına 3 history taramasıydı) ──
+            turn_deals = trade_guard.fetch_recent_deals(mt5, cfg.get("loss_reopen_cooldown_min", 45))
+            daily_blocked, _ = trade_guard.daily_loss_blocked(mt5, cfg, log, deals=turn_deals, positions=raw)
+            loss_syms = trade_guard.symbols_with_recent_loss(mt5, cfg["magic"], cfg.get("loss_reopen_cooldown_min", 45), deals=turn_deals)
+            portfolio_blocked = portfolio_risk_exceeded(cfg, raw)  # yalnız açılış sonrası yenilenir
 
             for s in feed:
                 try:
@@ -626,6 +714,13 @@ def main():
                         continue  # MT5 tarafında kapanmış kod — ASLA yeniden açma
                     if stop_kill:
                         log.warning("STOP dosyası var — #%s açılmadı.", code); continue
+                    if daily_blocked:
+                        continue  # günlük zarar freni (sebep tur başında loglandı) — yeni işlem yok
+                    if broker_sym in loss_syms:
+                        log.info("#%s %s: az önce zararla kapandı — yeniden-giriş freni (%sdk).",
+                                 code, broker_sym, cfg.get("loss_reopen_cooldown_min", 45)); continue
+                    if weekend_closed and not trade_guard.is_crypto(inst):
+                        log.info("#%s: hafta sonu penceresi — kripto-dışı yeni işlem yok.", code); continue
                     if no_new_window:
                         log.info("#%s: 23:00 TR sonrası yeni işlem penceresi kapalı — açılmadı.", code); continue
                     ddl = s.get("eodDeadlineSec")
@@ -635,6 +730,11 @@ def main():
                         log.warning("#%s %s: kimliği çözülemeyen mevcut pozisyon var — çift açılış emniyeti, atlandı.", code, broker_sym); continue
                     if len(by_code) + len(unknown) >= int(cfg["max_open_positions"]):
                         log.warning("max_open_positions (%s) doldu — #%s atlandı.", cfg["max_open_positions"], code); continue
+                    # B3: PORTFOY RISK FRENI - acik toplam risk tavani asildiysa yeni giris yok.
+                    # (tur basinda hesaplanir, yalniz acilis sonrasi yenilenir - review IPC bulgusu)
+                    if portfolio_blocked:
+                        log.warning("PORTFOY RISK FRENI: acik toplam risk >= %%%s equity - #%s acilmadi.",
+                                    cfg.get("max_portfolio_risk_pct"), code); continue
                     info = ensure_symbol(broker_sym)
                     if info is None:
                         log.warning("Sembol yok/görünmez: %s (%s) — atlandı.", broker_sym, inst); continue
@@ -643,6 +743,7 @@ def main():
                     if raw2 is not None:
                         by_code, unknown = identify_positions(cfg, raw2, state)
                         blocked_syms = {p.symbol for p in unknown}
+                        portfolio_blocked = portfolio_risk_exceeded(cfg, raw2)  # açık risk değişti → yenile
                 except Exception as e:  # noqa — tek bozuk satır turu düşürmesin
                     log.error("sinyal işlenemedi %s: %s", s.get("code"), e); continue
 

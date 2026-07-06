@@ -10,9 +10,9 @@
   "magic": 550055,
   "deviation_points": 30,
   "max_open_positions": 8,
-  "max_lot": 0.05,
-  "lot_min": 0.01,
-  "lot_max": 0.03,
+  "max_lot": 1.1,
+  "lot_min": 0.1,
+  "lot_max": 1.1,
   "conf_min": 60,
   "conf_max": 100,
   "min_rr": 0.7,
@@ -20,6 +20,8 @@
   "trail_stops": true,
   "push_prices": true,
   "allow_hedge": false,
+  "weekend_flatten": true,
+  "news_blackout": true,
   "symbols": {
     "BTCUSD": "BTCUSD",
     "ETHUSD": "ETHUSD",
@@ -36,5 +38,12 @@
     "USDCAD": "USDCAD",
     "USDCHF": "USDCHF",
     "NZDUSD": "NZDUSD"
-  }
+  },
+  "lot_mode": "risk",
+  "risk_pct_min": 0.5,
+  "risk_pct_max": 1.0,
+  "max_portfolio_risk_pct": 6.0,
+  "max_daily_loss_pct": 3.0,
+  "max_daily_loss_pct_account": 4.5,
+  "loss_reopen_cooldown_min": 45
 }

@@ -16,6 +16,8 @@
   "push_prices": false,
   "no_new_after_tr_min": 1380,
   "eod_close_tr_min": 1425,
+  "weekend_flatten": true,
+  "news_blackout": true,
   "symbols": {
     "BTCUSD": "BTCUSD",
     "ETHUSD": "ETHUSD",
@@ -26,5 +28,9 @@
     "NAS100": "US100.cash",
     "SPX500": "US500.cash",
     "EURUSD": "EURUSD"
-  }
+  },
+  "max_portfolio_risk_pct": 8.0,
+  "max_daily_loss_pct": 3.0,
+  "max_daily_loss_pct_account": 4.5,
+  "loss_reopen_cooldown_min": 45
 }
