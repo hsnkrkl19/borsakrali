@@ -35,7 +35,11 @@ function assetTypeFor(cls) { return cls === 'crypto' ? 'crypto' : cls === 'metal
 
 // ── Tek (enstrüman, TF) değerlendirmesi ────────────────────────────────────
 async function evalTF(inst, tf, livePrice, equity) {
-  const candles = await forexKlines.fetchCandles(inst.yahoo, tf, 300);
+  // B1 (repaint fix, denetim 2026-07-05): OLUSAN (yarim) mumu dusur -> sinyal
+  // yalniz KAPALI mumda uretilir (canli=backtest). forexKlines forming bar'i
+  // dusurmuyordu; 1m canli-fiyat/bayatlik akisina DOKUNULMAZ (o evalInstrument'ta).
+  const _rawCandles = await forexKlines.fetchCandles(inst.yahoo, tf, 301);
+  const candles = (_rawCandles && _rawCandles.length) ? _rawCandles.slice(0, -1) : _rawCandles;
   if (!candles || candles.length < 60) return { tf, status: 'no_data' };
 
   const assetType = assetTypeFor(inst.class);
@@ -129,6 +133,28 @@ async function evalInstrument(inst, equity) {
     if (h) { s.historicalWinRate = h.winRate; s.sampleSize = h.sampleSize; s.historicalAvgReturn = h.avgReturn; s.historyBand = h.band; }
     delete s._c;
     if (confidence < MIN_CONFIDENCE) { perTf[tf] = { tf, status: 'low_conf', direction: s.direction, confidence, votes: s.votes }; }
+  }
+
+  // ── REJİM (2026-07-06): 4h VE 1d aynı yönü gösteriyorsa bu bir rejimdir. Her
+  // geçen sinyale eklenir (s.regime) — tracker'ın anti-FOMO trend istisnası buna
+  // bakar (giriş-TF'inin kendi DI'sı kendi kendini onaylıyordu, review bulgusu).
+  const d4 = perTf['4h']?.direction, d1 = perTf['1d']?.direction;
+  const regime = (d4 && d1 && d4 === d1) ? d4 : null;
+  for (const tf of TFS) {
+    const s = perTf[tf];
+    if (s && s.status === 'signal') s.regime = regime;
+  }
+  // ── REJİM VETOSU: ters-yön sinyal ancak ÇOK yüksek güvenle geçer. Gece boyu
+  // düşen piyasada ters-yön dip-alım long'ları (hepsi zarar) bu kapının yokluğundan
+  // açıldı. Kapatma: FOREX_COUNTERTREND_GATE_DISABLED=1 · eşik: FOREX_COUNTERTREND_MIN_CONF (80).
+  if (regime && process.env.FOREX_COUNTERTREND_GATE_DISABLED !== '1') {
+    const minCf = Number(process.env.FOREX_COUNTERTREND_MIN_CONF) || 80;
+    for (const tf of TFS) {
+      const s = perTf[tf];
+      if (s && s.status === 'signal' && s.direction !== regime && s.confidence < minCf) {
+        perTf[tf] = { tf, status: 'counter_trend', direction: s.direction, confidence: s.confidence, regime, votes: s.votes };
+      }
+    }
   }
 
   return { ...meta, status: 'open', livePrice, priceSource, perTf };

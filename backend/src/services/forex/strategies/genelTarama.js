@@ -1,7 +1,12 @@
 /**
- * Genel Tarama — BIST "strategy-scan"in 17 stratejisinin (11 boğa + 6 ayı)
- * forex'e portu. Kurallar extraction'dan BİREBİR alındı. Her strateji boolean
- * "hit"; boğa-ayı çoğunluğu yönü, |fark| gücü belirler.
+ * Genel Tarama — BIST "strategy-scan" stratejilerinin forex'e portu.
+ *
+ * ⚠️ SİMETRİ DÜZELTMESİ (2026-07-06): orijinal port 11 boğa + 6 ayı koşuluydu
+ * (BIST long-only piyasa). Düşen piyasada ayının tek osilatör koşulları
+ * (RSI>70, Stoch>80) HİÇ tetiklenemezken boğanın dip-alım koşulları her minik
+ * sıçramada tetikleniyordu → modül düşüşte bile LONG oyladı (2026-07-06 gecesi
+ * tüm işlemler ters-yön long açıldı, tamamı zarar). Artık her boğa koşulunun
+ * ayı aynası var: 12 boğa + 12 ayı — iki taraf da her rejimde ulaşılabilir.
  *
  * evaluate(candles) → { vote, strength, score, conditions, longHits, shortHits, ind }
  */
@@ -62,7 +67,7 @@ function evaluate(candles) {
   const C = []; // conditions
   const add = (id, label, group, met) => C.push({ id, label, group, met: !!met });
 
-  // ── BOĞA (11) ──
+  // ── BOĞA (12) ──
   add('duseniKirma', 'Düşeni Kırma', 'bullish',
     close > ema20[n] && closePrev < ema20[n - 1] && rsiNow != null && rsiPrev != null && rsiNow > rsiPrev && rsiNow > 40);
   add('yukselenDuzeltme', 'Yükselen Düzeltme', 'bullish',
@@ -85,8 +90,10 @@ function evaluate(candles) {
     close > ema34Now && ema34Slope > 0.3 && consec >= 3 && touched5 && close > closePrev);
   add('ema34CrossAbove', 'EMA34 Yukarı Kesişim', 'bullish',
     closePrev <= ema34Prev && close > ema34Now);
+  add('macdBullish', 'MACD Altın Çapraz', 'bullish',
+    macd && macd.macdPrev < macd.signalPrev && macd.macd > macd.signal);
 
-  // ── AYI (6) ──
+  // ── AYI (12) — her boğa koşulunun aynası ──
   add('ichimokuBearish', 'Ichimoku Ayı', 'bearish',
     ich && close < ich.cloudBottom && ich.tenkan < ich.kijun && ich.senkouA < ich.senkouB);
   add('trendZirvesi', 'Trend Zirvesi (Λ)', 'bearish',
@@ -99,6 +106,18 @@ function evaluate(candles) {
     close < ema34Now && ema34Slope < -0.3 && consec <= -3 && touched5 && close < closePrev);
   add('ema34CrossBelow', 'EMA34 Aşağı Kesişim', 'bearish',
     closePrev >= ema34Prev && close < ema34Now);
+  add('yukseleniKirma', 'Yükseleni Kırma', 'bearish',
+    close < ema20[n] && closePrev > ema20[n - 1] && rsiNow != null && rsiPrev != null && rsiNow < rsiPrev && rsiNow < 60);
+  add('dusenDuzeltme', 'Düşen Düzeltme', 'bearish',
+    close < ema50[n] && nearEma20 && rsiNow > 45 && rsiNow < 65 && close < closePrev);
+  add('rsiAdxStrongBear', 'RSI+ADX Güçlü Ayı', 'bearish',
+    adxF && adxF.adx > 25 && adxF.ndi > adxF.pdi && rsiNow < 60 && rsiNow > 35 && rsiNow < rsiPrev);
+  add('supertrendSell', 'Supertrend Satış', 'bearish',
+    st.length >= 3 && st[n] === -1 && (st[n - 1] === 1 || st[n - 2] === 1));
+  add('emaLadderBear', 'EMA Merdiveni Aşağı', 'bearish',
+    close < ema5[n] && ema5[n] < ema9[n] && ema9[n] < ema21[n] && ema21[n] < ema50[n]);
+  add('vwapBelow', 'VWAP Altı', 'bearish',
+    hasVol && vw != null && close < vw && avgVol20 && volNow > avgVol20 * 1.2);
 
   const longHits = C.filter(c => c.group === 'bullish' && c.met).length;
   const shortHits = C.filter(c => c.group === 'bearish' && c.met).length;

@@ -27,7 +27,15 @@ function aggregate(modules, ind) {
   const avgScore = agreeing.length ? agreeing.reduce((s, m) => s + (m.score || 0), 0) / agreeing.length : 0;
 
   const adx = ind?.adx || 0;
-  const trendStrength = Math.min(1, adx / 40);
+  // ADX yön-körüydü: güçlü DÜŞÜŞ trendi ters-yön LONG'a +16 puana kadar güven
+  // ekliyordu (2026-07-06 gecesi ters-yön long'ların hem eşiği geçmesini hem
+  // lot şişmesini besledi). +DI/-DI biliniyorsa trend gücü yalnız yönle UYUMLU
+  // ise sayılır; ters yönde 0 (DI verisi yoksa eski davranış korunur).
+  let trendStrength = Math.min(1, adx / 40);
+  if (ind && ind.pdi != null && ind.ndi != null && direction !== 'neutral') {
+    const dirOk = direction === 'long' ? ind.pdi > ind.ndi : ind.ndi > ind.pdi;
+    if (!dirOk) trendStrength = 0;
+  }
   let momentum = 0;
   if (ind && direction !== 'neutral') {
     const macdOk = direction === 'long' ? (ind.macdHist > 0) : (ind.macdHist < 0);
@@ -88,7 +96,7 @@ const CAL = {
   // Uygulama (delta) — akış çökmesin diye SINIRLI
   TRUST_MAX: 0.6,         // empirik etkinin azami ağırlığı
   FULL_TRUST_SAMPLE: 40,  // bu örneklemde tam güven; altında orantılı
-  MIN_SAMPLE: 8,          // altında kalibrasyon yok (gürültü)
+  MIN_SAMPLE: 30,         // B4 (denetim): 8 -> 30. Altinda kalibrasyon yok (8 gurultuydu; guveni/lotu oynatiyordu)
   MAX_RISE: envNum('CALIBRATION_MAX_RISE', 15),  // kalibrasyon en çok bu kadar EKLER
   MAX_DROP: envNum('CALIBRATION_MAX_DROP', 15),  // ...ve en çok bu kadar DÜŞÜRÜR
 };

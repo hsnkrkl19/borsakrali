@@ -58,7 +58,11 @@ function assetTypeFor(cls) { return cls === 'crypto' ? 'crypto' : cls === 'metal
 
 // ── Tek (enstrüman, TF) ────────────────────────────────────────────────────
 async function evalTF(inst, tf, livePrice, equity, dailyAtr) {
-  const candles = await forexKlines.fetchCandles(inst.yahoo, tf, 300);
+  // B1 (repaint fix, denetim 2026-07-05): OLUSAN (yarim) mumu dusur -> sinyal
+  // yalniz KAPALI mumda uretilir (canli=backtest). forexKlines forming bar'i
+  // dusurmuyordu; 1m canli-fiyat/bayatlik akisina DOKUNULMAZ (o evalInstrument'ta).
+  const _rawCandles = await forexKlines.fetchCandles(inst.yahoo, tf, 301);
+  const candles = (_rawCandles && _rawCandles.length) ? _rawCandles.slice(0, -1) : _rawCandles;
   if (!candles || candles.length < 60) return { tf, status: 'no_data' };
 
   const assetType = assetTypeFor(inst.class);

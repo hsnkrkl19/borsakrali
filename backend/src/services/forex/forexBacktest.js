@@ -107,7 +107,12 @@ async function buildSignals(inst, tf, candles, opts = {}) {
     const a = atr(hist, 14);
     const lv = buildLevels(agg.direction, hist[i].close, a, tf, inst.precision, hist); // canlıyla tutarlı: fib
     if (!lv) continue;
-    const conf = computeConfidence({ consensus: agg.consensus, avgScore: agg.avgScore, trendStrength: (gen?.ind?.adx || 0) / 40, momentum: agg.momentum, rr1: Math.max(lv.rr1 || 1, 1.6), confluence: 0 });
+    // agg.trendStrength kullan (canlıyla birebir): ham adx/40 hem 1'i aşabiliyordu
+    // hem de YÖN-KÖRDÜ — canlı motor artık DI-uyumsuz trendi 0'lıyor; kalibrasyonun
+    // canlının üretmediği ters-yön sinyal popülasyonuyla beslenmemesi için hizalandı
+    // (2026-07-06 review). Not: 4h+1d rejim vetosu backtest'te YOK (tek-TF bağlam) —
+    // kalibrasyon bu yüzden bir miktar muhafazakâr kalır.
+    const conf = computeConfidence({ consensus: agg.consensus, avgScore: agg.avgScore, trendStrength: agg.trendStrength, momentum: agg.momentum, rr1: Math.max(lv.rr1 || 1, 1.6), confluence: 0 });
     if (conf < MIN_CONFIDENCE) continue;
     signals.push({ index: i, direction: agg.direction, entry: hist[i].close, stop: lv.stop, target: lv.target1, band: bandOf(conf), atr: a });
   }
