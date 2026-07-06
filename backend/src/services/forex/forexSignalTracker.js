@@ -16,6 +16,7 @@ const forexKlines = require('./forexKlines');
 const { getInstrument } = require('./forexInstruments');
 const learning = require('./forexLearning');
 const dailyGuard = require('./forexDailyGuard');
+const statsStore = require('./forexStatsStore');
 const brokerPrices = require('./brokerPrices');
 const logger = require('../../utils/logger');
 const beast = require('../beast/beastIndicators'); // seri-dönen, ileri-bakışsız göstergeler (reversal + trailing)
@@ -651,6 +652,14 @@ async function dropClosed(code, reason = 'bridge', extra = {}) {
     // yukarıda elendi; onları /account-report kanalı zaten sayar.
     if (!p.shadow && pnlUsd != null) { try { dailyGuard.recordBridgeClose(pnlUsd); } catch (_) {} }
   }
+  // İSTATİSTİK RAPORU DÜZELTMESİ (2026-07-06 kullanıcı bulgusu): gece işlemlerin çoğu
+  // BROKER tarafında kapandı (SL dolumu) ve buradan sessizce düşüyordu → 20:00 sinyal
+  // raporu gerçekle alakasızdı (yalnız backend'in kendi tespit ettiği kapanışları
+  // sayıyordu). Artık köprü kapanışları da kazanç/zarar sayacına akar (nötr dahil —
+  // para gerçekleşti; sınıf = P/L işareti).
+  const statsOutcome = pnlUsd != null ? (pnlUsd < 0 ? 'SL' : 'TP2')
+    : (r != null ? (r < 0 ? 'SL' : 'TP2') : null);
+  if (!p.shadow && statsOutcome) { try { statsStore.recordClosure({ outcome: statsOutcome }).catch(() => {}); } catch (_) {} }
   persist();
   logger.info(`[Forex] köprü kapatma teyidi #${code} (${reason}${pnlUsd != null ? ` P/L ${pnlUsd}$` : ''}${r != null ? ` r=${r}` : ''}) — düşürüldü + ${losing ? 'kademeli zarar-freni' : 'cooldown'}`);
   return { dropped: true, instrumentId: p.instrumentId, direction: p.direction };
