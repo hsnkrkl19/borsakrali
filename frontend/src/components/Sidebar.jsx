@@ -71,7 +71,10 @@ export default function Sidebar({ isOpen, onToggle }) {
     { path: '/oyun',               label: 'Oyun',            icon: Gamepad2, isPublic: true                            },
     { path: '/hesabim',            label: 'Hesabım',         icon: User                                              },
     ...(user?.role === 'admin'
-      ? [{ path: '/admin-bildirimler', label: 'Admin Bildirim', icon: BellRing, highlight: true, badge: 'ADMIN' }]
+      ? [
+          { path: '/bot', label: 'Altın Botu', icon: Bot, highlight: true, badge: 'LIVE' },
+          { path: '/admin-bildirimler', label: 'Admin Bildirim', icon: BellRing, highlight: true, badge: 'ADMIN' },
+        ]
       : []),
   ]
 

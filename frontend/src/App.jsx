@@ -81,6 +81,7 @@ import Ta4jAnaliz from './pages/Ta4jAnaliz' // YENİ: ta4j tarzı (trading-signa
 // === PARÇA 1 WRAPPER'LARI (21→6 sekme sadeleştirmesi) ===
 import Firsatlar from './pages/Firsatlar' // Tarayıcılar + Günlük Sinyaller
 import Botlar    from './pages/Botlar'    // Trading Bot + Paper Trading
+import Bot       from './pages/Bot'       // MT5 Altin Botu paneli
 import Ogren     from './pages/Ogren'     // Eğitim alias
 import Hesabim   from './pages/Hesabim'   // Ayarlar + Takip + Notlar + Abonelik
 
@@ -289,6 +290,7 @@ function App() {
                 {/* === PARÇA 1 WRAPPER'LARI — sadeleştirilmiş üst sekmeler === */}
                 <Route path="/firsatlar" element={<RequireAuth><Firsatlar /></RequireAuth>} />
                 <Route path="/botlar"    element={<RequireAuth><Botlar    /></RequireAuth>} />
+                <Route path="/bot"       element={<RequireAuth><Bot       /></RequireAuth>} />
                 <Route path="/hesabim"   element={<RequireAuth><Hesabim   /></RequireAuth>} />
 
                 {/* === HESAP === */}

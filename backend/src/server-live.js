@@ -65,6 +65,7 @@ const waveScanRoutes = require('./routes/waveScan.routes');
 const bistSignalsRoutes = require('./routes/bistSignals.routes');
 const beastRoutes = require('./routes/beast.routes');
 const ta4jRoutes = require('./routes/ta4j.routes');
+const botRoutes = require('./routes/bot.routes');
 const pushNotificationService = require('./services/pushNotificationService');
 const { allBistStocks, bist30Stocks, bist100Stocks, sectors } = require('./data/allBistStocks');
 
@@ -244,6 +245,7 @@ app.use('/api/wave-scan', waveScanRoutes);
 app.use('/api/bist-signals', bistSignalsRoutes);
 app.use('/api/beast', beastRoutes);
 app.use('/api/ta4j', ta4jRoutes);
+app.use('/api/bot', botRoutes);
 
 // Tüm kullanicilara açik duyuru listesi (admin tarafindan gönderilen
 // broadcast bildirimlerinin geçmişi). Header bell + Duyurular paneli
