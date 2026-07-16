@@ -315,8 +315,8 @@ export default function Sidebar({ isOpen, onToggle }) {
                 onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(225, 29, 72, 0.10)'}
                 onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
               >
-                <LogOut className="w-4 h-4" />
-                Çıkış Yap
+                {user?.isGuest ? <KeyRound className="w-4 h-4" /> : <LogOut className="w-4 h-4" />}
+                {user?.isGuest ? 'Yönetici Girişi' : 'Çıkış Yap'}
               </button>
             </div>
           </div>

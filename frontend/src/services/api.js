@@ -163,8 +163,12 @@ apiClient.interceptors.response.use(
       return Promise.reject(error)
     }
 
-    // Retry network/5xx errors with exponential backoff
-    if (config && isRetryable(error) && config.__retryCount < MAX_RETRIES) {
+    // Yalnizca guvenli/idempotent okuma isteklerini otomatik tekrarla.
+    // POST/PATCH/DELETE bot komutlarini retry etmek ayni MT5 emrini iki kez
+    // gonderebilir; bu nedenle mutation'lar tek denemede hata vermelidir.
+    const method = String(config?.method || 'get').toLowerCase()
+    const retrySafe = ['get', 'head', 'options'].includes(method) || config?.__allowRetry === true
+    if (config && retrySafe && isRetryable(error) && config.__retryCount < MAX_RETRIES) {
       config.__retryCount += 1
       const delay = Math.min(1000 * Math.pow(2, config.__retryCount - 1), 8000) // 1s, 2s, 4s
       console.warn(`[api retry ${config.__retryCount}/${MAX_RETRIES}] ${config.url} (${error.message}) - ${delay}ms sonra`)

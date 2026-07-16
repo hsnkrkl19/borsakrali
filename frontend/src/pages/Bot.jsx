@@ -642,6 +642,12 @@ export default function BotPage() {
             <p className="max-w-sm text-sm text-gray-500">
               İşlem botu kontrol paneline erişmek için yönetici hesabıyla giriş yapmalısınız.
             </p>
+            <Button
+              variant="gold"
+              onClick={() => { window.location.href = '/login' }}
+            >
+              Yönetici Girişi
+            </Button>
           </div>
         </Card>
       </div>
@@ -657,6 +663,9 @@ export default function BotPage() {
   const preflight = status?.preflight || {}
   const blockers = Array.isArray(status?.trade_blockers) ? status.trade_blockers : []
   const tradeReady = !!status?.trade_ready
+  const decisionRows = Object.values(status?.last_signals || {})
+    .filter((row) => row && typeof row === 'object')
+    .sort((a, b) => String(b.time || '').localeCompare(String(a.time || '')))
   const lockedAccount = config?.mt5 || {}
   const liveAccountIsDemo = String(acct.trade_mode_label || '').toLowerCase() === 'demo'
   const sameLockedAccount = Number(acct.login || 0) > 0
@@ -737,6 +746,32 @@ export default function BotPage() {
               </li>
             ))}
           </ul>
+        )}
+      </Card>
+
+      <Card>
+        <SectionTitle icon={Activity} title="Son Strateji Kararı" sub="Botun neden emir gönderdiğini veya beklediğini gösterir" />
+        {decisionRows.length === 0 ? (
+          <p className="text-xs text-gray-500">İlk broker mumu ve strateji değerlendirmesi bekleniyor.</p>
+        ) : (
+          <div className="space-y-2">
+            {decisionRows.slice(0, 4).map((row) => (
+              <div key={`${row.symbol}-${row.strategy}`} className="rounded-xl border border-dark-700 p-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="text-sm font-semibold text-gray-200">
+                    {row.symbol || '—'} · {row.strategy || '—'}
+                  </div>
+                  <Badge tone={row.direction === 'buy' ? 'jade' : row.direction === 'sell' ? 'ember' : 'gold'}>
+                    {row.direction === 'buy' ? 'AL' : row.direction === 'sell' ? 'SAT' : 'BEKLE'}
+                  </Badge>
+                </div>
+                <p className="mt-1 text-xs text-gray-400">{row.reason || 'Gerekçe bekleniyor.'}</p>
+                <p className="mt-1 text-[10px] text-gray-600">
+                  {row.timeframe ? `${row.timeframe} · ` : ''}{fmtDateTime(row.time)}
+                </p>
+              </div>
+            ))}
+          </div>
         )}
       </Card>
 
