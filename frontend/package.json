@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build && node scripts/prerender.mjs",
+    "build:render": "vite build --emptyOutDir=false && node scripts/render-shell.mjs",
     "build:mobile": "vite build",
     "prerender": "node scripts/prerender.mjs",
     "preview": "vite preview",
