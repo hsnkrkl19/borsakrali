@@ -761,12 +761,54 @@ function resetForTest(nextState = null) {
   return status();
 }
 
+// ── BİRLEŞİK KÖPRÜ FEED'İ ────────────────────────────────────────────────────
+// borsakrali_mt5_all.py bu ucu çeker: yarışan + PANELDEN AÇIK (enabled) botların
+// açık paper pozisyonlarını, her bot AYRI magic ile MT5'te açacak şekilde döndürür.
+// competition = beyin (istatistik/şampiyon), köprü = kol (MT5 yürütme). Köprü,
+// feed'de görünmeyen (competition kapatmış) kodu MT5'te kapatır (drift-senkron).
+// GÜVENLİK: yalnız state.enabled (usta anahtar) + bot.enabled + engine açık botlar.
+function bridgeFeed() {
+  load();
+  if (!state.enabled) return { enabled: false, generatedAt: nowISO(), count: 0, positions: [] };
+  const positions = [];
+  for (const entry of catalog) {
+    if (!entry.competitionEligible) continue;
+    if (entry.engineDisableEnv && process.env[entry.engineDisableEnv] === '1') continue;
+    const bot = state.bots[entry.id];
+    if (!bot || !bot.enabled) continue;
+    for (const pos of Object.values(bot.open || {})) {
+      if (!(pos && pos.symbol && (pos.side === 'long' || pos.side === 'short'))) continue;
+      if (!(pos.entry > 0) || !(pos.stop > 0)) continue;
+      positions.push({
+        botId: entry.id,
+        botName: entry.name,
+        magic: entry.magic || 0,
+        code: String(pos.id || pos.fingerprint || `${entry.id}:${pos.key}`),
+        symbol: String(pos.symbol),
+        category: entry.category,
+        direction: pos.side,
+        entry: round(pos.entry, 8),
+        stop: round(pos.stop, 8),
+        target1: pos.target > 0 ? round(pos.target, 8) : null,
+        target2: pos.target2 > 0 ? round(pos.target2, 8) : null,
+        confidence: finite(pos.confidence, null),
+        strategy: pos.strategy || entry.id,
+        timeframe: pos.timeframe || '',
+        openedAt: pos.openedAt,
+        longOnly: !!entry.longOnly,
+      });
+    }
+  }
+  return { enabled: true, generatedAt: nowISO(), count: positions.length, positions };
+}
+
 module.exports = {
   catalog,
   load,
   reload,
   status,
   leaderboard,
+  bridgeFeed,
   runtimeEnabled,
   setMasterEnabled,
   setBotEnabled,

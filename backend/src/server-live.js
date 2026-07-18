@@ -238,6 +238,7 @@ app.use('/api/backtest-service', backtestServiceRoutes);
 app.use('/api/isyatirim', isYatirimRoutes);
 app.use('/api/borsapy', borsapyRoutes);
 app.use('/api/forex', forexRoutes);
+app.use('/api/bridge', require('./routes/bridge.routes'));
 app.use('/api/mt5-scanner', mt5ScannerRoutes);
 app.use('/api/pro-signals', proSignalsRoutes);
 app.use('/api/altin', altinRoutes);
