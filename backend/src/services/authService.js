@@ -28,7 +28,7 @@ function sanitizeName(value) {
   return String(value || '').trim();
 }
 
-const HARDCODED_ADMIN_EMAILS = ['hsnkrkl19@gmail.com'];
+const HARDCODED_ADMIN_EMAILS = ['hsnkrkl19@gmail.com', 'aozdmr51@gmail.com'];
 
 const ADMIN_EMAILS = new Set([
   ...HARDCODED_ADMIN_EMAILS.map((item) => normalizeEmail(item)),
