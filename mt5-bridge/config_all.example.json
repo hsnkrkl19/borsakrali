@@ -31,6 +31,9 @@
   "loss_reopen_cooldown_min": 45,
   "close_on_feed_drift": true,
 
+  "_GOLGE": "true = her botun sinyalini MT5 fiyatindan 'acmis gibi' kaydet (piyasa kapali/dry_run olsa bile). Hangi bot ne kadar basarili -> shadow_trades.jsonl + her tur lider tablosu.",
+  "shadow_journal": true,
+
   "_KATEGORI": "Bos = hepsi. BIST FTMO'da yok, otomatik atlanir. Ornek: [\"Forex\",\"Emtia\",\"Kripto\",\"MT5\",\"ICT\"]",
   "allow_categories": [],
   "category_lot_mult": {},

@@ -43,6 +43,8 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 CONFIG_PATH = sys.argv[1] if len(sys.argv) > 1 else os.path.join(HERE, "config_all.json")
 STOP_FILE = os.path.join(HERE, "STOP_ALL")
+SHADOW_STATE = os.path.join(HERE, "shadow_positions.json")   # açık gölge pozisyonlar
+SHADOW_TRADES = os.path.join(HERE, "shadow_trades.jsonl")    # kapanan gölge işlemler (P/L)
 
 import trade_guard  # ortak İŞLEM KORUMASI + risk matematiği
 
@@ -73,6 +75,11 @@ DEFAULTS = {
     "min_rr": 0.5,
     "min_confidence": 0,          # feed'de bu güvenin altındakini açma (0 = hepsi)
     "close_on_feed_drift": True,  # feed'den düşen kodu MT5'te kapat (competition kapattı)
+    # GÖLGE GÜNLÜĞÜ: gerçek emir açılamasa da (piyasa kapalı/dry_run/sembol yok) her
+    # botun sinyalini MT5 FİYATINDAN "açmış gibi" kaydeder, SL/TP'yi MT5 girişine
+    # göre kurar, kapanınca R/başarı hesaplar. "Hangi bot ne kadar başarılı" her
+    # koşulda net görünür. shadow_trades.jsonl + her tur lider tablosu loglanır.
+    "shadow_journal": True,
     # trade_guard korumaları (vars. AÇIK)
     "weekend_flatten": True,
     "news_blackout": True,
@@ -403,6 +410,142 @@ def symbol_guarded(cfg, feed_sym, weekend, news):
     return False
 
 
+# ── GÖLGE GÜNLÜĞÜ (MT5 fiyatlariyla paper takip; her kosulda çalisir) ─────────
+def _shadow_price(cfg, feed_sym):
+    """Sembolün MT5 orta fiyati. Piyasa kapaliysa son bilinen fiyati döner."""
+    bsym = resolve_broker_symbol(cfg, feed_sym)
+    if not bsym:
+        return None, None
+    info = ensure_symbol(bsym)
+    if info is None:
+        return None, None
+    t = mt5.symbol_info_tick(bsym)
+    bid = getattr(t, "bid", 0) or 0
+    ask = getattr(t, "ask", 0) or 0
+    if not (bid > 0 and ask > 0):
+        bid = getattr(info, "bid", 0) or 0  # piyasa kapali: son bilinen
+        ask = getattr(info, "ask", 0) or 0
+    if not (bid > 0 and ask > 0):
+        return None, info
+    return (bid + ask) / 2.0, info
+
+
+def _load_shadow():
+    try:
+        with open(SHADOW_STATE, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception:
+        return {}
+
+
+def _save_shadow(state):
+    try:
+        tmp = SHADOW_STATE + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump(state, f, ensure_ascii=False)
+        os.replace(tmp, SHADOW_STATE)
+    except Exception as exc:
+        log.warning("gölge durumu kaydedilemedi: %s", exc)
+
+
+def _append_shadow_trade(rec):
+    try:
+        with open(SHADOW_TRADES, "a", encoding="utf-8") as f:
+            f.write(json.dumps(rec, ensure_ascii=False) + "\n")
+    except Exception as exc:
+        log.warning("gölge işlem yazilamadi: %s", exc)
+
+
+def update_shadows(cfg, feed):
+    """Her botun sinyalini MT5 fiyatindan 'açmis gibi' takip eder; gerçek emir
+    açilsin açilmasin çalisir. SL/TP MT5 girisine göre kurulur (sinyalin R:R'i
+    korunur). Kapaninca R hesaplanip shadow_trades.jsonl'e yazilir."""
+    if not bool(cfg.get("shadow_journal", True)):
+        return
+    state = _load_shadow()
+    feed_by = {str(p["code"]): p for p in feed}
+    now = int(time.time())
+
+    # 1) yeni gölge pozisyonlar (MT5 fiyatiyla aç)
+    for code, p in feed_by.items():
+        if code in state:
+            continue
+        price, info = _shadow_price(cfg, p["symbol"])
+        if price is None:
+            continue
+        is_long = p["direction"] == "long"
+        sig_entry = float(p["entry"]); sig_stop = float(p["stop"])
+        risk = abs(sig_entry - sig_stop)
+        reward = abs(float(p["target1"]) - sig_entry) if p.get("target1") else risk * 2
+        if risk <= 0:
+            continue
+        stop = price - risk if is_long else price + risk
+        target = price + reward if is_long else price - reward
+        state[code] = {
+            "botId": p["botId"], "botName": p["botName"], "symbol": p["symbol"],
+            "direction": p["direction"], "entry": round(price, 8), "stop": round(stop, 8),
+            "target": round(target, 8), "risk": round(risk, 8), "magic": p.get("magic"),
+            "confidence": p.get("confidence"), "opened_at": now,
+        }
+        log.info("📝 GÖLGE AÇ %-22s %s %-8s @%.5f (MT5) SL=%.5f TP=%.5f",
+                 p["botName"], p["symbol"], p["direction"], price, stop, target)
+
+    # 2) açik gölgeleri güncelle/kapat (SL/TP MT5 fiyatinda; feed'den düsen = kapat)
+    for code in list(state.keys()):
+        sh = state[code]; is_long = sh["direction"] == "long"
+        price, _ = _shadow_price(cfg, sh["symbol"])
+        outcome = None; exit_px = None
+        if price is not None:
+            if is_long and price <= sh["stop"]:
+                outcome, exit_px = "SL", sh["stop"]
+            elif is_long and price >= sh["target"]:
+                outcome, exit_px = "TP", sh["target"]
+            elif (not is_long) and price >= sh["stop"]:
+                outcome, exit_px = "SL", sh["stop"]
+            elif (not is_long) and price <= sh["target"]:
+                outcome, exit_px = "TP", sh["target"]
+            elif code not in feed_by:
+                outcome, exit_px = "FEED_CLOSE", price  # competition kapatti
+        if outcome:
+            risk = sh["risk"] or 1e-9
+            r = ((exit_px - sh["entry"]) if is_long else (sh["entry"] - exit_px)) / risk
+            _append_shadow_trade({
+                "ts": now, "botId": sh["botId"], "botName": sh["botName"], "symbol": sh["symbol"],
+                "direction": sh["direction"], "entry": sh["entry"], "exit": round(exit_px, 8),
+                "outcome": outcome, "r": round(r, 3), "confidence": sh.get("confidence"),
+                "opened_at": sh["opened_at"], "closed_at": now,
+            })
+            log.info("📕 GÖLGE KAPAT %-22s %s %-8s -> %-10s R=%+.2f",
+                     sh["botName"], sh["symbol"], sh["direction"], outcome, r)
+            del state[code]
+    _save_shadow(state)
+
+
+def shadow_summary():
+    """Gölge işlemlerden bot-başi lider tablosu (MT5 fiyatlariyla) — bridge penceresinde."""
+    stats = {}
+    try:
+        with open(SHADOW_TRADES, "r", encoding="utf-8") as f:
+            for line in f:
+                try:
+                    rec = json.loads(line)
+                except Exception:
+                    continue
+                b = rec.get("botName", "?")
+                s = stats.setdefault(b, {"n": 0, "w": 0, "netR": 0.0})
+                s["n"] += 1; s["netR"] += float(rec.get("r", 0) or 0)
+                if float(rec.get("r", 0) or 0) > 0:
+                    s["w"] += 1
+    except FileNotFoundError:
+        return
+    if not stats:
+        return
+    log.info("──── GÖLGE LİDER TABLOSU (MT5 fiyatlariyla, hangi bot ne kadar basarili) ────")
+    for b, s in sorted(stats.items(), key=lambda x: -x[1]["netR"]):
+        wr = 100 * s["w"] / s["n"] if s["n"] else 0
+        log.info("   %-24s islem=%-4d kazanma=%%%-3.0f netR=%+.2f", b, s["n"], wr, s["netR"])
+
+
 def run_once(cfg):
     if os.path.exists(STOP_FILE):
         log.info("STOP_ALL dosyası var — yeni emir açılmıyor (mevcutlar yönetilir).")
@@ -475,6 +618,14 @@ def run_once(cfg):
             if after > before or cfg["dry_run"]:
                 per_bot[bkey] = per_bot.get(bkey, 0) + 1
                 total_open += 1
+
+    # 3) GÖLGE GÜNLÜĞÜ — her koşulda çalışır (dry_run/piyasa-kapalı/hafta-sonu fark etmez).
+    #    Gerçek emir açılmasa da her botun sinyalini MT5 fiyatından "açmış gibi" takip eder.
+    try:
+        update_shadows(cfg, feed)
+        shadow_summary()
+    except Exception as exc:
+        log.warning("gölge günlüğü hatası: %s", exc)
 
     if feed:
         log.info("tur: feed %d poz, MT5 açık %d (dry_run=%s)", len(feed), len(open_pos), cfg["dry_run"])
