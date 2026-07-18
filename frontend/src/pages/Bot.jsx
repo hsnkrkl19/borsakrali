@@ -66,6 +66,43 @@ const apiError = (err, fallback) => (
   || fallback
 )
 
+function firstRaceValue(row, keys, fallback = null) {
+  const sources = [row, row?.metrics, row?.stats, row?.performance]
+  for (const source of sources) {
+    if (!source || typeof source !== 'object') continue
+    for (const key of keys) {
+      if (source[key] !== undefined && source[key] !== null) return source[key]
+    }
+  }
+  return fallback
+}
+
+function raceBotId(row) {
+  return String(firstRaceValue(row, ['id', 'bot_id', 'botId', 'strategy_id', 'strategyId'], ''))
+}
+
+function racePct(value, fraction = false) {
+  if (value == null || value === '' || !isFinite(Number(value))) return '—'
+  let number = Number(value)
+  if (fraction && Math.abs(number) <= 1) number *= 100
+  return `${number > 0 ? '+' : ''}${fmtNum(number, 2)}%`
+}
+
+function raceRatio(value) {
+  if (value == null || value === '') return '—'
+  if (value === Infinity || String(value).toLowerCase() === 'infinity') return '∞'
+  return isFinite(Number(value)) ? fmtNum(Number(value), 2) : '—'
+}
+
+function isSupportRaceBot(bot) {
+  const role = String(firstRaceValue(bot, ['role', 'race_role', 'raceRole', 'type'], '')).toLowerCase()
+  return role === 'support'
+    || role === 'non_trading'
+    || bot?.support === true
+    || bot?.eligible === false
+    || bot?.trade_capable === false
+}
+
 // Yön rozeti — AL yeşil / SAT kırmızı
 function DirBadge({ direction }) {
   const buy = String(direction).toLowerCase() === 'buy'
@@ -161,6 +198,8 @@ export default function BotPage() {
   const [learn, setLearn] = useState(null)
   const [researchStatus, setResearchStatus] = useState(null)
   const [researchLatest, setResearchLatest] = useState(null)
+  const [notificationBots, setNotificationBots] = useState(null)
+  const [competition, setCompetition] = useState(null)
 
   const [offline, setOffline] = useState(false)   // proxy 502/503 → bot çevrimdışı
   const [forbidden, setForbidden] = useState(false) // 403 → yetki yok
@@ -178,6 +217,10 @@ export default function BotPage() {
   const [accountMsg, setAccountMsg] = useState(null)
   const [researchBusy, setResearchBusy] = useState(false)
   const [researchMsg, setResearchMsg] = useState(null)
+  const [notificationBusy, setNotificationBusy] = useState('')
+  const [notificationMsg, setNotificationMsg] = useState(null)
+  const [competitionBusy, setCompetitionBusy] = useState('')
+  const [competitionMsg, setCompetitionMsg] = useState(null)
 
   // ── Manuel işlem formu ────────────────────────────────────────────────────
   const [mSymbol, setMSymbol] = useState('gold')
@@ -267,14 +310,30 @@ export default function BotPage() {
     } catch (err) { classifyError(err) }
   }, [classifyError])
 
+  const loadNotificationBots = useCallback(async () => {
+    try {
+      const { data } = await api.get('/bot/notifications')
+      setNotificationBots(data || null)
+    } catch (err) { classifyError(err) }
+  }, [classifyError])
+
+  const loadCompetition = useCallback(async () => {
+    try {
+      const { data } = await api.get('/bot/competition')
+      setCompetition(data || null)
+    } catch (err) { classifyError(err) }
+  }, [classifyError])
+
   // ── İlk yükleme + yoklama ──────────────────────────────────────────────────
   useEffect(() => {
     if (!isAdmin) return
-    loadFast(); loadSlow(); loadConfig(); loadStrategies(); loadResearch()
+    loadFast(); loadSlow(); loadConfig(); loadStrategies(); loadResearch(); loadNotificationBots(); loadCompetition()
 
     const fast = setInterval(() => { if (!document.hidden) loadFast() }, 2000)
     const slow = setInterval(() => { if (!document.hidden) loadSlow() }, 10000)
     const researchPoll = setInterval(() => { if (!document.hidden) loadResearch() }, 10000)
+    const notificationPoll = setInterval(() => { if (!document.hidden) loadNotificationBots() }, 30000)
+    const competitionPoll = setInterval(() => { if (!document.hidden) loadCompetition() }, 10000)
     // Sekme yeniden görünür olduğunda hemen tazele
     const onVis = () => { if (!document.hidden) { loadFast(); loadSlow() } }
     document.addEventListener('visibilitychange', onVis)
@@ -283,9 +342,11 @@ export default function BotPage() {
       clearInterval(fast)
       clearInterval(slow)
       clearInterval(researchPoll)
+      clearInterval(notificationPoll)
+      clearInterval(competitionPoll)
       document.removeEventListener('visibilitychange', onVis)
     }
-  }, [isAdmin, loadFast, loadSlow, loadConfig, loadStrategies, loadResearch])
+  }, [isAdmin, loadFast, loadSlow, loadConfig, loadStrategies, loadResearch, loadNotificationBots, loadCompetition])
 
   // config gelince ayar taslağını (bir kez) doldur
   useEffect(() => {
@@ -386,8 +447,12 @@ export default function BotPage() {
       const { data } = await api.post(path)
       setStatus((s) => (s ? { ...s, engine_enabled: !!data?.enabled } : s))
     } catch (err) {
+      // Komut bota ulaşmadı: iyimser flip'i AÇIKÇA geri al. loadFast() bot
+      // çevrimdışıyken de düşeceğinden ona güvenilemez; aksi halde anahtar
+      // "DURDU" gösterirken motor VPS'te çalışmaya devam edebilir.
+      setStatus((s) => (s ? { ...s, engine_enabled: !s.engine_enabled } : s))
       classifyError(err)
-      await loadFast() // gerçek durumu geri al
+      try { await loadFast() } catch (_) { /* offline: geri-alınmış değer kalır */ }
     } finally {
       setEngineBusy(false)
     }
@@ -397,10 +462,17 @@ export default function BotPage() {
     if (!window.confirm('#' + ticket + ' pozisyonu kapatılsın mı?')) return
     setClosingTicket(ticket)
     try {
-      await api.post('/bot/trade/close', { ticket })
+      // Bot kapatma hatalarını HTTP 200 {ok:false} olarak döner (guard reddi,
+      // piyasa kapalı, MT5 retcode). Gövdeyi kontrol etmezsek kapatma sessizce
+      // başarısız olur ve zarar açık pozisyonda büyümeye devam eder.
+      const { data } = await api.post('/bot/trade/close', { ticket })
+      if (data && data.ok === false) {
+        window.alert('#' + ticket + ' kapatılamadı: ' + (data.message || (data.errors || []).join('; ') || 'bilinmeyen hata'))
+      }
       await loadFast()
     } catch (err) {
       classifyError(err)
+      window.alert('#' + ticket + ' kapatma komutu bota ulaşmadı.')
     } finally {
       setClosingTicket(null)
     }
@@ -410,10 +482,14 @@ export default function BotPage() {
     if (!window.confirm('Tüm açık pozisyonlar kapatılsın mı?')) return
     setClosingAll(true)
     try {
-      await api.post('/bot/trade/close_all', {})
+      const { data } = await api.post('/bot/trade/close_all', {})
+      if (data && data.ok === false) {
+        window.alert('Kapatma tamamlanamadı: ' + ((data.errors || []).join('; ') || data.message || 'bilinmeyen hata'))
+      }
       await loadFast()
     } catch (err) {
       classifyError(err)
+      window.alert('Tümünü kapat komutu bota ulaşmadı.')
     } finally {
       setClosingAll(false)
     }
@@ -560,6 +636,74 @@ export default function BotPage() {
     }
   }
 
+  const toggleNotificationBot = async (bot) => {
+    if (!bot?.id || notificationBusy) return
+    setNotificationBusy(bot.id)
+    setNotificationMsg(null)
+    try {
+      const { data } = await api.post(`/bot/notifications/${encodeURIComponent(bot.id)}`, {
+        enabled: !bot.enabled,
+      })
+      setNotificationBots((current) => {
+        if (!current || !data?.bot) return current
+        const bots = (current.bots || []).map((row) => (row.id === data.bot.id ? data.bot : row))
+        return {
+          ...current,
+          bots,
+          enabled: bots.filter((row) => row.enabled).length,
+          ready: bots.filter((row) => row.ready).length,
+        }
+      })
+      setNotificationMsg({
+        kind: 'ok',
+        text: `${bot.name} ${bot.enabled ? 'durduruldu' : 'açıldı'}.`,
+      })
+    } catch (err) {
+      classifyError(err)
+      setNotificationMsg({ kind: 'err', text: apiError(err, 'Bildirim botu güncellenemedi.') })
+    } finally {
+      setNotificationBusy('')
+    }
+  }
+
+  const toggleCompetitionMaster = async () => {
+    if (competitionBusy) return
+    setCompetitionBusy('master')
+    setCompetitionMsg(null)
+    try {
+      const { data } = await api.post('/bot/competition', { enabled: !competition?.enabled })
+      setCompetition(data || null)
+      setCompetitionMsg({
+        kind: 'ok',
+        text: competition?.enabled ? 'Paper bot yarışı duraklatıldı.' : 'Paper bot yarışı başlatıldı.',
+      })
+    } catch (err) {
+      classifyError(err)
+      setCompetitionMsg({ kind: 'err', text: apiError(err, 'Bot yarışı güncellenemedi.') })
+    } finally {
+      setCompetitionBusy('')
+    }
+  }
+
+  const toggleCompetitionBot = async (bot) => {
+    if (!bot?.id || competitionBusy) return
+    setCompetitionBusy(bot.id)
+    setCompetitionMsg(null)
+    try {
+      await api.post(`/bot/competition/${encodeURIComponent(bot.id)}`, { enabled: !bot.enabled })
+      await loadCompetition()
+      setCompetitionMsg({
+        kind: 'ok',
+        text: `${bot.name} yarışta ${bot.enabled ? 'duraklatıldı' : 'aktif edildi'}.`,
+      })
+    } catch (err) {
+      classifyError(err)
+      setCompetitionMsg({ kind: 'err', text: apiError(err, 'Yarış botu güncellenemedi.') })
+    } finally {
+      setCompetitionBusy('')
+    }
+  }
+
   const approveResearch = async (row) => {
     const reviewer = window.prompt('Onaylayan kişi/ad:', '')
     if (!reviewer) return
@@ -675,6 +819,19 @@ export default function BotPage() {
   const productionRow = scoreRows.find((row) => row?.validation?.status === 'approved' && row?.stability?.status === 'stable')
   const researchRows = Array.isArray(researchLatest?.candidates) ? researchLatest.candidates : []
   const researchRunning = !!researchStatus?.running
+  const telegramRows = Array.isArray(notificationBots?.bots) ? notificationBots.bots : []
+  const competitionRows = Array.isArray(competition?.bots) ? competition.bots : []
+  const pairRows = Array.isArray(competition?.pairs) ? competition.pairs : []
+  const competitionAlerts = [
+    ...(Array.isArray(competition?.blockers) ? competition.blockers : []),
+    ...(Array.isArray(competition?.warnings) ? competition.warnings : []),
+  ]
+  const stageLabel = {
+    collecting: 'Veri topluyor',
+    provisional: 'Geçici',
+    evaluation: 'Değerlendirme',
+    candidate: 'Aday',
+  }
 
   return (
     <div className="mx-auto max-w-7xl space-y-4">
@@ -1048,6 +1205,264 @@ export default function BotPage() {
           </div>
           {tradeMsg && <Feedback kind={tradeMsg.kind} text={tradeMsg.text} />}
         </form>
+      </Card>
+
+      {/* ── BAĞIMSIZ PAPER BOT YARIŞI ──────────────────────────────────── */}
+      <Card padding="none">
+        <div className="border-b border-dark-700 px-4 py-3">
+          <SectionTitle
+            icon={BarChart3}
+            title="Bot Yarışı"
+            sub="Her strateji kendi 10.000 $ sanal hesabında; Telegram ve MT5 emirlerinden bağımsız"
+          >
+            <button
+              type="button"
+              onClick={toggleCompetitionMaster}
+              disabled={!competition || !!competitionBusy}
+              aria-pressed={!!competition?.enabled}
+              aria-label="Paper bot yarışını aç veya duraklat"
+              className="relative inline-flex h-8 w-14 items-center rounded-full transition-colors disabled:opacity-50"
+              style={{ background: competition?.enabled ? 'var(--gold-400)' : 'var(--border-subtle)' }}
+            >
+              <span
+                className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-white shadow transition-transform"
+                style={{ transform: competition?.enabled ? 'translateX(28px)' : 'translateX(4px)' }}
+              >
+                <Power className="h-3.5 w-3.5" style={{ color: competition?.enabled ? 'var(--gold-500)' : 'var(--text-muted)' }} aria-hidden="true" />
+              </span>
+            </button>
+          </SectionTitle>
+
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
+            {[
+              ['Yarışmacı', competition?.summary?.competitors ?? '—'],
+              ['Aktif', competition?.summary?.active ?? '—'],
+              ['Açık İşlem', competition?.summary?.open ?? '—'],
+              ['Kapanan', competition?.summary?.closed ?? '—'],
+              ['Sabit Risk', competition?.summary?.risk_pct != null ? `%${fmtNum(competition.summary.risk_pct, 1)}` : '—'],
+            ].map(([label, value]) => (
+              <div key={label} className="rounded-lg border border-dark-700 bg-dark-900/30 px-3 py-2">
+                <div className="text-[10px] font-semibold uppercase tracking-wider text-gray-500">{label}</div>
+                <div className="mt-0.5 text-base font-bold text-gray-200">{value}</div>
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-3 rounded-lg border border-emerald-800/50 bg-emerald-950/20 px-3 py-2 text-xs leading-relaxed text-emerald-200">
+            Bu tablo yalnızca paper işlemleri gösterir. Botlar birbirinin pozisyonuna dokunamaz; sıralama otomatik olarak canlı veya demo MT5 yetkisi vermez.
+          </div>
+
+          {competition?.champion ? (
+            <div className="mt-3 rounded-lg border border-amber-500/40 bg-amber-500/10 px-4 py-3">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-lg" aria-hidden="true">👑</span>
+                <span className="text-[10px] font-semibold uppercase tracking-wider text-amber-300">Şampiyon Strateji · Geliştirme Önceliği</span>
+              </div>
+              <div className="mt-1 text-base font-bold text-amber-100">{competition.champion.name}</div>
+              <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-xs text-amber-200/90">
+                <span>Birleşik skor <b>{fmtNum(competition.champion.champion_score, 2)}</b></span>
+                <span>Kalite {fmtNum(competition.champion.quality_score, 1)}</span>
+                <span>Tutarlılık {fmtNum(competition.champion.consistency_score, 1)}</span>
+                <span>Net {Number(competition.champion.net_r) > 0 ? '+' : ''}{fmtNum(competition.champion.net_r, 2)}R</span>
+                <span>{competition.champion.closed} kapanış</span>
+              </div>
+              <div className="mt-2 text-[11px] leading-relaxed text-amber-200/80">{competition.champion.rationale}</div>
+            </div>
+          ) : (
+            <div className="mt-3 rounded-lg border border-dark-700 bg-dark-900/30 px-4 py-2.5 text-xs text-gray-400">
+              👑 Şampiyon henüz seçilmedi — bir strateji ≥15 kapanışla pozitif beklenti göstermeli. En istikrarlı strateji belirlenince burada öne çıkar.
+            </div>
+          )}
+
+          {competitionAlerts.map((alert) => (
+            <div key={alert.code || alert.message} className="mt-2 flex items-start gap-2 rounded-lg border border-amber-800/50 bg-amber-950/20 px-3 py-2 text-xs text-amber-200">
+              <AlertTriangle className="mt-0.5 h-3.5 w-3.5 flex-shrink-0" aria-hidden="true" />
+              <span>{alert.message}</span>
+            </div>
+          ))}
+          {competitionMsg && <div className="mt-3"><Feedback kind={competitionMsg.kind} text={competitionMsg.text} /></div>}
+        </div>
+
+        {competitionRows.length === 0 ? (
+          <p className="py-6 text-center text-sm text-gray-500">Yarış tablosu yükleniyor…</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[980px] text-sm">
+              <thead>
+                <tr className="border-b border-dark-700 text-left text-[10px] uppercase tracking-wider text-gray-500">
+                  <th className="px-3 py-2 font-semibold">Sıra / Bot</th>
+                  <th className="px-3 py-2 text-center font-semibold">Durum</th>
+                  <th className="px-3 py-2 text-right font-semibold">Sermaye</th>
+                  <th className="px-3 py-2 text-right font-semibold">Açık / Kapalı</th>
+                  <th className="px-3 py-2 text-right font-semibold">Kazanma</th>
+                  <th className="px-3 py-2 text-right font-semibold">Net R</th>
+                  <th className="px-3 py-2 text-right font-semibold">Getiri / DD</th>
+                  <th className="px-3 py-2 font-semibold">En İyi Parite</th>
+                  <th className="px-3 py-2 text-center font-semibold">Yarış</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-dark-700/60">
+                {competitionRows.map((bot) => (
+                  <tr key={bot.id} className="hover:bg-dark-800/40">
+                    <td className="px-3 py-3">
+                      <div className="flex items-center gap-2">
+                        <span className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold ${bot.rank <= 3 ? 'bg-amber-400/15 text-amber-300' : 'bg-dark-700 text-gray-400'}`}>
+                          {bot.rank}
+                        </span>
+                        <div>
+                          <div className="font-semibold text-gray-200">
+                            {bot.is_champion && <span className="mr-1" title="Şampiyon strateji">👑</span>}{bot.name}
+                          </div>
+                          <div className="text-[10px] text-gray-500">
+                            {bot.category} · skor {fmtNum(bot.score, 2)}
+                            {bot.trading_days > 0 && <> · tutarlılık {fmtNum(bot.consistency_score, 0)} (%{fmtNum(bot.positive_day_rate, 0)} poz. gün)</>}
+                          </div>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-3 py-3 text-center">
+                      <Badge tone={bot.runtime_status === 'active' ? 'jade' : bot.runtime_status === 'engine-disabled' ? 'ember' : 'neutral'}>
+                        {bot.runtime_status === 'active' ? 'AKTİF' : bot.runtime_status === 'engine-disabled' ? 'MOTOR KAPALI' : 'DURAKLATILDI'}
+                      </Badge>
+                      <div className="mt-1 text-[10px] text-gray-500" title={bot.recommendation || ''}>
+                        {stageLabel[bot.sample_stage] || bot.sample_stage} · risk x{fmtNum(bot.risk_multiplier, 2)}
+                      </div>
+                    </td>
+                    <td className={`px-3 py-3 text-right font-mono font-semibold ${Number(bot.equity) >= 10000 ? 'text-emerald-300' : 'text-rose-300'}`}>
+                      ${fmtMoney(bot.equity)}
+                    </td>
+                    <td className="px-3 py-3 text-right text-gray-300">{bot.open} / {bot.closed}</td>
+                    <td className="px-3 py-3 text-right text-gray-300">%{fmtNum(bot.win_rate, 1)}</td>
+                    <td className={`px-3 py-3 text-right font-semibold ${Number(bot.net_r) >= 0 ? 'text-emerald-300' : 'text-rose-300'}`}>
+                      {Number(bot.net_r) > 0 ? '+' : ''}{fmtNum(bot.net_r, 2)}R
+                    </td>
+                    <td className="px-3 py-3 text-right">
+                      <div className={Number(bot.normalized_return_pct) >= 0 ? 'text-emerald-300' : 'text-rose-300'}>
+                        {Number(bot.normalized_return_pct) > 0 ? '+' : Number(bot.normalized_return_pct) < 0 ? '-' : ''}%{fmtNum(Math.abs(Number(bot.normalized_return_pct)), 2)}
+                      </div>
+                      <div className="text-[10px] text-gray-500">DD %{fmtNum(bot.max_drawdown_pct, 2)}</div>
+                    </td>
+                    <td className="px-3 py-3">
+                      {bot.best_pair ? (
+                        <div>
+                          <div className="font-semibold text-gray-300">{bot.best_pair.symbol}</div>
+                          <div className="text-[10px] text-gray-500">{fmtNum(bot.best_pair.net_r, 2)}R · {bot.best_pair.closed} işlem</div>
+                        </div>
+                      ) : <span className="text-gray-600">Veri bekleniyor</span>}
+                    </td>
+                    <td className="px-3 py-3 text-center">
+                      <button
+                        type="button"
+                        onClick={() => toggleCompetitionBot(bot)}
+                        disabled={!!competitionBusy}
+                        aria-pressed={!!bot.enabled}
+                        aria-label={`${bot.name} yarışını aç veya duraklat`}
+                        className="relative inline-flex h-7 w-12 items-center rounded-full transition-colors disabled:opacity-50"
+                        style={{ background: bot.enabled ? 'var(--gold-400)' : 'var(--border-subtle)' }}
+                      >
+                        <span
+                          className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-white shadow transition-transform"
+                          style={{ transform: bot.enabled ? 'translateX(24px)' : 'translateX(4px)' }}
+                        >
+                          <Power className="h-3 w-3" style={{ color: bot.enabled ? 'var(--gold-500)' : 'var(--text-muted)' }} aria-hidden="true" />
+                        </span>
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        <div className="border-t border-dark-700 px-4 py-3">
+          <div className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-gray-500">Genel En İyi Bot + Parite Eşleşmeleri</div>
+          <div className="flex flex-wrap gap-2">
+            {pairRows.slice(0, 5).map((pair, index) => (
+              <div key={`${pair.bot_id}-${pair.symbol}`} className="rounded-lg border border-dark-700 bg-dark-900/30 px-3 py-2 text-xs">
+                <span className="font-bold text-amber-300">#{index + 1}</span>{' '}
+                <span className="font-semibold text-gray-200">{pair.bot_name} · {pair.symbol}</span>
+                <span className={Number(pair.net_r) >= 0 ? 'ml-2 text-emerald-300' : 'ml-2 text-rose-300'}>
+                  {Number(pair.net_r) > 0 ? '+' : ''}{fmtNum(pair.net_r, 2)}R
+                </span>
+                <span className="ml-2 text-gray-500">{pair.closed} işlem</span>
+              </div>
+            ))}
+            {pairRows.length === 0 && <span className="text-xs text-gray-500">Parite sıralaması için kapanan işlem bekleniyor.</span>}
+          </div>
+          <p className="mt-2 text-[10px] text-gray-500">
+            Haber Uyarıları ve MT5 Kâr/Zarar Raporu destek servisidir; sinyal üretmedikleri için yarışa ve işlem açmaya dahil değildir.
+          </p>
+        </div>
+      </Card>
+
+      {/* ── TELEGRAM BİLDİRİM BOTLARI ───────────────────────────────────── */}
+      <Card>
+        <SectionTitle
+          icon={Bot}
+          title="Telegram Bildirim Botları"
+          sub="Tüm sinyal ve uyarı üreticileri tek yerde"
+        >
+          <Badge tone={notificationBots?.telegram?.token_configured ? 'jade' : 'ember'} dot>
+            {notificationBots?.telegram?.token_configured
+              ? `@${notificationBots?.telegram?.username || 'Borsa_krali_aibot'}`
+              : 'BOT BAĞLI DEĞİL'}
+          </Badge>
+        </SectionTitle>
+
+        <div className="mb-3 flex flex-wrap items-center gap-2 text-xs text-gray-500">
+          <Badge tone="jade">{notificationBots?.enabled ?? 0} açık</Badge>
+          <Badge tone="gold">{notificationBots?.ready ?? 0} gönderime hazır</Badge>
+          <span>Bir botu kapatmak yalnızca onun bildirimini durdurur; diğer botları etkilemez.</span>
+        </div>
+
+        {telegramRows.length === 0 ? (
+          <p className="py-5 text-center text-sm text-gray-500">Telegram bot kataloğu yükleniyor…</p>
+        ) : (
+          <div className="grid grid-cols-1 gap-2 md:grid-cols-2 xl:grid-cols-3">
+            {telegramRows.map((bot) => (
+              <div
+                key={bot.id}
+                className="flex min-h-[132px] flex-col justify-between rounded-xl border border-dark-700 bg-dark-900/30 p-3"
+              >
+                <div>
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="truncate text-sm font-semibold text-gray-200">{bot.name}</span>
+                        <Badge tone={bot.ready ? 'jade' : bot.enabled ? 'gold' : 'neutral'}>{bot.category}</Badge>
+                      </div>
+                      <p className="mt-1 text-xs leading-relaxed text-gray-500">{bot.description}</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => toggleNotificationBot(bot)}
+                      disabled={notificationBusy === bot.id}
+                      aria-pressed={!!bot.enabled}
+                      aria-label={`${bot.name} bildirimini aç veya kapat`}
+                      className="relative inline-flex h-7 w-12 flex-shrink-0 items-center rounded-full transition-colors disabled:opacity-50"
+                      style={{ background: bot.enabled ? 'var(--gold-400)' : 'var(--border-subtle)' }}
+                    >
+                      <span
+                        className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-white shadow transition-transform"
+                        style={{ transform: bot.enabled ? 'translateX(24px)' : 'translateX(4px)' }}
+                      >
+                        <Power className="h-3 w-3" style={{ color: bot.enabled ? 'var(--gold-500)' : 'var(--text-muted)' }} aria-hidden="true" />
+                      </span>
+                    </button>
+                  </div>
+                </div>
+                <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-dark-700/60 pt-2 text-[10px] text-gray-500">
+                  <span>{bot.schedule}</span>
+                  <span className={bot.ready ? 'text-emerald-300' : bot.enabled ? 'text-amber-300' : 'text-gray-500'}>
+                    {bot.ready ? 'Gönderime hazır' : bot.enabled ? 'Kanal bekleniyor' : 'Kapalı'}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+        {notificationMsg && <div className="mt-3"><Feedback kind={notificationMsg.kind} text={notificationMsg.text} /></div>}
       </Card>
 
       {/* ── 4. AYARLAR ───────────────────────────────────────────────────── */}
