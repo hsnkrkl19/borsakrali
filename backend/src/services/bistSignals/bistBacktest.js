@@ -38,7 +38,7 @@ function toCandles(hist) {
 }
 
 function envNum(name, def) { const v = Number(process.env[name]); return Number.isFinite(v) ? v : def; }
-const STORE_FILE = path.join(__dirname, '..', '..', 'data', 'bist-signals-backtest.json');
+const STORE_FILE = process.env.BIST_BACKTEST_FILE || path.join(__dirname, '..', '..', 'data', 'bist-signals-backtest.json');
 const UNIVERSE_LIMIT = envNum('BIST_BACKTEST_LIMIT', 60);   // temsili örneklem (maliyet sınırı)
 const HORIZON = envNum('BIST_BACKTEST_HORIZON', 10);         // ileri bar (gün)
 const LOOKBACK = envNum('BIST_BACKTEST_LOOKBACK', 120);

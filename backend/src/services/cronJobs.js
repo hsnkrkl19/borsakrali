@@ -25,6 +25,10 @@ const altinEngine = require('./altin/altinEngine');
 const altinTracker = require('./altin/altinTracker');
 const altinNotifier = require('./altin/altinNotifier');
 const altinBacktest = require('./altin/altinBacktest');
+// ICT/FVG — 4h yön + 1h yapı + 15m FVG + kapanmış 5m teyidi; yalnız paper yürütme.
+const ictFvgService = require('./ictFvg/ictFvgService');
+const ictFvgTracker = require('./ictFvg/ictFvgTracker');
+const ictFvgNotifier = require('./ictFvg/ictFvgNotifier');
 // BEAST TREND — Zero-Lag + Ichimoku + Scalper Beast füzyonu (altın/gümüş/BTC/ETH)
 const beastEngine = require('./beast/beastEngine');
 const beastNotifier = require('./beast/beastNotifier');
@@ -37,6 +41,8 @@ const signalConfidenceService = require('./signalConfidenceService');
 const socketService = require('./socketService');
 const pushNotificationService = require('./pushNotificationService');
 const economicCalendarService = require('./economicCalendarService');
+// FTMO/ABD yüksek-etkili haber uyarıları — 24s/1s/30dk kala Telegram kanalına
+const newsWarningService = require('./newsWarning/newsWarningService');
 const botEngine = require('./tradingBotV2/botEngine');
 const cryptoBotEngine = require('./cryptoBotV2/cryptoBotEngine');
 const tema34Engine = require('./tema34Bot/tema34Engine');
@@ -55,12 +61,34 @@ const cryptoSignalTracker = require('./cryptoSignalTracker');
 const signalDelivery = require('./signalDelivery');
 const customBotEngine = require('./customBots/customBotEngine');
 const customBotRegistry = require('./customBots/customBotRegistry');
+const competitionManager = require('./botCompetition/competitionManager');
 const logger = require('../utils/logger');
 
 // ⚠️ FOREX-ONLY MODE: kullanıcı isteğiyle forex DIŞINDAKİ tüm sinyal/bot sistemleri
 // (BIST, kripto, MTF, dalga, beast, altın, yeni-robot, crossover, trading/crypto/tema34/
 // custom botlar) DEVRE DIŞI. Geri açmak için Render'da FOREX_ONLY_MODE'u kaldır/0 yap.
 function forexOnly() { return process.env.FOREX_ONLY_MODE === '1'; }
+
+function raceFeedEnabled(botId) {
+  try { return competitionManager.runtimeEnabled(botId); }
+  catch (_) { return false; }
+}
+
+function raceObserve(botId, snapshot, meta) {
+  try { return competitionManager.observeSnapshot(botId, snapshot, meta); }
+  catch (error) {
+    logger.warn(`[BotYarisi] ${botId} gözlem atlandı: ${error.message}`);
+    return null;
+  }
+}
+
+function raceClose(botId, events, meta) {
+  try { return competitionManager.recordClosures(botId, events, meta); }
+  catch (error) {
+    logger.warn(`[BotYarisi] ${botId} kapanış kaydı atlandı: ${error.message}`);
+    return null;
+  }
+}
 
 // Türkiye saat dilimi — BIST takvimi
 const TR_TZ = { timezone: 'Europe/Istanbul' };
@@ -145,6 +173,9 @@ let _proSelfTestRunning = false;
 // Altın turu (çoklu-TF, tüm zaman dilimleri çekilir → daha uzun pencere)
 const ALTIN_STALE_MS = 4 * 60 * 1000;
 let _altinCadenceLockAt = 0;
+
+const ICT_FVG_STALE_MS = 4 * 60 * 1000;
+let _ictFvgCadenceLockAt = 0;
 let _altinBacktestRunning = false;
 let _altinPrevBiasDir = null;
 // BEAST turu her 5 dk → 240 sn bayatlama penceresi.
@@ -244,6 +275,18 @@ async function runCalendarWarning() {
     return result;
   } catch (e) {
     logger.error(`[CalendarWarning] hata: ${e.message}`, e.stack);
+    return null;
+  }
+}
+
+// FTMO/ABD yüksek-etkili haber uyarısı kadansı — her dakika. Yaklaşan her haber
+// için 24 saat / 1 saat / 30 dk kala tam bir kez Telegram uyarısı (kalıcı dedup).
+// Boş tick'lerde sessiz; yalnız gönderim olunca log atar. FOREX_ONLY'den MUAF.
+async function runNewsWarning() {
+  try {
+    return await newsWarningService.runCadence();
+  } catch (e) {
+    logger.error(`[NewsWarning] hata: ${e.message}`, e.stack);
     return null;
   }
 }
@@ -352,7 +395,7 @@ async function runBistSignalCadence() {
 //    kullanıcılara uygulama-içi yayın. Açık sinyallerin TP/SL kapanışı da
 //    kontrol edilir (aynı NO ile teyit). isBistOpen() pencere dışını eler.
 async function runBistFullSignalCadence() {
-  if (forexOnly()) return null;
+  if (forexOnly() && !raceFeedEnabled('bist-signals')) return null;
   const now = Date.now();
   if (_bistFullSignalLockAt && now - _bistFullSignalLockAt < CADENCE_STALE_MS) {
     logger.info('⏭️ BIST ≥75 sinyal turu hâlâ çalışıyor — bu tetik atlandı');
@@ -364,6 +407,7 @@ async function runBistFullSignalCadence() {
   try {
     const snap = await bistScoreEngine.scan({ force: true });
     const top = (snap && snap.top) || [];
+    raceObserve('bist-signals', { ...snap, signals: top });
     let pushed = { telegram: 0, app: 0 };
     try {
       pushed = await Promise.race([
@@ -379,6 +423,7 @@ async function runBistFullSignalCadence() {
     // Açık sinyallerin TP/SL kapanış kontrolü (aynı NO ile teyit)
     try {
       const closures = await bistSignalTracker.checkClosures();
+      raceClose('bist-signals', closures);
       if (closures.length) await bistSignalNotifier.pushClosures(closures);
     } catch (clErr) {
       logger.error(`BIST ≥75 sinyal kapanış hata: ${clErr.message}`);
@@ -407,6 +452,7 @@ async function runBotTick() {
     // BIST ≥75 sinyallerinin TP/SL kapanışını gün içinde ~5 dk'da yakala (aynı NO ile teyit)
     try {
       const closures = await bistSignalTracker.checkClosures();
+      raceClose('bist-signals', closures);
       if (closures.length) await bistSignalNotifier.pushClosures(closures);
     } catch (e) {
       logger.error(`BIST ≥75 sinyal kapanış (tick) hata: ${e.message}`);
@@ -453,7 +499,7 @@ async function runTema34Bot() {
 // tatil günlerinde sessiz (yeni günlük mum oluşmaz). Idempotluk içeride
 // (lastCandleDate) → aynı işlem günü tekrar bildirilmez.
 async function runCrossoverAlerts() {
-  if (forexOnly()) return null;
+  if (forexOnly() && !raceFeedEnabled('crossover')) return null;
   try {
     const dateKey = todayKeyTR();
     if (TR_HOLIDAYS_2026.has(dateKey)) {
@@ -612,10 +658,11 @@ const CRYPTO_PHASE_TITLE = {
 };
 
 async function runCryptoPhase(phase, options = {}) {
-  if (forexOnly()) return null;
+  if (forexOnly() && !raceFeedEnabled('crypto-signals')) return null;
   try {
     logger.info(`⏰ Crypto signals (${phase}) başlatıldı`);
     const result = await cryptoSignalsService.runAndStore(phase);
+    raceObserve('crypto-signals', result, { strategy: `crypto-${phase}` });
 
     const spotCount  = result.spot_long?.signals?.length || 0;
     const longCount  = result.futures_long?.signals?.length || 0;
@@ -634,6 +681,7 @@ async function runCryptoPhase(phase, options = {}) {
       try {
         const r = await cryptoChannelNotifier.evaluateAndPush(result);
         const closures = await cryptoSignalTracker.checkClosures();
+        raceClose('crypto-signals', closures);
         if (closures.length) await cryptoChannelNotifier.pushClosures(closures);
         if (r?.newCount || closures.length) logger.info(`🪙 Kripto kanal turu — yeni ${r?.newCount || 0} · kapanış ${closures.length}`);
       } catch (e) { logger.error(`[CryptoSignals] sürekli kanal gönderim hata: ${e.message}`); }
@@ -728,6 +776,7 @@ async function runForexSignalCadence() {
   try {
     const snap = await forexEngine.generate();      // varsayılan 10k$ portföy
     const sigs = snap?.signals || [];
+    raceObserve('forex-signals', snap);
     // Socket.IO canlı bilgi
     try {
       socketService.broadcastSignal({
@@ -754,6 +803,7 @@ async function runForexSignalCadence() {
     // Açık sinyallerin kapanış/teyit kontrolü (TP1/STOP/İZ-SÜREN/SÜRE → aynı NO ile teyit)
     try {
       const closures = await forexSignalTracker.checkClosures();
+      raceClose('forex-signals', closures);
       if (closures.length) await forexPushNotifier.pushClosures(closures);
     } catch (clErr) { logger.error(`Forex kapanış kontrol hata: ${clErr.message}`); }
     return snap;
@@ -782,6 +832,7 @@ async function runMt5Scanner() {
   _mt5CadenceLockAt = now;
   try {
     const snap = await mt5Engine.generate();       // kalıcı portföy ayarı (vars. 10k$)
+    raceObserve('mt5-scanner', snap);
     // Telegram kanal + uygulama-içi (hsnkrkl19@gmail.com) push — 45 sn tavan
     let pushed = { telegram: 0, app: 0, opened: 0 };
     try {
@@ -798,6 +849,7 @@ async function runMt5Scanner() {
     // Açık pozisyonların kapanış kontrolü (TP1/SL/GÜN SONU → aynı NO ile teyit)
     try {
       const closures = await mt5Tracker.checkClosures();
+      raceClose('mt5-scanner', closures);
       if (closures.length) await mt5Notifier.pushClosures(closures);
     } catch (clErr) { logger.error(`MT5 kapanış kontrol hata: ${clErr.message}`); }
     return snap;
@@ -877,13 +929,14 @@ async function runForexStats() {
 //    mum + uyumsuzluk + momentum ivmesi + ta4j) → 0-100 güven. ≥3/4 TF konfluans
 //    + R/R≥1.6 + backtest kalite kapısı. Sinyaller "🤖 YENİ ROBOT" markalı.
 async function runProSignalCadence() {
-  if (forexOnly()) return null;
+  if (forexOnly() && !raceFeedEnabled('pro-robot')) return null;
   const now = Date.now();
   if (_proCadenceLockAt && now - _proCadenceLockAt < PRO_STALE_MS) return null;
   _proCadenceLockAt = now;
   try {
     const snap = await proEngine.generate();
     const sigs = snap?.signals || [];
+    raceObserve('pro-robot', snap);
     try {
       socketService.broadcastSignal({
         strategy: 'pro-signals', generatedAt: snap?.generatedAt,
@@ -908,6 +961,7 @@ async function runProSignalCadence() {
     } catch (mErr) { logger.error(`Yeni Robot yönetim hata: ${mErr.message}`); }
     try {
       const closures = await proSignalTracker.checkClosures();
+      raceClose('pro-robot', closures);
       if (closures.length) await proPushNotifier.pushClosures(closures);
     } catch (clErr) { logger.error(`Yeni Robot kapanış kontrol hata: ${clErr.message}`); }
     return snap;
@@ -972,13 +1026,14 @@ async function runProStats() {
 //     (metaller hafta sonu otomatik bayat → yeni sinyal yok). Push VARSAYILAN
 //     KAPALI (BEAST_PUSH_DISABLED!=='0') — kullanıcı canlı doğrulayana kadar.
 async function runBeastSignalCadence() {
-  if (forexOnly()) return null;
+  if (forexOnly() && !raceFeedEnabled('beast-signals')) return null;
   const now = Date.now();
   if (_beastCadenceLockAt && now - _beastCadenceLockAt < BEAST_STALE_MS) return null;
   _beastCadenceLockAt = now;
   try {
     const snap = await beastEngine.generate();
     const sigs = snap?.signals || [];
+    raceObserve('beast-signals', snap);
     let pushed = { pushed: 0 };
     try {
       pushed = await Promise.race([
@@ -1004,12 +1059,13 @@ async function runBeastSignalCadence() {
 //    Destek/direnç + fraktal kırılımı. "🥇 ALTIN" markalı. Veri cache'li
 //    (1g/1h 6-12s, gün-içi 30dk) → 15 dk turu Yahoo'yu yormaz.
 async function runAltinCadence() {
-  if (forexOnly()) return null;
+  if (forexOnly() && !raceFeedEnabled('gold-signals')) return null;
   const now = Date.now();
   if (_altinCadenceLockAt && now - _altinCadenceLockAt < ALTIN_STALE_MS) return null;
   _altinCadenceLockAt = now;
   try {
     const snap = await altinEngine.generate();
+    raceObserve('gold-signals', snap);
     try {
       socketService.broadcastSignal({
         strategy: 'altin', generatedAt: snap?.generatedAt,
@@ -1029,6 +1085,7 @@ async function runAltinCadence() {
     // Açık pozisyon yönetimi (TP/SL/trailing/expire) → kapanış push
     try {
       const closures = await altinTracker.manageOpen();
+      raceClose('gold-signals', closures);
       if (closures && closures.length) await altinNotifier.pushClosures(closures);
     } catch (cErr) { logger.error(`Altın yönetim hata: ${cErr.message}`); }
     // (Standalone S/R kırılım bildirimi KALDIRILDI — kullanıcı isteği: destek/direnç
@@ -1049,6 +1106,70 @@ async function runAltinCadence() {
 }
 
 // ── ALTIN backtest — TF başına geçmiş başarı (günde 1, ağır: 26y günlük) ───
+// ICT/FVG: 4h yön + 1h yapı + 15m bölge + kapanmış 5m teyidi.
+// Gerçek emir yolu yoktur. Telegram kill-switch'i paper takibini durdurmaz.
+async function runIctFvgCadence() {
+  const now = Date.now();
+  if (_ictFvgCadenceLockAt && now - _ictFvgCadenceLockAt < ICT_FVG_STALE_MS) return null;
+  _ictFvgCadenceLockAt = now;
+  try {
+    const allClosures = [];
+
+    // Yeni sinyal motoru dursa bile mevcut paper pozisyonların kapanışını izle.
+    try {
+      const closures = await ictFvgTracker.checkClosures();
+      if (closures.length) {
+        allClosures.push(...closures);
+        raceClose('ict-fvg', closures);
+        await ictFvgNotifier.pushClosures(closures);
+      }
+    } catch (error) {
+      logger.error(`ICT/FVG kapanış kontrol hata: ${error.message}`);
+    }
+
+    const engineDisabled = process.env.ICT_FVG_DISABLED === '1';
+    const frozenByScope = forexOnly() && !raceFeedEnabled('ict-fvg');
+    if (engineDisabled || frozenByScope) {
+      return { ok: true, disabled: engineDisabled, frozenByScope, signals: [], closures: allClosures };
+    }
+
+    const snap = await ictFvgService.generate();
+    const tracked = await ictFvgTracker.syncSignals(snap?.signals || []);
+
+    // Ters sinyal kapanışı yeni yön açılmadan önce aynı kimlikle işlenir.
+    if (tracked.closures.length) {
+      allClosures.push(...tracked.closures);
+      raceClose('ict-fvg', tracked.closures);
+      await ictFvgNotifier.pushClosures(tracked.closures);
+    }
+    if (tracked.opened.length) {
+      raceObserve('ict-fvg', { signals: tracked.opened }, { source: 'ict-fvg-paper' });
+      await ictFvgNotifier.pushOpenings(tracked.opened);
+    }
+
+    try {
+      socketService.broadcastSignal({
+        strategy: 'ict-fvg',
+        generatedAt: snap?.generatedAt,
+        total: tracked.opened.length,
+        long: tracked.opened.filter((row) => row.direction === 'long').length,
+        short: tracked.opened.filter((row) => row.direction === 'short').length,
+        stockSymbol: 'ICT_FVG',
+      });
+    } catch (_) { /* socket yoksa sessiz */ }
+
+    if (tracked.opened.length || allClosures.length) {
+      logger.info(`ICT/FVG paper turu — açılan ${tracked.opened.length} · kapanan ${allClosures.length}`);
+    }
+    return { ...snap, tracking: tracked, closures: allClosures };
+  } catch (error) {
+    logger.error(`ICT/FVG sinyal turu hata: ${error.message}`, error.stack);
+    return null;
+  } finally {
+    _ictFvgCadenceLockAt = 0;
+  }
+}
+
 async function runAltinBacktest() {
   if (forexOnly()) return null;
   if (_altinBacktestRunning) return null;
@@ -1070,11 +1191,12 @@ async function runAltinBacktest() {
 //     Forex'ten BAĞIMSIZ, nadir, yalnız Telegram kanalı. Sayıma dahil değil.
 let _waveScanRunning = false;
 async function runWaveScan() {
-  if (forexOnly()) return null;
+  if (forexOnly() && !raceFeedEnabled('wave-scan')) return null;
   if (_waveScanRunning) return null;
   _waveScanRunning = true;
   try {
     const signals = await waveScanEngine.scan();
+    raceObserve('wave-scan', signals);
     let pushed = { telegram: 0, newCount: 0 };
     try {
       pushed = await Promise.race([
@@ -1085,6 +1207,7 @@ async function runWaveScan() {
     if (pushed?.newCount) logger.info(`🌊 Dalga taraması — ${signals.length} kurulum · ${pushed.newCount} yeni · TG ${pushed.telegram}`);
     try {
       const closures = await waveScanTracker.checkClosures();
+      raceClose('wave-scan', closures);
       if (closures.length) await waveScanNotifier.pushClosures(closures);
     } catch (clErr) { logger.error(`Dalga kapanış kontrol hata: ${clErr.message}`); }
     return signals;
@@ -1098,7 +1221,7 @@ async function runWaveScan() {
 
 // ── Multi-Timeframe (1h/4h/1d/1w) signal scanner ──────────────────────────
 async function runMTFPhase(tf, options = {}) {
-  if (forexOnly()) return null;
+  if (forexOnly() && !raceFeedEnabled('mtf-confluence')) return null;
   try {
     logger.info(`⏰ MTF (${tf}) tarama başlatıldı`);
     const result = await multiTimeframeService.runAndStore(tf);
@@ -1106,6 +1229,14 @@ async function runMTFPhase(tf, options = {}) {
     const longCount  = result.scanner?.long?.signals?.length  || 0;
     const shortCount = result.scanner?.short?.signals?.length || 0;
     const analyzed   = result.scanner?.analyzedCount || 0;
+
+    if (!options.silent && (tf === '4h' || tf === '1d' || tf === '1w')) {
+      const actionable = [
+        ...(result.scanner?.long?.signals || []),
+        ...(result.scanner?.short?.signals || []),
+      ];
+      raceObserve('mtf-confluence', { signals: actionable }, { timeframe: tf, strategy: 'mtf-confluence' });
+    }
 
     socketService.broadcastSignal({
       strategy: 'crypto_mtf', timeframe: tf,
@@ -1396,6 +1527,14 @@ class CronJobsService {
 
     // 14j. BEAST TREND — Zero-Lag+Ichimoku+Scalper Beast füzyonu, HER 5 DK, 7/24.
     //      4 enstrüman × 1h/4h/1d (aktif hücreler). Push varsayılan KAPALI.
+    // ICT/FVG paper botu — 5dk kapanışından iki dakika sonra. Motor yalnız
+    // kapanmış mumları kullanır; bildirim kapalı olsa da yarış takibi sürer.
+    const ictFvgJob = cron.schedule(
+      '2,7,12,17,22,27,32,37,42,47,52,57 * * * *',
+      () => runIctFvgCadence(),
+      { scheduled: false, ...TR_TZ }
+    );
+
     const beastSignalJob = cron.schedule(
       '*/5 * * * *',
       () => runBeastSignalCadence(),
@@ -1484,6 +1623,17 @@ class CronJobsService {
     const calendarWarningJob = cron.schedule(
       '30 18 * * *',
       () => runCalendarWarning(),
+      { scheduled: false, ...TR_TZ }
+    );
+
+    // 24b. FTMO/ABD yüksek-etkili haber uyarısı — HER DAKİKA. Yaklaşan her USD
+    //      yüksek-etkili haberi (NFP/CPI/FOMC/Fed konuşması...) için 24 saat, 1 saat
+    //      ve 30 dk kala Telegram kanalına (@borsakraliai) tam bir kez uyarı gönderir.
+    //      Kaynak: statik ECONOMIC_CALENDAR_2026 + canlı Forex Factory (FTMO ile aynı).
+    //      Kalıcı dedup → restart-güvenli. Kill: NEWS_WARNING_DISABLED=1.
+    const newsWarningJob = cron.schedule(
+      '* * * * *',
+      () => runNewsWarning(),
       { scheduled: false, ...TR_TZ }
     );
 
@@ -1658,6 +1808,7 @@ class CronJobsService {
       proStatsJob,
       altinSignalJob,
       altinBacktestJob,
+      ictFvgJob,
       beastSignalJob,
       waveScanJob,
       mtf1mJob,
@@ -1670,6 +1821,7 @@ class CronJobsService {
       marketOpenJob,
       marketCloseJob,
       calendarWarningJob,
+      newsWarningJob,
       confidenceUpdateJob,
       botTickJob,
       tema34BotJob,
@@ -1777,6 +1929,11 @@ class CronJobsService {
     return runAltinCadence();
   }
 
+  /** Manuel tetikleme — ICT/FVG paper sinyal ve kapanış turu. */
+  async triggerIctFvgCadence() {
+    return runIctFvgCadence();
+  }
+
   async triggerAltinBacktest() {
     return runAltinBacktest();
   }
@@ -1838,6 +1995,7 @@ class CronJobsService {
       case 'market-open':       return runMarketOpen();
       case 'market-close':      return runMarketClose();
       case 'calendar-warning':  return runCalendarWarning();
+      case 'news-warning':      return runNewsWarning();
       default:
         throw new Error(`Bilinmeyen bildirim tipi: ${type}`);
     }

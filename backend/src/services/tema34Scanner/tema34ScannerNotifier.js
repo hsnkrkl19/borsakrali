@@ -19,6 +19,7 @@ const engine = require('./tema34ScanEngine');
 const store = require('./tema34ScannerStore');
 const tracker = require('./tema34ScannerTracker');
 const telegramService = require('../telegramService');
+const competitionManager = require('../botCompetition/competitionManager');
 const logger = require('../../utils/logger');
 
 const DEEP_LINK = '/firsatlar?tab=tarama';
@@ -214,6 +215,9 @@ async function runAndNotify(opts = {}) {
     return { ok: false, notified: false, error: result.error, busy: result.busy };
   }
 
+  try { competitionManager.observeSnapshot('tema34', result); }
+  catch (e) { logger.warn(`[BotYarisi] tema34 gözlem atlandı: ${e.message}`); }
+
   const timeframes = {};
   let anyNotified = false;
   for (const tf of engine.TIMEFRAMES) {
@@ -232,6 +236,7 @@ async function runAndNotify(opts = {}) {
       const { closures, opened } = await tracker.sync(result['1d']);
       if (opened.length) logger.info(`📊 TEMA34 takip — ${opened.length} yeni AL izlemede`);
       if (closures.length) {
+        try { competitionManager.recordClosures('tema34', closures); } catch (_) {}
         const push = await pushClosures(closures);
         closed = push.sent || 0;
         logger.info(`📊 TEMA34 sonuç — ${closures.length} ters-kesişim · TG ${closed}`);

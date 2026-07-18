@@ -150,6 +150,10 @@ async function generate(equity = DEFAULT_EQUITY) {
       const s = it.perTf[tf];
       if (s && s.status === 'signal') {
         signals.push({ id: it.id, name: it.name, symbol: it.symbol, class: it.class, precision: it.precision, tvSymbol: it.tvSymbol, prefix: it.prefix, ...s });
+        // signalQuality — fail-safe shadow gözlem (yayın kararını DEĞİŞTİRMEZ)
+        try {
+          require('../signalQuality/bridge').observe({ engine: 'proEngine', strategy: it.id, direction: s.direction, rawScore: s.confidence, rawScoreScale: { min: 0, max: 100 }, candles: null, levels: { entry: s.entry, stop: s.stop, target: s.target1 }, assetClass: it.class, symbol: it.symbol });
+        } catch (_) {}
       }
     }
   }

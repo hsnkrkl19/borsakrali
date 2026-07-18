@@ -1,15 +1,21 @@
 /**
- * Telegram Guncelleme Bildirimi
- * BORSA KRALI v4.2 - PRODUCTION READY
+ * Telegram guncelleme bildirimi.
+ * Kimlik bilgileri yalnizca ortam degiskenlerinden okunur.
  */
+
+'use strict';
 
 const axios = require('axios');
 
-const BOT_TOKEN = '8374895928:AAGA830voVcjUoPlwzVUGoW1WRPrdru_Gv4';
-const CHAT_ID = '2116638354';
+const BOT_TOKEN = String(process.env.TELEGRAM_BOT_TOKEN || '').trim();
+const CHAT_ID = String(process.env.TELEGRAM_CHAT_ID || '').trim();
 
 async function sendNotification() {
-    const message = `🚀 <b>BORSA KRALI v4.2 - YAYIN HAZIR!</b>
+  if (!BOT_TOKEN || !CHAT_ID) {
+    throw new Error('TELEGRAM_BOT_TOKEN ve TELEGRAM_CHAT_ID ortam degiskenleri zorunludur.');
+  }
+
+  const message = `🚀 <b>BORSA KRALI v4.2 - YAYIN HAZIR!</b>
 
 ✅ <b>Tamamlanan Islemler:</b>
 • Tum sayfalar kontrol edildi ve hatalar duzeltildi
@@ -44,22 +50,18 @@ async function sendNotification() {
 
 🌐 Site yayina hazir!`;
 
-    try {
-        const response = await axios.post(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
-            chat_id: CHAT_ID,
-            text: message,
-            parse_mode: 'HTML',
-            disable_web_page_preview: true
-        });
+  const response = await axios.post(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+    chat_id: CHAT_ID,
+    text: message,
+    parse_mode: 'HTML',
+    disable_web_page_preview: true,
+  });
 
-        if (response.data.ok) {
-            console.log('✅ Bildirim basariyla gonderildi!');
-        } else {
-            console.error('❌ Bildirim gonderilemedi:', response.data);
-        }
-    } catch (error) {
-        console.error('❌ Hata:', error.message);
-    }
+  if (!response.data?.ok) throw new Error('Telegram API bildirimi kabul etmedi.');
+  console.log('✅ Bildirim basariyla gonderildi!');
 }
 
-sendNotification();
+sendNotification().catch((error) => {
+  console.error('❌ Bildirim gonderilemedi:', error.message);
+  process.exitCode = 1;
+});

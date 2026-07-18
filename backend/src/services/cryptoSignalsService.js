@@ -422,6 +422,15 @@ async function generatePhase(phase) {
       if (all.spot_long     && all.spot_long.totalScore     >= MIN_SCORE) spotLongList.push({ ...all.spot_long, ...baseEntry });
       if (all.futures_long  && all.futures_long.totalScore  >= MIN_SCORE) futuresLongList.push({ ...all.futures_long, ...baseEntry });
       if (all.futures_short && all.futures_short.totalScore >= MIN_SCORE) futuresShortList.push({ ...all.futures_short, ...baseEntry });
+
+      // signalQuality — fail-safe shadow gözlem (yayın kararını DEĞİŞTİRMEZ)
+      try {
+        const __sqb = require('./signalQuality/bridge');
+        const __cds = (ctx.daily && ctx.daily.recentBars) || (ctx.fourH && ctx.fourH.recentBars) || null;
+        [['spot_long', all.spot_long], ['futures_long', all.futures_long], ['futures_short', all.futures_short]].forEach(([__st, __s]) => {
+          if (__s && __s.totalScore >= MIN_SCORE) __sqb.observe({ engine: 'cryptoScorer', strategy: __st, direction: __s.direction, rawScore: __s.totalScore, rawScoreScale: { min: 0, max: 10 }, candles: __cds, levels: { entry: __s.entry, stop: __s.stop, target: __s.target1 }, assetClass: 'crypto', symbol: ctx.symbol });
+        });
+      } catch (_) {}
     }
     if (i + BATCH_SIZE < tradable.length) {
       await new Promise(r => setTimeout(r, BATCH_PAUSE_MS));

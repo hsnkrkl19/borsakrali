@@ -8197,6 +8197,18 @@ server.listen(PORT, () => {
     } catch (e) {
       console.error('[BotPersistence] loadAll hata:', e.message);
     }
+    // Supabase kapalı veya geçici olarak hatalı olsa bile yerel son ayarı uygula.
+    // Bu adım cron modülleri başlamadan önce tamamlanır.
+    try {
+      require('./services/botCenter/notificationBotManager').reload();
+    } catch (e) {
+      console.error('[BotCenter] ayarlar uygulanamadı:', e.message);
+    }
+    try {
+      require('./services/botCompetition/competitionManager').reload();
+    } catch (e) {
+      console.error('[BotYarisi] yarış durumu yüklenemedi:', e.message);
+    }
     // YENİ ROBOT — kalıcı durumu (tuned ağırlık/eşik + detaylı log + istatistik)
     // cron'lar okumadan önce geri yükle (Render ephemeral fs; Supabase'ten).
     try {
@@ -8215,6 +8227,11 @@ server.listen(PORT, () => {
       console.error('[Altin] state load hata:', e.message);
     }
     if (process.env.CRON_DISABLED !== 'true') {
+      try {
+        require('./services/nr7Shadow/nr7Shadow').start();
+      } catch (e) {
+        console.error('[NR7-Golge] Başlatma hata:', e.message);
+      }
       try {
         cronJobsService.start();
       } catch (e) {

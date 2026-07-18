@@ -369,7 +369,7 @@ function scoreDirection(catalog, ctx, direction, currentTF) {
   const ratio = totalScore / applicableMax;
   const levels = buildLevels(direction, ctx.lastClose, ctx.atr, currentTF);
 
-  return {
+  const __sqSig = {
     strategy: direction === 'long' ? 'long' : 'short',
     direction,
     timeframe: currentTF,
@@ -396,6 +396,11 @@ function scoreDirection(catalog, ctx, direction, currentTF) {
     atr: ctx.atr,
     updatedAt: new Date().toISOString(),
   };
+  // signalQuality — fail-safe shadow gözlem (yayın kararını DEĞİŞTİRMEZ)
+  try {
+    require('./signalQuality/bridge').observe({ engine: 'mtfScorer', strategy: currentTF, direction, rawScore: totalScore, rawScoreScale: { min: 0, max: applicableMax }, candles: (ctx.current && ctx.current.recentBars) || null, levels: { entry: __sqSig.entry, stop: __sqSig.stop, target: __sqSig.target1 }, assetClass: 'crypto', symbol: ctx.symbol });
+  } catch (_) {}
+  return __sqSig;
 }
 
 /**

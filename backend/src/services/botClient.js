@@ -57,8 +57,17 @@ function available() {
   return true;
 }
 
+function circuitOpenError() {
+  // Bot/tünel yakın zamanda düştü: 12sn timeout beklemeden hızlı hata dön
+  // (Render'da asılı upstream soket yığılmasını önler). Devre 30sn sonra açılır.
+  const e = new Error('Bot API geçici olarak erişilemez (devre kesici açık).');
+  e.code = 'DISABLED';
+  return e;
+}
+
 async function get(pathName, params, authorization) {
   if (!isEnabled()) { const e = new Error(configurationError()); e.code = 'DISABLED'; throw e; }
+  if (!available()) throw circuitOpenError();
   try {
     const { data } = await axios.get(`${BASE_URL}${pathName}`, {
       headers: headers(authorization), params: params || undefined, timeout: TIMEOUT_MS,
@@ -73,6 +82,10 @@ async function get(pathName, params, authorization) {
 
 async function post(pathName, body, authorization) {
   if (!isEnabled()) { const e = new Error(configurationError()); e.code = 'DISABLED'; throw e; }
+  // Emirler (POST) devre açıkken de gönderilmeli değil — ama "hızlı hata"
+  // panelde net görünür ve kullanıcı tüneli düzeltince tekrar dener; yarım
+  // giden emir riskini artırmaz (istek hiç yola çıkmaz).
+  if (!available()) throw circuitOpenError();
   try {
     const { data } = await axios.post(`${BASE_URL}${pathName}`, body || {}, {
       headers: headers(authorization), timeout: TIMEOUT_MS,

@@ -13,6 +13,7 @@
 const telegram = require('../telegramService');
 const delivery = require('../signalDelivery');
 const tracker = require('./beastTracker');
+const competitionManager = require('../botCompetition/competitionManager');
 
 const PUSH_CONFIDENCE = Number(process.env.BEAST_PUSH_CONFIDENCE) || 62;
 
@@ -71,6 +72,7 @@ async function evaluateAndPush(signals) {
 // Açık pozisyon kapanışlarını kontrol et + kanala teyit at.
 async function pushClosures() {
   const events = await tracker.checkClosures();
+  try { competitionManager.recordClosures('beast-signals', events); } catch (_) {}
   if (pushDisabled()) return { pushed: 0, closed: events.length, disabled: true };
   let pushed = 0;
   for (const ev of events) {

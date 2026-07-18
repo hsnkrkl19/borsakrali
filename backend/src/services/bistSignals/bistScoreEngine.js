@@ -97,7 +97,7 @@ async function scoreSymbol(stock, opts = {}) {
       for (const c of (m.conditions || [])) if (c.met) conditions.push({ ...c, technique: m.technique });
     }
 
-    return {
+    const __sqSig = {
       symbol, name: stock.name || symbol, direction: 'long',
       confidence, rawConfidence: cal.rawConfidence,
       calibration: cal.delta !== 0 ? { empirical: cal.empirical, trust: cal.trust, delta: cal.delta, winRate: calHistory?.winRate ?? null, profitFactor: calHistory?.profitFactor ?? null } : null,
@@ -109,6 +109,11 @@ async function scoreSymbol(stock, opts = {}) {
       votes: agg.votes, conditions,
       indicators: (gen && gen.ind) || null,
     };
+    // signalQuality — fail-safe shadow gözlem (yayın kararını DEĞİŞTİRMEZ)
+    try {
+      require('../signalQuality/bridge').observe({ engine: 'bistScoreEngine', strategy: 'trend', direction: 'long', rawScore: confidence, rawScoreScale: { min: 0, max: 100 }, candles: (typeof candles !== 'undefined' ? candles : null), levels: { entry: __sqSig.entry, stop: __sqSig.stop, target: __sqSig.target1 }, assetClass: 'bist_equity', symbol });
+    } catch (_) {}
+    return __sqSig;
   } catch (e) {
     return null;
   }

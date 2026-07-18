@@ -59,6 +59,10 @@ async function analyzeCell(inst, tf) {
   const tp1Pct = +(Math.abs(lv.target1 - livePrice) / livePrice * 100).toFixed(2);
   const tp2Pct = +(Math.abs(lv.target2 - livePrice) / livePrice * 100).toFixed(2);
 
+  // signalQuality — fail-safe shadow gözlem (yayın kararını DEĞİŞTİRMEZ)
+  try {
+    require('../signalQuality/bridge').observe({ engine: 'beast', strategy: inst.id, direction: sig.direction, rawScore: sig.confidence, rawScoreScale: { min: 0, max: 100 }, candles, levels: { entry: lv.entry, stop: lv.stop, target: lv.target1 }, assetClass: inst.class, symbol: inst.symbol });
+  } catch (_) {}
   return {
     id: inst.id, symbol: inst.symbol, name: inst.name, short: inst.short,
     class: inst.class, precision: inst.precision, tvSymbol: inst.tvSymbol, prefix: inst.prefix,

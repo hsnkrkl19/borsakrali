@@ -8,9 +8,20 @@ jest.mock('../../src/services/botClient', () => ({
   get: jest.fn(),
   post: jest.fn(),
 }));
+jest.mock('../../src/services/botCenter/notificationBotManager', () => ({
+  summary: jest.fn(),
+  setEnabled: jest.fn(),
+}));
+jest.mock('../../src/services/botCompetition/competitionManager', () => ({
+  status: jest.fn(),
+  setMasterEnabled: jest.fn(),
+  setBotEnabled: jest.fn(),
+}));
 
 const authService = require('../../src/services/authService');
 const botClient = require('../../src/services/botClient');
+const notificationBotManager = require('../../src/services/botCenter/notificationBotManager');
+const competitionManager = require('../../src/services/botCompetition/competitionManager');
 const botRoutes = require('../../src/routes/bot.routes');
 
 function app() {
@@ -29,6 +40,45 @@ describe('Altın Botu R4 admin proxy', () => {
     });
     botClient.get.mockImplementation(async (path) => ({ ok: true, path }));
     botClient.post.mockImplementation(async (path, body) => ({ ok: true, path, body }));
+    notificationBotManager.summary.mockReturnValue({ ok: true, total: 16, bots: [] });
+    notificationBotManager.setEnabled.mockImplementation((id, enabled) => ({ id, enabled }));
+    competitionManager.status.mockReturnValue({ ok: true, enabled: true, leaderboard: [] });
+    competitionManager.setMasterEnabled.mockImplementation((enabled) => ({ ok: true, enabled }));
+    competitionManager.setBotEnabled.mockImplementation((id, enabled) => ({ id, enabled }));
+  });
+
+  test('lists and toggles Telegram notification bots behind the same admin gate', async () => {
+    const server = app();
+    const headers = { Authorization: 'Bearer admin-token' };
+
+    const list = await request(server)
+      .get('/api/bot/notifications')
+      .set(headers);
+    const toggle = await request(server)
+      .post('/api/bot/notifications/forex-signals')
+      .set(headers)
+      .send({ enabled: false });
+
+    expect(list.status).toBe(200);
+    expect(list.body.total).toBe(16);
+    expect(toggle.status).toBe(200);
+    expect(notificationBotManager.setEnabled).toHaveBeenCalledWith('forex-signals', false, 'admin-1');
+  });
+
+  test('manages the isolated Telegram bot competition behind the admin gate', async () => {
+    const server = app();
+    const headers = { Authorization: 'Bearer admin-token' };
+
+    const list = await request(server).get('/api/bot/competition').set(headers);
+    const pause = await request(server).post('/api/bot/competition').set(headers).send({ enabled: false });
+    const bot = await request(server).post('/api/bot/competition/forex-signals').set(headers).send({ enabled: true });
+
+    expect(list.status).toBe(200);
+    expect(list.body.enabled).toBe(true);
+    expect(pause.status).toBe(200);
+    expect(competitionManager.setMasterEnabled).toHaveBeenCalledWith(false, 'admin-1');
+    expect(bot.status).toBe(200);
+    expect(competitionManager.setBotEnabled).toHaveBeenCalledWith('forex-signals', true, 'admin-1');
   });
 
   test('proxies account binding and research endpoints only after admin auth', async () => {

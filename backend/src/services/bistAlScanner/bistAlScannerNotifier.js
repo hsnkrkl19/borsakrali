@@ -29,6 +29,7 @@ const { ema, sma } = require('../forex/indicators');
 const telegramService = require('../telegramService');
 const store = require('./bistAlScannerStore');
 const tracker = require('./bistAlScannerTracker');
+const competitionManager = require('../botCompetition/competitionManager');
 const logger = require('../../utils/logger');
 
 function envNum(name, def) { const v = Number(process.env[name]); return Number.isFinite(v) ? v : def; }
@@ -219,6 +220,7 @@ async function checkAndPushClosures() {
   let closures = [];
   try { closures = await tracker.checkClosures(); }
   catch (e) { logger.error(`[BistAlScanner] kapanış kontrolü hata: ${e.message}`); return { closed: 0, sent: 0 }; }
+  try { competitionManager.recordClosures('bist-buy-scanner', closures); } catch (_) {}
   const push = await pushClosures(closures);
   return { closed: closures.length, sent: push.sent || 0 };
 }
@@ -262,6 +264,9 @@ async function runAndNotify(opts = {}) {
   }
   gated.sort((a, b) => b.avgVoteScore - a.avgVoteScore);
   const qualified = gated.slice(0, TOP_N);
+
+  try { competitionManager.observeSnapshot('bist-buy-scanner', { ...snap, signals: qualified }); }
+  catch (e) { logger.warn(`[BotYarisi] bist-buy gözlem atlandı: ${e.message}`); }
 
   const disabled = process.env.BIST_AL_SCANNER_DISABLED === '1';
   const sentSet = force ? new Set() : store.sentSetFor(tradingDate);

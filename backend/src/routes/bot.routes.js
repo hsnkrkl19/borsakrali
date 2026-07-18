@@ -18,6 +18,8 @@ const router = express.Router();
 
 const authService = require('../services/authService');
 const botClient = require('../services/botClient');
+const notificationBotManager = require('../services/botCenter/notificationBotManager');
+const competitionManager = require('../services/botCompetition/competitionManager');
 
 async function requireAdmin(req, res, next) {
   try {
@@ -82,6 +84,58 @@ router.get('/session/verify', requireAdmin, (req, res) => res.json({
 router.use(requireAdmin);
 
 const bearer = (req) => req.headers.authorization;
+
+// Telegram bildirim üreticileri site backend'inde çalışır. Bunlar VPS'e proxy
+// edilmez; aynı admin kapısının arkasından tek katalog olarak yönetilir.
+router.get('/notifications', (req, res) => {
+  res.json(notificationBotManager.summary());
+});
+
+router.post('/notifications/:id', (req, res) => {
+  try {
+    const bot = notificationBotManager.setEnabled(
+      String(req.params.id || ''),
+      req.body?.enabled,
+      req.user?.email || req.user?.id || 'admin',
+    );
+    return res.json({ ok: true, bot });
+  } catch (error) {
+    const status = error?.code === 'NOT_FOUND' ? 404 : 400;
+    return res.status(status).json({ ok: false, error: error.message });
+  }
+});
+
+// Telegram stratejilerinin brokerdan tamamen ayrılmış, eşit sermayeli sanal
+// yarışı. Bu uçlar R5'e emir göndermez; yalnız yarış defterini yönetir.
+router.get('/competition', (req, res) => {
+  res.json(competitionManager.status());
+});
+
+router.post('/competition', (req, res) => {
+  try {
+    const result = competitionManager.setMasterEnabled(
+      req.body?.enabled,
+      req.user?.email || req.user?.id || 'admin',
+    );
+    return res.json(result);
+  } catch (error) {
+    return res.status(400).json({ ok: false, error: error.message });
+  }
+});
+
+router.post('/competition/:id', (req, res) => {
+  try {
+    const bot = competitionManager.setBotEnabled(
+      String(req.params.id || ''),
+      req.body?.enabled,
+      req.user?.email || req.user?.id || 'admin',
+    );
+    return res.json({ ok: true, bot });
+  } catch (error) {
+    const status = ['NOT_FOUND', 'NOT_TRADING'].includes(error?.code) ? 404 : 400;
+    return res.status(status).json({ ok: false, error: error.message });
+  }
+});
 
 // ── Okuma uçları ───────────────────────────────────────────────────────────
 router.get('/status', handle((req) => botClient.get('/api/status', undefined, bearer(req))));

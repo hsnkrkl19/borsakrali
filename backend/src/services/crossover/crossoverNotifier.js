@@ -17,6 +17,7 @@ const scanner = require('./crossoverScanner');
 const store = require('./crossoverStore');
 const telegramService = require('../telegramService');
 const pushNotificationService = require('../pushNotificationService');
+const competitionManager = require('../botCompetition/competitionManager');
 const logger = require('../../utils/logger');
 
 const DEEP_LINK = '/firsatlar?tab=tarama';
@@ -149,6 +150,9 @@ async function runAndNotify(opts = {}) {
     logger.error(`[Crossover] tarama başarısız: ${result.error || result.busy ? 'meşgul' : 'bilinmeyen'}`);
     return { ok: false, notified: false, error: result.error, busy: result.busy };
   }
+
+  try { competitionManager.observeSnapshot('crossover', result); }
+  catch (e) { logger.warn(`[BotYarisi] crossover gözlem atlandı: ${e.message}`); }
 
   const { candleDate, scanned, fetchErrors, counts } = result;
   const total = counts.temaUp + counts.temaDown + counts.emaUp + counts.emaDown;
