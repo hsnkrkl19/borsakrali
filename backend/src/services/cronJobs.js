@@ -27,6 +27,7 @@ const altinNotifier = require('./altin/altinNotifier');
 const altinBacktest = require('./altin/altinBacktest');
 // ICT/FVG — 4h yön + 1h yapı + 15m FVG + kapanmış 5m teyidi; yalnız paper yürütme.
 const ictFvgService = require('./ictFvg/ictFvgService');
+const ictSmcService = require('./ictSmc/ictSmcService');
 const ictFvgTracker = require('./ictFvg/ictFvgTracker');
 const ictFvgNotifier = require('./ictFvg/ictFvgNotifier');
 // BEAST TREND — Zero-Lag + Ichimoku + Scalper Beast füzyonu (altın/gümüş/BTC/ETH)
@@ -176,6 +177,8 @@ let _altinCadenceLockAt = 0;
 
 const ICT_FVG_STALE_MS = 4 * 60 * 1000;
 let _ictFvgCadenceLockAt = 0;
+const ICT_SMC_STALE_MS = 4 * 60 * 1000;
+let _ictSmcCadenceLockAt = 0;
 let _altinBacktestRunning = false;
 let _altinPrevBiasDir = null;
 // BEAST turu her 5 dk → 240 sn bayatlama penceresi.
@@ -1170,6 +1173,36 @@ async function runIctFvgCadence() {
   }
 }
 
+// ICT/SMC Çoklu Strateji paper botu — ICT_SMC_Indicator.pine portu (22 strateji).
+// Gerçek emir yolu yoktur; botCompetition observeSnapshot kendi paper takibini
+// yapar (prices ile SL/TP kapanışı + yeni sinyal açılışı). Her tur fiyat besler,
+// böylece motor donuk olsa da açık pozisyonlar SL/TP'de kapanır.
+async function runIctSmcCadence() {
+  const now = Date.now();
+  if (_ictSmcCadenceLockAt && now - _ictSmcCadenceLockAt < ICT_SMC_STALE_MS) return null;
+  _ictSmcCadenceLockAt = now;
+  try {
+    const engineDisabled = process.env.ICT_SMC_DISABLED === '1';
+    const frozenByScope = forexOnly() && !raceFeedEnabled('ict-smc');
+    const snap = await ictSmcService.generate();
+    if (engineDisabled || frozenByScope) {
+      // Motor donuk: yalnız fiyat besle (açık paper pozisyonların kapanışı sürsün).
+      raceObserve('ict-smc', { prices: snap && snap.prices, signals: [] }, { source: 'ict-smc-paper' });
+      return { ok: true, disabled: engineDisabled, frozenByScope, signals: [] };
+    }
+    raceObserve('ict-smc', snap, { source: 'ict-smc-paper' });
+    if (snap.signals.length) {
+      logger.info(`ICT/SMC paper turu — sinyal ${snap.signals.length} (long ${snap.summary.long} / short ${snap.summary.short})`);
+    }
+    return snap;
+  } catch (error) {
+    logger.error(`ICT/SMC sinyal turu hata: ${error.message}`);
+    return null;
+  } finally {
+    _ictSmcCadenceLockAt = 0;
+  }
+}
+
 async function runAltinBacktest() {
   if (forexOnly()) return null;
   if (_altinBacktestRunning) return null;
@@ -1535,6 +1568,13 @@ class CronJobsService {
       { scheduled: false, ...TR_TZ }
     );
 
+    // ICT/SMC Çoklu Strateji paper botu — 5 dk'da bir (fiyat besler + sinyal açar).
+    const ictSmcJob = cron.schedule(
+      '3,8,13,18,23,28,33,38,43,48,53,58 * * * *',
+      () => runIctSmcCadence(),
+      { scheduled: false, ...TR_TZ }
+    );
+
     const beastSignalJob = cron.schedule(
       '*/5 * * * *',
       () => runBeastSignalCadence(),
@@ -1809,6 +1849,7 @@ class CronJobsService {
       altinSignalJob,
       altinBacktestJob,
       ictFvgJob,
+      ictSmcJob,
       beastSignalJob,
       waveScanJob,
       mtf1mJob,

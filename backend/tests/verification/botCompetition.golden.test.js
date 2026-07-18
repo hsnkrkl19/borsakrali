@@ -35,10 +35,11 @@ describe('Telegram bot yarışı — izole paper yürütme', () => {
     delete process.env.BOT_COMPETITION_DATA_DIR;
   });
 
-  test('14 strateji yarışır; haber ve rapor işlem açamaz', () => {
+  test('15 strateji yarışır; haber ve rapor işlem açamaz', () => {
     const status = manager.status();
-    expect(status.summary.competitors).toBe(14);
+    expect(status.summary.competitors).toBe(15);
     expect(status.bots.some((row) => row.id === 'ict-fvg')).toBe(true);
+    expect(status.bots.some((row) => row.id === 'ict-smc')).toBe(true);
     expect(status.support.map((row) => row.id).sort()).toEqual(['account-report', 'news-warning']);
     expect(() => manager.recordOpen('news-warning', signal('bad'))).toThrow(/işlem stratejisi değildir/i);
     expect(JSON.stringify(status)).not.toMatch(/TOKEN|CHAT_ID|TELEGRAM_BOT_TOKEN/);

@@ -17,6 +17,7 @@ const entries = [
   { id: 'wave-scan', name: 'Dalga Tarayıcı', category: 'Tarama', costBps: 5 },
   { id: 'nr7-shadow', name: 'NR7 Gölge', category: 'Deneysel', costBps: 4, engineDisableEnv: 'NR7_SHADOW_DISABLED' },
   { id: 'ict-fvg', name: 'ICT / FVG Akışı', category: 'ICT', costBps: 6, engineDisableEnv: 'ICT_FVG_DISABLED' },
+  { id: 'ict-smc', name: 'ICT / SMC Çoklu Strateji', category: 'ICT', costBps: 6, engineDisableEnv: 'ICT_SMC_DISABLED' },
   { id: 'news-warning', name: 'Haber Uyarıları', category: 'Koruma', role: 'support' },
   { id: 'account-report', name: 'MT5 Kâr/Zarar Raporu', category: 'Rapor', role: 'support' },
 ];
