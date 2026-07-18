@@ -454,14 +454,18 @@ def run_once(cfg):
             log.info("ABD haber molası — kripto-dışı yeni emir yok.")
         per_bot = {}
         total_open = len([p for p in open_pos if parse_code(p.comment)])
+        # 0 (veya negatif) = SINIRSIZ. Her botun tüm işlemleri açılsın istenirse
+        # config'te max_open_total ve max_open_per_bot = 0 yapilir.
+        max_total = int(cfg.get("max_open_total", 20))
+        max_per_bot = int(cfg.get("max_open_per_bot", 3))
         for s in sorted(feed, key=lambda x: -(x.get("confidence") or 0)):
             code = str(s["code"])
             if code in open_codes:
                 continue
-            if total_open >= int(cfg.get("max_open_total", 20)):
+            if max_total > 0 and total_open >= max_total:
                 break
             bkey = s.get("botId")
-            if per_bot.get(bkey, 0) >= int(cfg.get("max_open_per_bot", 3)):
+            if max_per_bot > 0 and per_bot.get(bkey, 0) >= max_per_bot:
                 continue
             if symbol_guarded(cfg, s["symbol"], weekend, news):
                 continue

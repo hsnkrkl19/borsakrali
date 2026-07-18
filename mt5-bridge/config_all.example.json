@@ -16,9 +16,9 @@
   "risk_pct": 0.25,
   "max_lot": 0.5,
 
-  "_TAVANLAR": "Ayni hesapta cok bot -> toplam ve bot-basi acik pozisyon siniri.",
-  "max_open_total": 20,
-  "max_open_per_bot": 3,
+  "_TAVANLAR": "Acik pozisyon tavani. 0 = SINIRSIZ (tum botlarin tum islemleri acilir - hangi bot ne kadar basarili net gormek icin). Dikkat: cok pozisyon = cok margin/risk; gunluk zarar freni yine korur.",
+  "max_open_total": 0,
+  "max_open_per_bot": 0,
   "min_rr": 0.5,
   "min_confidence": 0,
   "deviation_points": 30,
