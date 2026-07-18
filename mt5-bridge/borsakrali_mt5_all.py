@@ -177,6 +177,8 @@ def ensure_symbol(broker_sym):
 
 
 _symbol_cache = {}
+# Piyasa kapalı (retcode 10018) sembolleri: bu zamana kadar tekrar deneme (log spam'ı önler).
+_market_closed_until = {}
 
 
 def resolve_broker_symbol(cfg, feed_sym):
@@ -274,6 +276,9 @@ def open_from_feed(cfg, s):
     if not broker_sym:
         log.info("↷ %s (%s) atlandı: broker'da sembol yok.", s["symbol"], s.get("botName"))
         return
+    # Piyasa kapalıysa (son denemede 10018) bu sembolü bir süre atla — log spam'ı önle.
+    if _market_closed_until.get(broker_sym, 0) > time.time():
+        return
     info = ensure_symbol(broker_sym)
     if info is None:
         return
@@ -315,6 +320,10 @@ def open_from_feed(cfg, s):
     r = send_with_filling(req)
     if r and r.retcode == mt5.TRADE_RETCODE_DONE:
         log.info("✅ AÇILDI %s | %s %s lot=%s magic=%s ticket=%s", s.get("botName"), info.name, label, lot, magic, r.order)
+    elif r and r.retcode == getattr(mt5, "TRADE_RETCODE_MARKET_CLOSED", 10018):
+        # Piyasa kapalı (hafta sonu / seans dışı): sembolü 15 dk atla, bir kez INFO logla.
+        _market_closed_until[info.name] = time.time() + 900
+        log.info("⏸ %s piyasa kapalı — 15 dk atlanacak (%s).", info.name, s.get("botName"))
     else:
         rc = r.retcode if r else "None"
         log.error("❌ AÇILAMADI %s %s: retcode=%s %s", s.get("botName"), info.name, rc, (r.comment if r else mt5.last_error()))
