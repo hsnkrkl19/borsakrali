@@ -17,6 +17,7 @@ import {
   Wrench, Plus, RefreshCw, TrendingUp, ListChecks, History, Settings,
   ArrowLeft, Trash2, Pause, Play, Pencil, Search, X, Check, AlertTriangle,
   Clock, Lock, Activity, Award, Target, Bot, Layers, Sparkles, ChevronDown, ChevronUp,
+  Rewind, BarChart3, Gauge, TrendingDown, Hourglass, Scale, Percent, Trophy,
 } from 'lucide-react'
 import api from '../services/api'
 import { Button, Card, EmptyState, Spinner } from '../components/ui'
@@ -546,12 +547,235 @@ function ManualOpenForm({ bot, stocks, window: w, onOpen, busy }) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
+//  GERİYE TEST (BACKTEST) PANELİ
+//  Botun TANIMINI (strateji + parametre + risk + sizing) geçmiş mumlar üzerinde
+//  yeniden oynatır. Backend, canlı motorun AYNI strateji/risk/para modüllerini
+//  kullanır → yeşil backtest ile canlı bot tutarlıdır.
+// ═══════════════════════════════════════════════════════════════════════════
+const BACKTEST_RANGES = [
+  { value: '3mo', label: '3 ay' }, { value: '6mo', label: '6 ay' },
+  { value: '1y', label: '1 yıl' }, { value: '2y', label: '2 yıl' }, { value: '5y', label: '5 yıl' },
+]
+
+function MetricsGrid({ m }) {
+  const ret = m.totalReturnPct ?? 0
+  const pf = m.profitFactorInf ? '∞' : (m.profitFactor != null ? m.profitFactor.toFixed(2) : '—')
+  return (
+    <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+      <StatCard icon={Award} label="Toplam Getiri" value={fmtPct(ret)} sub={`${fmtMoney(m.netProfit)} ₺ net`} tone={ret >= 0 ? 'good' : 'bad'} />
+      <StatCard icon={TrendingDown} label="Maks. Düşüş" value={`-%${(m.maxDrawdownPct ?? 0).toFixed(1)}`} sub={`${fmtMoney(m.maxDrawdownAbs)} ₺`} tone="bad" />
+      <StatCard icon={Target} label="Kazanma Oranı" value={`%${(m.winRate ?? 0).toFixed(1)}`} sub={`${m.winCount || 0} kazanç · ${m.lossCount || 0} kayıp`} tone="gold" />
+      <StatCard icon={BarChart3} label="İşlem Sayısı" value={`${m.totalTrades ?? 0}`} sub={`ort. tutuş ${m.avgHoldingBars ?? 0} işgünü`} />
+      <StatCard icon={Scale} label="Profit Factor" value={pf} sub="brüt kâr / brüt zarar" tone={(m.profitFactor ?? 0) >= 1 || m.profitFactorInf ? 'good' : 'bad'} />
+      <StatCard icon={TrendingUp} label="Yıllık Getiri (CAGR)" value={fmtPct(m.cagrPct ?? 0)} sub="bileşik" tone={(m.cagrPct ?? 0) >= 0 ? 'good' : 'bad'} />
+      <StatCard icon={Gauge} label="Sharpe" value={`${(m.sharpe ?? 0).toFixed(2)}`} sub="risk-ayarlı getiri" tone={(m.sharpe ?? 0) >= 1 ? 'good' : 'neutral'} />
+      <StatCard icon={Trophy} label="Beklenti / İşlem" value={`${fmtMoney(m.expectancy)} ₺`} sub={`en iyi ${fmtPct(m.bestTradePct)} · en kötü ${fmtPct(m.worstTradePct)}`} tone={(m.expectancy ?? 0) >= 0 ? 'good' : 'bad'} />
+    </div>
+  )
+}
+
+function BacktestResult({ run }) {
+  const m = run.metrics || {}
+  const ledger = (run.trades || []).map(toLedgerTrade)
+  const dr = run.dataRange || {}
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-gray-500">
+        <span><span className="text-gray-400">Dönem:</span> {dr.from} → {dr.to} ({dr.tradingDays} işgünü)</span>
+        <span><span className="text-gray-400">Kapsam:</span> {run.mode === 'single' ? run.symbols?.[0] : `${run.symbolsWithData?.length || run.symbols?.length} hisse`}</span>
+        <span><span className="text-gray-400">Sinyal:</span> {run.counts?.entrySignals ?? 0} giriş</span>
+        {run.fetchErrors > 0 && <span className="text-amber-400">{run.fetchErrors} hissede veri alınamadı</span>}
+      </div>
+
+      <MetricsGrid m={m} />
+
+      <Card>
+        <div className="mb-3 text-[11px] font-semibold uppercase tracking-wider text-gray-500">Sanal portföy eğrisi</div>
+        {(run.equityCurve || []).length > 1
+          ? <EquityChart data={run.equityCurve} />
+          : <p className="py-8 text-center text-xs text-gray-500">Bu dönemde işlem oluşmadı.</p>}
+      </Card>
+
+      {run.openAtEnd?.length > 0 && (
+        <Card padding="sm">
+          <div className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-gray-500">Test sonunda hâlâ açık ({run.openAtEnd.length})</div>
+          <div className="flex flex-wrap gap-2 text-xs">
+            {run.openAtEnd.map(p => (
+              <span key={p.symbol} className="rounded-md border border-dark-700 px-2 py-1 text-gray-300">
+                {p.symbol} <span className={p.unrealizedPnL >= 0 ? 'text-emerald-300' : 'text-rose-300'}>{fmtPct(p.unrealizedPnLPct)}</span>
+              </span>
+            ))}
+          </div>
+        </Card>
+      )}
+
+      <div>
+        <div className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-gray-500">İşlemler ({run.trades?.length || 0})</div>
+        {(run.trades || []).length === 0 ? (
+          <Card padding="none"><EmptyState icon={History} title="İşlem yok" description="Bu strateji/aralık kombinasyonunda hiç işlem açılmadı." /></Card>
+        ) : (
+          <TradeLedger trades={ledger} renderDetail={(lt) => (
+            <div className="text-[11px] text-gray-400">
+              {lt._src.symbol} · {lt._src.holdingBars ?? '—'} işgünü tutuldu · çıkış: {exitReasonLabel(lt._src.exitReason)}
+            </div>
+          )} />
+        )}
+      </div>
+
+      {Array.isArray(run.assumptions) && (
+        <div className="rounded-lg border border-dark-700 bg-dark-800/30 p-3">
+          <div className="mb-1.5 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-gray-500">
+            <AlertTriangle className="h-3.5 w-3.5" /> Modelleme varsayımları
+          </div>
+          <ul className="list-inside list-disc space-y-0.5 text-[11px] leading-snug text-gray-500">
+            {run.assumptions.map((a, i) => <li key={i}>{a}</li>)}
+          </ul>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function exitReasonLabel(r) {
+  return r === 'stop' ? 'stop-loss' : r === 'target' ? 'hedef' : r === 'signal_exit' ? 'strateji çıkışı'
+    : r === 'timeout' ? 'zaman aşımı' : (r || '—')
+}
+
+function BacktestPanel({ bot, stocks, flash }) {
+  const [mode, setMode] = useState('single')
+  const [symbol, setSymbol] = useState(bot.universe?.[0] || '')
+  const [range, setRange] = useState('1y')
+  const [running, setRunning] = useState(false)
+  const [run, setRun] = useState(null)
+  const [history, setHistory] = useState([])
+
+  const loadHistory = useCallback(async () => {
+    try {
+      const { data } = await api.get('/backtest/runs', { params: { botId: bot.id, limit: 20 } })
+      if (data?.ok) setHistory(data.runs || [])
+    } catch (_) {}
+  }, [bot.id])
+
+  useEffect(() => { loadHistory() }, [loadHistory])
+
+  const doRun = async () => {
+    if (mode === 'single' && !symbol.trim()) { flash('Tek hisse modu için bir hisse seç.', 'bad'); return }
+    setRunning(true)
+    try {
+      const payload = { botId: bot.id, mode, range, ...(mode === 'single' ? { symbol: symbol.toUpperCase().trim() } : {}) }
+      // Evren testi 80 hisseye kadar çekim yapabilir → uzun timeout
+      const { data } = await api.post('/backtest/run', payload, { timeout: 180000 })
+      if (data?.ok) { setRun(data.run); loadHistory() }
+    } catch (e) {
+      const errs = e?.response?.data?.errors
+      flash(Array.isArray(errs) && errs.length ? errs[0] : (e?.response?.data?.error || 'Backtest çalıştırılamadı.'), 'bad')
+    } finally { setRunning(false) }
+  }
+
+  const openRun = async (id) => {
+    try {
+      const { data } = await api.get(`/backtest/runs/${id}`)
+      if (data?.ok) setRun(data.run)
+    } catch (_) { flash('Kayıt yüklenemedi.', 'bad') }
+  }
+
+  return (
+    <div className="space-y-4">
+      <Card className="space-y-3">
+        <div className="flex items-center gap-1.5 text-sm font-semibold text-white">
+          <Rewind className="h-4 w-4 text-emerald-400" /> Geriye dönük test (backtest)
+        </div>
+        <p className="text-[11.5px] leading-snug text-gray-500">
+          Bu botun <strong className="text-gray-300">aynı strateji, risk ve para kurallarını</strong> geçmiş mumlar
+          üzerinde gün-gün yeniden oynatır. Canlı bot ne yapacaksa backtest de onu yapar — sonuç doğrudan kıyaslanabilir.
+        </p>
+
+        <div className="grid gap-3 sm:grid-cols-3">
+          <Field label="Kapsam">
+            <div className="flex rounded-lg border border-dark-700 p-0.5">
+              <button type="button" onClick={() => setMode('single')}
+                className={`flex-1 rounded-md px-2 py-1.5 text-xs font-semibold transition-colors ${mode === 'single' ? 'bg-emerald-500/20 text-emerald-200' : 'text-gray-400 hover:text-gray-200'}`}>
+                Tek Hisse
+              </button>
+              <button type="button" onClick={() => setMode('universe')}
+                className={`flex-1 rounded-md px-2 py-1.5 text-xs font-semibold transition-colors ${mode === 'universe' ? 'bg-emerald-500/20 text-emerald-200' : 'text-gray-400 hover:text-gray-200'}`}>
+                Tüm Evren ({bot.universe?.length || 0})
+              </button>
+            </div>
+          </Field>
+
+          {mode === 'single' ? (
+            <Field label="Hisse">
+              <input list="bk-bt-universe" value={symbol} onChange={(e) => setSymbol(e.target.value.toUpperCase())}
+                placeholder="THYAO" className="input text-sm" />
+              <datalist id="bk-bt-universe">
+                {(bot.universe || []).map(s => <option key={s} value={s} />)}
+                {stocks.map(s => <option key={s.symbol} value={s.symbol}>{s.name}</option>)}
+              </datalist>
+            </Field>
+          ) : (
+            <Field label="Hisse" hint={`Botun ${bot.universe?.length || 0} hisselik evreni taranır`}>
+              <div className="input flex items-center text-sm text-gray-400">Tüm evren ({bot.universe?.length || 0} hisse)</div>
+            </Field>
+          )}
+
+          <Field label="Dönem">
+            <select value={range} onChange={(e) => setRange(e.target.value)} className="input text-sm">
+              {BACKTEST_RANGES.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
+            </select>
+          </Field>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <Button icon={Rewind} loading={running} onClick={doRun}>
+            {running ? 'Oynatılıyor…' : 'Backtest çalıştır'}
+          </Button>
+          {mode === 'universe' && (bot.universe?.length || 0) > 30 && (
+            <span className="text-[10.5px] text-gray-500">Büyük evren — birkaç saniye sürebilir.</span>
+          )}
+        </div>
+      </Card>
+
+      {running && !run && (
+        <Card><div className="flex flex-col items-center gap-2 py-10 text-center text-xs text-gray-500">
+          <Spinner size={24} /> Geçmiş veri çekiliyor ve strateji bar-bar yeniden oynatılıyor…
+        </div></Card>
+      )}
+
+      {run && <BacktestResult run={run} />}
+
+      {history.length > 0 && (
+        <Card padding="sm">
+          <div className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-gray-500">Geçmiş testler</div>
+          <div className="space-y-1">
+            {history.map(h => (
+              <button key={h.id} onClick={() => openRun(h.id)}
+                className="flex w-full items-center justify-between gap-2 rounded-lg px-2 py-1.5 text-left text-xs hover:bg-white/5">
+                <span className="flex items-center gap-2 text-gray-300">
+                  <span className="font-medium">{h.mode === 'single' ? h.symbols?.[0] : `Evren (${h.symbols?.length})`}</span>
+                  <span className="text-gray-500">· {h.period} · {h.totalTrades ?? 0} işlem</span>
+                </span>
+                <span className="flex items-center gap-3">
+                  <span className={`font-semibold ${(h.totalReturnPct ?? 0) >= 0 ? 'text-emerald-300' : 'text-rose-300'}`}>{fmtPct(h.totalReturnPct ?? 0)}</span>
+                  <span className="text-[10px] text-gray-500">{fmtDate(h.createdAt)}</span>
+                </span>
+              </button>
+            ))}
+          </div>
+        </Card>
+      )}
+    </div>
+  )
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
 //  BOT DETAYI
 // ═══════════════════════════════════════════════════════════════════════════
 const DETAIL_TABS = [
   { id: 'overview', label: 'Genel Bakış', icon: TrendingUp },
   { id: 'open', label: 'Açık Pozisyonlar', icon: ListChecks },
   { id: 'trades', label: 'İşlem Geçmişi', icon: History },
+  { id: 'backtest', label: 'Geriye Test', icon: Rewind },
   { id: 'settings', label: 'Ayarlar', icon: Settings },
 ]
 
@@ -690,6 +914,7 @@ function BotDetail({ botId, meta, marketWindow, refreshMarket, onBack, onEdit, o
 
           <div className="flex flex-wrap items-center gap-2">
             <Button variant="outline" size="sm" icon={RefreshCw} loading={busy} onClick={doRun}>Şimdi tara</Button>
+            <Button variant="outline" size="sm" icon={Rewind} onClick={() => setTab('backtest')}>Geriye test et</Button>
             <Button variant="ghost" size="sm" loading={busy} onClick={doTick}>Pozisyonları kontrol et</Button>
             <Button variant="ghost" size="sm" icon={bot.status === 'paused' ? Play : Pause} loading={busy} onClick={togglePause}>
               {bot.status === 'paused' ? 'Sürdür' : 'Duraklat'}
@@ -759,6 +984,11 @@ function BotDetail({ botId, meta, marketWindow, refreshMarket, onBack, onEdit, o
             <TradeLedger trades={ledger} renderDetail={(lt) => <NotesList notes={lt._src.notes || []} />} />
           )}
         </div>
+      )}
+
+      {/* ── Geriye Test (Backtest) ── */}
+      {tab === 'backtest' && (
+        <BacktestPanel bot={bot} stocks={stocks} flash={flash} />
       )}
 
       {/* ── Ayarlar ── */}
