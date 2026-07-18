@@ -1,6 +1,6 @@
 {
   "_aciklama": "BIRLESIK KOPRU (tum botlar -> MT5). config_all.json olarak kopyala + doldur.",
-  "backend_url": "https://borsakrali.com",
+  "backend_url": "https://www.borsakrali.com",
   "exec_token": "BURAYA_FOREX_EXEC_TOKEN",
   "allowed_account": 1513908484,
   "terminal_path": "",

@@ -345,10 +345,20 @@ def close_position(cfg, pos, reason):
         log.error("❌ KAPATILAMADI %s %s: %s", parse_code(pos.comment), pos.symbol, (r.retcode if r else mt5.last_error()))
 
 
+def _backend_base(cfg):
+    # borsakrali.com -> www.borsakrali.com'a YÖNLENDİRİR ve requests yönlendirmede
+    # Authorization header'ı düşürür (401). Baştan www kullanarak yönlendirmeyi önle.
+    base = cfg["backend_url"].rstrip("/")
+    if "://borsakrali.com" in base:
+        base = base.replace("://borsakrali.com", "://www.borsakrali.com")
+    return base
+
+
 def fetch_feed(cfg):
-    url = cfg["backend_url"].rstrip("/") + "/api/bridge/positions"
+    url = _backend_base(cfg) + "/api/bridge/positions"
     headers = {"Authorization": "Bearer %s" % cfg["exec_token"]} if cfg.get("exec_token") else {}
-    r = requests.get(url, headers=headers, timeout=15)
+    # allow_redirects=False: beklenmedik yönlendirmede token'ı sessizce kaybetme.
+    r = requests.get(url, headers=headers, timeout=15, allow_redirects=False)
     r.raise_for_status()
     data = r.json()
     if not data.get("success"):
@@ -361,7 +371,7 @@ def news_blackout_active(cfg):
     if not bool(cfg.get("news_blackout", True)):
         return False
     try:
-        url = cfg["backend_url"].rstrip("/") + "/api/market-guard"
+        url = _backend_base(cfg) + "/api/market-guard"
         r = requests.get(url, timeout=8)
         if r.ok:
             g = r.json()
