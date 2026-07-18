@@ -380,7 +380,8 @@ def close_position(cfg, pos, reason):
 def poll_feed(cfg):
     url = cfg["backend_url"].rstrip("/") + "/api/mt5-scanner/positions"
     try:
-        r = requests.get(url, params={"token": cfg["exec_token"]}, timeout=20)
+        # Token Authorization header'inda (query-param CDN/access loglarina sizar).
+        r = requests.get(url, headers={"Authorization": "Bearer " + cfg["exec_token"]}, timeout=20)
         if r.status_code == 503:
             log.warning("Backend exec-feed KAPALI (FOREX_EXEC_TOKEN env set değil).")
             return None

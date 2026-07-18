@@ -10,9 +10,10 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import trade_guard  # noqa: E402
 
 
-def deal(magic, profit, entry=1, swap=0.0, commission=0.0, symbol="XAUUSD"):
+def deal(magic, profit, entry=1, swap=0.0, commission=0.0, symbol="XAUUSD", dtype=0):
+    # dtype: 0=DEAL_TYPE_BUY, 1=DEAL_TYPE_SELL, 2=DEAL_TYPE_BALANCE (yatırma/çekme)
     return SimpleNamespace(magic=magic, profit=profit, swap=swap,
-                           commission=commission, entry=entry, symbol=symbol)
+                           commission=commission, entry=entry, symbol=symbol, type=dtype)
 
 
 def pos(magic, profit, swap=0.0):
@@ -53,6 +54,23 @@ def t_daily_pnl():
     _, _, ok3 = trade_guard.daily_pnl_usd(FakeMT5(deals=None), magic=550055)
     assert ok3 is False, "history None → ok=False (fail-open sinyali)"
     print("OK daily_pnl_usd (magic filtresi, swap+komisyon, tum-hesap, history-None)")
+
+
+def t_balance_deals_excluded():
+    # HESAP katmanı bilanço hareketlerini (çekim/yatırma) trading P/L saymamalı.
+    # -5000 çekim + gerçek -1000 trading zararı: yalnız -1000 sayılmalı.
+    m = FakeMT5(deals=[deal(0, -5000, dtype=2), deal(550055, -1000)], balance=100000.0)
+    r, f, ok = trade_guard.daily_pnl_usd(m, magic=None)
+    assert ok and abs(r - (-1000.0)) < 1e-9, r  # bilanço deal'i (-5000) hariç
+    # Çekim tek başına HESAP freni tetiklememeli (yanlış tam durma olmasın)
+    blocked, _ = trade_guard.daily_loss_blocked(
+        FakeMT5(deals=[deal(0, -9000, dtype=2)], balance=100000.0), CFG)
+    assert not blocked, "bilanço çekimi günlük zarar freni tetiklememeli"
+    # Yatırma gerçek trading zararını MASKELEMEMELİ: +8000 yatırma + -4000 trading → BLOK
+    blocked2, reason2 = trade_guard.daily_loss_blocked(
+        FakeMT5(deals=[deal(0, +8000, dtype=2), deal(550055, -4000)], balance=100000.0), CFG)
+    assert blocked2, ("yatırma gerçek zararı maskelememeli", reason2)
+    print("OK bilanço deal'leri günlük P/L'den haric (yanlış tetik + maskeleme yok)")
 
 
 def t_bot_layer_trips():
@@ -107,6 +125,7 @@ def t_recent_loss_symbols():
 
 if __name__ == "__main__":
     t_daily_pnl()
+    t_balance_deals_excluded()
     t_bot_layer_trips()
     t_floating_counts()
     t_account_layer()

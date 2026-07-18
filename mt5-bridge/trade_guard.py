@@ -155,6 +155,16 @@ def fetch_recent_deals(mt5mod, lookback_extra_min=60, skew=0.0):
     return mt5mod.history_deals_get(start, end)
 
 
+def _is_trading_deal(d):
+    """True yalnız gerçek AL/SAT (pozisyon) deal'i için. Bilanço hareketleri
+    (DEAL_TYPE_BALANCE=2 yatırma/çekme, credit/charge/correction=3..) trading
+    P/L değildir; HESAP katmanı bunları zarar/kar sayarsa günlük fren yanlış
+    tetiklenir ya da gerçek zararı maskeler. type alanı yoksa (test stub'ları)
+    geriye-uyum için trading kabul edilir; gerçek MT5 deal'lerinde tip hep vardır."""
+    t = getattr(d, "type", None)
+    return t is None or t in (0, 1)  # 0=DEAL_TYPE_BUY, 1=DEAL_TYPE_SELL
+
+
 def _deal_pnl(d):
     return (getattr(d, "profit", 0) or 0) + (getattr(d, "swap", 0) or 0) + (getattr(d, "commission", 0) or 0)
 
@@ -174,6 +184,8 @@ def daily_pnl_usd(mt5mod, magic=None, now_utc=None, deals=None, positions=None, 
     day_start_epoch = _tr_day_start_utc(now_utc).timestamp() + skew - 900
     realized = 0.0
     for d in deals:
+        if not _is_trading_deal(d):
+            continue  # bilanço/komisyon-dışı hareketler trading P/L'i değildir
         if magic is not None and getattr(d, "magic", None) != int(magic):
             continue
         t = getattr(d, "time", None)

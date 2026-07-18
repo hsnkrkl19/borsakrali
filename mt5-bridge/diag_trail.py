@@ -11,7 +11,7 @@ cfg = json.load(open(os.path.join(HERE, "config.json"), encoding="utf-8"))
 mt5.initialize()
 
 url = cfg["backend_url"].rstrip("/") + "/api/forex/positions"
-feed = requests.get(url, params={"token": cfg["exec_token"]}, timeout=20).json()["positions"]
+feed = requests.get(url, headers={"Authorization": "Bearer " + cfg["exec_token"]}, timeout=20).json()["positions"]
 by_code = {s["code"]: s for s in feed}
 
 

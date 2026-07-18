@@ -192,17 +192,22 @@ def risk_based_lot(cfg, conf, info, equity, entry_price, stop_price):
 
 
 def compute_lot(cfg, s, info, entry_price, stop_price):
-    """lot_mode='risk' -> risk-bazli (veri eksikse guven-lotuna duser).
-    lot_mode='confidence' -> eski guven->lot davranisi."""
+    """lot_mode='risk' -> risk-bazli. Veri eksikse (equity/contract/stop yok)
+    FAIL-CLOSED: 0.0 doner ve cagiran islemi ATLAR. Guven-lotu fallback'i
+    stop mesafesinden BAGIMSIZ 0.1-1.1 lot verdiginden, tam da terminal/veri
+    bozukken amaclanan riskin katlari acilirdi (2026-07 denetim bulgusu: risk
+    tavani fiilen iptal). Sonraki turda veri duzelince islem normal acilir.
+    lot_mode='confidence' -> kasitli guven->lot davranisi (risk tavani yok)."""
     conf = s.get("confidence", cfg["conf_min"])
     if str(cfg.get("lot_mode", "risk")).lower() == "risk":
         ai = mt5.account_info()
         equity = getattr(ai, "equity", None) if ai else None
         lot = risk_based_lot(cfg, conf, info, equity, entry_price, stop_price)
-        if lot > 0:
-            return lot
-        log.warning("#%s %s: risk-bazli lot hesaplanamadi (equity/contract/stop yok) - guven-lotuna dusuldu.",
-                    s.get("code"), getattr(info, "name", "?"))
+        if lot <= 0:
+            log.warning("#%s %s: risk-bazli lot hesaplanamadi (equity/contract/stop yok) - "
+                        "islem ATLANDI (fail-closed; guven-lotuna DUSULMEDI).",
+                        s.get("code"), getattr(info, "name", "?"))
+        return lot
     return lot_for_confidence(cfg, conf, info)
 
 
@@ -434,7 +439,8 @@ def close_position(cfg, pos):
 def poll_feed(cfg):
     url = cfg["backend_url"].rstrip("/") + "/api/forex/positions"
     try:
-        r = requests.get(url, params={"token": cfg["exec_token"]}, timeout=20)
+        # Token Authorization header'inda (query-param CDN/access loglarina sizar).
+        r = requests.get(url, headers={"Authorization": "Bearer " + cfg["exec_token"]}, timeout=20)
         if r.status_code == 503:
             log.warning("Backend exec-feed KAPALI (FOREX_EXEC_TOKEN env set değil).")
             return None
