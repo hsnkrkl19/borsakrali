@@ -294,18 +294,25 @@ def open_from_feed(cfg, s):
     if tick is None or not (tick.ask > 0 and tick.bid > 0):
         return
     price = tick.ask if is_long else tick.bid
-    sl = float(s["stop"])
-    tp1 = float(s["target1"]) if s.get("target1") else (price + (price - sl) * 2 if is_long else price - (sl - price) * 2)
-    if is_long and not (sl < price < tp1):
+    # SEVİYELER MT5 FİYATINA GÖRE (mutlak): sinyalin risk/ödül MESAFESİNİ koru ama
+    # SL/TP'yi MT5 giriş fiyatina yeniden bağla. Böylece fiyat-uzayi uyumsuzlugu
+    # (site-Yahoo vs broker) ve 'Invalid stops' (retcode 10016) giderilir.
+    sig_entry = float(s["entry"]); sig_stop = float(s["stop"])
+    risk = abs(sig_entry - sig_stop)
+    reward = abs(float(s["target1"]) - sig_entry) if s.get("target1") else risk * 2
+    if risk <= 0:
         return
-    if (not is_long) and not (tp1 < price < sl):
+    if reward / risk < float(cfg.get("min_rr", 0.5)):
         return
-    reward, risk = abs(tp1 - price), abs(price - sl)
-    if risk <= 0 or reward / risk < float(cfg.get("min_rr", 0.5)):
-        return
+    # Broker asgari stop mesafesi: çok dar stop reddedilmesin diye mesafeye çek
+    # (R:R korunur; reward risk oraninca büyütülür).
     md = min_stop_dist(info)
-    if md > 0 and (risk < md or reward < md):
-        return
+    if md > 0 and risk < md * 1.1:
+        rr = reward / risk
+        risk = md * 1.2
+        reward = risk * rr
+    sl = price - risk if is_long else price + risk
+    tp1 = price + reward if is_long else price - reward
     d = info.digits
     sl, tp = round(sl, d), round(tp1, d)
     lot = compute_lot(cfg, s.get("category"), info, price, sl)
