@@ -16,7 +16,7 @@ const GRAV = 1750
 const SUBSTEPS = 8
 const SX = 110              // örnek nokta yatay aralığı
 const AMP = 660             // fiyat → yükseklik bandı (biraz daha yüksek → belirgin tepeler)
-const MAXSTEP = AMP * 0.19  // daha sert eğim izni ("sert pist")
+const MAXSTEP = AMP * 0.16  // orijinalden (0.13) sert ama başlangıç aracıyla TIRMANILABİLİR
 const TERRAIN_POINTS = 150
 const METER = 30
 const PHYS_DT_MAX = 1 / 60
@@ -55,6 +55,12 @@ export class RacingEngine {
     this.symbol = (opts.symbol || 'BIST').toUpperCase()
     this.assetName = opts.name || this.symbol
 
+    // SEVİYE (v4): sonlu tur — bitiş çizgisi + checkpoint'ler + seviyeye özel başlangıç
+    this.level = Math.max(1, Math.round(opts.level || 1))
+    this.levelDistanceM = Math.max(120, Math.round(opts.levelDistanceM || 500))
+    this.checkpointSpacingM = Math.max(60, Math.round(opts.checkpointSpacingM || 150))
+    this.won = false
+
     // 4 ayrı kontrol: ileri / geri (sürüş) + sol/sağ (havada takla)
     this.input = { fwd: false, rev: false, flipL: false, flipR: false }
     this.running = false
@@ -64,7 +70,9 @@ export class RacingEngine {
     this.stateClock = 0
 
     this._buildTerrain(opts.candles || [])
+    this._setupLevel()
     this._initVehicle()
+    this._loadSprites()
     this._initAudio()
 
     this.collected = new Set()
@@ -73,7 +81,7 @@ export class RacingEngine {
     this.trail = []
     this.shake = 0
 
-    this.run = { distanceM: 0, coins: 0, flips: 0, airTime: 0, maxSpeed: 0 }
+    this.run = { distanceM: 0, coins: 0, flips: 0, airTime: 0, maxSpeed: 0, checkpoints: 0 }
     this._airAccum = 0
     this._airTimer = 0
     this._flipsThisAir = 0
@@ -150,7 +158,7 @@ export class RacingEngine {
     let bi = 12
     while (bi < N - 6) {
       if (hash32(bi * 53 + 11) % 4 === 0) {
-        const peak = AMP * 0.28
+        const peak = AMP * 0.23
         h[bi - 1] += peak * 0.5
         h[bi] += peak
         h[bi + 1] += peak * 0.5
@@ -202,6 +210,23 @@ export class RacingEngine {
   }
 
   // --------------------------------------------------------------------------
+  // SEVİYE — seviyeye göre farklı başlangıç (farklı arazi), bitiş çizgisi, checkpoint'ler
+  // --------------------------------------------------------------------------
+  _setupLevel() {
+    const N = this.N
+    const period = 2 * (N - 1) * SX
+    // her seviye grafiğin FARKLI bölgesinden başlar → başlangıç/bitiş/arazi değişir
+    const off = period > 1 ? (hash32(this.level * 2654435761 + 7) % Math.floor(period)) : 0
+    this.startX = SX * 2 + off
+    this.finishX = this.startX + this.levelDistanceM * METER
+    this.checkpoints = []
+    const sp = this.checkpointSpacingM * METER
+    for (let cx = this.startX + sp; cx < this.finishX - sp * 0.35; cx += sp) {
+      this.checkpoints.push({ x: cx, hit: false })
+    }
+  }
+
+  // --------------------------------------------------------------------------
   // ARAÇ
   // --------------------------------------------------------------------------
   _initVehicle() {
@@ -214,13 +239,13 @@ export class RacingEngine {
     this.susRest = s.wheelR * (0.55 + 0.05 * sus)
     this.susTravel = this.susRest * 0.9
 
+    // arka-çekiş ağırlıklı (doğal wheelie + daha az geriye takla) ama ön de çeker (tırmanış gücü)
     this.wheels = [
-      { lx: -wb / 2, lyAxle: -s.bodyH * 0.28, drive: true },   // arka
-      { lx: wb / 2, lyAxle: -s.bodyH * 0.28, drive: true },    // ön
+      { lx: -wb / 2, lyAxle: -s.bodyH * 0.28, drive: true, driveW: 1.0 },   // arka
+      { lx: wb / 2, lyAxle: -s.bodyH * 0.28, drive: true, driveW: 0.7 },    // ön
     ]
 
-    const startX = SX * 2
-    this.startX = startX
+    const startX = this.startX   // _setupLevel'de belirlendi (seviyeye özel)
     // hafif ön-yükle → spawn'da yere oturur, drop-in spin yok
     const restY = this.heightAt(startX) + this.wheelR + this.susRest * 0.7 + s.bodyH * 0.28
     this.car = {
@@ -246,6 +271,20 @@ export class RacingEngine {
     if (val && this.audio && this.audio.ctx.state === 'suspended') {
       this.audio.ctx.resume().catch(() => {})
     }
+  }
+
+  // Gerçek CC0 araç sprite'ları (varsa) — gövde + teker ayrı PNG; yüklenene kadar çizim fallback
+  _loadSprites() {
+    this.sprites = null
+    const sp = this.stats && this.stats.sprite
+    if (!sp || typeof Image === 'undefined') return
+    const mk = (src) => { try { const im = new Image(); im.src = src; return im } catch { return null } }
+    this.sprites = { cfg: sp, body: mk(sp.body), wheel: mk(sp.wheel) }
+  }
+  _spriteReady() {
+    const s = this.sprites
+    return !!(s && s.body && s.body.complete && s.body.naturalWidth &&
+      s.wheel && s.wheel.complete && s.wheel.naturalWidth)
   }
 
   // --------------------------------------------------------------------------
@@ -293,7 +332,9 @@ export class RacingEngine {
         const vpy = car.vy + car.angVel * rx
         const vn = vpx * n.x + vpy * n.y
 
-        let Fn = s.suspK * comp - s.suspDamp * vn
+        // asimetrik sönüm: sıkışırken sert (tümsek yutma), açılırken yumuşak (zıplama/rebound kesme)
+        const dampC = vn < 0 ? s.suspDamp * 1.6 : s.suspDamp * 0.7
+        let Fn = s.suspK * comp - dampC * vn
         if (Fn < 0) Fn = 0
         this._applyImpulse(n.x * Fn * dt, n.y * Fn * dt, rx, ry)
 
@@ -303,8 +344,9 @@ export class RacingEngine {
 
         let drive = 0
         if (w.drive && hasFuel) {
-          if (fwd) drive += s.enginePower
-          if (rev) drive -= s.enginePower * 0.72   // geri vites — biraz daha zayıf
+          const dw = w.driveW ?? 1
+          if (fwd) drive += s.enginePower * dw
+          if (rev) drive -= s.enginePower * 0.72 * dw   // geri vites — biraz daha zayıf
         }
         if (speed > s.topSpeed && drive > 0) drive = 0
 
@@ -328,9 +370,15 @@ export class RacingEngine {
       const fX = Math.cos(car.angle), fY = Math.sin(car.angle)
       const downhill = -fY
       if (downhill > 0.15 && car.vx > 80) {
-        const assist = GRAV * 0.045 * downhill
+        const assist = GRAV * 0.055 * downhill
         car.vx += fX * assist * dt
         car.vy += fY * assist * dt
+      }
+      // OTURAKLI HİS: flip tuşuna basılmadıkça aracı zemin eğimine yumuşakça hizala
+      // (araç zemine paralel kalır → daha az sebepsiz devrilme, floaty hissi azalır)
+      if (this._hasLanded && !this.input.flipL && !this.input.flipR) {
+        const gA = Math.atan2(car.groundN.x, car.groundN.y)   // zemin normali açısı (düz=0)
+        car.angVel += (-gA - car.angle) * 5 * dt
       }
     }
 
@@ -413,8 +461,8 @@ export class RacingEngine {
     const s = this.stats
 
     if (this.fuel > 0) {
-      let burn = 0.6
-      if (this.input.fwd || this.input.rev) burn = 7
+      let burn = 0.5
+      if (this.input.fwd || this.input.rev) burn = 5   // depo daha uzun sürer → checkpoint'e ulaşılır
       this.fuel = Math.max(0, this.fuel - burn * frameDt)
     }
 
@@ -433,6 +481,19 @@ export class RacingEngine {
     this.run.distanceM = Math.max(this.run.distanceM, (car.x - this.startX) / METER)
     const spd = Math.hypot(car.vx, car.vy)
     this.run.maxSpeed = Math.max(this.run.maxSpeed, spd)
+
+    // CHECKPOINT geçişi → yakıt dolar + ödül (dağınık depo yerine buradan yakıt)
+    for (const cp of this.checkpoints) {
+      if (!cp.hit && car.x >= cp.x) {
+        cp.hit = true
+        this.run.checkpoints++
+        this.fuel = s.fuelMax
+        this._addFloat(cp.x, this.heightAt(cp.x) + 62, 'CHECKPOINT · YAKIT DOLDU', '#38bdf8')
+        this._beep(720, 0.1); this._addShake(3); this._spawnSparkle(cp.x, this.heightAt(cp.x) + 30)
+      }
+    }
+    // BİTİŞ çizgisi → seviye tamamlandı (SONLU tur)
+    if (this._hasLanded && car.x >= this.finishX) return this._finish()
 
     // hava / takla kombosu
     if (!car.onGround) {
@@ -510,6 +571,7 @@ export class RacingEngine {
     const s = this.stats
     const car = this.car
     const price = this._heightToPrice(this.heightAt(car.x))
+    const dist = Math.max(0, (car.x - this.startX) / METER)
     this.onState({
       distanceM: Math.round(this.run.distanceM),
       coins: this.run.coins,
@@ -522,7 +584,23 @@ export class RacingEngine {
       combo: this._combo,
       comboFlash: this._comboFlash,
       price,
+      // SEVİYE HUD
+      level: this.level,
+      levelDistanceM: this.levelDistanceM,
+      progress: clamp(dist / this.levelDistanceM, 0, 1),
+      remainM: Math.max(0, Math.round(this.levelDistanceM - dist)),
+      checkpointsHit: this.run.checkpoints,
+      checkpointsTotal: this.checkpoints.length,
     })
+  }
+
+  _finish() {
+    if (this.over) return
+    this.won = true
+    this.run.distanceM = Math.max(this.run.distanceM, this.levelDistanceM)
+    this._addFloat(this.car.x, this.car.y + 62, 'BİTİŞ! 🏁', '#22c55e')
+    this._beep(1200, 0.2); this._addShake(6); this._spawnSparkle(this.car.x, this.car.y + 20)
+    this._gameOver('finish')
   }
 
   _collect() {
@@ -558,12 +636,13 @@ export class RacingEngine {
   _collectibleAt(i) {
     if (i < 1) return null
     const x = i * SX
-    if (i % 48 === 0) return { type: 'fuel', x, y: this.heightAt(x) + 36 }
+    // yalnız seviye sınırları içinde (yakıt artık checkpoint'lerden gelir, dağınık depo YOK)
+    if (x < this.startX || x > this.finishX) return null
     const h = hash32(i)
-    // yüksek bonus ark (zıplayarak ulaşılır) — seyrek
-    if (h % 100 < 7) return { type: 'coin', high: true, x, y: this.heightAt(x) + 120 + (h % 40) }
-    // çizginin hemen üstünde toplanabilir paralar
-    if (h % 100 < 48) return { type: 'coin', x, y: this.heightAt(x) + 22 + (h % 16) }
+    // yüksek bonus ark (zıplayarak ulaşılır) — çok seyrek
+    if (h % 100 < 4) return { type: 'coin', high: true, x, y: this.heightAt(x) + 120 + (h % 40) }
+    // çizginin hemen üstünde seyrek paralar
+    if (h % 100 < 22) return { type: 'coin', x, y: this.heightAt(x) + 22 + (h % 16) }
     return null
   }
 
@@ -715,7 +794,7 @@ export class RacingEngine {
     this._drawGrid(ctx, W, H, sx)
     this._drawWatermark(ctx, W, H)
     this._drawAreaLine(ctx, W, H, sx, sy)
-    this._drawDistanceFlags(ctx, W, H, sx, sy)
+    this._drawLevelMarkers(ctx, W, H, sx, sy)
     this._drawTrail(ctx, sx, sy, zoom)
     this._drawCollectibles(ctx, sx, sy, zoom)
     this._drawParticles(ctx, sx, sy, zoom)
@@ -850,32 +929,42 @@ export class RacingEngine {
     ctx.shadowBlur = 0
   }
 
-  // pistte mesafe bayrakları (500m aralık) — ilerleme hissi + sahne detayı
-  _drawDistanceFlags(ctx, W, H, sx, sy) {
-    const startX = this.startX
-    const stepM = 500
-    const left = this.camX - (W / 2) / this._zoom - SX
-    const right = this.camX + (W / 2) / this._zoom + SX
+  // CHECKPOINT bayrakları (yakıt) + BİTİŞ çizgisi (dama kapısı) — seviye pisti
+  _drawLevelMarkers(ctx, W, H, sx, sy) {
     const zoom = this._zoom
-    let firstM = Math.ceil((left - startX) / METER / stepM) * stepM
-    if (firstM < stepM) firstM = stepM
-    for (let m = firstM; ; m += stepM) {
-      const wx = startX + m * METER
-      if (wx > right) break
-      if (wx < left) continue
-      const gy = this.heightAt(wx)
-      const bx = sx(wx), by = sy(gy)
-      const poleH = 46 * zoom
-      ctx.strokeStyle = 'rgba(200,205,214,0.75)'; ctx.lineWidth = 2
+    const left = this.camX - (W / 2) / zoom - SX
+    const right = this.camX + (W / 2) / zoom + SX
+
+    // checkpoint direkleri (mavi bayrak + ⛽)
+    for (const cp of this.checkpoints) {
+      if (cp.x < left || cp.x > right) continue
+      const gy = this.heightAt(cp.x)
+      const bx = sx(cp.x), by = sy(gy)
+      const poleH = 50 * zoom
+      ctx.strokeStyle = cp.hit ? 'rgba(56,189,248,0.45)' : 'rgba(56,189,248,0.95)'; ctx.lineWidth = 3
       ctx.beginPath(); ctx.moveTo(bx, by); ctx.lineTo(bx, by - poleH); ctx.stroke()
-      const fw = 24 * zoom, fh = 15 * zoom, fy = by - poleH
-      for (let r = 0; r < 2; r++) for (let c = 0; c < 3; c++) {
-        ctx.fillStyle = (r + c) % 2 ? '#e6e9ee' : '#11151d'
-        ctx.fillRect(bx + c * fw / 3, fy + r * fh / 2, fw / 3, fh / 2)
+      const fw = 26 * zoom, fh = 18 * zoom, fy = by - poleH
+      ctx.fillStyle = cp.hit ? 'rgba(56,189,248,0.3)' : '#38bdf8'
+      ctx.beginPath(); ctx.moveTo(bx, fy); ctx.lineTo(bx + fw, fy + fh * 0.5); ctx.lineTo(bx, fy + fh); ctx.closePath(); ctx.fill()
+      ctx.fillStyle = '#fff'; ctx.font = `${13 * zoom}px sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'
+      ctx.fillText('⛽', bx + fw * 0.4, fy + fh * 0.5); ctx.textBaseline = 'alphabetic'
+    }
+
+    // BİTİŞ çizgisi (dama kapısı)
+    if (this.finishX >= left && this.finishX <= right) {
+      const gy = this.heightAt(this.finishX)
+      const bx = sx(this.finishX), by = sy(gy)
+      const gateH = 120 * zoom
+      ctx.strokeStyle = '#e6e9ee'; ctx.lineWidth = 5 * zoom
+      ctx.beginPath(); ctx.moveTo(bx, by); ctx.lineTo(bx, by - gateH); ctx.stroke()
+      const cols = 2, rows = 8, cw = 11 * zoom, chh = gateH / rows
+      for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
+        ctx.fillStyle = (r + c) % 2 ? '#11151d' : '#e6e9ee'
+        ctx.fillRect(bx + 2 * zoom + c * cw, by - gateH + r * chh, cw, chh)
       }
-      ctx.fillStyle = 'rgba(226,232,240,0.9)'; ctx.font = `700 ${11 * zoom}px -apple-system,Segoe UI,sans-serif`
-      ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic'
-      ctx.fillText(`${m}m`, bx, fy - 5 * zoom)
+      ctx.fillStyle = '#22c55e'; ctx.font = `800 ${13 * zoom}px -apple-system,Segoe UI,sans-serif`
+      ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic'
+      ctx.fillText('🏁 BİTİŞ', bx + 2 * zoom, by - gateH - 6 * zoom)
     }
   }
 
@@ -1052,6 +1141,7 @@ export class RacingEngine {
     const bw = s.bodyW, bh = s.bodyH, wr = this.wheelR
     const accel = this.input.fwd && this.fuel > 0
     const speed = Math.hypot(car.vx, car.vy)
+    const useSprite = this._spriteReady()
 
     ctx.save(); ctx.translate(px, py); ctx.rotate(-car.angle); ctx.scale(zoom, zoom)
 
@@ -1059,8 +1149,8 @@ export class RacingEngine {
     ctx.fillStyle = 'rgba(0,0,0,0.28)'
     ctx.beginPath(); ctx.ellipse(0, bh * 0.55 + wr, bw * 0.55 * (car.onGround ? 1 : 0.6), 8, 0, 0, Math.PI * 2); ctx.fill()
 
-    // yüksek doluluk aurası — çok yükseltilmiş araç "parlar"
-    if (ratio > 0.45) {
+    // yüksek doluluk aurası — çok yükseltilmiş araç "parlar" (yalnız çizim gövdede)
+    if (!useSprite && ratio > 0.45) {
       ctx.save(); ctx.shadowColor = s.color; ctx.shadowBlur = 16 * ratio
       ctx.strokeStyle = `rgba(255,255,255,${0.05 + 0.14 * ratio})`; ctx.lineWidth = 2
       this._roundRect(ctx, -bw / 2 - 3, -bh / 2 - 3, bw + 6, bh + 6, 10); ctx.stroke(); ctx.restore()
@@ -1117,8 +1207,8 @@ export class RacingEngine {
       ctx.beginPath(); ctx.moveTo(bx - 6, -bh * 0.16); ctx.lineTo(bx - 6 - fl, 0); ctx.lineTo(bx - 6, bh * 0.16); ctx.closePath(); ctx.fill()
     }
 
-    // YAKIT DEPOSU (fuel) — arka üstte, seviyeyle büyür (gövde önünde çizilir → örtülür)
-    if (fuel > 0 && !s.bike) {
+    // YAKIT DEPOSU (fuel) — arka üstte, seviyeyle büyür (yalnız çizim gövdede)
+    if (!useSprite && fuel > 0 && !s.bike) {
       const tkW = bw * 0.10 + fuel * 1.3
       const tkH = bh * 0.34 + fuel * 0.7
       const tx = -bw * 0.30, ty = -bh * 0.5 - tkH * 0.5
@@ -1155,39 +1245,52 @@ export class RacingEngine {
         if (kk === 0) ctx.moveTo(xx, yy); else ctx.lineTo(xx, yy)
       }
       ctx.stroke(); ctx.lineCap = 'butt'
-      // lastik
-      this._drawWheel(ctx, wcx, wcy, wr, tir, this.wheelSpin[wi])
+      // lastik — sprite varsa sprite teker (dönerek), yoksa çizim
+      if (useSprite) {
+        const R = wr * (this.sprites.cfg.wheelScale || 1.1)
+        ctx.save(); ctx.translate(wcx, wcy); ctx.rotate(this.wheelSpin[wi])
+        ctx.drawImage(this.sprites.wheel, -R, -R, R * 2, R * 2)
+        ctx.restore()
+      } else {
+        this._drawWheel(ctx, wcx, wcy, wr, tir, this.wheelSpin[wi])
+      }
     }
 
-    // GÖVDE
-    const squash = 1 - 0.06 * ((this.suspComp[0] + this.suspComp[1]) / (this.susTravel * 2 || 1))
-    ctx.save(); ctx.scale(1, squash)
-    const bg = ctx.createLinearGradient(0, -bh / 2, 0, bh / 2)
-    bg.addColorStop(0, this._shade(s.color, 1.3)); bg.addColorStop(0.5, s.color); bg.addColorStop(1, this._shade(s.color, 0.78))
-    ctx.fillStyle = bg; ctx.strokeStyle = s.accent; ctx.lineWidth = 3
-    this._roundRect(ctx, -bw / 2, -bh / 2, bw, bh, s.bike ? bh * 0.42 : 9); ctx.fill(); ctx.stroke()
-    // üst parlama şeridi
-    ctx.strokeStyle = 'rgba(255,255,255,0.4)'; ctx.lineWidth = 1.5
-    ctx.beginPath(); ctx.moveTo(-bw / 2 + 8, -bh / 2 + 2); ctx.lineTo(bw / 2 - 8, -bh / 2 + 2); ctx.stroke()
-    // yan gövde çizgisi (karakter)
-    ctx.strokeStyle = this._shade(s.color, 0.6); ctx.lineWidth = 1.5
-    ctx.beginPath(); ctx.moveTo(-bw / 2 + 6, bh * 0.12); ctx.lineTo(bw / 2 - 6, bh * 0.12); ctx.stroke()
-    // kabin / camlar (bisiklet hariç)
-    if (!s.bike) {
-      ctx.fillStyle = 'rgba(200,225,255,0.88)'; ctx.strokeStyle = s.accent; ctx.lineWidth = 3
-      this._roundRect(ctx, -bw * 0.16, -bh * 0.5 - bh * 0.55, bw * 0.5, bh * 0.6, 6); ctx.fill(); ctx.stroke()
-      // cam bölme çubuğu
-      ctx.strokeStyle = s.accent; ctx.lineWidth = 1.5
-      ctx.beginPath(); ctx.moveTo(bw * 0.09, -bh * 0.5); ctx.lineTo(bw * 0.09, -bh * 0.5 - bh * 0.55); ctx.stroke()
+    // GÖVDE — sprite hazırsa gerçek araç PNG'si, yoksa çizim
+    if (useSprite) {
+      const bimg = this.sprites.body, cfg = this.sprites.cfg
+      const dw = bw * (cfg.scale || 1.35)
+      const dh = dw * bimg.naturalHeight / bimg.naturalWidth
+      const yo = (cfg.yOff || 0) * bh
+      ctx.drawImage(bimg, -dw / 2, -dh / 2 + yo, dw, dh)
     } else {
-      // gidon (bisiklet)
-      ctx.strokeStyle = '#1f2937'; ctx.lineWidth = 2.5
-      ctx.beginPath(); ctx.moveTo(bw * 0.30, -bh * 0.3); ctx.lineTo(bw * 0.5, -bh * 0.9); ctx.stroke()
+      const squash = 1 - 0.06 * ((this.suspComp[0] + this.suspComp[1]) / (this.susTravel * 2 || 1))
+      ctx.save(); ctx.scale(1, squash)
+      const bg = ctx.createLinearGradient(0, -bh / 2, 0, bh / 2)
+      bg.addColorStop(0, this._shade(s.color, 1.3)); bg.addColorStop(0.5, s.color); bg.addColorStop(1, this._shade(s.color, 0.78))
+      ctx.fillStyle = bg; ctx.strokeStyle = s.accent; ctx.lineWidth = 3
+      this._roundRect(ctx, -bw / 2, -bh / 2, bw, bh, s.bike ? bh * 0.42 : 9); ctx.fill(); ctx.stroke()
+      // üst parlama şeridi
+      ctx.strokeStyle = 'rgba(255,255,255,0.4)'; ctx.lineWidth = 1.5
+      ctx.beginPath(); ctx.moveTo(-bw / 2 + 8, -bh / 2 + 2); ctx.lineTo(bw / 2 - 8, -bh / 2 + 2); ctx.stroke()
+      // yan gövde çizgisi (karakter)
+      ctx.strokeStyle = this._shade(s.color, 0.6); ctx.lineWidth = 1.5
+      ctx.beginPath(); ctx.moveTo(-bw / 2 + 6, bh * 0.12); ctx.lineTo(bw / 2 - 6, bh * 0.12); ctx.stroke()
+      // kabin / camlar (bisiklet hariç)
+      if (!s.bike) {
+        ctx.fillStyle = 'rgba(200,225,255,0.88)'; ctx.strokeStyle = s.accent; ctx.lineWidth = 3
+        this._roundRect(ctx, -bw * 0.16, -bh * 0.5 - bh * 0.55, bw * 0.5, bh * 0.6, 6); ctx.fill(); ctx.stroke()
+        ctx.strokeStyle = s.accent; ctx.lineWidth = 1.5
+        ctx.beginPath(); ctx.moveTo(bw * 0.09, -bh * 0.5); ctx.lineTo(bw * 0.09, -bh * 0.5 - bh * 0.55); ctx.stroke()
+      } else {
+        ctx.strokeStyle = '#1f2937'; ctx.lineWidth = 2.5
+        ctx.beginPath(); ctx.moveTo(bw * 0.30, -bh * 0.3); ctx.lineTo(bw * 0.5, -bh * 0.9); ctx.stroke()
+      }
+      ctx.restore()
     }
-    ctx.restore()
 
-    // TURBO / HAVA GİRİŞİ (motor yüksek) — kaputta trapez scoop
-    if (eng >= 5 && !s.bike) {
+    // TURBO / HAVA GİRİŞİ (motor yüksek) — kaputta trapez scoop (yalnız çizim gövdede)
+    if (!useSprite && eng >= 5 && !s.bike) {
       const sw = bw * 0.13, sh = bh * 0.45, sxp = bw * 0.14
       ctx.fillStyle = '#1f2937'
       ctx.beginPath()
@@ -1196,8 +1299,8 @@ export class RacingEngine {
       ctx.fillStyle = '#0b0e14'; ctx.fillRect(sxp - sw * 0.55, -bh * 0.5 - sh, sw * 1.1, 3)
     }
 
-    // ŞANZIMAN rozeti (gear) — küçük vites göstergesi
-    if (gear > 0 && !s.bike) {
+    // ŞANZIMAN rozeti (gear) — küçük vites göstergesi (yalnız çizim gövdede)
+    if (!useSprite && gear > 0 && !s.bike) {
       ctx.fillStyle = 'rgba(15,23,42,0.85)'
       this._roundRect(ctx, bw * 0.16, bh * 0.02, 16, 12, 3); ctx.fill()
       ctx.fillStyle = '#fbbf24'; ctx.font = 'bold 9px ui-monospace,monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'
@@ -1205,24 +1308,22 @@ export class RacingEngine {
       ctx.textBaseline = 'alphabetic'
     }
 
-    // far ışığı
-    if (speed > 200) {
-      ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.fillStyle = 'rgba(255,247,200,0.12)'
-      ctx.beginPath(); ctx.moveTo(bw / 2, bh * 0.1); ctx.lineTo(bw / 2 + bw * 0.7, -bh * 0.3); ctx.lineTo(bw / 2 + bw * 0.7, bh * 0.5); ctx.closePath(); ctx.fill(); ctx.restore()
+    // far / stop lambaları + sürücü kaskı — yalnız çizim gövdede (sprite kendi görünümünü taşır)
+    if (!useSprite) {
+      if (speed > 200) {
+        ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.fillStyle = 'rgba(255,247,200,0.12)'
+        ctx.beginPath(); ctx.moveTo(bw / 2, bh * 0.1); ctx.lineTo(bw / 2 + bw * 0.7, -bh * 0.3); ctx.lineTo(bw / 2 + bw * 0.7, bh * 0.5); ctx.closePath(); ctx.fill(); ctx.restore()
+      }
+      ctx.fillStyle = '#fde68a'; ctx.beginPath(); ctx.arc(bw * 0.46, bh * 0.02, 3.2, 0, Math.PI * 2); ctx.fill()
+      if (this.input.rev) {
+        ctx.save(); ctx.shadowColor = '#ef4444'; ctx.shadowBlur = 8; ctx.fillStyle = '#ef4444'
+        ctx.fillRect(-bw / 2 - 1, bh * 0.05, 3, bh * 0.3); ctx.restore()
+      }
+      const hx = s.bike ? 0 : bw * 0.05, hy = -bh * 0.5 - (s.bike ? 16 : 10)
+      ctx.fillStyle = '#fcd34d'; ctx.beginPath(); ctx.arc(hx, hy, 9, 0, Math.PI * 2); ctx.fill()
+      ctx.strokeStyle = '#92400e'; ctx.lineWidth = 2; ctx.stroke()
+      ctx.fillStyle = '#1e293b'; ctx.beginPath(); ctx.arc(hx + 4, hy, 9, -0.5, 0.9); ctx.fill()
     }
-    // ön far lambası
-    ctx.fillStyle = '#fde68a'; ctx.beginPath(); ctx.arc(bw * 0.46, bh * 0.02, 3.2, 0, Math.PI * 2); ctx.fill()
-    // fren / geri ışığı
-    if (this.input.rev) {
-      ctx.save(); ctx.shadowColor = '#ef4444'; ctx.shadowBlur = 8; ctx.fillStyle = '#ef4444'
-      ctx.fillRect(-bw / 2 - 1, bh * 0.05, 3, bh * 0.3); ctx.restore()
-    }
-
-    // sürücü kafa/kask
-    const hx = s.bike ? 0 : bw * 0.05, hy = -bh * 0.5 - (s.bike ? 16 : 10)
-    ctx.fillStyle = '#fcd34d'; ctx.beginPath(); ctx.arc(hx, hy, 9, 0, Math.PI * 2); ctx.fill()
-    ctx.strokeStyle = '#92400e'; ctx.lineWidth = 2; ctx.stroke()
-    ctx.fillStyle = '#1e293b'; ctx.beginPath(); ctx.arc(hx + 4, hy, 9, -0.5, 0.9); ctx.fill()
 
     ctx.restore()
   }
@@ -1305,6 +1406,10 @@ export class RacingEngine {
       coins: this.run.coins,
       flips: this.run.flips,
       airTime: this.run.airTime,
+      checkpoints: this.run.checkpoints,
+      level: this.level,
+      levelDistanceM: this.levelDistanceM,
+      completed: reason === 'finish',
     })
   }
 

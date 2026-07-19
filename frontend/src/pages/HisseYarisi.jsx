@@ -17,6 +17,7 @@ import {
   ACHIEVEMENTS, computeEarnings, formatBP,
   loadSave, persistSave,
   GATE_PCT, vehicleUpgradeProgress, vehicleGate, highestOwnedIndex,
+  levelConfig, currentLevel, clearedLevel, LEVELS_PER_STOCK,
 } from '../game/gameData'
 import { normalizeHistoricalQuotes } from '../utils/chartAnalysis'
 
@@ -76,12 +77,16 @@ export default function HisseYarisi() {
     stopEngine()
     const canvas = canvasRef.current
     if (!canvas) { setScreen('idle'); return }
+    const lc = levelConfig(currentLevel(save, save.stock))
     const engine = new RacingEngine(canvas, {
       candles,
       stats: effectiveStats(save.vehicle, save.upgrades[save.vehicle] || {}),
       sound: save.settings.sound,
       symbol: save.stock,
       name: stockMeta(save.stock).name,
+      level: lc.level,
+      levelDistanceM: lc.distanceM,
+      checkpointSpacingM: lc.checkpointSpacingM,
       onState: (s) => setHud(s),
       onEnd: (r) => finishRun(r),
     })
@@ -90,18 +95,25 @@ export default function HisseYarisi() {
     setScreen('playing')
     setHud(null)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [save.stock, save.vehicle, save.upgrades, save.settings.sound, stopEngine])
+  }, [save.stock, save.vehicle, save.upgrades, save.settings.sound, save.level, stopEngine])
 
   const finishRun = useCallback((r) => {
-    const earned = computeEarnings(r)
-    setResult({ ...r, earned, newlyAchieved: [] })
     setScreen('over')
     mutate((s) => {
+      const sym = s.stock
+      const wasCleared = clearedLevel(s, sym)
+      const firstClear = !!r.completed && r.level > wasCleared
+      const earned = computeEarnings({ ...r, firstClear })
       s.wallet = Math.round(s.wallet + earned)
       s.runs += 1
       s.totalEarned += earned
       s.totalDistance += r.distanceM
-      s.stockBest = { ...s.stockBest, [s.stock]: Math.max(s.stockBest[s.stock] || 0, r.distanceM) }
+      s.stockBest = { ...s.stockBest, [sym]: Math.max(s.stockBest[sym] || 0, r.distanceM) }
+      if (r.completed) {
+        // seviye geçildi → en yüksek geçileni güncelle + sıradaki seviyeye ilerle
+        s.cleared = { ...s.cleared, [sym]: Math.max(wasCleared, r.level) }
+        s.level = { ...s.level, [sym]: Math.min(LEVELS_PER_STOCK, (r.level || 1) + 1) }
+      }
       // başarımlar
       const owned = new Set(s.achievements)
       const newly = []
@@ -111,7 +123,7 @@ export default function HisseYarisi() {
         if (ok) { owned.add(a.id); newly.push(a) }
       }
       s.achievements = [...owned]
-      if (newly.length) setResult((rr) => ({ ...rr, newlyAchieved: newly }))
+      setResult({ ...r, earned, firstClear, newlyAchieved: newly })
       return s
     })
   }, [mutate])
@@ -215,6 +227,7 @@ export default function HisseYarisi() {
 
   const stockInfo = stockMeta(save.stock)
   const vehicle = VEHICLES[save.vehicle]
+  const curLevel = currentLevel(save, save.stock)
 
   return (
     <div className="max-w-6xl mx-auto px-3 sm:px-4 py-4 sm:py-6">
@@ -253,6 +266,9 @@ export default function HisseYarisi() {
           <Wrench className="w-3.5 h-3.5 opacity-50" />
         </button>
         <div className="flex-1" />
+        <div className="text-xs px-2.5 py-1.5 rounded-lg flex items-center gap-1" style={{ background: 'var(--bg-subtle)', color: 'var(--text-secondary)' }}>
+          🏁 Seviye <b>{curLevel}/{LEVELS_PER_STOCK}</b>
+        </div>
         {save.stockBest[save.stock] ? (
           <div className="text-xs px-2.5 py-1.5 rounded-lg flex items-center gap-1" style={{ background: 'var(--bg-subtle)', color: 'var(--text-secondary)' }}>
             <Trophy className="w-3.5 h-3.5 text-amber-500" /> Rekor: <b>{save.stockBest[save.stock]}m</b>
@@ -269,13 +285,20 @@ export default function HisseYarisi() {
         {screen === 'playing' && hud && (
           <>
             {/* üst-orta istatistik + barlar (sol-üstte motorun çizdiği ticker legend var) */}
-            <div className="absolute top-3 left-1/2 -translate-x-1/2 flex flex-col items-center gap-1.5 pointer-events-none w-[min(90%,340px)]">
-              <div className="bg-slate-900/75 backdrop-blur-md rounded-xl px-3.5 py-2 flex items-center gap-3.5 text-sm font-bold text-slate-100 shadow-lg ring-1 ring-white/10">
-                <span className="flex items-center gap-1"><Gauge className="w-4 h-4 text-sky-400" />{hud.distanceM}m</span>
+            <div className="absolute top-3 left-1/2 -translate-x-1/2 flex flex-col items-center gap-1.5 pointer-events-none w-[min(92%,360px)]">
+              <div className="bg-slate-900/75 backdrop-blur-md rounded-xl px-3 py-2 flex items-center gap-2.5 text-sm font-bold text-slate-100 shadow-lg ring-1 ring-white/10">
+                <span className="px-1.5 py-0.5 rounded bg-indigo-500/30 text-indigo-200 text-xs">Sv.{hud.level}</span>
+                <span className="flex items-center gap-1"><Gauge className="w-4 h-4 text-sky-400" />{hud.distanceM}/{hud.levelDistanceM}m</span>
                 <span className="flex items-center gap-1 text-amber-400"><Coins className="w-4 h-4" />{hud.coins}</span>
                 <span className="flex items-center gap-1 text-emerald-300">{hud.speed}<span className="text-[10px] font-medium opacity-70">km/s</span></span>
                 {hud.flips > 0 && <span className="flex items-center gap-1 text-orange-400"><Flame className="w-4 h-4" />{hud.flips}</span>}
               </div>
+              {/* seviye ilerlemesi (bitiş çizgisine) */}
+              <div className="w-full bg-slate-900/70 backdrop-blur rounded-lg px-2 py-1.5 ring-1 ring-white/10">
+                <div className="flex items-center justify-between text-[10px] font-semibold text-slate-300 mb-1"><span>🏁 Bitişe</span><span>{hud.remainM ?? 0}m · ⛽ {hud.checkpointsHit ?? 0}/{hud.checkpointsTotal ?? 0}</span></div>
+                <div className="h-2 rounded-full bg-slate-700/60 overflow-hidden"><div className="h-full rounded-full transition-all" style={{ width: `${(hud.progress || 0) * 100}%`, background: 'linear-gradient(90deg,#818cf8,#22c55e)' }} /></div>
+              </div>
+              {/* yakıt */}
               <div className="w-full bg-slate-900/70 backdrop-blur rounded-lg px-2 py-1.5 ring-1 ring-white/10">
                 <div className="flex items-center justify-between text-[10px] font-semibold text-slate-300 mb-1"><span className="flex items-center gap-1"><Fuel className="w-3 h-3" />Yakıt</span><span>{Math.round(hud.fuelPct * 100)}%</span></div>
                 <div className="h-2 rounded-full bg-slate-700/60 overflow-hidden"><div className="h-full rounded-full transition-all" style={{ width: `${hud.fuelPct * 100}%`, background: hud.fuelPct < 0.25 ? '#ef4444' : 'linear-gradient(90deg,#22c55e,#10b981)' }} /></div>
@@ -338,10 +361,10 @@ export default function HisseYarisi() {
           <div className="absolute inset-0 flex flex-col items-center justify-center bg-gradient-to-b from-[#131722]/85 to-[#0c0e15]/92 backdrop-blur-[2px] text-center px-4">
             <div className="text-5xl mb-2 drop-shadow-lg">{vehicle.emoji}</div>
             <h2 className="text-lg font-bold mb-1 text-slate-100">
-              {stockInfo.symbol} grafiğinde {vehicle.name}
+              {stockInfo.symbol} · Seviye {curLevel} · {vehicle.name}
             </h2>
             <p className="text-xs mb-4 max-w-xs text-slate-400">
-              {stockInfo.name} fiyat grafiği senin pistin. İLERİ/GERİ ile sür; SOL/SAĞ yerdeyken aracın önünü/arkasını kaldırır (hıza orantılı), havadayken takla attırır. Takla = ekstra para, ama kafan yere değerse oyun biter. Düz sürmek güvenli; risk almak kazandırır. Garajdan aldığın yükseltmeler aracı büyütür ve görünüşünü değiştirir — yay, egzoz, turbo, kanat…
+              {stockInfo.name} grafiği pistin. Amaç: 🏁 <b className="text-slate-200">BİTİŞ çizgisine</b> ulaşmak. Yol boyunca ⛽ checkpoint'lerden yakıt alırsın; yakıtın biterse veya takla atıp kafan yere değerse baştan denersin. İLERİ/GERİ sür, SOL/SAĞ ile önü/arkayı kaldır (havada takla). Bitirince sonraki seviye açılır — her seviye farklı bir bölgeden başlar. Garaj yükseltmeleri aracı büyütür ve görünüşünü değiştirir.
             </p>
             <button
               onClick={startRun}
@@ -361,12 +384,19 @@ export default function HisseYarisi() {
         {screen === 'over' && result && (
           <div className="absolute inset-0 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm px-4">
             <div className="bg-white rounded-2xl shadow-2xl p-5 w-full max-w-sm text-center">
-              <div className="text-3xl mb-1">{result.reason === 'crash' ? '💥' : '⛽'}</div>
-              <h3 className="text-lg font-bold text-slate-800">{result.reason === 'crash' ? 'Takla attın!' : 'Yakıt bitti!'}</h3>
+              <div className="text-3xl mb-1">{result.completed ? '🏁' : result.reason === 'crash' ? '💥' : '⛽'}</div>
+              <h3 className="text-lg font-bold text-slate-800">
+                {result.completed ? `Seviye ${result.level} tamamlandı!` : result.reason === 'crash' ? 'Takla attın!' : 'Yakıt bitti!'}
+              </h3>
+              <p className="text-xs text-slate-500 mt-0.5">
+                {result.completed
+                  ? (result.firstClear ? '🎉 İlk kez bitirdin — sonraki seviye açıldı!' : `Bitiş çizgisi geçildi (${result.levelDistanceM}m).`)
+                  : `Bitişe ${Math.max(0, (result.levelDistanceM || 0) - result.distanceM)}m kalmıştı — tekrar dene.`}
+              </p>
               <div className="grid grid-cols-3 gap-2 my-4">
                 <ResultStat label="Mesafe" value={`${result.distanceM}m`} icon={<Gauge className="w-4 h-4" />} />
+                <ResultStat label="Checkpoint" value={result.checkpoints ?? 0} icon={<Coins className="w-4 h-4" />} />
                 <ResultStat label="Para" value={result.coins} icon={<Coins className="w-4 h-4" />} />
-                <ResultStat label="Takla" value={result.flips} icon={<Flame className="w-4 h-4" />} />
               </div>
               <div className="rounded-xl py-3 mb-3" style={{ background: 'linear-gradient(135deg,#ecfdf5,#d1fae5)' }}>
                 <div className="text-xs text-emerald-700 font-semibold">KAZANÇ</div>
@@ -383,7 +413,7 @@ export default function HisseYarisi() {
               )}
               <div className="flex gap-2">
                 <button onClick={startRun} className="flex-1 px-4 py-2.5 rounded-xl font-bold text-white flex items-center justify-center gap-1.5 active:scale-95 transition" style={{ background: 'linear-gradient(135deg,#10b981,#047857)' }}>
-                  <RotateCcw className="w-4 h-4" /> Tekrar
+                  {result.completed ? <><Play className="w-4 h-4" /> Sonraki Seviye</> : <><RotateCcw className="w-4 h-4" /> Tekrar</>}
                 </button>
                 <button onClick={() => { setModal('garage'); setScreen('idle') }} className="px-4 py-2.5 rounded-xl font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 flex items-center gap-1.5 active:scale-95 transition">
                   <Wrench className="w-4 h-4" /> Garaj

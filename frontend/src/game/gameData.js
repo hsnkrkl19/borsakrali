@@ -38,6 +38,7 @@ export const VEHICLES = {
     enginePower: 2400, mass: 1.0, grip: 1.0, suspK: 240, suspDamp: 26,
     fuelMax: 100, topSpeed: 760, airControl: 9, wheelBase: 78, wheelR: 24,
     bodyW: 116, bodyH: 40, color: '#10b981', accent: '#065f46',
+    sprite: { body: '/game/vehicles/car_body.png', wheel: '/game/vehicles/car_wheel.png', scale: 1.4, yOff: -0.32, wheelScale: 1.15 },
   },
   motorcycle: {
     id: 'motorcycle', name: 'Motosiklet', emoji: '🏍️', price: 2340, costMul: 0.7,
@@ -52,6 +53,7 @@ export const VEHICLES = {
     enginePower: 3000, mass: 1.35, grip: 1.28, suspK: 320, suspDamp: 34,
     fuelMax: 120, topSpeed: 700, airControl: 8, wheelBase: 86, wheelR: 28,
     bodyW: 124, bodyH: 46, color: '#0ea5e9', accent: '#075985',
+    sprite: { body: '/game/vehicles/orc_body.png', wheel: '/game/vehicles/orc_wheel.png', scale: 1.45, yOff: -0.34, wheelScale: 1.2 },
   },
   pickup: {
     id: 'pickup', name: 'Pikap', emoji: '🛻', price: 6600, costMul: 1.7,
@@ -59,6 +61,7 @@ export const VEHICLES = {
     enginePower: 3300, mass: 1.5, grip: 1.18, suspK: 300, suspDamp: 32,
     fuelMax: 135, topSpeed: 720, airControl: 7, wheelBase: 92, wheelR: 27,
     bodyW: 134, bodyH: 44, color: '#8b5cf6', accent: '#4c1d95',
+    sprite: { body: '/game/vehicles/monster_body.png', wheel: '/game/vehicles/monster_tire.png', scale: 1.5, yOff: -0.28, wheelScale: 1.3 },
   },
   sports: {
     id: 'sports', name: 'Spor Araba', emoji: '🏎️', price: 10080, costMul: 2.6,
@@ -73,6 +76,7 @@ export const VEHICLES = {
     enginePower: 3800, mass: 1.7, grip: 1.4, suspK: 360, suspDamp: 38,
     fuelMax: 150, topSpeed: 760, airControl: 9, wheelBase: 104, wheelR: 38,
     bodyW: 142, bodyH: 50, color: '#22c55e', accent: '#14532d',
+    sprite: { body: '/game/vehicles/truck_body.png', wheel: '/game/vehicles/truck_wheel.png', scale: 1.5, yOff: -0.34, wheelScale: 1.25 },
   },
   tractor: {
     id: 'tractor', name: 'Traktör', emoji: '🚜', price: 23760, costMul: 6.0,
@@ -330,23 +334,61 @@ export function stockMeta(symbol) {
 // "Biraz yavaş ama sıkmayacak" denge:
 //   - mesafe ana gelir kaynağı (yakıt mesafeyi sınırlar → tur başı kazanç tavanı)
 //   - paralar + takla + hava bonusu ek heyecan
+// v4 — para artık ÇOK daha zor kazanılır: ana gelir SEVİYE BİTİRMEK.
+// Mesafe/para/takla küçük katkı; tur SONLU (bitiş çizgisi) → sonsuz farm YOK.
 export const REWARD = {
-  perMeter: 0.6,    // metre başı BP (ana gelir)
-  perCoin: 3,       // toplanan para başı BP
-  perFlip: 60,      // tam takla başı BP (risk ödülü — takla ekstra para getirir)
-  perAirSec: 10,    // havada geçen saniye başı BP
+  perMeter: 0.10,       // metre başı BP (küçük)
+  perCoin: 1,           // toplanan para başı BP
+  perFlip: 12,          // tam takla başı BP
+  perAirSec: 3,         // havada geçen saniye başı BP
+  perCheckpoint: 8,     // geçilen checkpoint başı BP
+  finishBase: 30,       // seviye bitirme ödülü (tabana)
+  finishPerLevel: 14,   // her seviye için ek bitirme ödülü
+  firstClear: 50,       // seviyeyi İLK kez bitirme bonusu (bir kez)
 }
 
-export function computeEarnings({ distanceM = 0, coins = 0, flips = 0, airTime = 0 }) {
-  return Math.max(
-    0,
-    Math.round(
-      distanceM * REWARD.perMeter +
-      coins * REWARD.perCoin +
-      flips * REWARD.perFlip +
-      airTime * REWARD.perAirSec,
-    ),
-  )
+export function computeEarnings({
+  distanceM = 0, coins = 0, flips = 0, airTime = 0,
+  checkpoints = 0, completed = false, level = 1, firstClear = false,
+}) {
+  let bp = distanceM * REWARD.perMeter + coins * REWARD.perCoin +
+    flips * REWARD.perFlip + airTime * REWARD.perAirSec +
+    checkpoints * REWARD.perCheckpoint
+  if (completed) {
+    bp += REWARD.finishBase + (level - 1) * REWARD.finishPerLevel
+    if (firstClear) bp += REWARD.firstClear
+  }
+  return Math.max(0, Math.round(bp))
+}
+
+// ----------------------------------------------------------------------------
+// SEVİYE SİSTEMİ (v4) — her hisse pistinde SONLU, bitiş çizgili seviyeler.
+// Her seviye grafiğin FARKLI bir bölgesinden başlar (farklı arazi + farklı
+// başlangıç/bitiş), checkpoint'lerle yakıt alırsın; bitiş çizgisine varınca
+// seviye tamamlanır ve bir sonraki açılır. Sonsuz yakıt/sonsuz mesafe YOK.
+// ----------------------------------------------------------------------------
+export const LEVELS_PER_STOCK = 12
+export const CHECKPOINT_SPACING_M = 130   // starter aracın depo menzili içinde → checkpoint'e ulaşılır
+
+export function levelConfig(level = 1) {
+  const lv = Math.max(1, Math.min(LEVELS_PER_STOCK, Math.round(level)))
+  // seviye uzunluğu kademeli artar: 500m → ~1380m
+  const distanceM = 500 + (lv - 1) * 80
+  return { level: lv, distanceM, checkpointSpacingM: CHECKPOINT_SPACING_M }
+}
+
+// bir hissede oynanacak (sıradaki) seviye — 1 tabanlı
+export function currentLevel(save, symbol) {
+  const sym = (symbol || '').toUpperCase()
+  const v = save?.level?.[sym]
+  return Number.isFinite(+v) && +v >= 1 ? Math.min(LEVELS_PER_STOCK, +v) : 1
+}
+
+// bir hissede geçilmiş en yüksek seviye
+export function clearedLevel(save, symbol) {
+  const sym = (symbol || '').toUpperCase()
+  const v = save?.cleared?.[sym]
+  return Number.isFinite(+v) && +v >= 0 ? +v : 0
 }
 
 // ----------------------------------------------------------------------------
@@ -375,6 +417,8 @@ export function defaultSave() {
     stock: 'GARAN',
     unlockedStocks: BIST30.map(s => s.symbol),       // BIST30 ücretsiz
     stockBest: {},                                  // symbol -> best distanceM
+    level: {},                                      // symbol -> oynanacak (sıradaki) seviye (1-tabanlı)
+    cleared: {},                                    // symbol -> geçilmiş en yüksek seviye
     totalDistance: 0,
     totalEarned: 0,
     runs: 0,
@@ -413,6 +457,8 @@ export function loadSave() {
     merged.achievements = arr(merged.achievements, [])
     merged.upgrades = obj(merged.upgrades)
     merged.stockBest = obj(merged.stockBest)
+    merged.level = obj(merged.level)
+    merged.cleared = obj(merged.cleared)
     if (!merged.ownedVehicles.length) merged.ownedVehicles = [...base.ownedVehicles]
     if (!VEHICLES[merged.vehicle]) merged.vehicle = base.vehicle
     if (typeof merged.stock !== 'string' || !merged.stock) merged.stock = base.stock
