@@ -27,6 +27,7 @@ import logging
 import os
 import sys
 import time
+from datetime import datetime, timedelta, timezone
 
 try:
     import MetaTrader5 as mt5
@@ -553,6 +554,58 @@ def shadow_summary():
         log.info("   %-24s islem=%-4d kazanma=%%%-3.0f netR=%+.2f", b, s["n"], wr, s["netR"])
 
 
+# ── GERÇEK SONUÇ BESLEME (MT5 deal geçmişi → site) ───────────────────────────
+_last_results_report = 0.0
+
+def report_real_results(cfg, force=False):
+    """MT5 hesabının kapanan işlemlerini (tüm magic'ler: 5701-5715 + custom 5720+
+    + altın 20260707) okuyup siteye POST eder. Lider tablosu + günlük rapor
+    bunu GERÇEK sonuç olarak kullanır. 5 dk'da bir (throttle)."""
+    global _last_results_report
+    now = time.time()
+    if not force and now - _last_results_report < 300:
+        return
+    _last_results_report = now
+    try:
+        start = datetime.now(timezone.utc) - timedelta(days=7)
+        end = datetime.now(timezone.utc) + timedelta(hours=6)
+        deals = mt5.history_deals_get(start, end)
+    except Exception as exc:
+        log.warning("deal geçmişi okunamadı: %s", exc)
+        return
+    if not deals:
+        return
+    OUT = getattr(mt5, "DEAL_ENTRY_OUT", 1)
+    rows = []
+    for d in deals:
+        if getattr(d, "entry", None) != OUT:
+            continue  # yalnız KAPANIŞ deal'leri (P/L bunlarda)
+        magic = int(getattr(d, "magic", 0) or 0)
+        if magic <= 0:
+            continue  # bot işlemi değil (manuel/bilanço)
+        pnl = (getattr(d, "profit", 0) or 0) + (getattr(d, "swap", 0) or 0) + (getattr(d, "commission", 0) or 0)
+        rows.append({
+            "id": str(getattr(d, "ticket", "")),
+            "magic": magic,
+            "pnl": round(pnl, 2),
+            "closedSec": int(getattr(d, "time", 0) or 0),
+            "reason": int(getattr(d, "reason", 0) or 0),
+            "symbol": str(getattr(d, "symbol", "")),
+        })
+    if not rows:
+        return
+    try:
+        url = _backend_base(cfg) + "/api/bridge/results"
+        headers = {"Authorization": "Bearer %s" % cfg["exec_token"]} if cfg.get("exec_token") else {}
+        r = requests.post(url, json={"deals": rows}, headers=headers, timeout=15, allow_redirects=False)
+        if r.status_code == 200:
+            log.info("📤 Gerçek sonuçlar siteye beslendi: %d kapanan işlem", len(rows))
+        else:
+            log.warning("gerçek sonuç POST %s: %s", r.status_code, r.text[:120])
+    except Exception as exc:
+        log.warning("gerçek sonuç POST hatası: %s", exc)
+
+
 def run_once(cfg):
     if os.path.exists(STOP_FILE):
         log.info("STOP_ALL dosyası var — yeni emir açılmıyor (mevcutlar yönetilir).")
@@ -633,6 +686,12 @@ def run_once(cfg):
         shadow_summary()
     except Exception as exc:
         log.warning("gölge günlüğü hatası: %s", exc)
+
+    # 4) GERÇEK SONUÇLARI SİTEYE BESLE (5 dk'da bir) — lider tablosu/rapor gerçek olsun.
+    try:
+        report_real_results(cfg)
+    except Exception as exc:
+        log.warning("gerçek sonuç besleme hatası: %s", exc)
 
     if feed:
         log.info("tur: feed %d poz, MT5 açık %d (dry_run=%s)", len(feed), len(open_pos), cfg["dry_run"])

@@ -172,6 +172,7 @@ router.get('/builder', (req, res) => {
       pairs: listInstruments().map((i) => ({ id: i.id, name: i.name, symbol: i.symbol, class: i.class })),
       allTimeframes: builderStore.ALL_TF,
       customLeaderboard: lb,
+      realResults: require('../services/realResults/store').aggregate(0),
     });
   } catch (e) {
     res.status(500).json({ ok: false, error: e.message });

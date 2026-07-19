@@ -47,4 +47,18 @@ router.get('/positions', (req, res) => {
   }
 });
 
+// POST /api/bridge/results — köprü MT5 deal geçmişini (gerçek kapanan işlemler)
+// magic-bazlı yollar. Lider tablosu + günlük rapor bunu GERÇEK sonuç olarak kullanır.
+router.post('/results', express.json({ limit: '2mb' }), (req, res) => {
+  const auth = checkExecToken(req);
+  if (!auth.ok) return res.status(auth.code).json({ success: false, error: auth.error });
+  try {
+    const realResults = require('../services/realResults/store');
+    const r = realResults.ingest(req.body && req.body.deals);
+    res.json({ success: true, ...r });
+  } catch (e) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
 module.exports = router;

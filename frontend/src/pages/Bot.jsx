@@ -322,13 +322,14 @@ function Stat({ label, value, tone }) {
 function YarisTab() {
   const [comp, setComp] = useState(null)
   const [custom, setCustom] = useState([])
+  const [real, setReal] = useState([])     // gerçek MT5 sonuçları (magic-bazlı)
   const [gold, setGold] = useState(null)   // altın botu gerçek MT5 sonuçları
   const [err, setErr] = useState('')
 
   const load = useCallback(async () => {
     try {
       const [c, b] = await Promise.all([api.get('/bot/competition'), api.get('/bot/builder')])
-      setComp(c.data); setCustom(b.data?.customLeaderboard || []); setErr('')
+      setComp(c.data); setCustom(b.data?.customLeaderboard || []); setReal(b.data?.realResults || []); setErr('')
     } catch { setErr('Yarış verisi alınamıyor…') }
     // Altın botu ayrı program (doğrudan MT5); gerçek sonuçlarını da buraya al.
     try {
@@ -357,6 +358,29 @@ function YarisTab() {
         <button onClick={sendReport} className="rounded-xl bg-gray-800 text-white px-4 py-3 font-semibold text-sm hover:bg-gray-900 whitespace-nowrap">📲 Raporu şimdi gönder</button>
       </div>
       {err && <Msg kind={err.startsWith('✅') ? 'ok' : 'warn'}>{err}</Msg>}
+
+      {real.length > 0 && (
+        <div className="rounded-2xl border-2 border-emerald-200 bg-white p-5">
+          <div className="text-xs font-bold uppercase tracking-wider text-emerald-600 mb-1">🟢 GERÇEK MT5 SONUÇLARI · hesapta fiilen olan</div>
+          <p className="text-sm text-gray-500 mb-3">Köprünün MT5 deal geçmişinden okuduğu <b>gerçek</b> kâr/zarar. Simülasyon değil.</p>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="text-gray-400 text-xs uppercase tracking-wide"><tr><th className="text-left py-2">Bot</th><th className="text-right">İşlem</th><th className="text-right">TP</th><th className="text-right">SL</th><th className="text-right">Gerçek Net</th></tr></thead>
+              <tbody>
+                {[...real].sort((a, b) => (b.net || 0) - (a.net || 0)).map((r) => (
+                  <tr key={r.magic} className="border-t border-gray-100">
+                    <td className="py-2 font-semibold text-gray-800">{r.no ? `Bot ${r.no} · ` : (r.kind === 'gold' ? '🥇 ' : r.kind === 'custom' ? '⭐ ' : '')}{r.name}</td>
+                    <td className="text-right font-mono">{r.trades}</td>
+                    <td className="text-right font-mono text-emerald-600">{r.tp}</td>
+                    <td className="text-right font-mono text-rose-500">{r.sl}</td>
+                    <td className={cls('text-right font-mono font-bold', (r.net || 0) >= 0 ? 'text-emerald-600' : 'text-rose-600')}>{fmt(r.net)} $</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
       {gs && (gs.total > 0 || gold?.status?.connected) && (
         <div className="rounded-2xl border-2 border-amber-200 bg-white p-5">

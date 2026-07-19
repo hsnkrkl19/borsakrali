@@ -3,22 +3,27 @@
 /**
  * Günlük Bot Raporu — her akşam Telegram'a tüm botların gün-içi istatistiği.
  *
- * Örnek satır: "Bot 1 · Forex Sinyalleri — 5 işlem · 3 TP · 2 SL · net +12.40$"
- * Kaynaklar: botCompetition (15 numaralı bot, kağıt işlemler) + custom botlar
- * (kullanıcı botları) + opsiyonel altın botu (gerçek MT5, toplam).
+ * GERÇEK-ÖNCELİKLİ: köprü MT5 deal geçmişini beslediyse (realResults) rapor
+ * GERÇEK hesap sonuçlarını gösterir; yoksa kağıt/sanal (competition) sonuçlarına
+ * düşer. Örnek: "Bot 1 · Forex — 5 işlem · 3 TP · 2 SL · net +12.40$".
  *
  * Hedef: env TELEGRAM_DAILY_REPORT_CHANNEL yoksa ana sinyal kanalı.
  * Kill: BOT_DAILY_REPORT_DISABLED=1.
  */
 
+const catalog = require('../botCompetition/catalog');
 const competitionManager = require('../botCompetition/competitionManager');
 const customBotRunner = require('../botBuilder/customBotRunner');
+const builderStore = require('../botBuilder/store');
+const realResults = require('../realResults/store');
 const telegramService = require('../telegramService');
 const signalDelivery = require('../signalDelivery');
 
+const COMPETITORS = catalog.filter((e) => e.competitionEligible);
+
 function trDayStartMs(now = Date.now()) {
-  const shifted = new Date(now + 3 * 3600 * 1000); // TR = UTC+3
-  return Date.UTC(shifted.getUTCFullYear(), shifted.getUTCMonth(), shifted.getUTCDate()) - 3 * 3600 * 1000;
+  const s = new Date(now + 3 * 3600 * 1000);
+  return Date.UTC(s.getUTCFullYear(), s.getUTCMonth(), s.getUTCDate()) - 3 * 3600 * 1000;
 }
 function trDateLabel(now = Date.now()) {
   const d = new Date(now + 3 * 3600 * 1000);
@@ -28,75 +33,109 @@ function usd(v) { const n = Number(v) || 0; return `${n >= 0 ? '+' : ''}${n.toFi
 function rr(v) { const n = Number(v) || 0; return `${n >= 0 ? '+' : ''}${n.toFixed(2)}R`; }
 function esc(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
 
-/** Rapor metnini üretir (Telegram HTML). */
-function build(nowMs = Date.now(), goldStats = null) {
-  const since = trDayStartMs(nowMs);
-  const comp = competitionManager.dailyBreakdown(since);
-  const custom = customBotRunner.dailyBreakdown(since);
+/** Rapor metnini üretir (Telegram HTML). realAgg verilirse GERÇEK, yoksa paper. */
+function build(nowMs = Date.now(), goldStats = null, realAgg = null) {
+  const sinceMs = trDayStartMs(nowMs);
+  const useReal = Array.isArray(realAgg) && realAgg.length > 0;
+  const realByMagic = new Map((realAgg || []).map((r) => [Number(r.magic), r]));
 
   const lines = [];
-  lines.push(`📊 <b>GÜNLÜK BOT RAPORU</b>`);
-  lines.push(`🗓️ ${trDateLabel(nowMs)}`);
+  lines.push('📊 <b>GÜNLÜK BOT RAPORU</b>');
+  lines.push(`🗓️ ${trDateLabel(nowMs)} · ${useReal ? '🟢 GERÇEK MT5' : '⚪ sanal (henüz gerçek veri yok)'}`);
   lines.push('');
   lines.push('<b>— Yarışan Botlar —</b>');
 
-  let dayTrades = 0, dayTp = 0, daySl = 0, dayNet = 0;
-  for (const b of comp) {
-    dayTrades += b.trades; dayTp += b.tp; daySl += b.sl; dayNet += b.net;
-    if (b.trades > 0) {
-      lines.push(`<b>Bot ${b.no}</b> · ${esc(b.name)}`);
-      lines.push(`   ${b.trades} işlem · ${b.tp} TP · ${b.sl} SL · net <b>${usd(b.net)}</b>`);
-    } else {
-      lines.push(`<b>Bot ${b.no}</b> · ${esc(b.name)} — <i>işlem yok</i>`);
-    }
-  }
+  let dTrades = 0, dTp = 0, dSl = 0, dNet = 0;
 
-  if (custom.length) {
-    lines.push('');
-    lines.push('<b>— Özel Botların —</b>');
-    for (const b of custom) {
-      lines.push(`⭐ ${esc(b.name)} — ${b.trades} işlem · ${b.tp} TP · ${b.sl} SL · net <b>${rr(b.netR)}</b>`);
+  if (useReal) {
+    for (const e of COMPETITORS) {
+      const r = realByMagic.get(Number(e.magic));
+      if (r && r.trades > 0) {
+        dTrades += r.trades; dTp += r.tp; dSl += r.sl; dNet += r.net;
+        lines.push(`<b>Bot ${e.no}</b> · ${esc(e.name)}`);
+        lines.push(`   ${r.trades} işlem · ${r.tp} TP · ${r.sl} SL · net <b>${usd(r.net)}</b>`);
+      } else {
+        lines.push(`<b>Bot ${e.no}</b> · ${esc(e.name)} — <i>işlem yok</i>`);
+      }
     }
-  }
-
-  if (goldStats && (goldStats.total > 0)) {
-    lines.push('');
-    lines.push('<b>— Altın Botu (gerçek MT5, toplam) —</b>');
-    lines.push(`🥇 ${goldStats.total} işlem · %${Math.round(goldStats.win_rate || 0)} kazanma · ${usd(goldStats.total_profit)} · PF ${Number(goldStats.profit_factor || 0).toFixed(2)}`);
+    // Özel botlar (gerçek, magic ile)
+    const customs = builderStore.listCustom();
+    const customReal = customs.map((b) => ({ b, r: realByMagic.get(Number(b.magic)) })).filter((x) => x.r && x.r.trades > 0);
+    if (customReal.length) {
+      lines.push('');
+      lines.push('<b>— Özel Botların —</b>');
+      for (const { b, r } of customReal) {
+        dTrades += r.trades; dTp += r.tp; dSl += r.sl; dNet += r.net;
+        lines.push(`⭐ ${esc(b.name)} — ${r.trades} işlem · ${r.tp} TP · ${r.sl} SL · net <b>${usd(r.net)}</b>`);
+      }
+    }
+    // Altın botu (gerçek, magic 20260707)
+    const gr = realByMagic.get(realResults.GOLD_MAGIC);
+    if (gr && gr.trades > 0) {
+      dTrades += gr.trades; dTp += gr.tp; dSl += gr.sl; dNet += gr.net;
+      lines.push('');
+      lines.push('<b>— Altın Botu (gerçek MT5) —</b>');
+      lines.push(`🥇 ${gr.trades} işlem · ${gr.tp} TP · ${gr.sl} SL · net <b>${usd(gr.net)}</b>`);
+    }
+  } else {
+    // FALLBACK: kağıt/sanal competition
+    const comp = competitionManager.dailyBreakdown(sinceMs);
+    for (const b of comp) {
+      dTrades += b.trades; dTp += b.tp; dSl += b.sl; dNet += b.net;
+      if (b.trades > 0) {
+        lines.push(`<b>Bot ${b.no}</b> · ${esc(b.name)}`);
+        lines.push(`   ${b.trades} işlem · ${b.tp} TP · ${b.sl} SL · net <b>${usd(b.net)}</b> <i>(sanal)</i>`);
+      } else {
+        lines.push(`<b>Bot ${b.no}</b> · ${esc(b.name)} — <i>işlem yok</i>`);
+      }
+    }
+    const custom = customBotRunner.dailyBreakdown(sinceMs);
+    if (custom.length) {
+      lines.push('');
+      lines.push('<b>— Özel Botların (sanal) —</b>');
+      for (const b of custom) lines.push(`⭐ ${esc(b.name)} — ${b.trades} işlem · ${b.tp} TP · ${b.sl} SL · net <b>${rr(b.netR)}</b>`);
+    }
+    if (goldStats && goldStats.total > 0) {
+      lines.push('');
+      lines.push('<b>— Altın Botu (gerçek MT5, toplam) —</b>');
+      lines.push(`🥇 ${goldStats.total} işlem · %${Math.round(goldStats.win_rate || 0)} kazanma · ${usd(goldStats.total_profit)} · PF ${Number(goldStats.profit_factor || 0).toFixed(2)}`);
+    }
   }
 
   lines.push('');
-  lines.push(`📈 <b>GÜN TOPLAMI:</b> ${dayTrades} işlem · ${dayTp} TP · ${daySl} SL · net <b>${usd(dayNet)}</b>`);
-  lines.push(`<i>Her akşam güncellenir; sonuçlar günden güne birikir.</i>`);
+  lines.push(`📈 <b>GÜN TOPLAMI:</b> ${dTrades} işlem · ${dTp} TP · ${dSl} SL · net <b>${usd(dNet)}</b>`);
+  lines.push('<i>Her akşam güncellenir; sonuçlar günden güne birikir.</i>');
 
-  return { text: lines.join('\n'), summary: { trades: dayTrades, tp: dayTp, sl: daySl, net: Number(dayNet.toFixed(2)) } };
+  return { text: lines.join('\n'), useReal, summary: { trades: dTrades, tp: dTp, sl: dSl, net: Number(dNet.toFixed(2)) } };
 }
 
-function target() {
-  return process.env.TELEGRAM_DAILY_REPORT_CHANNEL || signalDelivery.signalChannel();
-}
+function target() { return process.env.TELEGRAM_DAILY_REPORT_CHANNEL || signalDelivery.signalChannel(); }
 
 /** Raporu oluşturup Telegram'a gönderir. */
 async function run(deps = {}) {
   if (process.env.BOT_DAILY_REPORT_DISABLED === '1') return { ok: false, disabled: true };
   const nowMs = deps.nowMs || Date.now();
+  const sinceSec = Math.floor(trDayStartMs(nowMs) / 1000);
 
-  // Altın botu (gerçek MT5) toplamını en iyi çabayla ekle — ulaşılamazsa atla.
+  let realAgg = null;
+  try { if (realResults.hasData()) realAgg = realResults.aggregate(sinceSec); } catch (_) { realAgg = null; }
+
+  // Gerçek veri yoksa altın botu toplamını en iyi çabayla ekle (fallback için).
   let goldStats = null;
-  try {
-    const botClient = deps.botClient || require('../botClient');
-    if (botClient.isEnabled && botClient.isEnabled()) {
-      goldStats = await botClient.get('/api/stats');
-    }
-  } catch (_) { goldStats = null; }
+  if (!realAgg || !realAgg.length) {
+    try {
+      const botClient = deps.botClient || require('../botClient');
+      if (botClient.isEnabled && botClient.isEnabled()) goldStats = await botClient.get('/api/stats');
+    } catch (_) { goldStats = null; }
+  }
 
-  const { text, summary } = build(nowMs, goldStats);
+  const { text, summary, useReal } = build(nowMs, goldStats, realAgg);
   const chat = target();
   if (!chat) return { ok: false, error: 'no-telegram-target' };
   try {
     const send = deps.sendMessage || telegramService.sendMessage;
     const r = await send(chat, text, 'HTML');
-    return { ok: !!(r && (r.success || r.ok || r.message_id || r.result)), summary };
+    return { ok: !!(r && (r.success || r.ok || r.message_id || r.result)), useReal, summary };
   } catch (e) {
     return { ok: false, error: e.message, summary };
   }
