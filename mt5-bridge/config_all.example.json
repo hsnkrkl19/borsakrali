@@ -2,12 +2,12 @@
   "_aciklama": "BIRLESIK KOPRU (tum botlar -> MT5). config_all.json olarak kopyala + doldur.",
   "backend_url": "https://www.borsakrali.com",
   "exec_token": "BURAYA_FOREX_EXEC_TOKEN",
-  "allowed_account": 1513908484,
+  "allowed_account": 1513971129,
   "terminal_path": "",
   "poll_seconds": 60,
 
-  "_GUVENLIK": "dry_run=true iken HICBIR emir gitmez, yalniz loglar. Canli icin false yap.",
-  "dry_run": true,
+  "_GUVENLIK": "dry_run=false = GERCEK demo emir acar (kullanici tercihi). Sadece test icin true yap.",
+  "dry_run": false,
   "enabled": true,
 
   "_LOT": "fixed=sabit kucuk lot (tutucu); risk=stop mesafesine gore. Cok bot -> kucuk basla.",
