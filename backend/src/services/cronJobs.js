@@ -424,17 +424,10 @@ async function runBistFullSignalCadence() {
     } catch (pe) {
       logger.error(`BIST ≥75 sinyal push hata: ${pe.message}`);
     }
-    if (pushed?.telegram || pushed?.app) {
-      logger.info(`📈 BIST ≥${bistScoreEngine.MIN_CONFIDENCE} tur — ${snap.qualified} uygun · top ${top.length} · TG ${pushed.telegram} · App ${pushed.app}`);
-    }
-    // Açık sinyallerin TP/SL kapanış kontrolü (aynı NO ile teyit)
-    try {
-      const closures = await bistSignalTracker.checkClosures();
-      raceClose('bist-signals', closures);
-      if (closures.length) await bistSignalNotifier.pushClosures(closures);
-    } catch (clErr) {
-      logger.error(`BIST ≥75 sinyal kapanış hata: ${clErr.message}`);
-    }
+    // evaluateAndPush ARTIK portföy yolu: ≥75 adayları risk-bazlı AL + açık
+    // pozisyonları yönet (SAT/STOP/TP). Kapanış yönetimi + yarış-kaydı içeride
+    // (manageAndReport → competition 'bist-signals'). Ayrı checkClosures gerekmez.
+    logger.info(`📈 BIST ≥${bistScoreEngine.MIN_CONFIDENCE} portföy — ${snap.qualified} uygun · top ${top.length} · AL ${pushed?.considered || 0} · kapanan ${pushed?.closed || 0} · TG ${pushed?.telegram || 0} · App ${pushed?.app || 0}`);
     return snap;
   } catch (e) {
     logger.error(`BIST ≥75 tam sinyal turu hata: ${e.message}`, e.stack);
@@ -456,13 +449,12 @@ async function runBotTick() {
         `🤖 Bot tick — checked: ${result.checked}, triggered: ${result.triggered}, trailed: ${result.trailed}, closed: ${result.closed}`
       );
     }
-    // BIST ≥75 sinyallerinin TP/SL kapanışını gün içinde ~5 dk'da yakala (aynı NO ile teyit)
+    // BIST ≥75 portföyünü gün içinde ~5 dk'da yönet — YALNIZ STOP/TP/timeout/trailing
+    // (taze tarama yok → strateji SAT değerlendirilmez; held-only, tutulmayana asla).
     try {
-      const closures = await bistSignalTracker.checkClosures();
-      raceClose('bist-signals', closures);
-      if (closures.length) await bistSignalNotifier.pushClosures(closures);
+      await bistSignalNotifier.tickManage();
     } catch (e) {
-      logger.error(`BIST ≥75 sinyal kapanış (tick) hata: ${e.message}`);
+      logger.error(`BIST ≥75 portföy tick hata: ${e.message}`);
     }
     return result;
   } catch (e) {
@@ -574,19 +566,14 @@ async function runBistAlScanner() {
   try {
     if (!isBistOpen()) return null;   // yalnız işlem saatlerinde (tatil/hafta sonu dahil eler)
     logger.info('⏰ BIST AL taraması başlatıldı');
+    // runAndNotify ARTIK portföy yolu: nitelikli adayları risk-bazlı AL + açık
+    // pozisyonları yönet (SAT/STOP/TP — yalnız listOpen()). Kapanış yönetimi
+    // içeride (manageAndReport) → ayrı checkAndPushClosures gerekmez.
     const result = await bistAlScannerNotifier.runAndNotify();
     if (!result?.ok) {
       logger.error(`[BistAlScanner] tarama başarısız: ${result?.error || 'bilinmeyen hata'}`);
-    } else if (result.skippedReason) {
-      logger.info(`📈 BIST AL tarama — atlandı (${result.skippedReason}), aday ${result.candidates}, nitelikli ${result.qualified}`);
     } else {
-      logger.info(`📈 BIST AL tarama — taranan ${result.scanned}, nitelikli ${result.qualified}, yeni ${result.freshCount}, TG ${result.telegramSent}`);
-    }
-    // Verilen AL sinyallerinin TP/SL kapanışını kontrol et + (gecikmeli de olsa) bildir
-    try {
-      await bistAlScannerNotifier.checkAndPushClosures();
-    } catch (clErr) {
-      logger.error(`[BistAlScanner] kapanış kontrolü hata: ${clErr.message}`);
+      logger.info(`📈 BIST AL portföy — taranan ${result.scanned}, nitelikli ${result.qualified}, AL ${result.opened}, kapanan ${result.closed}, TG ${result.telegramSent}`);
     }
     return result;
   } catch (e) {
@@ -614,6 +601,8 @@ async function runDailyPnlReports() {
     catch (e) { logger.error(`[TEMA34Scanner] günlük rapor hata: ${e.message}`); }
     try { out.bistAl = await bistAlScannerNotifier.pushDailyReport(); }
     catch (e) { logger.error(`[BistAlScanner] günlük rapor hata: ${e.message}`); }
+    try { out.bistSignal = await bistSignalNotifier.pushDailySummary(); }
+    catch (e) { logger.error(`[BistSignal] günlük portföy özeti hata: ${e.message}`); }
     return out;
   } catch (e) {
     logger.error(`[GünlükRapor] hata: ${e.message}`);
@@ -2091,11 +2080,12 @@ class CronJobsService {
    * opts.force=true → gün-bazlı dedup atlanır (aynı gün tekrar gönderir).
    */
   async triggerDailyPnlReports(opts = {}) {
-    const [tema34, bistAl] = await Promise.all([
+    const [tema34, bistAl, bistSignal] = await Promise.all([
       tema34ScannerNotifier.pushDailyReport(opts).catch((e) => ({ error: e.message })),
       bistAlScannerNotifier.pushDailyReport(opts).catch((e) => ({ error: e.message })),
+      bistSignalNotifier.pushDailySummary(opts).catch((e) => ({ error: e.message })),
     ]);
-    return { tema34, bistAl };
+    return { tema34, bistAl, bistSignal };
   }
 
   /**

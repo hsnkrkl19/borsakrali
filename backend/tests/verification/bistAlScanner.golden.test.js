@@ -40,15 +40,27 @@ jest.mock('../../src/services/bistAlScanner/bistAlScannerStore', () => ({
   recordRun: () => {},
 }));
 
-// Tracker'ı no-op mock'la — runAndNotify yolları diske/ağa dokunmasın (kayıt/kapanış
-// mantığı AYRI dosyada test edilir: bistAlScannerTracker.golden.test.js).
-const mockRegister = jest.fn(async () => []);
-const mockCheckClosures = jest.fn(async () => []);
-const mockCommit = jest.fn(() => ({ committed: 0 }));
+// Tracker artık YALNIZ cutover (adoptLegacy) için okunur — no-op mock (getOpen boş).
 jest.mock('../../src/services/bistAlScanner/bistAlScannerTracker', () => ({
-  registerSignals: (...a) => mockRegister(...a),
-  checkClosures: (...a) => mockCheckClosures(...a),
-  commitClosures: (...a) => mockCommit(...a),
+  getOpen: async () => [],
+  registerSignals: async () => [],
+  checkClosures: async () => [],
+  commitClosures: () => ({ committed: 0 }),
+}));
+
+// Portföy botunu mock'la → runAndNotify'ın AL/yönet delegasyonunu izole test et
+// (para matematiği + held-only invaryantı bistPortfolio.golden.test.js'te).
+const mockOpenBuys = jest.fn(async () => ({ openedCount: 0, opened: [], skipped: [], telegramSent: 0, appSent: 0 }));
+const mockManage = jest.fn(async () => ({ closed: 0, errors: 0 }));
+const mockAdopt = jest.fn(() => ({ adopted: 0 }));
+const mockDaily = jest.fn(async () => ({ sent: 0 }));
+const mockSnapshot = jest.fn(() => ({ kpis: { equity: 100000 }, open: [], closed: [] }));
+jest.mock('../../src/services/bistPortfolio/alPortfolioBot', () => ({
+  openBuys: (...a) => mockOpenBuys(...a),
+  manageAndReport: (...a) => mockManage(...a),
+  adoptLegacy: (...a) => mockAdopt(...a),
+  pushDailySummary: (...a) => mockDaily(...a),
+  getSnapshot: (...a) => mockSnapshot(...a),
 }));
 
 // Likidite tabanını test için düşür (mum hacimleri küçük) — modül YÜKLENMEDEN önce.
@@ -160,95 +172,57 @@ describe('bistAlScannerNotifier.passesGate — trend + hacim kapısı', () => {
   });
 });
 
-describe('bistAlScannerNotifier.runAndNotify — skip & dedup yolları', () => {
+describe('bistAlScannerNotifier.runAndNotify — aday seçimi + portföy delegasyonu', () => {
   const upCloses = Array.from({ length: 80 }, (_, i) => 50 + i); // her gate-aday geçer
   beforeEach(() => {
-    mockTgSend.mockClear();
     mockScan.mockReset();
     mockHist.mockReset();
     mockHist.mockResolvedValue(candleHist({ ema34Closes: upCloses, lastVol: 5000, baseVol: 500 }));
-    mockSent = new Set();
-    mockTradingDate = null;
-    delete process.env.TELEGRAM_BIST_AL_CHANNEL;
-    delete process.env.BIST_AL_SCANNER_DISABLED;
+    mockOpenBuys.mockClear(); mockManage.mockClear(); mockAdopt.mockClear();
   });
 
-  test('kanal ayarlı değil → no-channel, Telegram çağrılmaz', async () => {
-    mockScan.mockResolvedValue({ scanned: 510, all: [sig('THYAO', 86)] });
-    const r = await notifier.runAndNotify();
-    expect(r.ok).toBe(true);
-    expect(r.skippedReason).toBe('no-channel');
-    expect(mockTgSend).not.toHaveBeenCalled();
-  });
-
-  test('avgScore < eşik (80) → aday yok → no-signals', async () => {
-    process.env.TELEGRAM_BIST_AL_CHANNEL = '-100777';
+  test('avgScore < eşik (80) → aday yok → openBuys boş listeyle çağrılır', async () => {
     mockScan.mockResolvedValue({ scanned: 510, all: [sig('THYAO', 78), sig('GARAN', 60)] });
     const r = await notifier.runAndNotify();
-    expect(r.candidates).toBe(0);
-    expect(r.skippedReason).toBe('no-signals');
-    expect(mockTgSend).not.toHaveBeenCalled();
+    expect(r.ok).toBe(true);
+    expect(r.qualified).toBe(0);
+    expect(mockOpenBuys).toHaveBeenCalledTimes(1);
+    expect(mockOpenBuys.mock.calls[0][0]).toEqual([]);   // nitelikli aday yok
   });
 
-  test('ADX < eşik (20) → gerçek trend yok → elenir, no-signals', async () => {
-    process.env.TELEGRAM_BIST_AL_CHANNEL = '-100777';
+  test('ADX < eşik (20) → gerçek trend yok → elenir', async () => {
     mockScan.mockResolvedValue({ scanned: 510, all: [sig('THYAO', 88, { indicators: { adx: 12, rsi: 60 } })] });
     const r = await notifier.runAndNotify();
-    expect(r.candidates).toBe(0);
-    expect(r.skippedReason).toBe('no-signals');
-    expect(mockTgSend).not.toHaveBeenCalled();
+    expect(r.qualified).toBe(0);
   });
 
-  test('RSI ≥ eşik (78) → aşırı-alım → elenir, no-signals', async () => {
-    process.env.TELEGRAM_BIST_AL_CHANNEL = '-100777';
+  test('RSI ≥ eşik (78) → aşırı-alım → elenir', async () => {
     mockScan.mockResolvedValue({ scanned: 510, all: [sig('THYAO', 88, { indicators: { adx: 30, rsi: 82 } })] });
     const r = await notifier.runAndNotify();
-    expect(r.candidates).toBe(0);
-    expect(r.skippedReason).toBe('no-signals');
-    expect(mockTgSend).not.toHaveBeenCalled();
+    expect(r.qualified).toBe(0);
   });
 
-  test('kill-switch açık → disabled, Telegram çağrılmaz', async () => {
-    process.env.TELEGRAM_BIST_AL_CHANNEL = '-100777';
-    process.env.BIST_AL_SCANNER_DISABLED = '1';
-    mockScan.mockResolvedValue({ scanned: 510, all: [sig('THYAO', 86)] });
-    const r = await notifier.runAndNotify();
-    expect(r.skippedReason).toBe('disabled');
-    expect(mockTgSend).not.toHaveBeenCalled();
-  });
-
-  test('kanal + nitelikli sinyal → gönderir, notified=true, doğru kanal, markSent', async () => {
-    process.env.TELEGRAM_BIST_AL_CHANNEL = '-100777';
+  test('nitelikli adaylar → openBuys adaylarla + manageAndReport nitelik seti ile çağrılır', async () => {
     mockScan.mockResolvedValue({ scanned: 510, all: [sig('THYAO', 86), sig('ASELS', 82)] });
+    mockOpenBuys.mockResolvedValueOnce({ openedCount: 2, opened: [{ symbol: 'THYAO' }, { symbol: 'ASELS' }], skipped: [], telegramSent: 1 });
+    mockManage.mockResolvedValueOnce({ closed: 1, errors: 0 });
     const r = await notifier.runAndNotify();
-    expect(r.notified).toBe(true);
     expect(r.qualified).toBe(2);
-    expect(r.freshCount).toBe(2);
-    expect(mockTgSend).toHaveBeenCalled();
-    expect(mockTgSend.mock.calls[0][0]).toBe('-100777');
-    // markSent çağrıldı → ikinci tur aynı gün dedup'lar
-    const r2 = await notifier.runAndNotify();
-    expect(r2.skippedReason).toBe('already-sent');
+    expect(r.opened).toBe(2);
+    expect(r.closed).toBe(1);
+    // openBuys nitelikli adaylarla (THYAO+ASELS) çağrıldı
+    const passed = mockOpenBuys.mock.calls[0][0].map(s => s.symbol).sort();
+    expect(passed).toEqual(['ASELS', 'THYAO']);
+    // manageAndReport nitelik SEMBOL SETİ ile çağrıldı (held-only SAT için)
+    const qset = mockManage.mock.calls[0][0];
+    expect(qset instanceof Set).toBe(true);
+    expect(qset.has('THYAO')).toBe(true);
   });
 
-  test('force=true → günlük dedup atlanır (aynı hisse tekrar gider)', async () => {
-    process.env.TELEGRAM_BIST_AL_CHANNEL = '-100777';
-    mockScan.mockResolvedValue({ scanned: 510, all: [sig('THYAO', 86)] });
-    await notifier.runAndNotify();                 // gönderir + markSent
-    mockTgSend.mockClear();
-    const r = await notifier.runAndNotify({ force: true });
-    expect(r.notified).toBe(true);                 // force → tekrar gönderildi
-    expect(mockTgSend).toHaveBeenCalled();
-  });
-
-  test('gönderilen sinyaller TP/SL takibine kaydedilir (registerSignals çağrılır)', async () => {
-    process.env.TELEGRAM_BIST_AL_CHANNEL = '-100777';
-    mockRegister.mockClear();
+  test('cutover: adoptLegacy bir kez çağrılır', async () => {
     mockScan.mockResolvedValue({ scanned: 510, all: [sig('THYAO', 86)] });
     await notifier.runAndNotify();
-    expect(mockRegister).toHaveBeenCalledTimes(1);
-    const fresh = mockRegister.mock.calls[0][0];
-    expect(fresh.map(s => s.symbol)).toContain('THYAO');
+    expect(mockAdopt).toHaveBeenCalledTimes(1);
   });
 });
 
@@ -294,21 +268,19 @@ describe('bistAlScannerNotifier — kapanış mesajı + push', () => {
     expect(mockTgSend.mock.calls[0][0]).toBe('-100777');
   });
 
-  test('checkAndPushClosures — tracker.checkClosures boşsa gönderim yok', async () => {
-    mockTgSend.mockClear();
-    mockCheckClosures.mockResolvedValueOnce([]);
+  test('checkAndPushClosures — portföy yönetimine delege (STOP/TP; strateji SAT yok)', async () => {
+    mockManage.mockClear();
+    mockManage.mockResolvedValueOnce({ closed: 0, errors: 0 });
     const r = await notifier.checkAndPushClosures();
     expect(r.closed).toBe(0);
-    expect(r.sent).toBe(0);
+    // qualifiedSymbols VERİLMEZ (undefined) → tick modu: yalnız STOP/TP/timeout
+    expect(mockManage).toHaveBeenCalledWith(undefined);
   });
 
-  test('checkAndPushClosures — kapanış varsa push edilir', async () => {
-    mockTgSend.mockClear();
-    process.env.TELEGRAM_BIST_AL_CHANNEL = '-100777';
-    delete process.env.BIST_AL_SCANNER_DISABLED;
-    mockCheckClosures.mockResolvedValueOnce([ev()]);
+  test('checkAndPushClosures — kapanış varsa closed sayısını döner', async () => {
+    mockManage.mockClear();
+    mockManage.mockResolvedValueOnce({ closed: 2, errors: 0 });
     const r = await notifier.checkAndPushClosures();
-    expect(r.closed).toBe(1);
-    expect(r.sent).toBe(1);
+    expect(r.closed).toBe(2);
   });
 });

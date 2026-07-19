@@ -28,9 +28,10 @@ const liveDataService = require('../liveDataService');
 const { ema, sma } = require('../forex/indicators');
 const telegramService = require('../telegramService');
 const store = require('./bistAlScannerStore');
-const tracker = require('./bistAlScannerTracker');
+const tracker = require('./bistAlScannerTracker');   // yalnız cutover: eski açık sinyalleri bir kez adopt
 const marketHours = require('../marketHours');
 const competitionManager = require('../botCompetition/competitionManager');
+const alBot = require('../bistPortfolio/alPortfolioBot');   // portföy defteri + AL/SAT/STOP/TP teslimat
 const logger = require('../../utils/logger');
 
 function envNum(name, def) { const v = Number(process.env[name]); return Number.isFinite(v) ? v : def; }
@@ -222,22 +223,12 @@ async function pushClosures(events) {
 // olarak gönderilmeyecekse: kill-switch / kanal yok) commitClosures ile kapat.
 // Kanal açıkken gönderim başarısızsa pozisyon AÇIK kalır → sonraki 15 dk turunda
 // evalOne geçmişten yeniden türetir → tekrar denenir (sonucu KAYBETMEZ).
+// 5dk tick / tarama-arası çağrı: açık pozisyonları yönet (STOP/TP/timeout/trailing).
+// ⭐ Yalnız listOpen() → tutulmayana asla kapanış. Strateji SAT YALNIZ taze taramada
+// (runAndNotify) değerlendirilir; burada qualifiedSymbols VERİLMEZ (yanlış SAT önlenir).
 async function checkAndPushClosures() {
-  let events = [];
-  try { events = await tracker.checkClosures(); }          // TESPİT (silmez)
-  catch (e) { logger.error(`[BistAlScanner] kapanış kontrolü hata: ${e.message}`); return { closed: 0, sent: 0 }; }
-  if (!events.length) return { closed: 0, sent: 0 };
-
-  const push = await pushClosures(events);
-  // Teslim edildi (delivered) VEYA bilinçli olarak gönderilmeyecek (disabled / kanal yok)
-  // → kesinleştir. Yalnız GEÇİCİ gönderim hatasında (kanal açık ama TG hatası) açık bırak.
-  if (push.delivered || push.disabled || push.chatSet === false) {
-    tracker.commitClosures(events);
-    try { competitionManager.recordClosures('bist-buy-scanner', events); } catch (_) {}
-  } else {
-    logger.warn(`[BistAlScanner] ${events.length} kapanış TESLİM EDİLEMEDİ, sonraki turda tekrar denenecek`);
-  }
-  return { closed: events.length, sent: push.sent || 0 };
+  const r = await alBot.manageAndReport(undefined);
+  return { closed: r.closed || 0, sent: 0 };
 }
 
 // ── GÜNLÜK açık-pozisyon kâr/zarar raporu (kullanıcı isteği: "her gün sonuç") ──
@@ -305,49 +296,13 @@ function buildDailyReportMessages({ dateKey, rows, closedToday }) {
 
 // Günlük raporu üret + gönder (cron; ~18:45 TR). Gün-bazlı dedup. Açık pozisyon +
 // bugün kapanan yoksa sessiz. Kanal yok / kill-switch → gönderim yok.
+// Günlük portföy özeti — portföy botuna delege (equity/nakit/K-Z/kazanma + açık
+// pozisyonların güncel K/Z + bugün kapananlar). Gün-bazlı dedup portföy botunda.
 async function pushDailyReport(opts = {}) {
-  const now = opts.now || new Date();
-  const chatId = channelId();
-  if (!chatId) return { sent: 0, chatSet: false };
-  if (process.env.BIST_AL_SCANNER_DISABLED === '1') return { sent: 0, disabled: true };
-  const dateKey = now.toLocaleDateString('en-CA', { timeZone: 'Europe/Istanbul' });
-  if (!opts.force && store.getDailyReportDate && store.getDailyReportDate() === dateKey) {
-    return { sent: 0, skipped: 'already-sent' };
-  }
-
-  const open = await tracker.getOpen();
-  const closedToday = (await tracker.getClosedRecent()).filter(c => c.exitDate === dateKey);
-  if (!open.length && !closedToday.length) return { sent: 0, skipped: 'nothing-to-report' };
-
-  const rows = [];
-  const BATCH = 6;
-  for (let i = 0; i < open.length; i += BATCH) {
-    const batch = open.slice(i, i + BATCH);
-    const closes = await Promise.all(batch.map(async p => {
-      try { return await withTimeout(latestClose(p.symbol, now), HARD_TIMEOUT_MS, 'price'); }
-      catch (_) { return null; }
-    }));
-    batch.forEach((p, j) => {
-      const current = closes[j];
-      const pnlPct = (current != null && p.entry > 0) ? +(((current - p.entry) / p.entry) * 100).toFixed(2) : null;
-      rows.push({ symbol: p.symbol, entry: p.entry, stop: p.stop, target1: p.target1, precision: p.precision, current, pnlPct });
-    });
-  }
-
-  const messages = buildDailyReportMessages({ dateKey, rows, closedToday });
-  const chatIdNow = channelId();
-  let sent = 0;
-  for (const msg of messages) {
-    try {
-      const r = await withTimeout(telegramService.sendMessage(chatIdNow, msg), HARD_TIMEOUT_MS, 'dailyTg');
-      if (r?.success) sent++;
-      else logger.error(`[BistAlScanner] günlük rapor Telegram başarısız: ${r?.error || '?'}`);
-    } catch (e) { logger.error(`[BistAlScanner] günlük rapor hata: ${e.message}`); }
-  }
-  if (sent > 0 && store.markDailyReport) store.markDailyReport(dateKey);
-  logger.info(`📈 BIST AL günlük rapor — ${dateKey}: ${open.length} açık · ${closedToday.length} bugün kapanan · TG ${sent}`);
-  return { sent, total: messages.length };
+  return alBot.pushDailySummary(opts);
 }
+
+function getSnapshot() { return alBot.getSnapshot(); }
 
 /**
  * Tara + sıkı kapı + (günlük yeni olanları) bildir + durum kaydet.
@@ -392,48 +347,30 @@ async function runAndNotify(opts = {}) {
   try { competitionManager.observeSnapshot('bist-buy-scanner', { ...snap, signals: qualified }); }
   catch (e) { logger.warn(`[BotYarisi] bist-buy gözlem atlandı: ${e.message}`); }
 
-  const disabled = process.env.BIST_AL_SCANNER_DISABLED === '1';
-  const sentSet = force ? new Set() : store.sentSetFor(tradingDate);
-  const fresh = qualified.filter(s => !sentSet.has(s.symbol));
+  // Cutover (tek seferlik, migratedAt ile korumalı): eski tracker'ın AÇIK
+  // sinyallerini portföye adopt et — hiçbir açık ip orphan kalmasın.
+  try { await alBot.adoptLegacy(await tracker.getOpen()); }
+  catch (e) { logger.warn(`[BistAlPortfolio] adopt atlandı: ${e.message}`); }
 
-  let notified = false;
-  let skippedReason = null;
-  let telegram = { sent: 0 };
-
-  if (qualified.length === 0) {
-    skippedReason = 'no-signals';                 // sıkı kapıdan geçen yok → sessiz
-  } else if (fresh.length === 0) {
-    skippedReason = 'already-sent';               // bugün hepsi zaten gönderildi
-  } else if (disabled) {
-    skippedReason = 'disabled';                   // kill-switch — gönderme, sent'e ekleme
-  } else if (!channelId()) {
-    skippedReason = 'no-channel';                 // yeni kanal henüz ayarlanmadı — sessiz
-  } else {
-    telegram = await sendTelegram({ tradingDate, scanned, signals: fresh });
-    notified = telegram.sent > 0;
-    // ⚠️ 2026-07-19: takibe kaydı GÖNDERİMDEN AYIR — geçici Telegram hatası olsa
-    // bile sinyalleri TP/SL takibine al (eski bug: "kanal düşükken üretilen sinyal
-    // hiç izlenmiyor, sonucu hiç bildirilmiyor"). registerSignals idempotent
-    // (sembol-bazlı). markSent YALNIZ gerçekten gönderilince → gönderilemeyen sinyal
-    // "fresh" kalır, sonraki 15 dk turunda yeniden gönderilir.
-    try { await tracker.registerSignals(fresh); }
-    catch (e) { logger.error(`[BistAlScanner] takip kaydı hata: ${e.message}`); }
-    if (notified) store.markSent(tradingDate, fresh.map(s => s.symbol));
-    logger.info(`📈 BIST AL tarama — ${tradingDate}: ${fresh.length} yeni AL · TG ${telegram.sent}`);
-  }
+  // PORTFÖY: nitelikli adayları risk-bazlı AL (held-guard) + açık pozisyonları
+  // yönet (SAT/STOP/TP — yalnız listOpen(); tutulmayana asla). Kanal yoksa /
+  // kill-switch varken defter tutulur ama gönderim yapılmaz (portfolioBot içinde).
+  const buy = await alBot.openBuys(qualified, { now: opts.now });
+  const manage = await alBot.manageAndReport(new Set(qualified.map(s => s.symbol)), { now: opts.now });
 
   const summary = {
     runAt: new Date().toISOString(),
     tradingDate, scanned,
     candidates: candidates.length,
     qualified: qualified.length,
-    freshCount: fresh.length,
-    notified, skippedReason, forced: force,
-    telegramSent: telegram.sent || 0,
+    opened: buy.openedCount,
+    closed: manage.closed,
+    halted: buy.halted || false,
+    forced: force,
+    telegramSent: buy.telegramSent || 0,
     signals: qualified.map(s => ({
       symbol: s.symbol, avgScore: s.avgVoteScore, confidence: s.confidence,
       entry: s.entry, stop: s.stop, target1: s.target1, target2: s.target2,
-      fresh: fresh.includes(s),
     })),
   };
   store.recordRun(summary);
@@ -444,9 +381,13 @@ module.exports = {
   runAndNotify,
   channelId,
   passesGate,
+  checkAndPushClosures,
+  pushDailyReport,
+  getSnapshot,
+  // Eski saf kurucular (deprecation penceresi — artık portföy botu messages.js kullanır)
   buildTelegramMessages,
   buildSignalBlock,
-  buildClosureBlock, pushClosures, checkAndPushClosures,
-  pushDailyReport, buildDailyReportMessages, buildDailyReportLine,
+  buildClosureBlock, pushClosures,
+  buildDailyReportMessages, buildDailyReportLine,
   MIN_AVGSCORE, TOP_N, VOL_MULT, MIN_ADX, MAX_RSI, MIN_TURNOVER, DEEP_LINK,
 };

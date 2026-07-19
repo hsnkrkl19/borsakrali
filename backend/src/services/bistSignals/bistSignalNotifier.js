@@ -9,7 +9,8 @@
 
 const telegramService = require('../telegramService');
 const pushNotificationService = require('../pushNotificationService');
-const tracker = require('./bistSignalTracker');
+const tracker = require('./bistSignalTracker');   // yalnız cutover: eski açık sinyalleri bir kez adopt
+const sigBot = require('../bistPortfolio/signalPortfolioBot');   // portföy defteri + AL/SAT/STOP/TP + broadcast
 const logger = require('../../utils/logger');
 
 const MIN_CONFIDENCE = (() => { const v = Number(process.env.BIST_SIGNAL_MIN_CONFIDENCE); return Number.isFinite(v) ? v : 75; })();
@@ -95,48 +96,35 @@ function buildBroadcastClosure(ev) {
   };
 }
 
-// ── Gönderim ─────────────────────────────────────────────────────────────────
+// ── Gönderim — PORTFÖY yolu ──────────────────────────────────────────────────
+// ≥75 LONG adayları risk-bazlı AL (held-guard) + açık pozisyonları yönet
+// (SAT/STOP/TP — yalnız listOpen()). Telegram (kendi kanalı) + uygulama broadcast
+// + site. Kill-switch (BIST_SIGNAL_PUSH_DISABLED) yalnız EMİSYONU susturur; defter sürer.
 async function evaluateAndPush(signals) {
-  if (process.env.BIST_SIGNAL_PUSH_DISABLED === '1') return { telegram: 0, app: 0, considered: 0, disabled: true };
   const eligible = (signals || []).filter(s => s && s.direction === 'long' && s.confidence >= MIN_CONFIDENCE);
+  // Cutover: eski tracker'ın açık sinyallerini bir kez portföye adopt et (orphan yok)
+  try { await sigBot.adoptLegacy(await tracker.getOpen()); }
+  catch (e) { logger.warn(`[BistPortfolio] adopt atlandı: ${e.message}`); }
 
-  let events = [];
-  try { events = await withTimeout(tracker.syncPositions(eligible), 12000, 'sync'); }
-  catch (e) { logger.error(`[BistSignal] sync: ${e.message}`); return { telegram: 0, app: 0, considered: 0, eligible: eligible.length }; }
-
-  const cid = chatId();
-  const now = Date.now();
-  let tg = 0, app = 0, sent = 0;
-  for (const ev of events) {
-    const p = ev.position;
-    if (ev.type === 'update') {
-      const last = lastSent.get(p.code) || 0;
-      if (now - last < UPDATE_COOLDOWN_MS) continue;
-    }
-    const tgMsg = ev.type === 'new' ? buildNewTelegram(p) : buildUpdateTelegram(p, ev);
-    const appMsg = ev.type === 'new' ? buildBroadcastNew(p) : buildBroadcastUpdate(p);
-    if (cid) { try { const r = await withTimeout(telegramService.sendMessage(cid, tgMsg), 16000, 'tg'); if (r && r.success) tg++; } catch (e) { logger.error(`[BistSignal] tg #${p.code}: ${e.message}`); } }
-    try { const r = await withTimeout(pushNotificationService.broadcastNotification(appMsg), 12000, 'app'); if (r && r.success) app++; } catch (e) { logger.error(`[BistSignal] app #${p.code}: ${e.message}`); }
-    lastSent.set(p.code, now);
-    sent++;
-  }
-  return { telegram: tg, app, considered: sent, eligible: eligible.length, chatSet: !!cid };
+  const buy = await sigBot.openBuys(eligible);
+  const manage = await sigBot.manageAndReport(new Set(eligible.map(s => s.symbol)));
+  return { telegram: buy.telegramSent || 0, app: buy.appSent || 0, considered: buy.openedCount, closed: manage.closed, eligible: eligible.length };
 }
 
-async function pushClosures(events) {
-  if (process.env.BIST_SIGNAL_PUSH_DISABLED === '1') return { telegram: 0, app: 0 };
-  const cid = chatId();
-  let tg = 0, app = 0;
-  for (const ev of (events || [])) {
-    if (cid) { try { const r = await withTimeout(telegramService.sendMessage(cid, buildClosureTelegram(ev)), 16000, 'closeTg'); if (r && r.success) tg++; } catch (e) { logger.error(`[BistSignal] closeTg #${ev.code}: ${e.message}`); } }
-    try { const r = await withTimeout(pushNotificationService.broadcastNotification(buildBroadcastClosure(ev)), 12000, 'closeApp'); if (r && r.success) app++; } catch (e) { logger.error(`[BistSignal] closeApp #${ev.code}: ${e.message}`); }
-  }
-  if (tg || app) logger.info(`📈✅ BIST sinyal kapanış — ${events.length} · TG ${tg} · App ${app}`);
-  return { telegram: tg, app };
+// 5dk tick: yalnız STOP/TP/timeout/trailing (taze tarama yok → strateji SAT değil)
+async function tickManage() {
+  const r = await sigBot.manageAndReport(undefined);
+  return { closed: r.closed || 0 };
 }
+
+// Günlük portföy özeti — portföy botuna delege (Telegram + broadcast)
+async function pushDailySummary(opts = {}) { return sigBot.pushDailySummary(opts); }
+
+function getSnapshot() { return sigBot.getSnapshot(); }
 
 module.exports = {
-  evaluateAndPush, pushClosures,
+  evaluateAndPush, tickManage, pushDailySummary, getSnapshot,
+  // Eski saf kurucular (deprecation penceresi)
   buildNewTelegram, buildUpdateTelegram, buildBroadcastNew, buildBroadcastUpdate,
   buildClosureTelegram, buildBroadcastClosure,
   MIN_CONFIDENCE, DEEP_LINK,

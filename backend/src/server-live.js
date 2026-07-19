@@ -63,6 +63,7 @@ const proSignalsRoutes = require('./routes/proSignals.routes');
 const altinRoutes = require('./routes/altin.routes');
 const waveScanRoutes = require('./routes/waveScan.routes');
 const bistSignalsRoutes = require('./routes/bistSignals.routes');
+const bistPortfolioRoutes = require('./routes/bistPortfolio.routes');
 const beastRoutes = require('./routes/beast.routes');
 const ta4jRoutes = require('./routes/ta4j.routes');
 const botRoutes = require('./routes/bot.routes');
@@ -244,6 +245,7 @@ app.use('/api/pro-signals', proSignalsRoutes);
 app.use('/api/altin', altinRoutes);
 app.use('/api/wave-scan', waveScanRoutes);
 app.use('/api/bist-signals', bistSignalsRoutes);
+app.use('/api/bist-portfolio', bistPortfolioRoutes);
 app.use('/api/beast', beastRoutes);
 app.use('/api/ta4j', ta4jRoutes);
 app.use('/api/bot', botRoutes);
@@ -8242,6 +8244,25 @@ server.listen(PORT, () => {
       console.log('[Cron] ENV CRON_DISABLED=true — cron jobs atlandı');
     }
   })();
+
+  // Graceful shutdown — Render deploy/restart SIGTERM gönderir. createPositionStore
+  // Supabase write-through'u debounce'lu (2500ms) → son bot portföy yazımları
+  // (nakit/pozisyon/işlem) kaybolmasın diye kapanmadan ÖNCE flushAll ile boşalt.
+  let _shuttingDown = false;
+  async function gracefulFlush(signal) {
+    if (_shuttingDown) return;
+    _shuttingDown = true;
+    console.log(`[Shutdown] ${signal} — bot durumu Supabase'e boşaltılıyor…`);
+    try {
+      await Promise.race([
+        botPersistence.flushAll(),
+        new Promise(res => setTimeout(res, 5000)),
+      ]);
+    } catch (e) { console.error('[Shutdown] flush hata:', e.message); }
+    process.exit(0);
+  }
+  process.on('SIGTERM', () => gracefulFlush('SIGTERM'));
+  process.on('SIGINT', () => gracefulFlush('SIGINT'));
 
   // Boot warmup — server restart sonrası snapshot'lar boşsa hemen doldur.
   //   Render ephemeral fs'de her deploy snapshot'ı siler; cron sonraki tetiklemeye
