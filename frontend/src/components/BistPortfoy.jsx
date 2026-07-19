@@ -9,7 +9,7 @@
  */
 
 import { useCallback, useEffect, useState } from 'react'
-import { RefreshCw, TrendingUp, TrendingDown, Target, Shield, Wallet, CheckCircle2, XCircle, Clock, ArrowUpRight, ArrowDownRight, Hash, Info } from 'lucide-react'
+import { RefreshCw, TrendingUp, TrendingDown, Target, Shield, Wallet, CheckCircle2, XCircle, Clock, ArrowUpRight, ArrowDownRight, Hash, Info, FlaskConical } from 'lucide-react'
 import api from '../services/api'
 
 function fmt(v, p = 2) { return v == null || !Number.isFinite(Number(v)) ? '—' : Number(v).toLocaleString('tr-TR', { minimumFractionDigits: p, maximumFractionDigits: p }) }
@@ -60,6 +60,7 @@ function Kpi({ label, value, sub, cls }) {
 
 export default function BistPortfoy() {
   const [data, setData] = useState(null)
+  const [bt, setBt] = useState(null)
   const [bot, setBot] = useState('al')
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
@@ -67,9 +68,13 @@ export default function BistPortfoy() {
 
   const load = useCallback(async () => {
     try {
-      const r = await api.get('/bist-portfolio')
+      const [r, btr] = await Promise.all([
+        api.get('/bist-portfolio'),
+        api.get('/bist-portfolio/backtest').catch(() => null),
+      ])
       if (r.data?.ok) { setData(r.data); setError(null) }
       else setError(r.data?.error || 'Portföy yüklenemedi')
+      if (btr?.data?.ok) setBt(btr.data)
     } catch (e) {
       setError(e.response?.data?.error || e.message)
     } finally { setLoading(false); setRefreshing(false) }
@@ -247,6 +252,33 @@ export default function BistPortfoy() {
               </div>
             </section>
           )}
+
+          {/* Backtest — ≥75 stratejisinin geçmiş kanıtı */}
+          {bt?.report && (
+            <section className="rounded-xl border border-sky-500/30 bg-sky-500/5 p-3.5">
+              <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
+                <h3 className="text-sm font-semibold text-sky-300 flex items-center gap-1.5"><FlaskConical className="w-4 h-4" /> Backtest — ≥75 stratejisi (geçmişe sarılmış)</h3>
+                <span className="text-[10px] text-gray-500">{bt.report.from} → {bt.report.to} · {bt.report.symbolsWithSignals} sembol · {bt.report.closedTrades} işlem</span>
+              </div>
+              <div className="grid grid-cols-3 md:grid-cols-6 gap-2 text-center">
+                {[
+                  { l: 'Getiri', v: `${sgn(bt.report.totalReturnPct)}${fmt(bt.report.totalReturnPct)}%`, c: pctCls(bt.report.totalReturnPct) },
+                  { l: 'Alfa (BIST100)', v: bt.report.benchmark ? `${sgn(bt.report.benchmark.alphaPct)}${fmt(bt.report.benchmark.alphaPct)}%` : '—', c: bt.report.benchmark ? pctCls(bt.report.benchmark.alphaPct) : 'text-gray-400' },
+                  { l: 'Max Düşüş', v: `%${fmt(bt.report.metrics?.maxDrawdownPct, 1)}`, c: 'text-red-400' },
+                  { l: 'Kazanma', v: `%${fmt(bt.report.metrics?.winRate, 0)}`, c: 'text-gray-200' },
+                  { l: 'Profit Factor', v: fmt(bt.report.metrics?.profitFactor, 2), c: (bt.report.metrics?.profitFactor >= 1) ? 'text-emerald-400' : 'text-red-400' },
+                  { l: 'Beklenti/işlem', v: `${sgn(bt.report.metrics?.expectancyTL)}${money(bt.report.metrics?.expectancyTL)}₺`, c: pctCls(bt.report.metrics?.expectancyTL || 0) },
+                ].map((x) => (
+                  <div key={x.l} className="rounded-lg border border-sky-500/20 bg-gray-800/40 py-2">
+                    <div className="text-[10px] text-gray-500">{x.l}</div>
+                    <div className={`text-sm font-bold ${x.c}`}>{x.v}</div>
+                  </div>
+                ))}
+              </div>
+              <p className="text-[10px] text-gray-500 mt-2">Nokta-anı simülasyon (look-ahead'siz), aynı motor + komisyon/slipaj. Geçmiş performans geleceğin garantisi değildir.</p>
+            </section>
+          )}
+          {bt?.running && !bt.report && <div className="text-xs text-sky-400">Backtest çalışıyor…</div>}
 
           <p className="text-[11px] text-gray-500 flex items-center gap-1.5">
             {k.totalReturnPct >= 0 ? <TrendingUp className="w-3 h-3 text-emerald-500" /> : <TrendingDown className="w-3 h-3 text-red-500" />}

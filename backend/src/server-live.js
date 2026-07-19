@@ -8264,6 +8264,22 @@ server.listen(PORT, () => {
   process.on('SIGTERM', () => gracefulFlush('SIGTERM'));
   process.on('SIGINT', () => gracefulFlush('SIGINT'));
 
+  // Boot warmup — model portföy backtest'i (≥75 stratejisi) bir kez arka planda
+  //   üret ki /firsatlar?tab=portfoy sayfası "geçmiş kanıt"la açılsın (deploy'da
+  //   in-memory cache sıfırlanır). Fire-and-forget; boot'u bloke etmez.
+  if (process.env.CRON_DISABLED !== 'true' && process.env.BIST_BACKTEST_BOOT !== '0') {
+    setTimeout(() => {
+      try {
+        const bt = require('./services/bistPortfolio/backtest');
+        const routeCache = require('./routes/bistPortfolio.routes');
+        console.log('[Warmup] BIST portföy backtest tetikleniyor...');
+        bt.run({ limit: Number(process.env.BIST_BACKTEST_LIMIT) || 80 })
+          .then((rep) => { if (routeCache.setBacktest) routeCache.setBacktest(rep); console.log(`[Warmup] backtest bitti — ${rep.closedTrades} islem, getiri ${rep.totalReturnPct}%, alfa ${rep.benchmark ? rep.benchmark.alphaPct : '?'}%`); })
+          .catch((e) => console.error('[Warmup] backtest fail:', e.message));
+      } catch (e) { console.error('[Warmup] backtest check hata:', e.message); }
+    }, 4 * 60 * 1000);   // boot'tan ~4 dk sonra (diğer warmup'lar bitince)
+  }
+
   // Boot warmup — server restart sonrası snapshot'lar boşsa hemen doldur.
   //   Render ephemeral fs'de her deploy snapshot'ı siler; cron sonraki tetiklemeye
   //   kadar bekleyemeyiz. Background fire-and-forget; boot'u bloke etmez.

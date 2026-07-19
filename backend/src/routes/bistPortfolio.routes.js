@@ -22,8 +22,12 @@ const signalStore = require('../services/bistPortfolio/bistSignalPortfolioStore'
 const bistScoreEngine = require('../services/bistSignals/bistScoreEngine');
 const bistSignalNotifier = require('../services/bistSignals/bistSignalNotifier');
 const benchmark = require('../services/bistPortfolio/benchmark');
+const backtest = require('../services/bistPortfolio/backtest');
 const cronJobs = require('../services/cronJobs');
 const authService = require('../services/authService');
+
+// Backtest sonucu cache (≥75 stratejisi; arka planda üretilir, herkes okur)
+let _bt = { running: false, at: null, report: null, error: null };
 
 async function withBenchmark(snap) {
   try { snap.benchmark = await benchmark.compare(snap.equityHistory, snap.kpis.totalReturnPct); }
@@ -64,6 +68,20 @@ router.get('/:bot/snapshot', async (req, res) => {
   const b = pick(req, res); if (!b) return;
   try { res.json({ ok: true, bot: req.params.bot, ...(await withBenchmark(b.bot.getSnapshot())) }); }
   catch (e) { res.status(500).json({ ok: false, error: e.message }); }
+});
+
+// ── Backtest (≥75 stratejisi geçmişe sarılmış) ─────────────────────────────
+// GET public (son sonucu okur); POST admin (arka planda çalıştırır ~1-2 dk).
+router.get('/backtest', (_req, res) => res.json({ ok: true, running: _bt.running, at: _bt.at, report: _bt.report, error: _bt.error }));
+
+router.post('/backtest', requireAdmin, (req, res) => {
+  if (_bt.running) return res.json({ ok: true, started: false, message: 'Backtest zaten calisiyor' });
+  const limit = Math.min(Number(req.body?.limit) || 60, 150);
+  _bt = { running: true, at: _bt.at, report: _bt.report, error: null };
+  backtest.run({ limit })
+    .then((rep) => { _bt = { running: false, at: new Date().toISOString(), report: rep, error: null }; })
+    .catch((e) => { _bt = { running: false, at: new Date().toISOString(), report: _bt.report, error: e.message }; });
+  res.json({ ok: true, started: true, limit, message: 'Backtest arka planda basladi (1-2 dk). GET /backtest ile izle.' });
 });
 
 // ── Admin ────────────────────────────────────────────────────────────────────
@@ -107,5 +125,8 @@ router.post('/:bot/run', requireAdmin, (req, res) => {
     res.json({ ok: true, started: true, bot: req.params.bot, message: 'Tarama arka planda basladi (1-2 dk).' });
   } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
 });
+
+// Boot warmup (server-live) sonucu cache'e enjekte etsin diye
+router.setBacktest = (rep) => { _bt = { running: false, at: new Date().toISOString(), report: rep, error: null }; };
 
 module.exports = router;

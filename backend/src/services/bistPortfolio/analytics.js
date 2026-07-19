@@ -87,7 +87,7 @@ function computeMetrics({ trades, equityHistory } = {}) {
     avgWinTL: ts.avgWinTL, avgLossTL: ts.avgLossTL,
     avgHoldDays: ts.avgHoldDays,
     bestPct: ts.bestPct, worstPct: ts.worstPct,
-    closedCount: ts.count, wins: ts.wins, losses: ts.losses,
+    closedCount: ts.count, wins: ts.wins, losses: ts.losses, winRate: ts.winRate,
     byReason: ts.byReason,
   };
 }
