@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { Filter, TrendingUp, TrendingDown, Target, Activity, Bell, BellRing, RefreshCw, X, Volume2, VolumeX, Star, Clock, Zap, Wifi, WifiOff, Info, CheckCircle, BookOpen, HelpCircle, Sparkles, Coins, Gem, Layers, Flame, MoreVertical, Wallet, Bot } from 'lucide-react'
+import { Filter, TrendingUp, TrendingDown, Target, Activity, Bell, BellRing, RefreshCw, X, Volume2, VolumeX, Star, Clock, Zap, Wifi, WifiOff, Info, CheckCircle, BookOpen, HelpCircle, Sparkles, Coins, Gem, Layers, Flame, MoreVertical, Wallet, Bot, Briefcase } from 'lucide-react'
 import { io } from 'socket.io-client'
 
 import { getApiBase, getSocketBase } from '../config'
@@ -10,6 +10,7 @@ import TradePlanCard from '../components/TradePlanCard'
 import InfoTooltip from '../components/InfoTooltip'
 import BugununSinyalleri from '../components/BugununSinyalleri'
 import SpotAlSinyalleri from '../components/SpotAlSinyalleri'
+import BistPortfoy from '../components/BistPortfoy'
 import KriptoSinyalleri from '../components/KriptoSinyalleri'
 import ForexSinyalleri from '../components/ForexSinyalleri'
 import Mt5Sinyalleri from '../components/Mt5Sinyalleri'
@@ -319,6 +320,7 @@ export default function GunlukTespitler() {
   const tabs = [
     { id: 'bugun',   label: 'Bugünün Sinyalleri', shortLabel: 'Bugün',  icon: Sparkles },
     { id: 'sinyaller', label: 'Spot Al (≥75)',     shortLabel: 'Spot Al', icon: Target, isNew: true },
+    { id: 'portfoy', label: '💼 Model Portföy',    shortLabel: 'Portföy', icon: Briefcase, isNew: true },
     { id: 'yenirobot', label: '🤖 Yeni Robot',     shortLabel: 'Yeni Robot', icon: Bot, isNew: true },
     { id: 'beast',   label: '🔱 BEAST Trend',     shortLabel: 'BEAST', icon: Zap, isNew: true },
     { id: 'altin',   label: '🥇 Altın',           shortLabel: 'Altın', icon: Gem, isNew: true },
@@ -577,6 +579,8 @@ export default function GunlukTespitler() {
       {activeTab === 'bugun' && <BugununSinyalleri />}
 
       {activeTab === 'sinyaller' && <SpotAlSinyalleri />}
+
+      {activeTab === 'portfoy' && <BistPortfoy />}
 
       {/* Yeni Robot Tab — derin konfluans (BTC/Altın/S&P/EUR) 15m-1d + perf + log */}
       {activeTab === 'yenirobot' && <YeniRobotSinyalleri />}
