@@ -154,7 +154,7 @@ router.get('/builder', (req, res) => {
       .map((e) => {
         const m = metaFor(e.id);
         return {
-          id: e.id, name: e.name, category: e.category, magic: e.magic || null,
+          id: e.id, no: e.no, name: e.name, category: e.category, magic: e.magic || null,
           strategies: m.strategies, availableTimeframes: m.timeframes,
           enabled: enabledById[e.id] !== false,
           selectedTimeframes: builderStore.getBotTimeframes(e.id),
@@ -205,6 +205,12 @@ router.patch('/builder/custom/:id', (req, res) => {
 router.delete('/builder/custom/:id', (req, res) => {
   try { res.json(builderStore.deleteCustom(req.params.id)); }
   catch (e) { res.status(e?.code === 'NOT_FOUND' ? 404 : 400).json({ ok: false, error: e.message }); }
+});
+
+// Günlük Telegram raporunu ELLE tetikle (test): şimdi gönder.
+router.post('/daily-report/test', async (req, res) => {
+  try { res.json(await require('../services/botDailyReport').run()); }
+  catch (e) { res.status(500).json({ ok: false, error: e.message }); }
 });
 
 // ── Okuma uçları ───────────────────────────────────────────────────────────

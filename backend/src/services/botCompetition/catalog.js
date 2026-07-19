@@ -25,8 +25,14 @@ const entries = [
   { id: 'account-report', name: 'MT5 Kâr/Zarar Raporu', category: 'Rapor', role: 'support' },
 ];
 
-module.exports = Object.freeze(entries.map((entry) => Object.freeze({
-  role: 'competitor',
-  ...entry,
-  competitionEligible: entry.role !== 'support',
-})));
+// Yarışan botlara sıra numarası (Bot 1 … Bot 15). Destek botları numarasız.
+let _no = 0;
+module.exports = Object.freeze(entries.map((entry) => {
+  const eligible = entry.role !== 'support';
+  return Object.freeze({
+    role: 'competitor',
+    ...entry,
+    competitionEligible: eligible,
+    no: eligible ? ++_no : null,
+  });
+}));

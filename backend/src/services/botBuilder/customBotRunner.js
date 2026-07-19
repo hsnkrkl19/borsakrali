@@ -161,4 +161,21 @@ function leaderboard() {
   })).sort((a, b) => b.netR - a.netR);
 }
 
-module.exports = { run, feed, leaderboard, _state: () => rstate, _dangerouslyResetForTest() { rstate = { open: {}, trades: [] }; loaded = true; } };
+/** Günlük rapor: sinceMs'ten beri kapanan custom-bot işlemleri (bot-bazlı). */
+function dailyBreakdown(sinceMs) {
+  load();
+  const since = Number(sinceMs) || 0;
+  const by = {};
+  for (const t of rstate.trades) {
+    const ts = Date.parse(t.closedAt || '');
+    if (!Number.isFinite(ts) || ts < since) continue;
+    const b = by[t.botId] || (by[t.botId] = { botId: t.botId, name: t.botName, trades: 0, tp: 0, sl: 0, netR: 0 });
+    b.trades++;
+    const r = Number(t.r) || 0; b.netR += r;
+    const oc = String(t.outcome || '').toUpperCase();
+    if (oc.includes('TP') || r > 0) b.tp++; else b.sl++;
+  }
+  return Object.values(by).map((b) => ({ ...b, netR: round(b.netR, 2) }));
+}
+
+module.exports = { run, feed, leaderboard, dailyBreakdown, _state: () => rstate, _dangerouslyResetForTest() { rstate = { open: {}, trades: [] }; loaded = true; } };

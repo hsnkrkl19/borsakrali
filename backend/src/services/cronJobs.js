@@ -29,6 +29,7 @@ const altinBacktest = require('./altin/altinBacktest');
 const ictFvgService = require('./ictFvg/ictFvgService');
 const ictSmcService = require('./ictSmc/ictSmcService');
 const customBotRunner = require('./botBuilder/customBotRunner');
+const botDailyReport = require('./botDailyReport');
 const ictFvgTracker = require('./ictFvg/ictFvgTracker');
 const ictFvgNotifier = require('./ictFvg/ictFvgNotifier');
 // BEAST TREND — Zero-Lag + Ichimoku + Scalper Beast füzyonu (altın/gümüş/BTC/ETH)
@@ -1625,6 +1626,18 @@ class CronJobsService {
       { scheduled: false, ...TR_TZ }
     );
 
+    // GÜNLÜK BOT RAPORU — her akşam 20:15 TR, tüm botların gün-içi istatistiği Telegram'a.
+    const botDailyReportJob = cron.schedule(
+      '15 20 * * *',
+      async () => {
+        try {
+          const r = await botDailyReport.run();
+          if (r && r.ok) logger.info(`Günlük bot raporu gönderildi — ${r.summary?.trades ?? 0} işlem, net ${r.summary?.net ?? 0}$`);
+        } catch (e) { logger.error(`Günlük bot raporu hata: ${e.message}`); }
+      },
+      { scheduled: false, ...TR_TZ }
+    );
+
     // Özel botlar (kullanıcı-tanımlı) — her 4 dk.
     const customBotJob = cron.schedule(
       '1,5,9,13,17,21,25,29,33,37,41,45,49,53,57 * * * *',
@@ -1918,6 +1931,7 @@ class CronJobsService {
       ictFvgJob,
       ictSmcJob,
       customBotJob,
+      botDailyReportJob,
       beastSignalJob,
       waveScanJob,
       mtf1mJob,

@@ -131,6 +131,7 @@ function BotlarTab() {
               <div>
                 <div className="flex items-center gap-2">
                   <span className="text-xl">{CAT_ICON[bot.category] || '🤖'}</span>
+                  {bot.no && <span className="text-xs font-bold text-white bg-gray-800 rounded-md px-1.5 py-0.5">Bot {bot.no}</span>}
                   <h3 className="font-bold text-gray-800">{bot.name}</h3>
                 </div>
                 <div className="text-xs text-gray-400 mt-0.5">{bot.category}{bot.magic ? ` · magic ${bot.magic}` : ''}</div>
@@ -343,9 +344,19 @@ function YarisTab() {
   const champ = comp.champion
   const gs = gold?.stats || null
 
+  const sendReport = async () => {
+    try { const { data } = await api.post('/bot/daily-report/test'); setErr(data?.ok ? '✅ Günlük rapor Telegram\'a gönderildi.' : `Rapor gönderilemedi: ${data?.error || 'bilinmiyor'}`) }
+    catch { setErr('Rapor gönderilemedi.') }
+    setTimeout(() => setErr(''), 5000)
+  }
+
   return (
     <div className="space-y-5">
-      <Msg kind="ok">Tüm botlar aynı MT5 demo hesabında işlem açar ve sonuçlarını kaydeder — <b>altın botu doğrudan</b>, <b>diğerleri köprü üzerinden</b>. Hepsi burada.</Msg>
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <div className="text-sm text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-xl px-4 py-3 flex-1 min-w-[240px]">Tüm botlar aynı MT5 demo hesabında işlem açar ve sonuçlarını kaydeder — <b>altın botu doğrudan</b>, <b>diğerleri köprü üzerinden</b>. Her akşam 20:15'te Telegram'a günlük rapor gider.</div>
+        <button onClick={sendReport} className="rounded-xl bg-gray-800 text-white px-4 py-3 font-semibold text-sm hover:bg-gray-900 whitespace-nowrap">📲 Raporu şimdi gönder</button>
+      </div>
+      {err && <Msg kind={err.startsWith('✅') ? 'ok' : 'warn'}>{err}</Msg>}
 
       {gs && (gs.total > 0 || gold?.status?.connected) && (
         <div className="rounded-2xl border-2 border-amber-200 bg-white p-5">

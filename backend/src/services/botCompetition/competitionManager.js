@@ -802,6 +802,36 @@ function bridgeFeed() {
   return { enabled: true, generatedAt: nowISO(), count: positions.length, positions };
 }
 
+// Günlük rapor için: sinceMs'ten beri kapanan işlemlerin bot-bazlı dökümü.
+function dailyBreakdown(sinceMs) {
+  load();
+  const since = Number(sinceMs) || 0;
+  const out = [];
+  for (const entry of catalog) {
+    if (!entry.competitionEligible) continue;
+    const bot = state.bots[entry.id];
+    const trades = (bot && Array.isArray(bot.trades) ? bot.trades : []).filter((t) => {
+      const ts = Date.parse(t.closedAt || '');
+      return Number.isFinite(ts) && ts >= since;
+    });
+    let tp = 0, sl = 0, profit = 0, loss = 0, net = 0;
+    for (const t of trades) {
+      const oc = String(t.outcome || '').toUpperCase();
+      const pnl = finite(t.pnlUsd, 0);
+      net += pnl;
+      if (pnl > 0) profit += pnl; else if (pnl < 0) loss += pnl;
+      const isTp = oc.includes('TP') ? true : oc.includes('SL') ? false : pnl >= 0;
+      if (isTp) tp++; else sl++;
+    }
+    out.push({
+      id: entry.id, no: entry.no, name: entry.name, category: entry.category,
+      trades: trades.length, tp, sl,
+      profit: round(profit, 2), loss: round(loss, 2), net: round(net, 2),
+    });
+  }
+  return out;
+}
+
 module.exports = {
   catalog,
   load,
@@ -809,6 +839,7 @@ module.exports = {
   status,
   leaderboard,
   bridgeFeed,
+  dailyBreakdown,
   runtimeEnabled,
   setMasterEnabled,
   setBotEnabled,
