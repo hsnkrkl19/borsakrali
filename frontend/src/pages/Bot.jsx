@@ -321,6 +321,7 @@ function Stat({ label, value, tone }) {
 function YarisTab() {
   const [comp, setComp] = useState(null)
   const [custom, setCustom] = useState([])
+  const [gold, setGold] = useState(null)   // altın botu gerçek MT5 sonuçları
   const [err, setErr] = useState('')
 
   const load = useCallback(async () => {
@@ -328,6 +329,11 @@ function YarisTab() {
       const [c, b] = await Promise.all([api.get('/bot/competition'), api.get('/bot/builder')])
       setComp(c.data); setCustom(b.data?.customLeaderboard || []); setErr('')
     } catch { setErr('Yarış verisi alınamıyor…') }
+    // Altın botu ayrı program (doğrudan MT5); gerçek sonuçlarını da buraya al.
+    try {
+      const [st, stat] = await Promise.all([api.get('/bot/status'), api.get('/bot/stats')])
+      setGold({ status: st.data, stats: stat.data })
+    } catch { setGold(null) }
   }, [])
   useEffect(() => { load(); const t = setInterval(load, 15000); return () => clearInterval(t) }, [load])
 
@@ -335,9 +341,31 @@ function YarisTab() {
   if (!comp) return <Spinner />
   const bots = [...(comp.bots || [])].sort((a, b) => (b.score || 0) - (a.score || 0))
   const champ = comp.champion
+  const gs = gold?.stats || null
 
   return (
     <div className="space-y-5">
+      <Msg kind="ok">Tüm botlar aynı MT5 demo hesabında işlem açar ve sonuçlarını kaydeder — <b>altın botu doğrudan</b>, <b>diğerleri köprü üzerinden</b>. Hepsi burada.</Msg>
+
+      {gs && (gs.total > 0 || gold?.status?.connected) && (
+        <div className="rounded-2xl border-2 border-amber-200 bg-white p-5">
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <div>
+              <div className="text-xs font-bold uppercase tracking-wider text-amber-600">🥇 Altın Botu · GERÇEK MT5 sonuçları</div>
+              <div className="text-lg font-extrabold text-gray-800">Bağımsız motor · XAUUSD</div>
+            </div>
+            <span className={cls('text-xs px-2.5 py-1 rounded-full', gold?.status?.engine_enabled ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-500')}>{gold?.status?.engine_enabled ? 'çalışıyor' : 'durdu'}</span>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 mt-3 text-center">
+            <Stat label="işlem" value={gs.total ?? 0} />
+            <Stat label="kazanma" value={`%${fmt(gs.win_rate, 0)}`} />
+            <Stat label="gerçek kâr" value={`${fmt(gs.total_profit)} $`} tone={(gs.total_profit ?? 0) >= 0 ? 'up' : 'dn'} />
+            <Stat label="PF" value={fmt(gs.profit_factor, 2)} />
+            <Stat label="kalite" value={fmt(gs.quality_score, 0)} />
+          </div>
+        </div>
+      )}
+
       {champ && (
         <div className="rounded-2xl border-2 border-amber-300 bg-gradient-to-br from-amber-50 to-white p-5">
           <div className="text-xs font-bold uppercase tracking-wider text-amber-600">👑 Şampiyon · geliştirme önceliği</div>
