@@ -99,10 +99,17 @@ export const VEHICLES = {
     fuelMax: 130, topSpeed: 1600, airControl: 13, wheelBase: 100, wheelR: 24,
     bodyW: 140, bodyH: 34, color: '#ec4899', accent: '#831843',
   },
+  bigrig: {
+    id: 'bigrig', name: 'Dev TIR', emoji: '🚛', price: 72000, costMul: 16.0,
+    desc: 'Devasa çekici. Durdurulamaz güç ve tutuş — koleksiyonun tacı.',
+    enginePower: 5200, mass: 2.6, grip: 1.75, suspK: 440, suspDamp: 50,
+    fuelMax: 210, topSpeed: 780, airControl: 5, wheelBase: 120, wheelR: 34,
+    bodyW: 170, bodyH: 56, color: '#0891b2', accent: '#164e63',
+  },
 }
 
 export const VEHICLE_ORDER = [
-  'hatchback', 'motorcycle', 'jeep', 'pickup', 'sports', 'monster', 'tractor', 'tank', 'rocket',
+  'hatchback', 'motorcycle', 'jeep', 'pickup', 'sports', 'monster', 'tractor', 'tank', 'rocket', 'bigrig',
 ]
 
 // ----------------------------------------------------------------------------
@@ -124,6 +131,108 @@ export const UPGRADES = [
 export function upgradeCost(upg, level, costMul = 1) {
   return Math.round(upg.baseCost * costMul * Math.pow(upg.growth, level) / 10) * 10
 }
+
+// ----------------------------------------------------------------------------
+// GÖRÜNÜM / KİŞİSELLEŞTİRME — boya + takılabilir parçalar (kombinasyon = bol görünüm)
+// ----------------------------------------------------------------------------
+// 30 "eklenti": 6 performans yükseltmesi + 8 boya + 16 parça (4 slot × 4).
+// Görünüm = araç(10) × boya(8) × spoiler(5) × jant(5) × egzoz(5) × aksesuar(5)
+//         → binlerce kombinasyon (kolayca >150). Parçalar TÜM araçlara uyar.
+// hue = kırmızı sprite gövdeye uygulanacak ton kaydırma (°); color = çizim gövde rengi.
+export const PAINTS = [
+  { id: 'stock',   name: 'Orijinal', color: null,     hue: 0,   sat: 1,    price: 0 },  // aracın kendi rengi
+  { id: 'crimson', name: 'Kırmızı', color: '#ef4444', hue: 0,   sat: 1,    price: 150 },
+  { id: 'azure',   name: 'Mavi',    color: '#3b82f6', hue: 210, sat: 1,    price: 150 },
+  { id: 'violet',  name: 'Mor',     color: '#8b5cf6', hue: 262, sat: 1,    price: 220 },
+  { id: 'amber',   name: 'Turuncu', color: '#f59e0b', hue: 32,  sat: 1,    price: 180 },
+  { id: 'ink',     name: 'Siyah',   color: '#1f2937', hue: 0,   sat: 0.18, price: 300 },
+  { id: 'pearl',   name: 'Beyaz',   color: '#e5e7eb', hue: 0,   sat: 0.12, price: 300 },
+  { id: 'gold',    name: 'Altın',   color: '#eab308', hue: 46,  sat: 1.1,  price: 500 },
+]
+
+// Kozmetik slotlar — her araçta biri takılı. 'default:true' bedava başlangıç.
+export const ADDONS = {
+  spoiler: [
+    { id: 'none',    name: 'Spoiler Yok', price: 0, default: true },
+    { id: 'lip',     name: 'Lip Spoiler', price: 220 },
+    { id: 'duck',    name: 'Ördek Kuyruğu', price: 320 },
+    { id: 'gt',      name: 'GT Kanadı',   price: 460 },
+    { id: 'bigwing', name: 'Dev Kanat',   price: 640 },
+  ],
+  wheels: [
+    { id: 'stock',   name: 'Standart Jant', price: 0, default: true },
+    { id: 'sport',   name: 'Spor Jant',     price: 260 },
+    { id: 'offroad', name: 'Arazi Lastiği', price: 340 },
+    { id: 'chrome',  name: 'Krom Jant',     price: 460 },
+    { id: 'gold',    name: 'Altın Jant',    price: 700 },
+  ],
+  exhaust: [
+    { id: 'single',  name: 'Tekli Egzoz',  price: 0, default: true },
+    { id: 'dual',    name: 'Çiftli Egzoz', price: 240 },
+    { id: 'side',    name: 'Yan Egzoz',    price: 320 },
+    { id: 'race',    name: 'Yarış Egzozu', price: 420 },
+    { id: 'flame',   name: 'Alev Egzozu',  price: 600 },
+  ],
+  accessory: [
+    { id: 'none',    name: 'Aksesuar Yok', price: 0, default: true },
+    { id: 'roofrack', name: 'Port Bagaj', price: 220 },
+    { id: 'lightbar', name: 'Tepe Lambası', price: 340 },
+    { id: 'flag',    name: 'Yarış Bayrağı', price: 180 },
+    { id: 'spare',   name: 'Yedek Lastik', price: 300 },
+  ],
+}
+export const ADDON_SLOTS = ['paint', 'spoiler', 'wheels', 'exhaust', 'accessory']
+export const ADDON_SLOT_LABEL = { paint: 'Boya', spoiler: 'Spoiler', wheels: 'Jant', exhaust: 'Egzoz', accessory: 'Aksesuar' }
+
+const PAINT_MAP = new Map(PAINTS.map((p) => [p.id, p]))
+const paintById = (id) => PAINT_MAP.get(id) || PAINTS[0]
+const addonById = (slot, id) => (ADDONS[slot] || []).find((a) => a.id === id) || (ADDONS[slot] || [])[0]
+
+// Bir araç için varsayılan görünüm (bedava başlangıç parçaları).
+export function defaultLook() {
+  return { paint: 'stock', spoiler: 'none', wheels: 'stock', exhaust: 'single', accessory: 'none' }
+}
+
+// Kayıttan bir aracın takılı görünümü (eksikler varsayılana düşer).
+export function lookFor(save, vehicleId) {
+  const base = defaultLook()
+  const l = (save && save.looks && save.looks[vehicleId]) || {}
+  return { ...base, ...l }
+}
+
+// Görünümü motorun kullanacağı somut nesneye çöz (renk/ton + parça id'leri).
+export function resolveLook(look) {
+  const p = paintById(look.paint)
+  return {
+    paint: { id: p.id, color: p.color, hue: p.hue, sat: p.sat ?? 1 },
+    spoiler: look.spoiler || 'none',
+    wheels: look.wheels || 'stock',
+    exhaust: look.exhaust || 'single',
+    accessory: look.accessory || 'none',
+  }
+}
+
+export function addonPrice(slot, id) {
+  if (slot === 'paint') return paintById(id).price || 0
+  return (addonById(slot, id).price) || 0
+}
+export function addonName(slot, id) {
+  if (slot === 'paint') return paintById(id).name
+  return addonById(slot, id).name
+}
+export function addonKey(slot, id) { return `${slot}:${id}` }
+
+// Bir parça sahibi mi? (default'lar + satın alınanlar herkese açık)
+export function ownsAddon(save, slot, id) {
+  const opt = slot === 'paint' ? paintById(id) : addonById(slot, id)
+  if (!opt || (opt.price || 0) === 0) return true            // bedava/default
+  return !!(save && save.ownedAddons && save.ownedAddons.includes(addonKey(slot, id)))
+}
+
+// Toplam "eklenti" sayısı (kullanıcı hedefi ~30): 6 performans + boya + parçalar.
+export const ADDON_TOTAL = UPGRADES.length +
+  PAINTS.length +
+  Object.keys(ADDONS).reduce((n, k) => n + ADDONS[k].filter((a) => !a.default).length, 0)
 
 // ----------------------------------------------------------------------------
 // EFEKTİF ARAÇ İSTATİSTİĞİ — temel stat × yükseltme seviyeleri
@@ -419,6 +528,8 @@ export function defaultSave() {
     stockBest: {},                                  // symbol -> best distanceM
     level: {},                                      // symbol -> oynanacak (sıradaki) seviye (1-tabanlı)
     cleared: {},                                    // symbol -> geçilmiş en yüksek seviye
+    ownedAddons: [],                                // ['spoiler:gt', 'paint:azure', ...] satın alınan görünüm parçaları
+    looks: {},                                      // vehicleId -> { paint, spoiler, wheels, exhaust, accessory }
     totalDistance: 0,
     totalEarned: 0,
     runs: 0,
@@ -459,6 +570,8 @@ export function loadSave() {
     merged.stockBest = obj(merged.stockBest)
     merged.level = obj(merged.level)
     merged.cleared = obj(merged.cleared)
+    merged.ownedAddons = arr(merged.ownedAddons, [])
+    merged.looks = obj(merged.looks)
     if (!merged.ownedVehicles.length) merged.ownedVehicles = [...base.ownedVehicles]
     if (!VEHICLES[merged.vehicle]) merged.vehicle = base.vehicle
     if (typeof merged.stock !== 'string' || !merged.stock) merged.stock = base.stock

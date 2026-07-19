@@ -18,6 +18,8 @@ import {
   loadSave, persistSave,
   GATE_PCT, vehicleUpgradeProgress, vehicleGate, highestOwnedIndex,
   levelConfig, currentLevel, clearedLevel, LEVELS_PER_STOCK,
+  PAINTS, ADDONS, ADDON_SLOTS, ADDON_SLOT_LABEL, resolveLook, lookFor,
+  addonPrice, addonName, ownsAddon, addonKey, ADDON_TOTAL,
 } from '../game/gameData'
 import { normalizeHistoricalQuotes } from '../utils/chartAnalysis'
 
@@ -87,6 +89,7 @@ export default function HisseYarisi() {
       level: lc.level,
       levelDistanceM: lc.distanceM,
       checkpointSpacingM: lc.checkpointSpacingM,
+      look: resolveLook(lookFor(save, save.vehicle)),
       onState: (s) => setHud(s),
       onEnd: (r) => finishRun(r),
     })
@@ -95,7 +98,7 @@ export default function HisseYarisi() {
     setScreen('playing')
     setHud(null)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [save.stock, save.vehicle, save.upgrades, save.settings.sound, save.level, stopEngine])
+  }, [save.stock, save.vehicle, save.upgrades, save.settings.sound, save.level, save.looks, stopEngine])
 
   const finishRun = useCallback((r) => {
     setScreen('over')
@@ -189,6 +192,24 @@ export default function HisseYarisi() {
     if (s.wallet < cost) return s
     s.wallet -= cost
     s.upgrades = { ...s.upgrades, [s.vehicle]: { ...(s.upgrades[s.vehicle] || {}), [upg.key]: lv + 1 } }
+    return s
+  })
+
+  const buyAddon = (slot, id) => mutate((s) => {
+    if (ownsAddon(s, slot, id)) { // zaten sahip → sadece tak
+      s.looks = { ...(s.looks || {}), [s.vehicle]: { ...lookFor(s, s.vehicle), [slot]: id } }
+      return s
+    }
+    const price = addonPrice(slot, id)
+    if (s.wallet < price) return s
+    s.wallet -= price
+    s.ownedAddons = [...(s.ownedAddons || []), addonKey(slot, id)]
+    s.looks = { ...(s.looks || {}), [s.vehicle]: { ...lookFor(s, s.vehicle), [slot]: id } }  // satın alınca tak
+    return s
+  })
+  const equipAddon = (slot, id) => mutate((s) => {
+    if (!ownsAddon(s, slot, id)) return s
+    s.looks = { ...(s.looks || {}), [s.vehicle]: { ...lookFor(s, s.vehicle), [slot]: id } }
     return s
   })
 
@@ -435,7 +456,8 @@ export default function HisseYarisi() {
 
       {modal === 'garage' && (
         <GarageModal save={save} stats={stats} onClose={() => setModal(null)}
-          onBuyUpgrade={buyUpgrade} onBuyVehicle={buyVehicle} onSelectVehicle={selectVehicle} />
+          onBuyUpgrade={buyUpgrade} onBuyVehicle={buyVehicle} onSelectVehicle={selectVehicle}
+          onBuyAddon={buyAddon} onEquipAddon={equipAddon} />
       )}
       {modal === 'stocks' && (
         <StockModal save={save} onClose={() => setModal(null)}
@@ -466,17 +488,22 @@ function MiniStat({ label, value }) {
 }
 
 // ============================ GARAJ / MAĞAZA ================================
-function GarageModal({ save, stats, onClose, onBuyUpgrade, onBuyVehicle, onSelectVehicle }) {
+function GarageModal({ save, stats, onClose, onBuyUpgrade, onBuyVehicle, onSelectVehicle, onBuyAddon, onEquipAddon }) {
   const [tab, setTab] = useState('upgrades')
   const vehicle = VEHICLES[save.vehicle]
   const vUpg = save.upgrades[save.vehicle] || {}
 
   return (
     <ModalShell title="Garaj" wallet={save.wallet} onClose={onClose}>
-      <div className="flex gap-2 mb-4">
-        <TabBtn active={tab === 'upgrades'} onClick={() => setTab('upgrades')}><Wrench className="w-4 h-4" /> Yükseltmeler</TabBtn>
+      <div className="flex gap-1.5 mb-4">
+        <TabBtn active={tab === 'upgrades'} onClick={() => setTab('upgrades')}><Wrench className="w-4 h-4" /> Yükselt</TabBtn>
+        <TabBtn active={tab === 'appearance'} onClick={() => setTab('appearance')}><Star className="w-4 h-4" /> Görünüm</TabBtn>
         <TabBtn active={tab === 'vehicles'} onClick={() => setTab('vehicles')}><Gamepad2 className="w-4 h-4" /> Araçlar</TabBtn>
       </div>
+
+      {tab === 'appearance' && (
+        <AppearanceTab save={save} onBuyAddon={onBuyAddon} onEquipAddon={onEquipAddon} />
+      )}
 
       {tab === 'upgrades' && (
         <div>
@@ -605,6 +632,49 @@ function GarageModal({ save, stats, onClose, onBuyUpgrade, onBuyVehicle, onSelec
         </div>
       )}
     </ModalShell>
+  )
+}
+
+function AppearanceTab({ save, onBuyAddon, onEquipAddon }) {
+  const equipped = lookFor(save, save.vehicle)
+  const slots = [
+    { slot: 'paint', options: PAINTS.map((p) => ({ id: p.id, name: p.name, swatch: p.color })) },
+    { slot: 'spoiler', options: ADDONS.spoiler },
+    { slot: 'wheels', options: ADDONS.wheels },
+    { slot: 'exhaust', options: ADDONS.exhaust },
+    { slot: 'accessory', options: ADDONS.accessory },
+  ]
+  return (
+    <div className="space-y-3.5">
+      <p className="text-[11px] text-slate-500 flex items-center gap-1">
+        <Star className="w-3 h-3 text-emerald-500" /> Boya + parça kombinasyonu = binlerce görünüm. Satın alınca otomatik takılır.
+      </p>
+      {slots.map(({ slot, options }) => (
+        <div key={slot}>
+          <div className="text-xs font-bold text-slate-700 mb-1.5">{ADDON_SLOT_LABEL[slot]}</div>
+          <div className="flex flex-wrap gap-1.5">
+            {options.map((o) => {
+              const isEquipped = equipped[slot] === o.id
+              const owned = ownsAddon(save, slot, o.id)
+              const price = addonPrice(slot, o.id)
+              const afford = save.wallet >= price
+              return (
+                <button key={o.id}
+                  onClick={() => (owned ? onEquipAddon(slot, o.id) : (afford && onBuyAddon(slot, o.id)))}
+                  disabled={!owned && !afford}
+                  className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold border flex items-center gap-1.5 transition active:scale-95 ${isEquipped ? 'border-emerald-400 bg-emerald-50 text-emerald-700' : owned ? 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50' : afford ? 'border-amber-200 bg-amber-50 text-amber-700' : 'border-slate-100 bg-slate-50 text-slate-400 cursor-not-allowed'}`}>
+                  {slot === 'paint' && (o.swatch
+                    ? <span className="w-3 h-3 rounded-full border border-slate-300" style={{ background: o.swatch }} />
+                    : <span className="w-3 h-3 rounded-full border border-slate-300 bg-gradient-to-br from-rose-300 via-sky-300 to-emerald-300" />)}
+                  <span>{o.name}</span>
+                  {isEquipped ? <Check className="w-3 h-3" /> : (!owned && <span className="opacity-70">· {formatBP(price)}</span>)}
+                </button>
+              )
+            })}
+          </div>
+        </div>
+      ))}
+    </div>
   )
 }
 

@@ -61,6 +61,9 @@ export class RacingEngine {
     this.checkpointSpacingM = Math.max(60, Math.round(opts.checkpointSpacingM || 150))
     this.won = false
 
+    // GÖRÜNÜM (v5): boya + takılı parçalar (spoiler/jant/egzoz/aksesuar)
+    this.look = opts.look || { paint: { color: null, hue: 0, sat: 1 }, spoiler: 'none', wheels: 'stock', exhaust: 'single', accessory: 'none' }
+
     // 4 ayrı kontrol: ileri / geri (sürüş) + sol/sağ (havada takla)
     this.input = { fwd: false, rev: false, flipL: false, flipR: false }
     this.running = false
@@ -1142,6 +1145,10 @@ export class RacingEngine {
     const accel = this.input.fwd && this.fuel > 0
     const speed = Math.hypot(car.vx, car.vy)
     const useSprite = this._spriteReady()
+    const lk = this.look || {}
+    const paintCol = (lk.paint && lk.paint.color) || s.color        // stock (null) → aracın kendi rengi
+    const paintAcc = (lk.paint && lk.paint.color) ? this._shade(lk.paint.color, 0.55) : s.accent
+    const tintSprite = !!(lk.paint && lk.paint.color)               // sprite gövdeyi boya ile tonla
 
     ctx.save(); ctx.translate(px, py); ctx.rotate(-car.angle); ctx.scale(zoom, zoom)
 
@@ -1156,45 +1163,11 @@ export class RacingEngine {
       this._roundRect(ctx, -bw / 2 - 3, -bh / 2 - 3, bw + 6, bh + 6, 10); ctx.stroke(); ctx.restore()
     }
 
-    // ARKA KANAT / SPOİLER (aero) — seviyeyle büyür, yan plakalı belirgin kanat
-    if (aero > 0 && !s.bike) {
-      const wgH = bh * 0.42 + aero * 2.6
-      const wgW = bw * (0.34 + aero * 0.022)
-      const wgT = 5 + aero * 0.7                    // kanat kalınlığı
-      const rx = -bw * 0.46
-      const topY = -bh * 0.32 - wgH
-      // iki destek çubuğu
-      ctx.strokeStyle = s.accent; ctx.lineWidth = 3.5
-      ctx.beginPath(); ctx.moveTo(rx + wgW * 0.12, -bh * 0.32); ctx.lineTo(rx + wgW * 0.12, topY); ctx.stroke()
-      ctx.beginPath(); ctx.moveTo(rx + wgW * 0.62, -bh * 0.32); ctx.lineTo(rx + wgW * 0.62, topY); ctx.stroke()
-      // yatay kanat kanadı (parlak üst kenar)
-      const wg = ctx.createLinearGradient(0, topY - wgT, 0, topY + wgT)
-      wg.addColorStop(0, this._shade(s.color, 1.35)); wg.addColorStop(1, this._shade(s.color, 0.7))
-      ctx.fillStyle = wg; ctx.strokeStyle = s.accent; ctx.lineWidth = 2
-      this._roundRect(ctx, rx - wgW * 0.14, topY - wgT / 2, wgW, wgT, 2); ctx.fill(); ctx.stroke()
-      // yan plakalar (uç kanatçıklar) → spoiler'ı net gösterir
-      ctx.fillStyle = this._shade(s.color, 0.6)
-      this._roundRect(ctx, rx - wgW * 0.16, topY - wgT * 1.6, 3, wgT * 3, 1); ctx.fill()
-      this._roundRect(ctx, rx + wgW * 0.80, topY - wgT * 1.6, 3, wgT * 3, 1); ctx.fill()
-    }
+    // SPOİLER — takılı parçaya göre (arka, gövde arkasında)
+    if (!s.bike) this._drawSpoiler(ctx, this.look.spoiler, bw, bh, s, paintCol, paintAcc)
 
-    // EGZOZ (motor) — seviyeyle çift boru + alev
-    {
-      const pipes = eng >= 3 ? 2 : 1
-      for (let p = 0; p < pipes; p++) {
-        const ppy = bh * 0.30 - p * bh * 0.34
-        const ex = -bw * 0.5 - 2
-        ctx.fillStyle = '#3a4150'; this._roundRect(ctx, ex - 9, ppy - 3, 11, 6, 2); ctx.fill()
-        ctx.fillStyle = '#12151c'; ctx.beginPath(); ctx.ellipse(ex - 9, ppy, 2.3, 3, 0, 0, Math.PI * 2); ctx.fill()
-        if (accel) {
-          const fl = 8 + eng * 2.4 + Math.abs(Math.sin(this._frame * 0.7 + p)) * 6
-          const grd = ctx.createLinearGradient(ex - 9, ppy, ex - 9 - fl, ppy)
-          grd.addColorStop(0, 'rgba(255,240,150,0.95)'); grd.addColorStop(0.5, 'rgba(255,150,40,0.8)'); grd.addColorStop(1, 'rgba(255,60,20,0)')
-          ctx.fillStyle = grd
-          ctx.beginPath(); ctx.moveTo(ex - 9, ppy - 3.4); ctx.lineTo(ex - 9 - fl, ppy); ctx.lineTo(ex - 9, ppy + 3.4); ctx.closePath(); ctx.fill()
-        }
-      }
-    }
+    // EGZOZ — takılı parçaya göre
+    this._drawExhaustPart(ctx, this.look.exhaust, bw, bh, s, accel)
 
     // ROKET BOOSTER — sadece roket aracı, gaz verirken
     if (s.id === 'rocket' && accel) {
@@ -1245,14 +1218,21 @@ export class RacingEngine {
         if (kk === 0) ctx.moveTo(xx, yy); else ctx.lineTo(xx, yy)
       }
       ctx.stroke(); ctx.lineCap = 'butt'
-      // lastik — sprite varsa sprite teker (dönerek), yoksa çizim
+      // lastik — sprite varsa sprite teker (jant tonu ile), yoksa çizim (jant stiliyle)
+      const wstyle = lk.wheels || 'stock'
       if (useSprite) {
         const R = wr * (this.sprites.cfg.wheelScale || 1.1)
         ctx.save(); ctx.translate(wcx, wcy); ctx.rotate(this.wheelSpin[wi])
+        const wf = wstyle === 'gold' ? 'sepia(1) saturate(3) hue-rotate(5deg) brightness(1.05)'
+          : wstyle === 'chrome' ? 'grayscale(1) brightness(1.35)'
+          : wstyle === 'sport' ? 'saturate(1.6) hue-rotate(-20deg)'
+          : 'none'
+        if (wf !== 'none') ctx.filter = wf
         ctx.drawImage(this.sprites.wheel, -R, -R, R * 2, R * 2)
+        if (wf !== 'none') ctx.filter = 'none'
         ctx.restore()
       } else {
-        this._drawWheel(ctx, wcx, wcy, wr, tir, this.wheelSpin[wi])
+        this._drawWheel(ctx, wcx, wcy, wr, tir, this.wheelSpin[wi], wstyle)
       }
     }
 
@@ -1262,25 +1242,27 @@ export class RacingEngine {
       const dw = bw * (cfg.scale || 1.35)
       const dh = dw * bimg.naturalHeight / bimg.naturalWidth
       const yo = (cfg.yOff || 0) * bh
+      if (tintSprite) ctx.filter = `hue-rotate(${lk.paint.hue || 0}deg) saturate(${lk.paint.sat || 1})`
       ctx.drawImage(bimg, -dw / 2, -dh / 2 + yo, dw, dh)
+      if (tintSprite) ctx.filter = 'none'
     } else {
       const squash = 1 - 0.06 * ((this.suspComp[0] + this.suspComp[1]) / (this.susTravel * 2 || 1))
       ctx.save(); ctx.scale(1, squash)
       const bg = ctx.createLinearGradient(0, -bh / 2, 0, bh / 2)
-      bg.addColorStop(0, this._shade(s.color, 1.3)); bg.addColorStop(0.5, s.color); bg.addColorStop(1, this._shade(s.color, 0.78))
-      ctx.fillStyle = bg; ctx.strokeStyle = s.accent; ctx.lineWidth = 3
+      bg.addColorStop(0, this._shade(paintCol, 1.3)); bg.addColorStop(0.5, paintCol); bg.addColorStop(1, this._shade(paintCol, 0.78))
+      ctx.fillStyle = bg; ctx.strokeStyle = paintAcc; ctx.lineWidth = 3
       this._roundRect(ctx, -bw / 2, -bh / 2, bw, bh, s.bike ? bh * 0.42 : 9); ctx.fill(); ctx.stroke()
       // üst parlama şeridi
       ctx.strokeStyle = 'rgba(255,255,255,0.4)'; ctx.lineWidth = 1.5
       ctx.beginPath(); ctx.moveTo(-bw / 2 + 8, -bh / 2 + 2); ctx.lineTo(bw / 2 - 8, -bh / 2 + 2); ctx.stroke()
       // yan gövde çizgisi (karakter)
-      ctx.strokeStyle = this._shade(s.color, 0.6); ctx.lineWidth = 1.5
+      ctx.strokeStyle = this._shade(paintCol, 0.6); ctx.lineWidth = 1.5
       ctx.beginPath(); ctx.moveTo(-bw / 2 + 6, bh * 0.12); ctx.lineTo(bw / 2 - 6, bh * 0.12); ctx.stroke()
       // kabin / camlar (bisiklet hariç)
       if (!s.bike) {
-        ctx.fillStyle = 'rgba(200,225,255,0.88)'; ctx.strokeStyle = s.accent; ctx.lineWidth = 3
+        ctx.fillStyle = 'rgba(200,225,255,0.88)'; ctx.strokeStyle = paintAcc; ctx.lineWidth = 3
         this._roundRect(ctx, -bw * 0.16, -bh * 0.5 - bh * 0.55, bw * 0.5, bh * 0.6, 6); ctx.fill(); ctx.stroke()
-        ctx.strokeStyle = s.accent; ctx.lineWidth = 1.5
+        ctx.strokeStyle = paintAcc; ctx.lineWidth = 1.5
         ctx.beginPath(); ctx.moveTo(bw * 0.09, -bh * 0.5); ctx.lineTo(bw * 0.09, -bh * 0.5 - bh * 0.55); ctx.stroke()
       } else {
         ctx.strokeStyle = '#1f2937'; ctx.lineWidth = 2.5
@@ -1288,6 +1270,8 @@ export class RacingEngine {
       }
       ctx.restore()
     }
+    // AKSESUAR — takılı parçaya göre (gövde üstünde)
+    if (!s.bike) this._drawAccessory(ctx, lk.accessory, bw, bh, s, paintCol, paintAcc)
 
     // TURBO / HAVA GİRİŞİ (motor yüksek) — kaputta trapez scoop (yalnız çizim gövdede)
     if (!useSprite && eng >= 5 && !s.bike) {
@@ -1328,17 +1312,27 @@ export class RacingEngine {
     ctx.restore()
   }
 
-  _drawWheel(ctx, cx, cy, r, tir, spin) {
+  _drawWheel(ctx, cx, cy, r, tir, spin, style = 'stock') {
+    // jant stili → renk + sırt deseni
+    const RIM = {
+      stock:   { a: '#e2e8f0', b: '#64748b', spoke: '#475569', hub: '#334155', spokes: 6, treadMul: 1 },
+      sport:   { a: '#fca5a5', b: '#b91c1c', spoke: '#7f1d1d', hub: '#450a0a', spokes: 5, treadMul: 1 },
+      offroad: { a: '#cbd5e1', b: '#475569', spoke: '#334155', hub: '#1e293b', spokes: 6, treadMul: 1.9 },
+      chrome:  { a: '#ffffff', b: '#cbd5e1', spoke: '#94a3b8', hub: '#64748b', spokes: 8, treadMul: 1 },
+      gold:    { a: '#fde68a', b: '#ca8a04', spoke: '#a16207', hub: '#713f12', spokes: 8, treadMul: 1 },
+    }[style] || null
+    const R = RIM || { a: '#e2e8f0', b: '#64748b', spoke: '#475569', hub: '#334155', spokes: 6, treadMul: 1 }
     // dış lastik
     ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.fillStyle = '#14171e'; ctx.fill()
     ctx.lineWidth = 2.5 + tir * 0.15; ctx.strokeStyle = '#0a0c10'; ctx.stroke()
-    // sırt deseni (lastik yükseldikçe kalın/çentikli)
+    // sırt deseni
     const treads = 12 + tir
-    ctx.strokeStyle = '#20242c'; ctx.lineWidth = 1.4 + tir * 0.28
+    ctx.strokeStyle = '#20242c'; ctx.lineWidth = (1.4 + tir * 0.28) * R.treadMul
+    const treadDepth = 0.80 - (R.treadMul - 1) * 0.06
     for (let k = 0; k < treads; k++) {
       const a = spin + k / treads * Math.PI * 2
       ctx.beginPath()
-      ctx.moveTo(cx + Math.cos(a) * r * 0.80, cy + Math.sin(a) * r * 0.80)
+      ctx.moveTo(cx + Math.cos(a) * r * treadDepth, cy + Math.sin(a) * r * treadDepth)
       ctx.lineTo(cx + Math.cos(a) * r, cy + Math.sin(a) * r)
       ctx.stroke()
     }
@@ -1346,15 +1340,100 @@ export class RacingEngine {
     ctx.save(); ctx.translate(cx, cy); ctx.rotate(spin)
     const rimR = r * (0.52 - tir * 0.012)
     const hubG = ctx.createRadialGradient(0, 0, 1, 0, 0, rimR)
-    hubG.addColorStop(0, '#e2e8f0'); hubG.addColorStop(1, '#64748b')
+    hubG.addColorStop(0, R.a); hubG.addColorStop(1, R.b)
     ctx.fillStyle = hubG; ctx.beginPath(); ctx.arc(0, 0, rimR, 0, Math.PI * 2); ctx.fill()
-    ctx.strokeStyle = '#475569'; ctx.lineWidth = 2
-    for (let k = 0; k < 6; k++) {
-      ctx.beginPath(); ctx.moveTo(0, 0)
-      ctx.lineTo(Math.cos(k * Math.PI / 3) * rimR, Math.sin(k * Math.PI / 3) * rimR); ctx.stroke()
+    ctx.strokeStyle = R.spoke; ctx.lineWidth = 2
+    for (let k = 0; k < R.spokes; k++) {
+      const ang = (k / R.spokes) * Math.PI * 2
+      ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(Math.cos(ang) * rimR, Math.sin(ang) * rimR); ctx.stroke()
     }
-    ctx.fillStyle = '#334155'; ctx.beginPath(); ctx.arc(0, 0, rimR * 0.28, 0, Math.PI * 2); ctx.fill()
+    ctx.fillStyle = R.hub; ctx.beginPath(); ctx.arc(0, 0, rimR * 0.28, 0, Math.PI * 2); ctx.fill()
     ctx.restore()
+  }
+
+  // --- TAKILABİLİR PARÇALAR (kozmetik, çizim) ---------------------------------
+  _drawSpoiler(ctx, id, bw, bh, s, col, acc) {
+    if (!id || id === 'none') return
+    col = col || s.color; acc = acc || s.accent
+    const rx = -bw * 0.46
+    if (id === 'lip') {
+      ctx.fillStyle = this._shade(col, 0.78)
+      this._roundRect(ctx, rx - 4, -bh * 0.5 - 5, bw * 0.30, 6, 2); ctx.fill()
+      ctx.strokeStyle = acc; ctx.lineWidth = 1.5; ctx.stroke()
+    } else if (id === 'duck') {
+      ctx.fillStyle = this._shade(col, 0.72); ctx.strokeStyle = acc; ctx.lineWidth = 2
+      ctx.beginPath(); ctx.moveTo(rx, -bh * 0.45)
+      ctx.quadraticCurveTo(rx - bw * 0.12, -bh * 0.9, rx + bw * 0.12, -bh * 0.82)
+      ctx.lineTo(rx + bw * 0.14, -bh * 0.66)
+      ctx.quadraticCurveTo(rx - bw * 0.04, -bh * 0.7, rx, -bh * 0.34)
+      ctx.closePath(); ctx.fill(); ctx.stroke()
+    } else if (id === 'gt' || id === 'bigwing') {
+      const big = id === 'bigwing'
+      const wgH = bh * (big ? 0.95 : 0.58), wgW = bw * (big ? 0.46 : 0.34), wgT = big ? 8 : 5
+      const topY = -bh * 0.35 - wgH
+      ctx.strokeStyle = acc; ctx.lineWidth = big ? 4 : 3
+      ctx.beginPath(); ctx.moveTo(rx + wgW * 0.12, -bh * 0.35); ctx.lineTo(rx + wgW * 0.12, topY); ctx.stroke()
+      ctx.beginPath(); ctx.moveTo(rx + wgW * 0.62, -bh * 0.35); ctx.lineTo(rx + wgW * 0.62, topY); ctx.stroke()
+      const g = ctx.createLinearGradient(0, topY - wgT, 0, topY + wgT)
+      g.addColorStop(0, this._shade(col, 1.3)); g.addColorStop(1, this._shade(col, 0.65))
+      ctx.fillStyle = g; ctx.strokeStyle = acc; ctx.lineWidth = 2
+      this._roundRect(ctx, rx - wgW * 0.14, topY - wgT / 2, wgW, wgT, 2); ctx.fill(); ctx.stroke()
+      ctx.fillStyle = this._shade(col, 0.55)
+      this._roundRect(ctx, rx - wgW * 0.16, topY - wgT * 1.6, 3, wgT * 3.2, 1); ctx.fill()
+      this._roundRect(ctx, rx + wgW * 0.80, topY - wgT * 1.6, 3, wgT * 3.2, 1); ctx.fill()
+    }
+  }
+
+  _drawExhaustPart(ctx, id, bw, bh, s, accel) {
+    const pipe = (ex, ppy, len, flame, big, blue) => {
+      ctx.fillStyle = big ? '#4b5563' : '#3a4150'; this._roundRect(ctx, ex - len, ppy - (big ? 4 : 3), len + 2, big ? 8 : 6, 2); ctx.fill()
+      ctx.fillStyle = '#12151c'; ctx.beginPath(); ctx.ellipse(ex - len, ppy, big ? 3 : 2.3, big ? 4 : 3, 0, 0, Math.PI * 2); ctx.fill()
+      if (flame > 0) {
+        const grd = ctx.createLinearGradient(ex - len, ppy, ex - len - flame, ppy)
+        grd.addColorStop(0, blue ? 'rgba(200,235,255,0.95)' : 'rgba(255,240,150,0.95)')
+        grd.addColorStop(0.5, blue ? 'rgba(90,160,255,0.85)' : 'rgba(255,150,40,0.85)')
+        grd.addColorStop(1, 'rgba(255,60,20,0)')
+        ctx.fillStyle = grd
+        ctx.beginPath(); ctx.moveTo(ex - len, ppy - (big ? 4 : 3.2)); ctx.lineTo(ex - len - flame, ppy); ctx.lineTo(ex - len, ppy + (big ? 4 : 3.2)); ctx.closePath(); ctx.fill()
+      }
+    }
+    const ex = -bw * 0.5 - 2
+    const wob = Math.abs(Math.sin(this._frame * 0.7)) * 6
+    if (id === 'dual') { pipe(ex, bh * 0.30, 9, accel ? 8 + wob : 0, false, false); pipe(ex, bh * 0.30 - bh * 0.34, 9, accel ? 8 + wob : 0, false, false) }
+    else if (id === 'side') {
+      ctx.fillStyle = '#3a4150'; this._roundRect(ctx, -bw * 0.34, bh * 0.34, bw * 0.52, 6, 3); ctx.fill()
+      ctx.fillStyle = '#12151c'; ctx.beginPath(); ctx.ellipse(bw * 0.18, bh * 0.37, 2.3, 3, 0, 0, Math.PI * 2); ctx.fill()
+      if (accel) { const g = ctx.createLinearGradient(bw * 0.18, 0, bw * 0.18 + 12, 0); g.addColorStop(0, 'rgba(255,200,80,0.8)'); g.addColorStop(1, 'rgba(255,80,20,0)'); ctx.fillStyle = g; ctx.beginPath(); ctx.moveTo(bw * 0.18, bh * 0.34); ctx.lineTo(bw * 0.18 + 12, bh * 0.37); ctx.lineTo(bw * 0.18, bh * 0.40); ctx.closePath(); ctx.fill() }
+    }
+    else if (id === 'race') pipe(ex, bh * 0.28, 12, accel ? 16 + wob : 5, true, true)
+    else if (id === 'flame') pipe(ex, bh * 0.28, 11, accel ? 26 + wob : 9, true, false)
+    else pipe(ex, bh * 0.28, 9, accel ? 10 + wob : 0, false, false)   // single (varsayılan)
+  }
+
+  _drawAccessory(ctx, id, bw, bh, s, col, acc) {
+    if (!id || id === 'none') return
+    acc = acc || s.accent
+    const roofY = -bh * 0.5 - bh * 0.55
+    if (id === 'roofrack') {
+      ctx.strokeStyle = '#334155'; ctx.lineWidth = 3
+      ctx.beginPath(); ctx.moveTo(-bw * 0.2, roofY); ctx.lineTo(bw * 0.34, roofY); ctx.stroke()
+      for (let k = 0; k < 4; k++) { const x = -bw * 0.2 + k * (bw * 0.54 / 3); ctx.beginPath(); ctx.moveTo(x, roofY); ctx.lineTo(x, roofY + 7); ctx.stroke() }
+    } else if (id === 'lightbar') {
+      ctx.fillStyle = '#1f2937'; this._roundRect(ctx, -bw * 0.16, roofY - 6, bw * 0.44, 7, 2); ctx.fill()
+      const cols = ['#f87171', '#60a5fa', '#fbbf24', '#4ade80']
+      for (let k = 0; k < 4; k++) { ctx.save(); ctx.shadowColor = cols[k]; ctx.shadowBlur = 6; ctx.fillStyle = cols[k]; ctx.beginPath(); ctx.arc(-bw * 0.16 + (k + 0.5) * (bw * 0.44 / 4), roofY - 2.5, 2.3, 0, Math.PI * 2); ctx.fill(); ctx.restore() }
+    } else if (id === 'flag') {
+      const fx = -bw * 0.42, fy = -bh * 0.5
+      ctx.strokeStyle = '#334155'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(fx, fy); ctx.lineTo(fx, fy - bh * 0.9); ctx.stroke()
+      const wv = Math.sin(this._frame * 0.3) * 3
+      ctx.fillStyle = acc || '#ef4444'
+      ctx.beginPath(); ctx.moveTo(fx, fy - bh * 0.9); ctx.lineTo(fx - bw * 0.16, fy - bh * 0.82 + wv); ctx.lineTo(fx, fy - bh * 0.72); ctx.closePath(); ctx.fill()
+    } else if (id === 'spare') {
+      const sx2 = -bw * 0.52, sy2 = -bh * 0.05, sr = bh * 0.34
+      ctx.beginPath(); ctx.arc(sx2, sy2, sr, 0, Math.PI * 2); ctx.fillStyle = '#14171e'; ctx.fill()
+      ctx.strokeStyle = '#0a0c10'; ctx.lineWidth = 2; ctx.stroke()
+      ctx.beginPath(); ctx.arc(sx2, sy2, sr * 0.45, 0, Math.PI * 2); ctx.fillStyle = '#64748b'; ctx.fill()
+    }
   }
 
   _shade(hex, f) {
