@@ -181,6 +181,69 @@ describe('closePosition — gerçekleşen K/Z + nakit korunumu + winRate', () =>
 });
 
 // ═══════════════════════════════════════════════════════════════════════════
+describe('SCALE-OUT — TP1 yarı sat, stop girişe, kalan TP2\'ye koşar', () => {
+  const SC = engine.buildConfig({ key: 'sc', capital: 100000, scaleOut: true, tp1Fraction: 0.5, timeoutDays: 100000 });
+  const SIG2 = { ...SIG, target1: 110, target2: 130 };
+
+  test('partialClose: yarısı satılır, pozisyon AÇIK kalır, stop breakeven, hedef TP2', () => {
+    const store = createInMemoryStore(100000, 'TRY');
+    const { position } = engine.openPosition(store, SC, SIG2);
+    const cashAfterOpen = store.getPortfolio().cash;
+    const ev = engine.partialClose(store, SC, position, 110, 0.5, 'tp1_partial');
+
+    expect(ev.partial).toBe(true);
+    expect(ev.realizedPnL).toBeGreaterThan(0);
+    const open = store.listOpen();
+    expect(open.length).toBe(1);                                   // hâlâ açık
+    expect(open[0].shares).toBe(position.shares - ev.shares);      // adet azaldı
+    expect(open[0].tp1Done).toBe(true);
+    expect(open[0].currentStop).toBeCloseTo(position.entryPrice, 2); // stop GİRİŞE
+    expect(open[0].currentTarget).toBe(130);                        // hedef TP2
+    expect(store.listTrades().length).toBe(1);                      // kısmi trade kaydı
+    expect(store.getPortfolio().cash).toBeGreaterThan(cashAfterOpen); // nakit döndü
+    expect(store.getPortfolio().openCount).toBe(1);                 // açık sayısı DEĞİŞMEZ
+  });
+
+  test('TP2 varsa manageHeld TP1\'de KISMİ niyet üretir', async () => {
+    const store = createInMemoryStore(100000, 'TRY');
+    engine.openPosition(store, SC, SIG2, { signalDate: '2026-01-01', entryDate: '2026-01-01T09:00:00.000Z', stopSetDate: '2026-01-01' });
+    const cs = candles([{ c: 100 }, { c: 112, h: 115, l: 100 }], 1);  // 01-02 barı TP1=110'u geçer
+    const { intents } = await engine.manageHeld(store, SC, { candlesBySymbol: { AAA: cs }, now: new Date('2026-01-20T16:00:00Z') });
+    expect(intents.length).toBe(1);
+    expect(intents[0].reason).toBe('tp1_partial');
+    expect(intents[0].partial).toBe(true);
+  });
+
+  test('TP2 YOKSA (target2 null) TP1\'de TAM kapanır (eski davranış)', async () => {
+    const store = createInMemoryStore(100000, 'TRY');
+    engine.openPosition(store, SC, { ...SIG, target1: 110, target2: null }, { signalDate: '2026-01-01', entryDate: '2026-01-01T09:00:00.000Z', stopSetDate: '2026-01-01' });
+    const cs = candles([{ c: 100 }, { c: 112, h: 115, l: 100 }], 1);
+    const { intents } = await engine.manageHeld(store, SC, { candlesBySymbol: { AAA: cs }, now: new Date('2026-01-20T16:00:00Z') });
+    expect(intents[0].reason).toBe('target');
+    expect(intents[0].partial).toBeUndefined();
+  });
+
+  test('scaleOut kapalıyken TP1 TAM kapanır', async () => {
+    const OFF = engine.buildConfig({ key: 'off', capital: 100000, scaleOut: false, timeoutDays: 100000 });
+    const store = createInMemoryStore(100000, 'TRY');
+    engine.openPosition(store, OFF, SIG2, { signalDate: '2026-01-01', entryDate: '2026-01-01T09:00:00.000Z', stopSetDate: '2026-01-01' });
+    const cs = candles([{ c: 100 }, { c: 112, h: 115, l: 100 }], 1);
+    const { intents } = await engine.manageHeld(store, OFF, { candlesBySymbol: { AAA: cs }, now: new Date('2026-01-20T16:00:00Z') });
+    expect(intents[0].reason).toBe('target');
+  });
+
+  test('TP1 sonrası breakeven stop → kalan zararsız kapanır (risk sıfır)', () => {
+    const store = createInMemoryStore(100000, 'TRY');
+    const { position } = engine.openPosition(store, SC, SIG2);
+    engine.partialClose(store, SC, position, 110, 0.5, 'tp1_partial');
+    const rem = store.listOpen()[0];
+    // breakeven stop'tan kapat → kalan kısımda fiyat kaybı YOK (yalnız komisyon)
+    const ev = engine.closePosition(store, SC, rem, rem.currentStop, 'stop', 'breakeven');
+    expect(ev.priceReturnPct).toBeCloseTo(0, 1);
+    expect(store.getPortfolio().totalRealizedPnL).toBeGreaterThan(0);  // TP1 kârı korundu
+  });
+});
+
 describe('detectDailyExit — sahte-stop koruması', () => {
   const pos = { symbol: 'AAA', entryPrice: 100, currentStop: 90, currentTarget: 120, signalDate: '2026-01-01', entryDate: '2026-01-01', stopSetDate: '2026-01-01', precision: 2 };
   const NOEXP = engine.buildConfig({ timeoutDays: 100000 });   // timeout'u devre dışı bırak (stop mantığını izole et)

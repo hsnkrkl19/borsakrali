@@ -96,8 +96,10 @@ function createPortfolioBot(opts) {
         await sendTelegram(M.buildExitMessages(closed, kpis, dialect));
         await sendBroadcasts(closed.map(ev => M.buildExitBroadcast(ev, dialect)));
         if (competitionKey) {
-          // Bot yarışı: kapanış olaylarını ilet (symbol/exit/entry/outcome ile eşler).
-          try { require('../botCompetition/competitionManager').recordClosures(competitionKey, closed); } catch (_) {}
+          // Bot yarışı: yalnız TAM kapanışları ilet — kısmi (TP1 scale-out) yarışın
+          // pozisyonunu tümüyle kapatmasın; kalan koşmaya devam ediyor.
+          const full = closed.filter(e => !e.partial);
+          if (full.length) { try { require('../botCompetition/competitionManager').recordClosures(competitionKey, full); } catch (_) {} }
         }
         logger.info(`📊 ${opts.key} — ${closed.length} kapandi (${closed.map(e => e.reason).join(',')})`);
       }

@@ -45,6 +45,7 @@ function buildBuyMessages(opened, kpis, dialect) {
 
 // ── SAT / STOP / TP / SÜRE (pozisyon kapandı) ────────────────────────────────
 function exitHead(reason) {
+  if (reason === 'tp1_partial') return '🟢 <b>TP1 — YARI KAR ALINDI</b>';
   if (reason === 'target') return '✅ <b>TP OLDU (Hedef)</b>';
   if (reason === 'stop') return '🛑 <b>STOP OLDU</b>';
   if (reason === 'signal_exit') return '🔵 <b>SAT (Trend/Sinyal cikisi)</b>';
@@ -56,8 +57,12 @@ function buildExitBlock(ev, kpis, dialect) {
     `${exitHead(ev.reason)} — <b>${htmlEscape(ev.symbol)}</b> AL${ev.ticket ? ` · #${ev.ticket}` : ''}`,
     ev.note ? htmlEscape(ev.note) : null,
     `Giris ${fmt(ev.entry, pr)} → Cikis ${fmt(ev.exit, pr)}${ev.exitDate ? ` (${htmlEscape(ev.exitDate)})` : ''}`,
-    `Sonuc: <b>${sign(ev.priceReturnPct)}${fmt(ev.priceReturnPct, 2)}%</b> · ${sign(ev.realizedPnL)}${money(ev.realizedPnL)} TL`,
+    `Sonuc: <b>${sign(ev.priceReturnPct)}${fmt(ev.priceReturnPct, 2)}%</b> · ${sign(ev.realizedPnL)}${money(ev.realizedPnL)} TL${ev.partial ? ` (${ev.shares} adet)` : ''}`,
   ];
+  // Scale-out: kalan pozisyon koşmaya devam ediyor
+  if (ev.partial) {
+    lines.push(`🏃 Kalan <b>${ev.remainingShares} adet</b> kosuyor · Stop GIRISE cekildi (${fmt(ev.newStop, pr)})${ev.newTarget != null ? ` · Yeni hedef TP2 ${fmt(ev.newTarget, pr)}` : ''} → risk SIFIR`);
+  }
   if (kpis) lines.push(kpiLine(kpis));
   return lines.filter(Boolean).join('\n');
 }
@@ -76,10 +81,11 @@ function buildBuyBroadcast(pos, dialect) {
 }
 function buildExitBroadcast(ev, dialect) {
   const pr = ev.precision ?? 2;
-  const head = ev.reason === 'target' ? '✅ TP' : ev.reason === 'stop' ? '🛑 STOP' : ev.reason === 'signal_exit' ? '🔵 SAT' : '⏱️ Sure doldu';
+  const head = ev.reason === 'tp1_partial' ? '🟢 TP1 (yari)' : ev.reason === 'target' ? '✅ TP' : ev.reason === 'stop' ? '🛑 STOP' : ev.reason === 'signal_exit' ? '🔵 SAT' : '⏱️ Sure doldu';
+  const tail = ev.partial ? ` · kalan ${ev.remainingShares} adet kosuyor, stop girise` : '';
   return {
     title: `${head} · ${dialect.name}: ${ev.symbol}${ev.ticket ? ` #${ev.ticket}` : ''}`,
-    body: `${sign(ev.priceReturnPct)}${fmt(ev.priceReturnPct, 2)}% · ${sign(ev.realizedPnL)}${money(ev.realizedPnL)} TL · Giris ${fmt(ev.entry, pr)} → ${fmt(ev.exit, pr)}`,
+    body: `${sign(ev.priceReturnPct)}${fmt(ev.priceReturnPct, 2)}% · ${sign(ev.realizedPnL)}${money(ev.realizedPnL)} TL · Giris ${fmt(ev.entry, pr)} → ${fmt(ev.exit, pr)}${tail}`,
     category: 'signal', path: dialect.deepLink, channelId: 'borsa-krali-announcements', topic: 'all',
   };
 }
@@ -110,8 +116,8 @@ function buildDailySummaryMessages({ dateKey, snapshot, closedToday, benchmark }
 
   const blocks = [header, openLines];
   if ((closedToday || []).length) {
-    blocks.push(['<b>Bugun kapananlar:</b>', ...closedToday.map(ev =>
-      `${ev.reason === 'target' ? '✅ TP' : ev.reason === 'stop' ? '🛑 STOP' : ev.reason === 'signal_exit' ? '🔵 SAT' : '⏱️'} ${htmlEscape(ev.symbol)} ${sign(ev.priceReturnPct ?? ev.pnlPct)}${fmt(ev.priceReturnPct ?? ev.pnlPct, 2)}%`)].join('\n'));
+    blocks.push(['<b>Bugun gerceklesenler:</b>', ...closedToday.map(ev =>
+      `${ev.reason === 'tp1_partial' ? '🟢 TP1(yari)' : ev.reason === 'target' ? '✅ TP' : ev.reason === 'stop' ? '🛑 STOP' : ev.reason === 'signal_exit' ? '🔵 SAT' : '⏱️'} ${htmlEscape(ev.symbol)} ${sign(ev.priceReturnPct ?? ev.pnlPct)}${fmt(ev.priceReturnPct ?? ev.pnlPct, 2)}%`)].join('\n'));
   }
   blocks.push(`Detay: ${dialect.deepLink}\nNot: Yatirim tavsiyesi degildir. Sanal model portfoy.`);
   return chunk(blocks);

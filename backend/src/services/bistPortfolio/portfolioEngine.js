@@ -52,6 +52,10 @@ function buildConfig(overrides = {}) {
     slippagePct: num(process.env.BIST_PORTFOLIO_SLIPPAGE_PCT, 0.001),
     timeoutDays: num(process.env.BIST_PORTFOLIO_TIMEOUT_DAYS, 20),
     minPositionTL: num(process.env.BIST_PORTFOLIO_MIN_POSITION_TL, 100),
+    // Scale-out: TP1'de pozisyonun tp1Fraction'ı satılır, stop girişe (breakeven)
+    // çekilir, kalan TP2'ye trailing ile koşar → kazananlar erken kesilmez.
+    scaleOut: process.env.BIST_PORTFOLIO_SCALEOUT !== '0',
+    tp1Fraction: num(process.env.BIST_PORTFOLIO_TP1_FRACTION, 0.5),
     band: 0.20,                     // sahte-stop bandı (BIST ±%20)
     maxDrawdownPct: num(process.env.BIST_PORTFOLIO_MAX_DD_PCT, 25),
     dailyLossLimitPct: num(process.env.BIST_PORTFOLIO_DAILY_LOSS_PCT, 10),
@@ -199,6 +203,69 @@ function closePosition(store, cfg, pos, exitPrice, reason, noteText, opts = {}) 
   };
 }
 
+// ── KISMİ kapanış (scale-out): TP1'de bir kısmını sat, kalanı koştur ─────────
+// Satılan kısım gerçekleşen K/Z olarak defterlenir (ayrı trade kaydı), pozisyon
+// AÇIK kalır: adet azalır, stop GİRİŞE (breakeven) çekilir, hedef TP2 olur.
+// Böylece kazanan pozisyon erken tam kesilmez ama risk sıfıra iner.
+function partialClose(store, cfg, pos, exitPrice, fraction, reason, opts = {}) {
+  const now = opts.now || new Date();
+  const sellShares = Math.floor(pos.shares * fraction);
+  // Bölünemiyorsa (1 adet / oran çok büyük) → tam kapat
+  if (!(sellShares >= 1) || sellShares >= pos.shares) {
+    return closePosition(store, cfg, pos, exitPrice, 'target', opts.note || 'TP1 (bolunemedi, tam kapandi)', opts);
+  }
+  const pf = store.getPortfolio();
+  const exitCommission = +(exitPrice * sellShares * cfg.commissionPct).toFixed(2);
+  const grossProceeds = +(exitPrice * sellShares).toFixed(2);
+  const netProceeds = +(grossProceeds - exitCommission).toFixed(2);
+  const costBasis = +(pos.entryPrice * sellShares).toFixed(2);
+  const entryCommPortion = +(((pos.commissionPaid || 0) * sellShares) / pos.shares).toFixed(2);
+  const realizedPnL = +(netProceeds - costBasis - entryCommPortion).toFixed(2);
+  const realizedPnLPct = +((realizedPnL / (costBasis + entryCommPortion)) * 100).toFixed(2);
+  const priceReturnPct = +(((exitPrice - pos.entryPrice) / pos.entryPrice) * 100).toFixed(2);
+  const closedAt = nowISO(now);
+
+  // Satılan kısım için trade kaydı (append-only defter)
+  store.appendTrade({
+    symbol: pos.symbol, name: pos.name, ticket: pos.ticket, precision: pos.precision,
+    entryPrice: pos.entryPrice, entryDate: pos.entryDate, shares: sellShares,
+    exitPrice, exitDate: closedAt, exitReason: 'tp1_partial', partial: true,
+    realizedPnL, realizedPnLPct, priceReturnPct, score: pos.score, recordedAt: closedAt,
+  });
+
+  // Kalan pozisyon: adet/komisyon oransal düşer, stop BREAKEVEN, hedef TP2
+  const remShares = pos.shares - sellShares;
+  const remCommission = +(((pos.commissionPaid || 0) - entryCommPortion)).toFixed(2);
+  const breakeven = Math.max(pos.currentStop, pos.entryPrice);
+  const nextTarget = (pos.target2 != null && pos.target2 > pos.currentTarget) ? pos.target2 : pos.currentTarget;
+  store.updatePosition(pos.id, {
+    shares: remShares, commissionPaid: remCommission,
+    positionSizeTL: +(remShares * pos.entryPrice).toFixed(2),
+    currentStop: breakeven, currentTarget: nextTarget,
+    tp1Done: true, stopSetDate: sameDayKey(now),
+  });
+  if (typeof store.appendNote === 'function') {
+    store.appendNote(pos.id, 'tp1', `TP1 ${exitPrice.toFixed(2)} — ${sellShares} adet satildi (${realizedPnL >= 0 ? '+' : ''}${realizedPnL.toFixed(2)} TL). Stop girise ${breakeven.toFixed(2)}, hedef TP2 ${nextTarget != null ? nextTarget.toFixed(2) : '-'}. ${remShares} adet kosuyor.`);
+  }
+
+  pf.cash = +(pf.cash + netProceeds).toFixed(2);
+  pf.totalRealizedPnL = +((pf.totalRealizedPnL || 0) + realizedPnL).toFixed(2);
+  pf.totalRealizedPnLPct = +((pf.totalRealizedPnL / pf.capital) * 100).toFixed(2);
+  if (realizedPnL > 0) pf.winCount = (pf.winCount || 0) + 1;
+  else if (realizedPnL < 0) pf.lossCount = (pf.lossCount || 0) + 1;
+  const totalClosed = (pf.winCount || 0) + (pf.lossCount || 0);
+  pf.winRate = totalClosed > 0 ? +((pf.winCount / totalClosed) * 100).toFixed(1) : 0;
+  store.savePortfolio(pf);   // openCount DEĞİŞMEZ — pozisyon açık kalır
+
+  return {
+    symbol: pos.symbol, name: pos.name, ticket: pos.ticket, precision: pos.precision ?? cfg.precision,
+    entry: pos.entryPrice, exit: exitPrice, exitDate: opts.exitDate || sameDayKey(closedAt),
+    reason: 'tp1_partial', outcome: 'tp1_partial', shares: sellShares, score: pos.score,
+    realizedPnL, realizedPnLPct, priceReturnPct, pnlPct: priceReturnPct,
+    partial: true, remainingShares: remShares, newStop: breakeven, newTarget: nextTarget,
+  };
+}
+
 // ── Oluşan (yarım) mumu düşür ────────────────────────────────────────────────
 // Yerel Yahoo bugünkü YARIM barı verir; borsa kapanmadan onu dışla → sahte
 // TP/SL + zıplayan equity önlenir. (bistAlScannerNotifier.latestClose deseni.)
@@ -274,8 +341,19 @@ async function manageHeld(store, cfg, ctx = {}) {
     // 1) STOP / TP / timeout (fiyat-tetikli; sahte-stop korumalı)
     const cur = store.findById ? (store.findById(pos.id) || pos) : pos;
     const ev = detectDailyExit(cur, completed, cfg, { now });
-    if (ev.hit === 'stop' || ev.hit === 'target' || ev.hit === 'timeout') {
-      intents.push({ pos: cur, exitPrice: ev.exitPrice, reason: ev.hit === 'target' ? 'target' : ev.hit, exitDate: ev.exitDate, ref: ev.ref });
+    if (ev.hit === 'stop' || ev.hit === 'timeout') {
+      intents.push({ pos: cur, exitPrice: ev.exitPrice, reason: ev.hit, exitDate: ev.exitDate, ref: ev.ref });
+      continue;
+    }
+    if (ev.hit === 'target') {
+      // SCALE-OUT: TP1 ilk kez vurulduysa ve koşacak bir TP2 varsa → KISMİ sat,
+      // stop girişe, kalan TP2'ye koşar. Aksi halde (TP2 yok / TP1 zaten alındı) tam kapat.
+      const canScale = cfg.scaleOut && !cur.tp1Done && cur.target2 != null && cur.target2 > cur.currentTarget;
+      if (canScale) {
+        intents.push({ pos: cur, exitPrice: ev.exitPrice, reason: 'tp1_partial', partial: true, fraction: cfg.tp1Fraction, exitDate: ev.exitDate, ref: ev.ref });
+      } else {
+        intents.push({ pos: cur, exitPrice: ev.exitPrice, reason: 'target', exitDate: ev.exitDate, ref: ev.ref });
+      }
       continue;
     }
 
@@ -317,7 +395,11 @@ function commitCloses(store, cfg, intents, opts = {}) {
     if (!it || !it.pos) continue;
     const live = store.findById ? store.findById(it.pos.id) : it.pos;
     if (!live || live.status !== 'open') continue;   // zaten kapanmış → atla
-    const note = it.note || (it.reason === 'stop' ? 'Stop tetiklendi' : it.reason === 'target' ? 'Hedef (TP1) tetiklendi' : it.reason === 'timeout' ? 'Sure doldu' : 'Cikis');
+    if (it.partial) {   // scale-out: kısmi sat, pozisyon açık kalır
+      closed.push(partialClose(store, cfg, live, it.exitPrice, it.fraction ?? cfg.tp1Fraction, it.reason, { now: opts.now, exitDate: it.exitDate }));
+      continue;
+    }
+    const note = it.note || (it.reason === 'stop' ? 'Stop tetiklendi' : it.reason === 'target' ? (live.tp1Done ? 'Hedef (TP2) tetiklendi' : 'Hedef (TP1) tetiklendi') : it.reason === 'timeout' ? 'Sure doldu' : 'Cikis');
     const ev = closePosition(store, cfg, live, it.exitPrice, it.reason, note, { now: opts.now, exitDate: it.exitDate });
     closed.push(ev);
   }
@@ -405,7 +487,7 @@ async function withLock(key, fn) {
 }
 
 module.exports = {
-  buildConfig, computeSize, openPosition, closePosition,
+  buildConfig, computeSize, openPosition, closePosition, partialClose,
   completedCandles, detectDailyExit, manageHeld, commitCloses,
   recomputeEquity, syncBuys, snapshot, withLock,
   // test yardımcıları

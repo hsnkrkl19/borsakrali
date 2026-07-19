@@ -26,7 +26,7 @@ const backtest = require('../services/bistPortfolio/backtest');
 const cronJobs = require('../services/cronJobs');
 const authService = require('../services/authService');
 
-// Backtest sonucu cache (≥75 stratejisi; arka planda üretilir, herkes okur)
+// Backtest sonucu cache (AL stratejisi avgSkor≥80; arka planda üretilir, herkes okur)
 let _bt = { running: false, at: null, report: null, error: null };
 
 async function withBenchmark(snap) {
@@ -70,7 +70,7 @@ router.get('/:bot/snapshot', async (req, res) => {
   catch (e) { res.status(500).json({ ok: false, error: e.message }); }
 });
 
-// ── Backtest (≥75 stratejisi geçmişe sarılmış) ─────────────────────────────
+// ── Backtest (AL stratejisi avgSkor≥80 — canlı @borsasinyal34 ölçütü) ──────
 // GET public (son sonucu okur); POST admin (arka planda çalıştırır ~1-2 dk).
 router.get('/backtest', (_req, res) => res.json({ ok: true, running: _bt.running, at: _bt.at, report: _bt.report, error: _bt.error }));
 

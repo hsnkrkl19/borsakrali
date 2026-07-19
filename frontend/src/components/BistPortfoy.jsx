@@ -18,6 +18,7 @@ function pctCls(v) { return v >= 0 ? 'text-emerald-400' : 'text-red-400' }
 function sgn(v) { return v >= 0 ? '+' : '' }
 
 const EXIT_META = {
+  tp1_partial: { label: 'TP1 (yarı kâr)', cls: 'text-emerald-300', Icon: ArrowUpRight },
   target:      { label: 'TP (Hedef)',  cls: 'text-emerald-400', Icon: CheckCircle2 },
   stop:        { label: 'Stop',        cls: 'text-red-400',     Icon: XCircle },
   signal_exit: { label: 'SAT (Sinyal)', cls: 'text-sky-400',    Icon: ArrowDownRight },
@@ -257,7 +258,7 @@ export default function BistPortfoy() {
           {bt?.report && (
             <section className="rounded-xl border border-sky-500/30 bg-sky-500/5 p-3.5">
               <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
-                <h3 className="text-sm font-semibold text-sky-300 flex items-center gap-1.5"><FlaskConical className="w-4 h-4" /> Backtest — ≥75 stratejisi (geçmişe sarılmış)</h3>
+                <h3 className="text-sm font-semibold text-sky-300 flex items-center gap-1.5"><FlaskConical className="w-4 h-4" /> Backtest — AL stratejisi (avgSkor≥80, geçmişe sarılmış)</h3>
                 <span className="text-[10px] text-gray-500">{bt.report.from} → {bt.report.to} · {bt.report.symbolsWithSignals} sembol · {bt.report.closedTrades} işlem</span>
               </div>
               <div className="grid grid-cols-3 md:grid-cols-6 gap-2 text-center">

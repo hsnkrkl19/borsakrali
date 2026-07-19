@@ -1,6 +1,11 @@
 /**
- * bistPortfolio/backtest — kuralı GEÇMİŞE SAR: "≥75 LONG" model portföyünün
- * tarihsel getiri/drawdown/kazanma oranını + BIST100'e karşı alfayı ölçer.
+ * bistPortfolio/backtest — kuralı GEÇMİŞE SAR: model portföyünün tarihsel
+ * getiri/drawdown/kazanma oranını + BIST100'e karşı alfayı ölçer.
+ *
+ * VARSAYILAN ÖLÇÜT: **avgVoteScore ≥ 80** — yani CANLI @borsasinyal34 (AL) botunun
+ * ölçütü. ⚠️ Consensus-CONFIDENCE BIST'te ~45'te takılır (≥75 pratikte hiç oluşmaz),
+ * bu yüzden "≥75" ile backtest anlamsızdır; mode:'signals' + minConfidence ile ayrıca
+ * ölçülebilir (bistBacktest kalibrasyonu bilerek 50 eşiğini kullanır).
  *
  * NOKTA-ANI (look-ahead'siz): her sembol için `bistBacktest.buildSymbolSignals`
  * (canlı 5-strateji hattının birebir aynısı, YALNIZ o güne kadarki mumlarla)
@@ -13,8 +18,16 @@
  * ölçüt kullanır — onun backtest'i ayrı bir adımdır (band, confidence-kovasıdır).
  */
 
-const bistBacktest = require('../bistSignals/bistBacktest');
 const liveDataService = require('../liveDataService');
+// Nokta-anı skorlama: CANLI hattın birebir aynı modülleri (saf; mum dilimi alır)
+const genelTarama = require('../forex/strategies/genelTarama');
+const ema34Strat = require('../forex/strategies/ema34');
+const tema34Strat = require('../forex/strategies/tema34');
+const snrStrat = require('../forex/strategies/snr');
+const smcStrat = require('../forex/strategies/smc');
+const { aggregate, computeConfidence } = require('../forex/forexAggregator');
+const levelsLib = require('../forex/forexLevels');
+const { atr } = require('../forex/indicators');
 const { allBistStocks } = require('../../data/allBistStocks');
 const engine = require('./portfolioEngine');
 const analytics = require('./analytics');
@@ -32,13 +45,71 @@ function toCandles(hist) {
     .filter(c => c.date);
 }
 
-// buildSymbolSignals çıktısını (index/entry/stop/target/band) motor adayına çevir.
+/**
+ * NOKTA-ANI skor — YALNIZ verilen mum dilimiyle (look-ahead YOK). bistScoreEngine
+ * .scoreSymbol'ün ağsız ikizi: aynı 5 strateji + aggregate + levels + confidence.
+ * TP2/rr de döner (canlı scale-out'un backtest'te de çalışabilmesi için).
+ */
+// ⚠️ tfKey: snr/smc sonuçlarını (sembol+timeframe) anahtarıyla ÖNBELLEKLEYEBİLİR.
+// Her mum dilimi için BENZERSİZ anahtar ver (buildSymbolSignals'ın '1d#bt<i>' deseni),
+// yoksa ilk dilimin sonucu tüm dilimlerde tekrar kullanılır → kirlenme/look-ahead.
+async function scoreAt(candles, symbol, tfKey = '1d') {
+  if (!candles || candles.length < 100) return null;
+  const [snrR, smcR] = await Promise.all([
+    snrStrat.evaluate(candles, symbol, tfKey, 'stock'),
+    smcStrat.evaluate(candles, symbol, tfKey, 'stock'),
+  ]);
+  const gen = genelTarama.evaluate(candles);
+  const agg = aggregate([gen, ema34Strat.evaluate(candles), tema34Strat.evaluate(candles), snrR, smcR], gen && gen.ind);
+  if (agg.direction !== 'long') return null;                 // BIST: yalnız long
+  const a = atr(candles, 14);
+  const entry = candles[candles.length - 1].close;
+  const lv = levelsLib.buildLevels('long', entry, a, '1d', 2);
+  if (!lv) return null;
+  const confidence = computeConfidence({
+    consensus: agg.consensus, avgScore: agg.avgScore,
+    trendStrength: agg.trendStrength, momentum: agg.momentum, rr1: lv.rr1, confluence: 0,
+  });
+  return {
+    entry: lv.entry, stop: lv.stop, target1: lv.target1, target2: lv.target2,
+    rr1: lv.rr1, rr2: lv.rr2, confidence, avgVoteScore: Math.round(agg.avgScore),
+    indicators: (gen && gen.ind) || null,
+  };
+}
+
+/**
+ * Bir sembolün nitelikli nokta-anı sinyalleri.
+ * mode 'al'      → avgVoteScore ≥ minAvgScore (VARSAYILAN — CANLI @borsasinyal34 botunun ölçütü)
+ * mode 'signals' → confidence ≥ minConfidence
+ * ⚠️ BIST'te consensus-CONFIDENCE ~45'te takılır (≥75 pratikte HİÇ üretilmez) — bu yüzden
+ *    canlı AL botu avgVoteScore kullanır ve backtest de varsayılan olarak onu ölçer.
+ */
+async function buildSignals(symbol, candles, opts = {}) {
+  const mode = opts.mode || 'al';
+  const minConf = opts.minConfidence != null ? opts.minConfidence : 50;
+  const minAvg = opts.minAvgScore != null ? opts.minAvgScore : 80;
+  const buffer = opts.buffer != null ? opts.buffer : 5;       // son N barı giriş adayı sayma
+  const lookback = opts.lookback != null ? opts.lookback : 120;
+  const end = candles.length - buffer;
+  const start = Math.max(100, end - lookback);
+  const out = [];
+  for (let i = start; i < end; i++) {
+    const s = await scoreAt(candles.slice(0, i + 1), symbol, `1d#bt${i}`);
+    if (!s) continue;
+    const pass = mode === 'al' ? (s.avgVoteScore >= minAvg) : (s.confidence >= minConf);
+    if (!pass) continue;
+    out.push({ index: i, ...s });
+  }
+  return out;
+}
+
+// Nokta-anı sinyali motor adayına çevir (TP2 dahil → scale-out backtest'te de aktif).
 function toCandidate(sig, symbol, candles) {
-  const score = Number(String(sig.band || '').replace('b', '')) || null;
   return {
     symbol, name: symbol, direction: 'long',
-    entry: sig.entry, stop: sig.stop, target1: sig.target, target2: null,
-    rr1: null, rr2: null, avgVoteScore: score, confidence: score, precision: 2,
+    entry: sig.entry, stop: sig.stop, target1: sig.target1, target2: sig.target2,
+    rr1: sig.rr1, rr2: sig.rr2,
+    avgVoteScore: sig.avgVoteScore, confidence: sig.confidence, precision: 2,
     _entryDate: candles[sig.index] && candles[sig.index].date,
   };
 }
@@ -129,7 +200,7 @@ async function run(opts = {}) {
       try {
         const candles = toCandles(await liveDataService.fetchHistoricalData(symbol, '1y', '1d'));
         if (candles.length < 130) return null;
-        const signals = await bistBacktest.buildSymbolSignals(symbol, candles);
+        const signals = await buildSignals(symbol, candles, opts.signal || {});
         if (!signals || !signals.length) return null;
         return { symbol, candles, signals };
       } catch (_) { return null; }
@@ -145,4 +216,4 @@ async function run(opts = {}) {
   return rep;
 }
 
-module.exports = { run, replay, report, toCandidate, toCandles };
+module.exports = { run, replay, report, toCandidate, toCandles, scoreAt, buildSignals };
