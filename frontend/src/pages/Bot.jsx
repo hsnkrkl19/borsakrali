@@ -1,1944 +1,492 @@
 /**
- * Bot.jsx — MT5 Altın + BTC canlı işlem botu yönetim paneli (yalnızca yönetici).
+ * Bot.jsx — Bot Yönetim Paneli (yalnızca yönetici).
  *
- * Sitedeki backend proxy'si üzerinden (/api/bot/*) MT5 DEMO işlem
- * botunu izler ve yönetir. Tüm istekler paylaşılan apiClient ile göreli
- * /bot/... yollarına gider (baseURL zaten /api ile biter). Uç noktalar
- * sunucu tarafında admin korumalıdır; burada ayrıca istemci tarafı kapı da var.
+ * Ultra-basit, 4 sekmeli tasarım:
+ *   🤖 Botlar      — 15 botu aç/kapat + hangi zaman dilimlerinde çalışacağını seç
+ *   ➕ Bot Oluştur — indikatör + zaman dilimi + ICT + parite seçip yeni bot yarat
+ *   🏆 Yarış       — hangi bot ne kadar başarılı (şampiyon + lider tablosu)
+ *   🥇 Altın Botu  — bağımsız MT5 altın botu izle/yönet
  *
- * Bölümler: üst durum + otomatik işlem anahtarı · açık işlemler · manuel işlem
- * · ayarlar (risk/strateji) · işlem geçmişi + istatistik · analiz & öneriler ·
- * olay günlüğü. status+positions ~2sn, trades+events+stats ~10sn'de bir
- * yoklanır; sekme gizliyken yoklama durur.
+ * Tüm istekler apiClient ile /bot/... (backend admin korumalı; ayrıca istemci kapısı).
  */
-import { useState, useEffect, useRef, useMemo, useCallback } from 'react'
-import {
-  Bot, ShieldAlert, Power, PlugZap, Wallet, TrendingUp, ListChecks, X,
-  Send, Settings, History, Sparkles, ScrollText, AlertTriangle,
-  CheckCircle2, Activity, Target, BarChart3, Coins, Bitcoin,
-  FlaskConical, LockKeyhole, RotateCcw, RefreshCw,
-} from 'lucide-react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import api from '../services/api'
 import { useAuthStore } from '../store/authStore'
-import { Card, Button, Badge, EmptyState } from '../components/ui'
 
-// ── Formatlayıcılar (sayfa içi, dışa bağımlılık yok) ────────────────────────
-function fmtMoney(v, digits = 2) {
-  if (v == null || !isFinite(v)) return '—'
-  return Number(v).toLocaleString('tr-TR', {
-    maximumFractionDigits: digits,
-    minimumFractionDigits: digits,
-  })
-}
-function fmtNum(v, digits = 2) {
-  if (v == null || !isFinite(v)) return '—'
-  return Number(v).toLocaleString('tr-TR', { maximumFractionDigits: digits })
-}
-function fmtDateTime(iso) {
-  if (!iso) return '—'
-  try {
-    return new Date(iso).toLocaleString('tr-TR', {
-      day: '2-digit', month: '2-digit', year: '2-digit',
-      hour: '2-digit', minute: '2-digit',
-    })
-  } catch { return String(iso) }
-}
-function fmtTime(iso) {
-  if (!iso) return '—'
-  try {
-    return new Date(iso).toLocaleTimeString('tr-TR', {
-      hour: '2-digit', minute: '2-digit', second: '2-digit',
-    })
-  } catch { return String(iso) }
-}
-// '' → undefined (boş bırakılan alan gönderilmesin), aksi halde sayı
-function toNum(v) {
-  if (v === '' || v == null) return undefined
-  const n = Number(v)
-  return isFinite(n) ? n : undefined
-}
-const pnlCls = (v) => ((Number(v) || 0) >= 0 ? 'text-emerald-300' : 'text-rose-300')
-const apiError = (err, fallback) => (
-  err?.response?.data?.error
-  || err?.response?.data?.detail
-  || err?.response?.data?.message
-  || err?.message
-  || fallback
-)
+const EM = '#0f9d6e'
+const cls = (...a) => a.filter(Boolean).join(' ')
+const fmt = (v, d = 2) => (v == null || !isFinite(v) ? '—' : Number(v).toLocaleString('tr-TR', { maximumFractionDigits: d, minimumFractionDigits: d }))
+const CAT_ICON = { Forex: '💱', Emtia: '🥇', Kripto: '🪙', BIST: '🏛️', MT5: '⚡', ICT: '🎯', Deneysel: '🧪', Tarama: '🔍', Özel: '⭐' }
 
-function firstRaceValue(row, keys, fallback = null) {
-  const sources = [row, row?.metrics, row?.stats, row?.performance]
-  for (const source of sources) {
-    if (!source || typeof source !== 'object') continue
-    for (const key of keys) {
-      if (source[key] !== undefined && source[key] !== null) return source[key]
-    }
-  }
-  return fallback
-}
-
-function raceBotId(row) {
-  return String(firstRaceValue(row, ['id', 'bot_id', 'botId', 'strategy_id', 'strategyId'], ''))
-}
-
-function racePct(value, fraction = false) {
-  if (value == null || value === '' || !isFinite(Number(value))) return '—'
-  let number = Number(value)
-  if (fraction && Math.abs(number) <= 1) number *= 100
-  return `${number > 0 ? '+' : ''}${fmtNum(number, 2)}%`
-}
-
-function raceRatio(value) {
-  if (value == null || value === '') return '—'
-  if (value === Infinity || String(value).toLowerCase() === 'infinity') return '∞'
-  return isFinite(Number(value)) ? fmtNum(Number(value), 2) : '—'
-}
-
-function isSupportRaceBot(bot) {
-  const role = String(firstRaceValue(bot, ['role', 'race_role', 'raceRole', 'type'], '')).toLowerCase()
-  return role === 'support'
-    || role === 'non_trading'
-    || bot?.support === true
-    || bot?.eligible === false
-    || bot?.trade_capable === false
-}
-
-// Yön rozeti — AL yeşil / SAT kırmızı
-function DirBadge({ direction }) {
-  const buy = String(direction).toLowerCase() === 'buy'
-  return <Badge tone={buy ? 'jade' : 'ember'}>{buy ? 'AL' : 'SAT'}</Badge>
-}
-
-const SYMBOL_LABEL = { gold: 'Altın', btc: 'BTC' }
-const STRATEGY_SYMBOLS = ['gold', 'btc']
-
-function normalizeStrategyNames(raw, fallback = '') {
-  let names = []
-  if (Array.isArray(raw)) {
-    names = raw
-  } else if (raw) {
-    names = [raw]
-  } else if (fallback) {
-    names = [fallback]
-  }
-  return [...new Set(names.map((item) => String(item).trim()).filter(Boolean))]
-}
-
-function supportsSymbol(strategy, symbolKey) {
-  const symbols = strategy?.symbols
-  return !Array.isArray(symbols) || symbols.includes(symbolKey)
-}
-
-// ── Küçük yardımcı: etiketli form alanı ─────────────────────────────────────
-function Field({ label, children, hint }) {
+// ── küçük parçalar ────────────────────────────────────────────────────────────
+function Toggle({ on, onClick, busy }) {
   return (
-    <label className="flex flex-col gap-1">
-      <span className="text-[10px] font-semibold uppercase tracking-wider text-gray-500">{label}</span>
-      {children}
-      {hint && <span className="text-[10px] text-gray-500">{hint}</span>}
-    </label>
+    <button type="button" onClick={onClick} disabled={busy} aria-pressed={on}
+      className={cls('relative inline-flex h-7 w-12 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-emerald-400',
+        on ? 'bg-emerald-500' : 'bg-gray-300', busy && 'opacity-60')}>
+      <span className={cls('inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform', on ? 'translate-x-6' : 'translate-x-1')} />
+    </button>
   )
 }
-
-function SectionTitle({ icon: Icon, title, sub, children }) {
-  return (
-    <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-      <div className="flex items-center gap-2">
-        {Icon && (
-          <span
-            className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg"
-            style={{ background: 'rgba(16,185,129,0.10)', border: '1px solid var(--border-gold)' }}
-          >
-            <Icon className="h-4 w-4" style={{ color: 'var(--gold-400)' }} aria-hidden="true" />
-          </span>
-        )}
-        <div className="min-w-0">
-          <h2 className="text-base font-semibold" style={{ color: 'var(--text-primary)' }}>{title}</h2>
-          {sub && <p className="text-xs text-gray-500">{sub}</p>}
-        </div>
-      </div>
-      {children && <div className="flex flex-shrink-0 items-center gap-2">{children}</div>}
-    </div>
-  )
+function Chip({ active, onClick, children, tone = 'emerald' }) {
+  const base = 'px-3 py-1.5 rounded-full text-sm font-medium border transition-colors select-none'
+  const styles = active
+    ? (tone === 'emerald' ? 'bg-emerald-500 border-emerald-500 text-white' : 'bg-amber-500 border-amber-500 text-white')
+    : 'bg-white border-gray-200 text-gray-600 hover:border-emerald-400'
+  return <button type="button" onClick={onClick} className={cls(base, styles, onClick ? 'cursor-pointer' : 'cursor-default')}>{children}</button>
+}
+function Tag({ children }) { return <span className="px-2 py-0.5 rounded-md bg-gray-100 text-gray-500 text-xs">{children}</span> }
+function Spinner() { return <div className="flex justify-center py-16"><div className="h-8 w-8 rounded-full border-2 border-emerald-500 border-t-transparent animate-spin" /></div> }
+function Msg({ kind, children }) {
+  if (!children) return null
+  const c = kind === 'err' ? 'bg-rose-50 text-rose-700 border-rose-200' : kind === 'ok' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-amber-50 text-amber-700 border-amber-200'
+  return <div className={cls('rounded-xl border px-4 py-3 text-sm', c)}>{children}</div>
 }
 
-// ── Küçük geri bildirim satırı (işlem sonucu) ───────────────────────────────
-function Feedback({ kind, text }) {
-  if (!text) return null
-  const ok = kind === 'ok'
-  const Icon = ok ? CheckCircle2 : AlertTriangle
-  return (
-    <div
-      className="flex items-start gap-2 rounded-lg px-3 py-2 text-xs"
-      style={{
-        background: ok ? 'rgba(16,185,129,0.10)' : 'rgba(225,29,72,0.10)',
-        border: `1px solid ${ok ? 'var(--border-gold)' : 'rgba(225,29,72,0.30)'}`,
-        color: ok ? 'var(--jade)' : 'var(--ember)',
-      }}
-    >
-      <Icon className="mt-0.5 h-3.5 w-3.5 flex-shrink-0" aria-hidden="true" />
-      <span>{text}</span>
-    </div>
-  )
-}
-
+// ══════════════════════════════════════════════════════════════════════════════
 export default function BotPage() {
   const user = useAuthStore((s) => s.user)
   const isAdmin = user?.role === 'admin'
+  const [tab, setTab] = useState('botlar')
 
-  // ── Veri durumu ───────────────────────────────────────────────────────────
-  const [status, setStatus] = useState(null)
-  const [positions, setPositions] = useState([])
-  const [trades, setTrades] = useState([])
-  const [events, setEvents] = useState([])
-  const [stats, setStats] = useState(null)
-  const [scoreboard, setScoreboard] = useState(null)
-  const [config, setConfig] = useState(null)
-  const [strategies, setStrategies] = useState([])
-  const [learn, setLearn] = useState(null)
-  const [researchStatus, setResearchStatus] = useState(null)
-  const [researchLatest, setResearchLatest] = useState(null)
-  const [notificationBots, setNotificationBots] = useState(null)
-  const [competition, setCompetition] = useState(null)
-
-  const [offline, setOffline] = useState(false)   // proxy 502/503 → bot çevrimdışı
-  const [forbidden, setForbidden] = useState(false) // 403 → yetki yok
-
-  // ── Aksiyon durumları ─────────────────────────────────────────────────────
-  const [engineBusy, setEngineBusy] = useState(false)
-  const [closingAll, setClosingAll] = useState(false)
-  const [closingTicket, setClosingTicket] = useState(null)
-  const [tradeBusy, setTradeBusy] = useState(false)
-  const [tradeMsg, setTradeMsg] = useState(null)   // {kind,text}
-  const [cfgBusy, setCfgBusy] = useState(false)
-  const [cfgMsg, setCfgMsg] = useState(null)
-  const [learnBusy, setLearnBusy] = useState(false)
-  const [accountBindBusy, setAccountBindBusy] = useState(false)
-  const [accountMsg, setAccountMsg] = useState(null)
-  const [researchBusy, setResearchBusy] = useState(false)
-  const [researchMsg, setResearchMsg] = useState(null)
-  const [notificationBusy, setNotificationBusy] = useState('')
-  const [notificationMsg, setNotificationMsg] = useState(null)
-  const [competitionBusy, setCompetitionBusy] = useState('')
-  const [competitionMsg, setCompetitionMsg] = useState(null)
-
-  // ── Manuel işlem formu ────────────────────────────────────────────────────
-  const [mSymbol, setMSymbol] = useState('gold')
-  const [mDir, setMDir] = useState('buy')
-  const [mLot, setMLot] = useState('')
-  const [mSl, setMSl] = useState('')
-  const [mTp, setMTp] = useState('')
-
-  // ── Ayarlar taslağı (config yüklenince doldurulur) ─────────────────────────
-  const [form, setForm] = useState(null)
-  const setF = (patch) => setForm((f) => ({ ...(f || {}), ...patch }))
-
-  // ── Uçuş halindeki istek koruması ──────────────────────────────────────────
-  const fastInFlight = useRef(false)
-  const slowInFlight = useRef(false)
-
-  // Hata sınıflandırma — 403 yetki, 502/503/504/network → çevrimdışı
-  const classifyError = useCallback((err) => {
-    const st = err?.response?.status
-    if (st === 403) { setForbidden(true); return }
-    if (!err?.response || st === 502 || st === 503 || st === 504) setOffline(true)
-  }, [])
-
-  // ── Yükleyiciler ───────────────────────────────────────────────────────────
-  const loadFast = useCallback(async () => {
-    if (fastInFlight.current) return
-    fastInFlight.current = true
-    try {
-      const [s, p] = await Promise.all([
-        api.get('/bot/status'),
-        api.get('/bot/positions'),
-      ])
-      setStatus(s.data || null)
-      setPositions(Array.isArray(p.data) ? p.data : [])
-      setOffline(false)
-      setForbidden(false)
-    } catch (err) {
-      classifyError(err)
-    } finally {
-      fastInFlight.current = false
-    }
-  }, [classifyError])
-
-  const loadSlow = useCallback(async () => {
-    if (slowInFlight.current) return
-    slowInFlight.current = true
-    try {
-      const [t, e, st, sb] = await Promise.all([
-        api.get('/bot/trades', { params: { limit: 100 } }),
-        api.get('/bot/events', { params: { limit: 100 } }),
-        api.get('/bot/stats'),
-        api.get('/bot/scoreboard'),
-      ])
-      setTrades(Array.isArray(t.data) ? t.data : [])
-      setEvents(Array.isArray(e.data) ? e.data : [])
-      setStats(st.data || null)
-      setScoreboard(sb.data || null)
-    } catch (err) {
-      classifyError(err)
-    } finally {
-      slowInFlight.current = false
-    }
-  }, [classifyError])
-
-  const loadConfig = useCallback(async () => {
-    try {
-      const { data } = await api.get('/bot/config')
-      setConfig(data || null)
-    } catch (err) { classifyError(err) }
-  }, [classifyError])
-
-  const loadStrategies = useCallback(async () => {
-    try {
-      const { data } = await api.get('/bot/strategies')
-      setStrategies(Array.isArray(data) ? data : [])
-    } catch (err) { classifyError(err) }
-  }, [classifyError])
-
-  const loadResearch = useCallback(async () => {
-    try {
-      const [state, latest] = await Promise.all([
-        api.get('/bot/research/status'),
-        api.get('/bot/research/latest'),
-      ])
-      setResearchStatus(state.data || null)
-      setResearchLatest(latest.data || null)
-    } catch (err) { classifyError(err) }
-  }, [classifyError])
-
-  const loadNotificationBots = useCallback(async () => {
-    try {
-      const { data } = await api.get('/bot/notifications')
-      setNotificationBots(data || null)
-    } catch (err) { classifyError(err) }
-  }, [classifyError])
-
-  const loadCompetition = useCallback(async () => {
-    try {
-      const { data } = await api.get('/bot/competition')
-      setCompetition(data || null)
-    } catch (err) { classifyError(err) }
-  }, [classifyError])
-
-  // ── İlk yükleme + yoklama ──────────────────────────────────────────────────
-  useEffect(() => {
-    if (!isAdmin) return
-    loadFast(); loadSlow(); loadConfig(); loadStrategies(); loadResearch(); loadNotificationBots(); loadCompetition()
-
-    const fast = setInterval(() => { if (!document.hidden) loadFast() }, 2000)
-    const slow = setInterval(() => { if (!document.hidden) loadSlow() }, 10000)
-    const researchPoll = setInterval(() => { if (!document.hidden) loadResearch() }, 10000)
-    const notificationPoll = setInterval(() => { if (!document.hidden) loadNotificationBots() }, 30000)
-    const competitionPoll = setInterval(() => { if (!document.hidden) loadCompetition() }, 10000)
-    // Sekme yeniden görünür olduğunda hemen tazele
-    const onVis = () => { if (!document.hidden) { loadFast(); loadSlow() } }
-    document.addEventListener('visibilitychange', onVis)
-
-    return () => {
-      clearInterval(fast)
-      clearInterval(slow)
-      clearInterval(researchPoll)
-      clearInterval(notificationPoll)
-      clearInterval(competitionPoll)
-      document.removeEventListener('visibilitychange', onVis)
-    }
-  }, [isAdmin, loadFast, loadSlow, loadConfig, loadStrategies, loadResearch, loadNotificationBots, loadCompetition])
-
-  // config gelince ayar taslağını (bir kez) doldur
-  useEffect(() => {
-    if (!config || form) return
-    const risk = config.risk || {}
-    const trade = config.trade || {}
-    const daily = risk.daily_limit || {}
-    const syms = config.symbols || {}
-    const strat = config.strategy || {}
-    const activeStrategy = strat.active ?? strat.name ?? config.active_strategy ?? ''
-    const assignmentConfig = strat.assignments || {}
-    const strategyAssignments = {
-      gold: normalizeStrategyNames(assignmentConfig.gold, activeStrategy || 'gold_trend'),
-      btc: normalizeStrategyNames(assignmentConfig.btc, ''),
-    }
-    const firstSelectedStrategy = STRATEGY_SYMBOLS
-      .flatMap((key) => strategyAssignments[key] || [])
-      .find(Boolean) || activeStrategy
-    const allStrategyParams = strat.params || {}
-    const activeParams = allStrategyParams?.[firstSelectedStrategy] || {}
-    setForm({
-      lotMode: risk.lot_mode === 'fixed' ? 'manual' : (risk.lot_mode ?? trade.lot_mode ?? 'auto'),
-      fixedLot: risk.manual_lot ?? '',
-      riskPercent: risk.risk_percent ?? risk.percent ?? '',
-      defaultSl: trade.default_sl_points ?? trade.sl_points ?? '',
-      defaultTp: trade.default_tp_points ?? trade.tp_points ?? '',
-      maxOpen: risk.max_open_positions ?? '',
-      maxPerSymbol: risk.max_positions_per_symbol ?? '',
-      dailyEnabled: true,
-      dailyMaxLoss: daily.max_loss ?? daily.maxLoss ?? '',
-      dailyMaxProfit: daily.max_profit ?? daily.maxProfit ?? '',
-      dailyAction: 'close_all_stop',
-      goldEnabled: syms.enabled?.gold ?? true,
-      btcEnabled: syms.enabled?.btc ?? true,
-      strategyActive: firstSelectedStrategy,
-      strategyAssignments,
-      strategyParams: { ...activeParams },
-    })
-  }, [config, form])
-
-  // Seçilen strateji değişince parametre formunu default_params ile birleştir
-  const selectedStrategy = useMemo(
-    () => strategies.find((s) => s.name === form?.strategyActive) || null,
-    [strategies, form?.strategyActive],
-  )
-  const onStrategyChange = (name) => {
-    const strat = strategies.find((s) => s.name === name)
-    const defaults = strat?.default_params || {}
-    // mevcut config'teki aynı stratejinin parametrelerini koru, yoksa default
-    const prev = config?.strategy?.params?.[name] || {}
-    setF({ strategyActive: name, strategyParams: { ...defaults, ...prev } })
-  }
-
-  const toggleStrategyAssignment = (symbolKey, strategyName) => {
-    setForm((current) => {
-      const currentAssignments = current?.strategyAssignments || {}
-      const selected = normalizeStrategyNames(currentAssignments[symbolKey])
-      const exists = selected.includes(strategyName)
-      const nextForSymbol = exists
-        ? selected.filter((name) => name !== strategyName)
-        : [...selected, strategyName]
-      const nextAssignments = { ...currentAssignments, [symbolKey]: nextForSymbol }
-
-      const allSelected = STRATEGY_SYMBOLS
-        .flatMap((key) => normalizeStrategyNames(nextAssignments[key]))
-      let nextActive = current?.strategyActive || ''
-      let nextParams = current?.strategyParams || {}
-      if (!exists) {
-        const strat = strategies.find((s) => s.name === strategyName)
-        const defaults = strat?.default_params || {}
-        const prev = config?.strategy?.params?.[strategyName] || {}
-        nextActive = strategyName
-        nextParams = { ...defaults, ...prev }
-      } else if (nextActive === strategyName && !allSelected.includes(strategyName)) {
-        nextActive = allSelected[0] || ''
-        const strat = strategies.find((s) => s.name === nextActive)
-        const defaults = strat?.default_params || {}
-        const prev = config?.strategy?.params?.[nextActive] || {}
-        nextParams = nextActive ? { ...defaults, ...prev } : {}
-      }
-      return {
-        ...(current || {}),
-        strategyActive: nextActive,
-        strategyParams: nextParams,
-        strategyAssignments: nextAssignments,
-      }
-    })
-  }
-
-  // ── Aksiyonlar ─────────────────────────────────────────────────────────────
-  const toggleEngine = async () => {
-    if (engineBusy) return
-    setEngineBusy(true)
-    const path = status?.engine_enabled ? '/bot/engine/stop' : '/bot/engine/start'
-    // iyimser güncelleme
-    setStatus((s) => (s ? { ...s, engine_enabled: !s.engine_enabled } : s))
-    try {
-      const { data } = await api.post(path)
-      setStatus((s) => (s ? { ...s, engine_enabled: !!data?.enabled } : s))
-    } catch (err) {
-      // Komut bota ulaşmadı: iyimser flip'i AÇIKÇA geri al. loadFast() bot
-      // çevrimdışıyken de düşeceğinden ona güvenilemez; aksi halde anahtar
-      // "DURDU" gösterirken motor VPS'te çalışmaya devam edebilir.
-      setStatus((s) => (s ? { ...s, engine_enabled: !s.engine_enabled } : s))
-      classifyError(err)
-      try { await loadFast() } catch (_) { /* offline: geri-alınmış değer kalır */ }
-    } finally {
-      setEngineBusy(false)
-    }
-  }
-
-  const closePosition = async (ticket) => {
-    if (!window.confirm('#' + ticket + ' pozisyonu kapatılsın mı?')) return
-    setClosingTicket(ticket)
-    try {
-      // Bot kapatma hatalarını HTTP 200 {ok:false} olarak döner (guard reddi,
-      // piyasa kapalı, MT5 retcode). Gövdeyi kontrol etmezsek kapatma sessizce
-      // başarısız olur ve zarar açık pozisyonda büyümeye devam eder.
-      const { data } = await api.post('/bot/trade/close', { ticket })
-      if (data && data.ok === false) {
-        window.alert('#' + ticket + ' kapatılamadı: ' + (data.message || (data.errors || []).join('; ') || 'bilinmeyen hata'))
-      }
-      await loadFast()
-    } catch (err) {
-      classifyError(err)
-      window.alert('#' + ticket + ' kapatma komutu bota ulaşmadı.')
-    } finally {
-      setClosingTicket(null)
-    }
-  }
-
-  const closeAll = async () => {
-    if (!window.confirm('Tüm açık pozisyonlar kapatılsın mı?')) return
-    setClosingAll(true)
-    try {
-      const { data } = await api.post('/bot/trade/close_all', {})
-      if (data && data.ok === false) {
-        window.alert('Kapatma tamamlanamadı: ' + ((data.errors || []).join('; ') || data.message || 'bilinmeyen hata'))
-      }
-      await loadFast()
-    } catch (err) {
-      classifyError(err)
-      window.alert('Tümünü kapat komutu bota ulaşmadı.')
-    } finally {
-      setClosingAll(false)
-    }
-  }
-
-  const submitManualTrade = async (e) => {
-    e.preventDefault()
-    if (!window.confirm(`${SYMBOL_LABEL[mSymbol]} ${mDir === 'buy' ? 'AL' : 'SAT'} emri gönderilsin mi?`)) return
-    setTradeBusy(true)
-    setTradeMsg(null)
-    try {
-      const body = { symbol_key: mSymbol, direction: mDir }
-      const lot = toNum(mLot); if (lot !== undefined) body.lot = lot
-      const sl = toNum(mSl); if (sl !== undefined) body.sl_price = sl
-      const tp = toNum(mTp); if (tp !== undefined) body.tp_price = tp
-      const { data } = await api.post('/bot/trade/open', body)
-      if (data?.ok) {
-        setTradeMsg({ kind: 'ok', text: `İşlem açıldı — bilet #${data.ticket ?? '—'} ${data.message ? '· ' + data.message : ''}` })
-        setMLot(''); setMSl(''); setMTp('')
-        await loadFast()
-      } else {
-        setTradeMsg({ kind: 'err', text: data?.message || `İşlem reddedildi (retcode: ${data?.retcode ?? '—'})` })
-      }
-    } catch (err) {
-      classifyError(err)
-      setTradeMsg({ kind: 'err', text: apiError(err, 'İşlem gönderilemedi') })
-    } finally {
-      setTradeBusy(false)
-    }
-  }
-
-  const saveConfig = async () => {
-    if (!form) return
-    setCfgBusy(true)
-    setCfgMsg(null)
-    // NOT: config şeması sunucudan geldiği gibi geri gönderilir (kısmi birleştirme).
-    // Anahtar adları çıkarımdır — gerçek şemaya göre gerekiyorsa ayarlanmalı.
-    const goldStrategies = normalizeStrategyNames(form.strategyAssignments?.gold, form.strategyActive || 'gold_trend')
-    const btcStrategies = normalizeStrategyNames(form.strategyAssignments?.btc, '')
-    const activeStrategyForSave = form.strategyActive || goldStrategies[0] || btcStrategies[0] || 'gold_trend'
-    const partial = {
-      risk: {
-        lot_mode: form.lotMode,
-        manual_lot: toNum(form.fixedLot),
-        risk_percent: toNum(form.riskPercent),
-        max_open_positions: toNum(form.maxOpen),
-        max_positions_per_symbol: toNum(form.maxPerSymbol),
-        daily_limit: {
-          enabled: true,
-          max_loss: toNum(form.dailyMaxLoss),
-          max_profit: toNum(form.dailyMaxProfit),
-          action: 'close_all_stop',
-        },
-      },
-      trade: {
-        default_sl_points: toNum(form.defaultSl),
-        default_tp_points: toNum(form.defaultTp),
-      },
-      symbols: {
-        enabled: { gold: !!form.goldEnabled, btc: !!form.btcEnabled },
-      },
-      strategy: {
-        active: activeStrategyForSave,
-        assignments: {
-          ...(config?.strategy?.assignments || {}),
-          gold: goldStrategies,
-          btc: btcStrategies,
-        },
-        allow_unverified: false,
-        params: {
-          ...(config?.strategy?.params || {}),
-          [activeStrategyForSave]: form.strategyParams || {},
-        },
-      },
-    }
-    try {
-      const { data } = await api.post('/bot/config', partial)
-      if (data) setConfig(data)
-      setCfgMsg({ kind: 'ok', text: 'Ayarlar kaydedildi.' })
-    } catch (err) {
-      classifyError(err)
-      setCfgMsg({ kind: 'err', text: apiError(err, 'Ayarlar kaydedilemedi') })
-    } finally {
-      setCfgBusy(false)
-    }
-  }
-
-  const runLearn = async () => {
-    setLearnBusy(true)
-    try {
-      const { data } = await api.get('/bot/learn')
-      setLearn(data || null)
-    } catch (err) {
-      classifyError(err)
-    } finally {
-      setLearnBusy(false)
-    }
-  }
-
-  const bindCurrentDemoAccount = async () => {
-    const account = status?.account || {}
-    const login = Number(account.login || 0)
-    const server = String(account.server || '')
-    const mode = String(account.trade_mode_label || '').toLowerCase()
-    if (!login || !server || mode !== 'demo') {
-      setAccountMsg({ kind: 'err', text: 'MT5 hesabı demo olarak doğrulanamadı.' })
-      return
-    }
-    if (!window.confirm(
-      `${login}@${server} yeni demo hesap kilidi olacak. Motor güvenli biçimde durdurulacak. Devam edilsin mi?`,
-    )) return
-
-    setAccountBindBusy(true)
-    setAccountMsg(null)
-    try {
-      if (status?.engine_enabled) await api.post('/bot/engine/stop', {})
-      const { data } = await api.post('/bot/account/bind_current_demo', {})
-      if (data?.config) setConfig(data.config)
-      setAccountMsg({
-        kind: 'ok',
-        text: `${data?.message || 'Demo hesap kilitlendi.'} Üstteki anahtardan botu yeniden başlatın.`,
-      })
-      await Promise.all([loadFast(), loadConfig()])
-    } catch (err) {
-      classifyError(err)
-      setAccountMsg({ kind: 'err', text: apiError(err, 'Hesap kilitlenemedi.') })
-    } finally {
-      setAccountBindBusy(false)
-    }
-  }
-
-  const runResearch = async () => {
-    setResearchBusy(true)
-    setResearchMsg(null)
-    try {
-      await api.post('/bot/research/run', {})
-      setResearchMsg({ kind: 'ok', text: 'Walk-forward araştırması sıraya alındı.' })
-      await loadResearch()
-    } catch (err) {
-      classifyError(err)
-      setResearchMsg({ kind: 'err', text: apiError(err, 'Araştırma başlatılamadı.') })
-    } finally {
-      setResearchBusy(false)
-    }
-  }
-
-  const toggleNotificationBot = async (bot) => {
-    if (!bot?.id || notificationBusy) return
-    setNotificationBusy(bot.id)
-    setNotificationMsg(null)
-    try {
-      const { data } = await api.post(`/bot/notifications/${encodeURIComponent(bot.id)}`, {
-        enabled: !bot.enabled,
-      })
-      setNotificationBots((current) => {
-        if (!current || !data?.bot) return current
-        const bots = (current.bots || []).map((row) => (row.id === data.bot.id ? data.bot : row))
-        return {
-          ...current,
-          bots,
-          enabled: bots.filter((row) => row.enabled).length,
-          ready: bots.filter((row) => row.ready).length,
-        }
-      })
-      setNotificationMsg({
-        kind: 'ok',
-        text: `${bot.name} ${bot.enabled ? 'durduruldu' : 'açıldı'}.`,
-      })
-    } catch (err) {
-      classifyError(err)
-      setNotificationMsg({ kind: 'err', text: apiError(err, 'Bildirim botu güncellenemedi.') })
-    } finally {
-      setNotificationBusy('')
-    }
-  }
-
-  const toggleCompetitionMaster = async () => {
-    if (competitionBusy) return
-    setCompetitionBusy('master')
-    setCompetitionMsg(null)
-    try {
-      const { data } = await api.post('/bot/competition', { enabled: !competition?.enabled })
-      setCompetition(data || null)
-      setCompetitionMsg({
-        kind: 'ok',
-        text: competition?.enabled ? 'Paper bot yarışı duraklatıldı.' : 'Paper bot yarışı başlatıldı.',
-      })
-    } catch (err) {
-      classifyError(err)
-      setCompetitionMsg({ kind: 'err', text: apiError(err, 'Bot yarışı güncellenemedi.') })
-    } finally {
-      setCompetitionBusy('')
-    }
-  }
-
-  const toggleCompetitionBot = async (bot) => {
-    if (!bot?.id || competitionBusy) return
-    setCompetitionBusy(bot.id)
-    setCompetitionMsg(null)
-    try {
-      await api.post(`/bot/competition/${encodeURIComponent(bot.id)}`, { enabled: !bot.enabled })
-      await loadCompetition()
-      setCompetitionMsg({
-        kind: 'ok',
-        text: `${bot.name} yarışta ${bot.enabled ? 'duraklatıldı' : 'aktif edildi'}.`,
-      })
-    } catch (err) {
-      classifyError(err)
-      setCompetitionMsg({ kind: 'err', text: apiError(err, 'Yarış botu güncellenemedi.') })
-    } finally {
-      setCompetitionBusy('')
-    }
-  }
-
-  const approveResearch = async (row) => {
-    const reviewer = window.prompt('Onaylayan kişi/ad:', '')
-    if (!reviewer) return
-    if (!window.confirm(
-      `${row.symbol_key}/${row.strategy} yalnızca MT5 DEMO champion olarak onaylansın mı?`,
-    )) return
-    setResearchBusy(true)
-    setResearchMsg(null)
-    try {
-      await api.post('/bot/research/approve', {
-        symbol_key: row.symbol_key,
-        strategy: row.strategy,
-        reviewer,
-      })
-      setForm(null)
-      setResearchMsg({ kind: 'ok', text: 'MT5 demo champion onaylandı ve bot stratejisine bağlandı.' })
-      await Promise.all([loadResearch(), loadConfig(), loadFast()])
-    } catch (err) {
-      classifyError(err)
-      setResearchMsg({ kind: 'err', text: apiError(err, 'Aday onaylanamadı.') })
-    } finally {
-      setResearchBusy(false)
-    }
-  }
-
-  const rollbackResearch = async (symbolKey) => {
-    const reviewer = window.prompt('Rollback yapan kişi/ad:', '')
-    if (!reviewer) return
-    const reason = window.prompt('Rollback nedeni:', 'performans bozulması')
-    if (!reason) return
-    setResearchBusy(true)
-    setResearchMsg(null)
-    try {
-      await api.post('/bot/research/rollback', {
-        symbol_key: symbolKey,
-        reviewer,
-        reason,
-      })
-      setForm(null)
-      setResearchMsg({ kind: 'ok', text: 'Önceki doğrulanmış champion geri yüklendi.' })
-      await Promise.all([loadResearch(), loadConfig(), loadFast()])
-    } catch (err) {
-      classifyError(err)
-      setResearchMsg({ kind: 'err', text: apiError(err, 'Rollback tamamlanamadı.') })
-    } finally {
-      setResearchBusy(false)
-    }
-  }
-
-  // ── Birleşik olay günlüğü (events + ui_logs), en yeni üstte ────────────────
-  const mergedLogs = useMemo(() => {
-    const a = (events || []).map((e) => ({
-      time: e.time, level: e.kind || 'event', msg: e.message, src: 'event',
-    }))
-    const b = (status?.ui_logs || []).map((l) => ({
-      time: l.time, level: l.level || 'log', msg: l.msg, src: 'ui',
-    }))
-    return [...a, ...b].sort((x, y) => {
-      const tx = new Date(x.time).getTime() || 0
-      const ty = new Date(y.time).getTime() || 0
-      return ty - tx
-    }).slice(0, 200)
-  }, [events, status?.ui_logs])
-
-  // ── Yetki kapısı (savunma derinliği) ────────────────────────────────────────
   if (!isAdmin) {
     return (
-      <div className="mx-auto max-w-lg py-10">
-        <Card tone="ember" accent className="text-center">
-          <div className="flex flex-col items-center gap-3 py-6">
-            <span
-              className="flex h-14 w-14 items-center justify-center rounded-2xl"
-              style={{ background: 'rgba(225,29,72,0.10)', border: '1px solid rgba(225,29,72,0.30)' }}
-            >
-              <ShieldAlert className="h-7 w-7" style={{ color: 'var(--ember)' }} aria-hidden="true" />
-            </span>
-            <h1 className="text-lg font-bold" style={{ color: 'var(--text-primary)' }}>
-              Bu sayfa yalnızca yöneticiye açıktır
-            </h1>
-            <p className="max-w-sm text-sm text-gray-500">
-              İşlem botu kontrol paneline erişmek için yönetici hesabıyla giriş yapmalısınız.
-            </p>
-            <Button
-              variant="gold"
-              onClick={() => { window.location.href = '/login' }}
-            >
-              Yönetici Girişi
-            </Button>
-          </div>
-        </Card>
+      <div className="max-w-lg mx-auto mt-24 text-center px-6">
+        <div className="text-5xl mb-4">🔒</div>
+        <h1 className="text-2xl font-bold text-gray-800">Yönetici girişi gerekli</h1>
+        <p className="text-gray-500 mt-2">Bu panel yalnızca yöneticilere açıktır. Yönetici hesabıyla giriş yap.</p>
       </div>
     )
   }
 
-  const acct = status?.account || {}
-  const daily = status?.daily || {}
-  const limit = status?.limit || {}
-  const guard = status?.account_guard || {}
-  const connected = !!status?.connected
-  const engineOn = !!status?.engine_enabled
-  const preflight = status?.preflight || {}
-  const blockers = Array.isArray(status?.trade_blockers) ? status.trade_blockers : []
-  const tradeReady = !!status?.trade_ready
-  const decisionRows = Object.values(status?.last_signals || {})
-    .filter((row) => row && typeof row === 'object')
-    .sort((a, b) => String(b.time || '').localeCompare(String(a.time || '')))
-  const lockedAccount = config?.mt5 || {}
-  const liveAccountIsDemo = String(acct.trade_mode_label || '').toLowerCase() === 'demo'
-  const sameLockedAccount = Number(acct.login || 0) > 0
-    && Number(lockedAccount.login || 0) === Number(acct.login || 0)
-    && String(lockedAccount.server || '').toLowerCase() === String(acct.server || '').toLowerCase()
-  const scoreRows = Array.isArray(scoreboard?.backtests) ? scoreboard.backtests : []
-  const productionRow = scoreRows.find((row) => row?.validation?.status === 'approved' && row?.stability?.status === 'stable')
-  const researchRows = Array.isArray(researchLatest?.candidates) ? researchLatest.candidates : []
-  const researchRunning = !!researchStatus?.running
-  const telegramRows = Array.isArray(notificationBots?.bots) ? notificationBots.bots : []
-  const competitionRows = Array.isArray(competition?.bots) ? competition.bots : []
-  const pairRows = Array.isArray(competition?.pairs) ? competition.pairs : []
-  const competitionAlerts = [
-    ...(Array.isArray(competition?.blockers) ? competition.blockers : []),
-    ...(Array.isArray(competition?.warnings) ? competition.warnings : []),
+  const tabs = [
+    { id: 'botlar', label: 'Botlar', icon: '🤖' },
+    { id: 'olustur', label: 'Bot Oluştur', icon: '➕' },
+    { id: 'yaris', label: 'Yarış', icon: '🏆' },
+    { id: 'altin', label: 'Altın Botu', icon: '🥇' },
   ]
-  const stageLabel = {
-    collecting: 'Veri topluyor',
-    provisional: 'Geçici',
-    evaluation: 'Değerlendirme',
-    candidate: 'Aday',
-  }
 
   return (
-    <div className="mx-auto max-w-7xl space-y-4">
-      {/* Başlık */}
-      <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-3">
-        <div className="flex min-w-0 items-start gap-3">
-          <span
-            className="flex flex-shrink-0 items-center justify-center rounded-xl"
-            style={{ width: 44, height: 44, background: 'rgba(16,185,129,0.10)', border: '1px solid var(--border-gold)' }}
-          >
-            <Bot size={22} strokeWidth={2} style={{ color: 'var(--gold-400)' }} aria-hidden="true" />
-          </span>
-          <div className="min-w-0">
-            <div className="mb-0.5 text-[11px] font-bold uppercase tracking-[0.14em]" style={{ color: 'var(--gold-400)' }}>
-              MT5 Demo Bot · Yönetici
-            </div>
-            <h1 className="text-xl font-bold leading-tight tracking-tight sm:text-2xl" style={{ color: 'var(--text-primary)' }}>
-              Altın + BTC İşlem Botu
-            </h1>
-            <p className="mt-1 text-[13.5px]" style={{ color: 'var(--text-secondary)' }}>
-              VPS'teki MT5 demo botunu izle ve yönet — gerçek hesap kod seviyesinde engellidir.
-            </p>
-          </div>
-        </div>
-        <Badge tone={connected ? 'jade' : 'ember'} dot>
-          {connected ? 'BAĞLI' : 'BAĞLANTI YOK'}
-        </Badge>
+    <div className="max-w-6xl mx-auto px-4 py-6">
+      <div className="flex items-center gap-3 mb-1">
+        <span className="text-3xl">👑</span>
+        <h1 className="text-2xl sm:text-3xl font-extrabold text-gray-800 tracking-tight">Bot Merkezi</h1>
+      </div>
+      <p className="text-gray-500 mb-5">Tüm botları tek yerden yönet — çocuk oyuncağı kadar kolay.</p>
+
+      <div className="flex gap-2 mb-6 overflow-x-auto pb-1">
+        {tabs.map((t) => (
+          <button key={t.id} onClick={() => setTab(t.id)}
+            className={cls('flex items-center gap-2 px-4 py-2.5 rounded-xl font-semibold whitespace-nowrap transition-colors',
+              tab === t.id ? 'bg-emerald-500 text-white shadow-sm' : 'bg-white text-gray-600 border border-gray-200 hover:border-emerald-400')}>
+            <span>{t.icon}</span>{t.label}
+          </button>
+        ))}
       </div>
 
-      {/* Çevrimdışı uyarısı — sayfa yine de render olur */}
-      {offline && (
-        <Card tone="ember" accent padding="sm">
-          <div className="flex items-center gap-2 text-sm" style={{ color: 'var(--ember)' }}>
-            <PlugZap className="h-4 w-4 flex-shrink-0" aria-hidden="true" />
-            <span><strong>Bot çevrimdışı.</strong> Sunucuya ulaşılamıyor — son bilinen değerler gösteriliyor, yeniden denemeye devam ediliyor.</span>
-          </div>
-        </Card>
-      )}
-      {forbidden && (
-        <Card tone="ember" accent padding="sm">
-          <div className="flex items-center gap-2 text-sm" style={{ color: 'var(--ember)' }}>
-            <ShieldAlert className="h-4 w-4 flex-shrink-0" aria-hidden="true" />
-            <span>Sunucu bu isteği reddetti (403). Yönetici yetkiniz doğrulanamadı.</span>
-          </div>
-        </Card>
-      )}
-
-      <Card tone={tradeReady ? 'jade' : 'gold'} accent>
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div className="min-w-0">
-            <div className="text-[11px] font-bold uppercase tracking-[0.14em] text-gray-500">İşlem Hazırlığı</div>
-            <div className={`mt-1 text-lg font-bold ${tradeReady ? 'text-emerald-300' : 'text-amber-300'}`}>
-              {tradeReady ? 'EMİR İÇİN HAZIR' : 'GÜVENLİ BEKLEMEDE'}
-            </div>
-            <p className="mt-1 text-xs text-gray-500">
-              {tradeReady
-                ? 'MT5 bağlantısı, demo hesap kilidi, strateji ve risk kapıları açık.'
-                : 'Aşağıdaki maddeler çözülmeden bot yeni emir göndermez.'}
-            </p>
-          </div>
-          <Badge tone={tradeReady ? 'jade' : 'gold'} dot>{tradeReady ? 'HAZIR' : `${blockers.length} ENGEL`}</Badge>
-        </div>
-        {!tradeReady && (
-          <ul className="mt-3 space-y-1.5 text-xs text-amber-100">
-            {(blockers.length ? blockers : ['Motor durum bilgisi bekleniyor.']).map((reason, index) => (
-              <li key={`${reason}-${index}`} className="flex items-start gap-2">
-                <AlertTriangle className="mt-0.5 h-3.5 w-3.5 flex-shrink-0" aria-hidden="true" />
-                <span>{reason}</span>
-              </li>
-            ))}
-          </ul>
-        )}
-      </Card>
-
-      <Card>
-        <SectionTitle icon={Activity} title="Son Strateji Kararı" sub="Botun neden emir gönderdiğini veya beklediğini gösterir" />
-        {decisionRows.length === 0 ? (
-          <p className="text-xs text-gray-500">İlk broker mumu ve strateji değerlendirmesi bekleniyor.</p>
-        ) : (
-          <div className="space-y-2">
-            {decisionRows.slice(0, 4).map((row) => (
-              <div key={`${row.symbol}-${row.strategy}`} className="rounded-xl border border-dark-700 p-3">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <div className="text-sm font-semibold text-gray-200">
-                    {row.symbol || '—'} · {row.strategy || '—'}
-                  </div>
-                  <Badge tone={row.direction === 'buy' ? 'jade' : row.direction === 'sell' ? 'ember' : 'gold'}>
-                    {row.direction === 'buy' ? 'AL' : row.direction === 'sell' ? 'SAT' : 'BEKLE'}
-                  </Badge>
-                </div>
-                <p className="mt-1 text-xs text-gray-400">{row.reason || 'Gerekçe bekleniyor.'}</p>
-                <p className="mt-1 text-[10px] text-gray-600">
-                  {row.timeframe ? `${row.timeframe} · ` : ''}{fmtDateTime(row.time)}
-                </p>
-              </div>
-            ))}
-          </div>
-        )}
-      </Card>
-
-      {/* ── 1. ÜST DURUM ─────────────────────────────────────────────────── */}
-      <Card>
-        <SectionTitle icon={BarChart3} title="Üretim Skoru" sub="Backtest doğrulama + stabilite + motor preflight" />
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-[0.9fr_1.4fr]">
-          <div className="rounded-xl border border-dark-700 p-3">
-            <div className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-gray-500">Çalışabilir eşleşme</div>
-            <div className={`text-sm font-bold ${preflight.ok ? 'text-emerald-300' : 'text-rose-300'}`}>
-              {preflight.ok ? 'HAZIR' : 'BLOKLU'}
-            </div>
-            <div className="mt-1 space-y-1 text-xs text-gray-500">
-              {(preflight.runnable || []).map((row) => (
-                <div key={`${row.symbol_key}-${row.strategy}`}>{row.symbol || row.symbol_key} → {row.strategy}</div>
-              ))}
-              {(preflight.blocked || []).slice(0, 2).map((row) => (
-                <div key={`${row.symbol_key}-${row.strategy}`} className="text-rose-300">{row.symbol || row.symbol_key} → {row.strategy}: {row.reason}</div>
-              ))}
-              {!preflight.runnable?.length && !preflight.blocked?.length && <div>Preflight bekleniyor.</div>}
-            </div>
-          </div>
-          <div className="overflow-x-auto rounded-xl border border-dark-700">
-            <table className="min-w-full text-left text-xs">
-              <thead className="bg-dark-800/70 text-[10px] uppercase tracking-wider text-gray-500">
-                <tr>
-                  <th className="px-3 py-2">Sembol</th>
-                  <th className="px-3 py-2">Strateji</th>
-                  <th className="px-3 py-2">Karar</th>
-                  <th className="px-3 py-2">Stabilite</th>
-                  <th className="px-3 py-2 text-right">Skor</th>
-                </tr>
-              </thead>
-              <tbody>
-                {scoreRows.slice(0, 4).map((row) => (
-                  <tr key={`${row.symbol}-${row.strategy}`} className="border-t border-dark-700">
-                    <td className="px-3 py-2 text-gray-300">{row.symbol || '—'}</td>
-                    <td className="px-3 py-2 text-gray-300">{row.strategy || '—'}</td>
-                    <td className="px-3 py-2">
-                      <Badge tone={row.validation?.status === 'approved' ? 'jade' : row.validation?.status === 'rejected' ? 'ember' : 'gold'}>
-                        {row.validation?.status || '—'}
-                      </Badge>
-                    </td>
-                    <td className="px-3 py-2 text-gray-400">{row.stability?.status || '—'}</td>
-                    <td className="px-3 py-2 text-right font-semibold text-gray-200">{fmtNum(row.validation?.score, 1)}</td>
-                  </tr>
-                ))}
-                {!scoreRows.length && (
-                  <tr>
-                    <td colSpan={5} className="px-3 py-4 text-center text-gray-500">Skor raporu bekleniyor.</td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-        {productionRow && (
-          <p className="mt-3 text-xs text-gray-500">
-            Üretim adayı: <span className="font-semibold text-emerald-300">{productionRow.symbol} → {productionRow.strategy}</span>.
-            Diğer stratejiler izleme listesinde kalır; motor preflight onayı olmadan otomatik açılmaz.
-          </p>
-        )}
-      </Card>
-
-      <Card>
-        {guard.ok === false && (
-          <div
-            className="mb-4 flex items-start gap-2 rounded-lg px-3 py-2.5 text-sm"
-            style={{ background: 'rgba(225,29,72,0.12)', border: '1px solid rgba(225,29,72,0.35)', color: 'var(--ember)' }}
-          >
-            <AlertTriangle className="mt-0.5 h-4 w-4 flex-shrink-0" aria-hidden="true" />
-            <span>
-              <strong>YANLIŞ HESAP / bot bağlı değil.</strong>
-              {guard.reason ? ` ${guard.reason}` : ' Beklenen MT5 hesabı ile bağlantı doğrulanamadı.'}
-            </span>
-          </div>
-        )}
-
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1.4fr_1fr]">
-          {/* Sol: hesap + K/Z */}
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-5">
-            <div>
-              <div className="mb-1 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-gray-500">
-                <PlugZap className="h-3.5 w-3.5" aria-hidden="true" /> Bağlantı
-              </div>
-              <div className={`text-sm font-bold ${connected ? 'text-emerald-300' : 'text-rose-300'}`}>
-                {connected ? 'Bağlı' : 'Kopuk'}
-              </div>
-              <div className="mt-0.5 truncate text-[11px] text-gray-500">
-                {acct.login ? `${acct.login}@${acct.server || '—'}` : '—'}
-              </div>
-            </div>
-
-            <div>
-              <div className="mb-1 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-gray-500">
-                <Activity className="h-3.5 w-3.5" aria-hidden="true" /> Mod
-              </div>
-              <div className={`text-sm font-bold ${status?.execution_mode === 'mt5' ? 'text-amber-300' : 'text-emerald-300'}`}>
-                {String(status?.execution_mode || 'mt5').toUpperCase()}
-              </div>
-              <div className="mt-0.5 text-[11px] text-gray-500">
-                MT5 demo emir
-              </div>
-            </div>
-
-            <div>
-              <div className="mb-1 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-gray-500">
-                <Wallet className="h-3.5 w-3.5" aria-hidden="true" /> Bakiye
-              </div>
-              <div className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>
-                {fmtMoney(acct.balance)} {acct.currency || ''}
-              </div>
-              <div className="mt-0.5 text-[11px] text-gray-500">
-                Varlık: {fmtMoney(acct.equity)} {acct.currency || ''}
-              </div>
-            </div>
-
-            <div>
-              <div className="mb-1 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-gray-500">
-                <TrendingUp className="h-3.5 w-3.5" aria-hidden="true" /> Günlük K/Z
-              </div>
-              <div className={`text-sm font-bold ${pnlCls(daily.total)}`}>
-                {fmtMoney(daily.total)} {acct.currency || ''}
-              </div>
-              <div className="mt-0.5 text-[11px] text-gray-500">
-                Kapanan {fmtMoney(daily.closed)} · Açık {fmtMoney(daily.floating)}
-              </div>
-            </div>
-
-            <div>
-              <div className="mb-1 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-gray-500">
-                <Target className="h-3.5 w-3.5" aria-hidden="true" /> Günlük Limit
-              </div>
-              <div className={`text-sm font-bold ${limit.hit ? 'text-rose-300' : 'text-emerald-300'}`}>
-                {limit.hit ? 'ULAŞILDI' : 'Aktif değil'}
-              </div>
-              <div className="mt-0.5 text-[11px] text-gray-500">
-                {limit.hit
-                  ? `${limit.kind || ''} · ${limit.action || ''} · ${fmtMoney(limit.pnl)}/${fmtMoney(limit.limit)}`
-                  : (limit.limit != null ? `Sınır: ${fmtMoney(limit.limit)}` : 'Sınır tanımsız')}
-              </div>
-            </div>
-          </div>
-
-          {/* Sağ: büyük OTOMATİK İŞLEM anahtarı */}
-          <div
-            className="flex items-center justify-between gap-3 rounded-xl p-4"
-            style={{
-              background: engineOn ? 'rgba(16,185,129,0.08)' : 'var(--bg-elevated)',
-              border: `1px solid ${engineOn ? 'var(--border-gold)' : 'var(--border-subtle)'}`,
-            }}
-          >
-            <div className="min-w-0">
-              <div className="text-[11px] font-semibold uppercase tracking-wider text-gray-500">Otomatik İşlem</div>
-              <div className={`mt-0.5 text-lg font-bold ${engineOn ? 'text-emerald-300' : 'text-gray-400'}`}>
-                {engineOn ? 'ÇALIŞIYOR' : 'DURDU'}
-              </div>
-              {status?.active_strategy && (
-                <div className="mt-0.5 truncate text-[11px] text-gray-500">Strateji: {status.active_strategy}</div>
-              )}
-            </div>
-            <button
-              type="button"
-              onClick={toggleEngine}
-              disabled={engineBusy}
-              aria-pressed={engineOn}
-              aria-label="Otomatik işlemi aç/kapat"
-              className="relative inline-flex h-9 w-16 flex-shrink-0 items-center rounded-full transition-colors disabled:opacity-60"
-              style={{ background: engineOn ? 'var(--gold-400)' : 'var(--border-subtle)' }}
-            >
-              <span
-                className="inline-flex h-7 w-7 transform items-center justify-center rounded-full bg-white shadow transition-transform"
-                style={{ transform: engineOn ? 'translateX(30px)' : 'translateX(4px)' }}
-              >
-                <Power className="h-3.5 w-3.5" style={{ color: engineOn ? 'var(--gold-500)' : 'var(--text-muted)' }} aria-hidden="true" />
-              </span>
-            </button>
-          </div>
-        </div>
-      </Card>
-
-      {/* ── 2. AÇIK İŞLEMLER ─────────────────────────────────────────────── */}
-      <Card padding="none">
-        <div className="flex items-center justify-between gap-2 border-b border-dark-700 px-4 py-3">
-          <SectionTitle icon={ListChecks} title="Açık İşlemler" sub={`${positions.length} pozisyon`} />
-          {positions.length > 0 && (
-            <Button variant="danger" size="sm" icon={X} loading={closingAll} onClick={closeAll}>
-              Tümünü Kapat
-            </Button>
-          )}
-        </div>
-        {positions.length === 0 ? (
-          <EmptyState compact icon={ListChecks} title="Açık pozisyon yok" description="Bot pozisyon açtığında burada listelenir." />
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="text-left text-[11px] uppercase tracking-wider text-gray-500">
-                  <th className="px-3 py-2 font-semibold">Bilet</th>
-                  <th className="px-3 py-2 font-semibold">Sembol</th>
-                  <th className="px-3 py-2 font-semibold">Yön</th>
-                  <th className="px-3 py-2 text-right font-semibold">Lot</th>
-                  <th className="px-3 py-2 text-right font-semibold">Açılış</th>
-                  <th className="px-3 py-2 text-right font-semibold">SL</th>
-                  <th className="px-3 py-2 text-right font-semibold">TP</th>
-                  <th className="px-3 py-2 text-right font-semibold">Canlı K/Z</th>
-                  <th className="px-3 py-2" />
-                </tr>
-              </thead>
-              <tbody>
-                {positions.map((p) => (
-                  <tr key={p.ticket} className="border-t border-dark-700/60">
-                    <td className="px-3 py-2.5 font-mono text-xs text-gray-400">#{p.ticket}</td>
-                    <td className="px-3 py-2.5 font-semibold text-white">{p.symbol}</td>
-                    <td className="px-3 py-2.5"><DirBadge direction={p.direction} /></td>
-                    <td className="px-3 py-2.5 text-right text-gray-300">{fmtNum(p.volume, 2)}</td>
-                    <td className="px-3 py-2.5 text-right text-gray-300">{fmtNum(p.price_open, 2)}</td>
-                    <td className="px-3 py-2.5 text-right text-rose-300">{p.sl ? fmtNum(p.sl, 2) : '—'}</td>
-                    <td className="px-3 py-2.5 text-right text-emerald-300">{p.tp ? fmtNum(p.tp, 2) : '—'}</td>
-                    <td className={`px-3 py-2.5 text-right font-semibold ${pnlCls(p.profit)}`}>
-                      {fmtMoney(p.profit)}
-                      {p.swap ? <div className="text-[10px] font-normal text-gray-500">swap {fmtMoney(p.swap)}</div> : null}
-                    </td>
-                    <td className="px-3 py-2.5 text-right">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        loading={closingTicket === p.ticket}
-                        onClick={() => closePosition(p.ticket)}
-                      >
-                        Kapat
-                      </Button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </Card>
-
-      {/* ── 3. MANUEL İŞLEM ──────────────────────────────────────────────── */}
-      <Card>
-        <SectionTitle icon={Send} title="Manuel İşlem" sub="Boş bırakılan lot/SL/TP bot varsayılanını kullanır" />
-        <form onSubmit={submitManualTrade} className="space-y-3">
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
-            <Field label="Sembol">
-              <select className="input text-sm" value={mSymbol} onChange={(e) => setMSymbol(e.target.value)}>
-                <option value="gold">Altın</option>
-                <option value="btc">BTC</option>
-              </select>
-            </Field>
-            <Field label="Yön">
-              <select className="input text-sm" value={mDir} onChange={(e) => setMDir(e.target.value)}>
-                <option value="buy">AL</option>
-                <option value="sell">SAT</option>
-              </select>
-            </Field>
-            <Field label="Lot" hint="boş = oto">
-              <input className="input text-sm" type="number" step="0.01" min="0" placeholder="oto" value={mLot} onChange={(e) => setMLot(e.target.value)} />
-            </Field>
-            <Field label="SL fiyat" hint="boş = varsayılan">
-              <input className="input text-sm" type="number" step="0.01" placeholder="varsayılan" value={mSl} onChange={(e) => setMSl(e.target.value)} />
-            </Field>
-            <Field label="TP fiyat" hint="boş = varsayılan">
-              <input className="input text-sm" type="number" step="0.01" placeholder="varsayılan" value={mTp} onChange={(e) => setMTp(e.target.value)} />
-            </Field>
-          </div>
-          <div className="flex items-center gap-3">
-            <Button type="submit" variant={mDir === 'buy' ? 'gold' : 'danger'} icon={Send} loading={tradeBusy}>
-              {mDir === 'buy' ? 'AL Emri Gönder' : 'SAT Emri Gönder'}
-            </Button>
-            <span className="text-xs text-gray-500">{SYMBOL_LABEL[mSymbol]} · {mDir === 'buy' ? 'AL' : 'SAT'}</span>
-          </div>
-          {tradeMsg && <Feedback kind={tradeMsg.kind} text={tradeMsg.text} />}
-        </form>
-      </Card>
-
-      {/* ── BAĞIMSIZ PAPER BOT YARIŞI ──────────────────────────────────── */}
-      <Card padding="none">
-        <div className="border-b border-dark-700 px-4 py-3">
-          <SectionTitle
-            icon={BarChart3}
-            title="Bot Yarışı"
-            sub="Her strateji kendi 10.000 $ sanal hesabında; Telegram ve MT5 emirlerinden bağımsız"
-          >
-            <button
-              type="button"
-              onClick={toggleCompetitionMaster}
-              disabled={!competition || !!competitionBusy}
-              aria-pressed={!!competition?.enabled}
-              aria-label="Paper bot yarışını aç veya duraklat"
-              className="relative inline-flex h-8 w-14 items-center rounded-full transition-colors disabled:opacity-50"
-              style={{ background: competition?.enabled ? 'var(--gold-400)' : 'var(--border-subtle)' }}
-            >
-              <span
-                className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-white shadow transition-transform"
-                style={{ transform: competition?.enabled ? 'translateX(28px)' : 'translateX(4px)' }}
-              >
-                <Power className="h-3.5 w-3.5" style={{ color: competition?.enabled ? 'var(--gold-500)' : 'var(--text-muted)' }} aria-hidden="true" />
-              </span>
-            </button>
-          </SectionTitle>
-
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
-            {[
-              ['Yarışmacı', competition?.summary?.competitors ?? '—'],
-              ['Aktif', competition?.summary?.active ?? '—'],
-              ['Açık İşlem', competition?.summary?.open ?? '—'],
-              ['Kapanan', competition?.summary?.closed ?? '—'],
-              ['Sabit Risk', competition?.summary?.risk_pct != null ? `%${fmtNum(competition.summary.risk_pct, 1)}` : '—'],
-            ].map(([label, value]) => (
-              <div key={label} className="rounded-lg border border-dark-700 bg-dark-900/30 px-3 py-2">
-                <div className="text-[10px] font-semibold uppercase tracking-wider text-gray-500">{label}</div>
-                <div className="mt-0.5 text-base font-bold text-gray-200">{value}</div>
-              </div>
-            ))}
-          </div>
-
-          <div className="mt-3 rounded-lg border border-emerald-800/50 bg-emerald-950/20 px-3 py-2 text-xs leading-relaxed text-emerald-200">
-            Bu tablo yalnızca paper işlemleri gösterir. Botlar birbirinin pozisyonuna dokunamaz; sıralama otomatik olarak canlı veya demo MT5 yetkisi vermez.
-          </div>
-
-          {competition?.champion ? (
-            <div className="mt-3 rounded-lg border border-amber-500/40 bg-amber-500/10 px-4 py-3">
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="text-lg" aria-hidden="true">👑</span>
-                <span className="text-[10px] font-semibold uppercase tracking-wider text-amber-300">Şampiyon Strateji · Geliştirme Önceliği</span>
-              </div>
-              <div className="mt-1 text-base font-bold text-amber-100">{competition.champion.name}</div>
-              <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-xs text-amber-200/90">
-                <span>Birleşik skor <b>{fmtNum(competition.champion.champion_score, 2)}</b></span>
-                <span>Kalite {fmtNum(competition.champion.quality_score, 1)}</span>
-                <span>Tutarlılık {fmtNum(competition.champion.consistency_score, 1)}</span>
-                <span>Net {Number(competition.champion.net_r) > 0 ? '+' : ''}{fmtNum(competition.champion.net_r, 2)}R</span>
-                <span>{competition.champion.closed} kapanış</span>
-              </div>
-              <div className="mt-2 text-[11px] leading-relaxed text-amber-200/80">{competition.champion.rationale}</div>
-            </div>
-          ) : (
-            <div className="mt-3 rounded-lg border border-dark-700 bg-dark-900/30 px-4 py-2.5 text-xs text-gray-400">
-              👑 Şampiyon henüz seçilmedi — bir strateji ≥15 kapanışla pozitif beklenti göstermeli. En istikrarlı strateji belirlenince burada öne çıkar.
-            </div>
-          )}
-
-          {competitionAlerts.map((alert) => (
-            <div key={alert.code || alert.message} className="mt-2 flex items-start gap-2 rounded-lg border border-amber-800/50 bg-amber-950/20 px-3 py-2 text-xs text-amber-200">
-              <AlertTriangle className="mt-0.5 h-3.5 w-3.5 flex-shrink-0" aria-hidden="true" />
-              <span>{alert.message}</span>
-            </div>
-          ))}
-          {competitionMsg && <div className="mt-3"><Feedback kind={competitionMsg.kind} text={competitionMsg.text} /></div>}
-        </div>
-
-        {competitionRows.length === 0 ? (
-          <p className="py-6 text-center text-sm text-gray-500">Yarış tablosu yükleniyor…</p>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[980px] text-sm">
-              <thead>
-                <tr className="border-b border-dark-700 text-left text-[10px] uppercase tracking-wider text-gray-500">
-                  <th className="px-3 py-2 font-semibold">Sıra / Bot</th>
-                  <th className="px-3 py-2 text-center font-semibold">Durum</th>
-                  <th className="px-3 py-2 text-right font-semibold">Sermaye</th>
-                  <th className="px-3 py-2 text-right font-semibold">Açık / Kapalı</th>
-                  <th className="px-3 py-2 text-right font-semibold">Kazanma</th>
-                  <th className="px-3 py-2 text-right font-semibold">Net R</th>
-                  <th className="px-3 py-2 text-right font-semibold">Getiri / DD</th>
-                  <th className="px-3 py-2 font-semibold">En İyi Parite</th>
-                  <th className="px-3 py-2 text-center font-semibold">Yarış</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-dark-700/60">
-                {competitionRows.map((bot) => (
-                  <tr key={bot.id} className="hover:bg-dark-800/40">
-                    <td className="px-3 py-3">
-                      <div className="flex items-center gap-2">
-                        <span className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold ${bot.rank <= 3 ? 'bg-amber-400/15 text-amber-300' : 'bg-dark-700 text-gray-400'}`}>
-                          {bot.rank}
-                        </span>
-                        <div>
-                          <div className="font-semibold text-gray-200">
-                            {bot.is_champion && <span className="mr-1" title="Şampiyon strateji">👑</span>}{bot.name}
-                          </div>
-                          <div className="text-[10px] text-gray-500">
-                            {bot.category} · skor {fmtNum(bot.score, 2)}
-                            {bot.trading_days > 0 && <> · tutarlılık {fmtNum(bot.consistency_score, 0)} (%{fmtNum(bot.positive_day_rate, 0)} poz. gün)</>}
-                          </div>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-3 py-3 text-center">
-                      <Badge tone={bot.runtime_status === 'active' ? 'jade' : bot.runtime_status === 'engine-disabled' ? 'ember' : 'neutral'}>
-                        {bot.runtime_status === 'active' ? 'AKTİF' : bot.runtime_status === 'engine-disabled' ? 'MOTOR KAPALI' : 'DURAKLATILDI'}
-                      </Badge>
-                      <div className="mt-1 text-[10px] text-gray-500" title={bot.recommendation || ''}>
-                        {stageLabel[bot.sample_stage] || bot.sample_stage} · risk x{fmtNum(bot.risk_multiplier, 2)}
-                      </div>
-                    </td>
-                    <td className={`px-3 py-3 text-right font-mono font-semibold ${Number(bot.equity) >= 10000 ? 'text-emerald-300' : 'text-rose-300'}`}>
-                      ${fmtMoney(bot.equity)}
-                    </td>
-                    <td className="px-3 py-3 text-right text-gray-300">{bot.open} / {bot.closed}</td>
-                    <td className="px-3 py-3 text-right text-gray-300">%{fmtNum(bot.win_rate, 1)}</td>
-                    <td className={`px-3 py-3 text-right font-semibold ${Number(bot.net_r) >= 0 ? 'text-emerald-300' : 'text-rose-300'}`}>
-                      {Number(bot.net_r) > 0 ? '+' : ''}{fmtNum(bot.net_r, 2)}R
-                    </td>
-                    <td className="px-3 py-3 text-right">
-                      <div className={Number(bot.normalized_return_pct) >= 0 ? 'text-emerald-300' : 'text-rose-300'}>
-                        {Number(bot.normalized_return_pct) > 0 ? '+' : Number(bot.normalized_return_pct) < 0 ? '-' : ''}%{fmtNum(Math.abs(Number(bot.normalized_return_pct)), 2)}
-                      </div>
-                      <div className="text-[10px] text-gray-500">DD %{fmtNum(bot.max_drawdown_pct, 2)}</div>
-                    </td>
-                    <td className="px-3 py-3">
-                      {bot.best_pair ? (
-                        <div>
-                          <div className="font-semibold text-gray-300">{bot.best_pair.symbol}</div>
-                          <div className="text-[10px] text-gray-500">{fmtNum(bot.best_pair.net_r, 2)}R · {bot.best_pair.closed} işlem</div>
-                        </div>
-                      ) : <span className="text-gray-600">Veri bekleniyor</span>}
-                    </td>
-                    <td className="px-3 py-3 text-center">
-                      <button
-                        type="button"
-                        onClick={() => toggleCompetitionBot(bot)}
-                        disabled={!!competitionBusy}
-                        aria-pressed={!!bot.enabled}
-                        aria-label={`${bot.name} yarışını aç veya duraklat`}
-                        className="relative inline-flex h-7 w-12 items-center rounded-full transition-colors disabled:opacity-50"
-                        style={{ background: bot.enabled ? 'var(--gold-400)' : 'var(--border-subtle)' }}
-                      >
-                        <span
-                          className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-white shadow transition-transform"
-                          style={{ transform: bot.enabled ? 'translateX(24px)' : 'translateX(4px)' }}
-                        >
-                          <Power className="h-3 w-3" style={{ color: bot.enabled ? 'var(--gold-500)' : 'var(--text-muted)' }} aria-hidden="true" />
-                        </span>
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-
-        <div className="border-t border-dark-700 px-4 py-3">
-          <div className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-gray-500">Genel En İyi Bot + Parite Eşleşmeleri</div>
-          <div className="flex flex-wrap gap-2">
-            {pairRows.slice(0, 5).map((pair, index) => (
-              <div key={`${pair.bot_id}-${pair.symbol}`} className="rounded-lg border border-dark-700 bg-dark-900/30 px-3 py-2 text-xs">
-                <span className="font-bold text-amber-300">#{index + 1}</span>{' '}
-                <span className="font-semibold text-gray-200">{pair.bot_name} · {pair.symbol}</span>
-                <span className={Number(pair.net_r) >= 0 ? 'ml-2 text-emerald-300' : 'ml-2 text-rose-300'}>
-                  {Number(pair.net_r) > 0 ? '+' : ''}{fmtNum(pair.net_r, 2)}R
-                </span>
-                <span className="ml-2 text-gray-500">{pair.closed} işlem</span>
-              </div>
-            ))}
-            {pairRows.length === 0 && <span className="text-xs text-gray-500">Parite sıralaması için kapanan işlem bekleniyor.</span>}
-          </div>
-          <p className="mt-2 text-[10px] text-gray-500">
-            Haber Uyarıları ve MT5 Kâr/Zarar Raporu destek servisidir; sinyal üretmedikleri için yarışa ve işlem açmaya dahil değildir.
-          </p>
-        </div>
-      </Card>
-
-      {/* ── TELEGRAM BİLDİRİM BOTLARI ───────────────────────────────────── */}
-      <Card>
-        <SectionTitle
-          icon={Bot}
-          title="Telegram Bildirim Botları"
-          sub="Tüm sinyal ve uyarı üreticileri tek yerde"
-        >
-          <Badge tone={notificationBots?.telegram?.token_configured ? 'jade' : 'ember'} dot>
-            {notificationBots?.telegram?.token_configured
-              ? `@${notificationBots?.telegram?.username || 'Borsa_krali_aibot'}`
-              : 'BOT BAĞLI DEĞİL'}
-          </Badge>
-        </SectionTitle>
-
-        <div className="mb-3 flex flex-wrap items-center gap-2 text-xs text-gray-500">
-          <Badge tone="jade">{notificationBots?.enabled ?? 0} açık</Badge>
-          <Badge tone="gold">{notificationBots?.ready ?? 0} gönderime hazır</Badge>
-          <span>Bir botu kapatmak yalnızca onun bildirimini durdurur; diğer botları etkilemez.</span>
-        </div>
-
-        {telegramRows.length === 0 ? (
-          <p className="py-5 text-center text-sm text-gray-500">Telegram bot kataloğu yükleniyor…</p>
-        ) : (
-          <div className="grid grid-cols-1 gap-2 md:grid-cols-2 xl:grid-cols-3">
-            {telegramRows.map((bot) => (
-              <div
-                key={bot.id}
-                className="flex min-h-[132px] flex-col justify-between rounded-xl border border-dark-700 bg-dark-900/30 p-3"
-              >
-                <div>
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className="truncate text-sm font-semibold text-gray-200">{bot.name}</span>
-                        <Badge tone={bot.ready ? 'jade' : bot.enabled ? 'gold' : 'neutral'}>{bot.category}</Badge>
-                      </div>
-                      <p className="mt-1 text-xs leading-relaxed text-gray-500">{bot.description}</p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => toggleNotificationBot(bot)}
-                      disabled={notificationBusy === bot.id}
-                      aria-pressed={!!bot.enabled}
-                      aria-label={`${bot.name} bildirimini aç veya kapat`}
-                      className="relative inline-flex h-7 w-12 flex-shrink-0 items-center rounded-full transition-colors disabled:opacity-50"
-                      style={{ background: bot.enabled ? 'var(--gold-400)' : 'var(--border-subtle)' }}
-                    >
-                      <span
-                        className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-white shadow transition-transform"
-                        style={{ transform: bot.enabled ? 'translateX(24px)' : 'translateX(4px)' }}
-                      >
-                        <Power className="h-3 w-3" style={{ color: bot.enabled ? 'var(--gold-500)' : 'var(--text-muted)' }} aria-hidden="true" />
-                      </span>
-                    </button>
-                  </div>
-                </div>
-                <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-dark-700/60 pt-2 text-[10px] text-gray-500">
-                  <span>{bot.schedule}</span>
-                  <span className={bot.ready ? 'text-emerald-300' : bot.enabled ? 'text-amber-300' : 'text-gray-500'}>
-                    {bot.ready ? 'Gönderime hazır' : bot.enabled ? 'Kanal bekleniyor' : 'Kapalı'}
-                  </span>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-        {notificationMsg && <div className="mt-3"><Feedback kind={notificationMsg.kind} text={notificationMsg.text} /></div>}
-      </Card>
-
-      {/* ── 4. AYARLAR ───────────────────────────────────────────────────── */}
-      <Card>
-        <SectionTitle icon={Settings} title="Ayarlar" sub="Risk, limit, sembol ve strateji">
-          <Button variant="gold" size="sm" loading={cfgBusy} disabled={!form} onClick={saveConfig}>
-            Kaydet
-          </Button>
-        </SectionTitle>
-
-        {!form ? (
-          <p className="py-6 text-center text-sm text-gray-500">Ayarlar yükleniyor…</p>
-        ) : (
-          <div className="space-y-5">
-            {/* Risk & lot */}
-            <div>
-              <div className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-gray-500">Risk & Lot</div>
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-                <Field label="Lot modu">
-                  <select className="input text-sm" value={form.lotMode} onChange={(e) => setF({ lotMode: e.target.value })}>
-                    <option value="auto">Otomatik (risk %)</option>
-                    <option value="manual">Sabit lot</option>
-                  </select>
-                </Field>
-                <Field label="Sabit lot" hint="lot modu = sabit">
-                  <input className="input text-sm" type="number" step="0.01" min="0" value={form.fixedLot} onChange={(e) => setF({ fixedLot: e.target.value })} />
-                </Field>
-                <Field label="Risk %" hint="lot modu = oto">
-                  <input className="input text-sm" type="number" step="0.1" min="0" value={form.riskPercent} onChange={(e) => setF({ riskPercent: e.target.value })} />
-                </Field>
-                <Field label="Max açık toplam">
-                  <input className="input text-sm" type="number" step="1" min="0" value={form.maxOpen} onChange={(e) => setF({ maxOpen: e.target.value })} />
-                </Field>
-                <Field label="Max açık / sembol">
-                  <input className="input text-sm" type="number" step="1" min="0" value={form.maxPerSymbol} onChange={(e) => setF({ maxPerSymbol: e.target.value })} />
-                </Field>
-                <Field label="Varsayılan SL (puan)">
-                  <input className="input text-sm" type="number" step="1" min="0" value={form.defaultSl} onChange={(e) => setF({ defaultSl: e.target.value })} />
-                </Field>
-                <Field label="Varsayılan TP (puan)">
-                  <input className="input text-sm" type="number" step="1" min="0" value={form.defaultTp} onChange={(e) => setF({ defaultTp: e.target.value })} />
-                </Field>
-              </div>
-            </div>
-
-            {/* Demo-only execution + verified account lock */}
-            <div>
-              <div className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-gray-500">MT5 Demo Hesap Kilidi</div>
-              <div className="grid grid-cols-1 gap-3 lg:grid-cols-[1fr_1fr_auto]">
-                <div className="rounded-lg border border-dark-700 bg-dark-900/40 px-3 py-2.5">
-                  <div className="text-[10px] font-semibold uppercase tracking-wider text-gray-500">Kilitli Hesap</div>
-                  <div className="mt-1 font-mono text-sm font-semibold text-gray-200">
-                    {Number(lockedAccount.login || 0) > 0
-                      ? `${lockedAccount.login}@${lockedAccount.server || '—'}`
-                      : 'Henüz kilitlenmedi'}
-                  </div>
-                </div>
-                <div className="rounded-lg border border-dark-700 bg-dark-900/40 px-3 py-2.5">
-                  <div className="text-[10px] font-semibold uppercase tracking-wider text-gray-500">MT5'te Açık Hesap</div>
-                  <div className="mt-1 flex flex-wrap items-center gap-2 font-mono text-sm font-semibold text-gray-200">
-                    <span>{acct.login ? `${acct.login}@${acct.server || '—'}` : 'Hesap bekleniyor'}</span>
-                    <Badge tone={liveAccountIsDemo ? 'jade' : 'ember'}>{liveAccountIsDemo ? 'DEMO' : 'DOĞRULANMADI'}</Badge>
-                  </div>
-                </div>
-                <Button
-                  variant={sameLockedAccount ? 'outline' : 'gold'}
-                  icon={LockKeyhole}
-                  loading={accountBindBusy}
-                  disabled={!liveAccountIsDemo || !acct.login || sameLockedAccount}
-                  onClick={bindCurrentDemoAccount}
-                >
-                  {sameLockedAccount ? 'Hesap Kilitli' : 'Bağlı Demo Hesabına Kilitle'}
-                </Button>
-              </div>
-              <p className="mt-2 text-xs text-gray-500">
-                Numara elle yazılmaz. İşlem motoru durdurulur, açık bot pozisyonları kontrol edilir ve MT5'in demo doğrulaması zorunlu tutulur.
-              </p>
-              {accountMsg && <div className="mt-2"><Feedback kind={accountMsg.kind} text={accountMsg.text} /></div>}
-            </div>
-
-            {/* Günlük limit */}
-            <div>
-              <div className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-gray-500">Günlük Limit</div>
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-                <Field label="Durum">
-                  <div className="flex h-[38px] items-center gap-2 text-sm font-semibold text-emerald-300">
-                    <CheckCircle2 className="h-4 w-4" aria-hidden="true" /> Daima aktif
-                  </div>
-                </Field>
-                <Field label="Max zarar">
-                  <input className="input text-sm" type="number" step="0.01" min="0" value={form.dailyMaxLoss} onChange={(e) => setF({ dailyMaxLoss: e.target.value })} />
-                </Field>
-                <Field label="Max kâr">
-                  <input className="input text-sm" type="number" step="0.01" min="0" value={form.dailyMaxProfit} onChange={(e) => setF({ dailyMaxProfit: e.target.value })} />
-                </Field>
-                <Field label="Davranış">
-                  <div className="flex h-[38px] items-center text-sm text-gray-300">Tümünü kapat + durdur</div>
-                </Field>
-              </div>
-            </div>
-
-            {/* Sembol aktifliği */}
-            <div>
-              <div className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-gray-500">Semboller</div>
-              <div className="flex flex-wrap gap-3">
-                <label className="flex items-center gap-2 rounded-lg border border-dark-700 px-3 py-2 text-sm text-gray-300">
-                  <input type="checkbox" className="h-4 w-4 accent-emerald-500" checked={!!form.goldEnabled} onChange={(e) => setF({ goldEnabled: e.target.checked })} />
-                  <Coins className="h-4 w-4 text-gold-300" aria-hidden="true" /> Altın
-                </label>
-                <label className="flex items-center gap-2 rounded-lg border border-dark-700 px-3 py-2 text-sm text-gray-300">
-                  <input type="checkbox" className="h-4 w-4 accent-emerald-500" checked={!!form.btcEnabled} onChange={(e) => setF({ btcEnabled: e.target.checked })} />
-                  <Bitcoin className="h-4 w-4 text-gold-300" aria-hidden="true" /> BTC
-                </label>
-              </div>
-            </div>
-
-            {/* Strateji */}
-            <div>
-              <div className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-gray-500">Strateji</div>
-              <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
-                {STRATEGY_SYMBOLS.map((symbolKey) => {
-                  const selectedNames = normalizeStrategyNames(form.strategyAssignments?.[symbolKey])
-                  const options = strategies.filter((strategy) => supportsSymbol(strategy, symbolKey))
-                  const verified = normalizeStrategyNames(config?.strategy?.verified_assignments?.[symbolKey])
-                  const candidates = normalizeStrategyNames(config?.strategy?.candidate_assignments?.[symbolKey])
-                  return (
-                    <div key={symbolKey} className="rounded-lg border border-dark-700 p-3">
-                      <div className="flex items-center justify-between gap-2">
-                        <div className="flex items-center gap-2 text-sm font-semibold text-gray-200">
-                          {symbolKey === 'gold'
-                            ? <Coins className="h-4 w-4 text-gold-300" aria-hidden="true" />
-                            : <Bitcoin className="h-4 w-4 text-gold-300" aria-hidden="true" />}
-                          {SYMBOL_LABEL[symbolKey]}
-                        </div>
-                        <span className="text-xs text-gray-500">{selectedNames.length} seçili</span>
-                      </div>
-                      <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
-                        {options.map((strategy) => {
-                          const checked = selectedNames.includes(strategy.name)
-                          const isVerified = verified.includes(strategy.name)
-                          const isCandidate = candidates.includes(strategy.name)
-                          return (
-                            <label
-                              key={`${symbolKey}-${strategy.name}`}
-                              className={`flex min-h-[54px] cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 text-sm transition ${
-                                checked
-                                  ? 'border-emerald-400/70 bg-emerald-500/10 text-emerald-100'
-                                  : 'border-dark-700 bg-dark-900/40 text-gray-300 hover:border-dark-600'
-                              }`}
-                            >
-                              <input
-                                type="checkbox"
-                                className="h-4 w-4 flex-shrink-0 accent-emerald-500"
-                                checked={checked}
-                                disabled={!isVerified}
-                                onChange={() => toggleStrategyAssignment(symbolKey, strategy.name)}
-                              />
-                              <span className="min-w-0">
-                                <span className="block truncate font-medium">{strategy.display_name || strategy.name}</span>
-                                <span className="text-[10px] uppercase tracking-wider text-gray-500">
-                                  {isVerified ? 'onaylı' : isCandidate ? 'araştırma adayı' : 'doğrulanmamış'}
-                                </span>
-                              </span>
-                            </label>
-                          )
-                        })}
-                        {!options.length && (
-                          <div className="rounded-lg border border-dark-700 px-3 py-2 text-xs text-gray-500">Uygun strateji yok.</div>
-                        )}
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-
-              <div className="mt-3 flex items-start gap-2 rounded-lg border border-emerald-500/25 bg-emerald-500/5 px-3 py-2 text-sm text-emerald-100">
-                <ShieldAlert className="mt-0.5 h-4 w-4 flex-shrink-0" aria-hidden="true" />
-                <span>Yalnızca doğrulanmış champion stratejiler çalışabilir. Adaylar aşağıdaki araştırma bölümünden onaylanır.</span>
-              </div>
-
-              <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <Field label="Parametre düzenle">
-                  <select className="input text-sm" value={form.strategyActive || ''} onChange={(e) => onStrategyChange(e.target.value)}>
-                    <option value="">— seçin —</option>
-                    {strategies.map((s) => (
-                      <option key={s.name} value={s.name}>{s.display_name || s.name}</option>
-                    ))}
-                  </select>
-                </Field>
-                {selectedStrategy?.description && (
-                  <div className="flex items-end">
-                    <p className="text-xs leading-relaxed text-gray-500">{selectedStrategy.description}</p>
-                  </div>
-                )}
-              </div>
-
-              {selectedStrategy && Object.keys(selectedStrategy.default_params || {}).length > 0 && (
-                <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
-                  {Object.entries(selectedStrategy.default_params).map(([key, def]) => {
-                    const val = form.strategyParams?.[key]
-                    const isBool = typeof def === 'boolean'
-                    const isNum = typeof def === 'number'
-                    const setParam = (v) => setF({ strategyParams: { ...(form.strategyParams || {}), [key]: v } })
-                    return (
-                      <Field key={key} label={key}>
-                        {isBool ? (
-                          <label className="flex h-[38px] items-center gap-2 text-sm text-gray-300">
-                            <input
-                              type="checkbox"
-                              className="h-4 w-4 accent-emerald-500"
-                              checked={val ?? def}
-                              onChange={(e) => setParam(e.target.checked)}
-                            />
-                            {val ?? def ? 'Açık' : 'Kapalı'}
-                          </label>
-                        ) : (
-                          <input
-                            className="input text-sm"
-                            type={isNum ? 'number' : 'text'}
-                            step={isNum ? 'any' : undefined}
-                            value={val ?? def ?? ''}
-                            onChange={(e) => setParam(isNum ? toNum(e.target.value) : e.target.value)}
-                          />
-                        )}
-                      </Field>
-                    )
-                  })}
-                </div>
-              )}
-            </div>
-
-            {cfgMsg && <Feedback kind={cfgMsg.kind} text={cfgMsg.text} />}
-          </div>
-        )}
-      </Card>
-
-      {/* ── 5. WALK-FORWARD ARAŞTIRMA + İNSAN ONAYI ─────────────────────── */}
-      <Card padding="none">
-        <div className="border-b border-dark-700 px-4 py-3">
-          <SectionTitle
-            icon={FlaskConical}
-            title="Walk-Forward Araştırma ve Onay"
-            sub="Kronolojik fold, final holdout, maliyet stresi ve kontrollü champion geçişi"
-          >
-            <Button
-              variant="gold"
-              size="sm"
-              icon={RefreshCw}
-              loading={researchBusy || researchRunning}
-              disabled={researchRunning}
-              onClick={runResearch}
-            >
-              {researchRunning ? 'Araştırma Çalışıyor' : 'Araştırmayı Başlat'}
-            </Button>
-          </SectionTitle>
-          <div className="flex flex-wrap items-center gap-2 text-xs text-gray-500">
-            <Badge tone={researchStatus?.last_error ? 'ember' : researchRunning ? 'gold' : 'jade'} dot>
-              {researchStatus?.last_error ? 'HATA' : researchRunning ? 'ÇALIŞIYOR' : 'HAZIR'}
-            </Badge>
-            <span>
-              {researchStatus?.last_error
-                ? researchStatus.last_error
-                : researchRunning
-                  ? 'MT5 geçmiş verileri ve walk-forward katları işleniyor.'
-                  : `Son tamamlanma: ${fmtDateTime(researchStatus?.last_finished || researchLatest?.generated_at)}`}
-            </span>
-          </div>
-          {researchMsg && <div className="mt-3"><Feedback kind={researchMsg.kind} text={researchMsg.text} /></div>}
-        </div>
-
-        {researchRows.length === 0 ? (
-          <EmptyState
-            compact
-            icon={FlaskConical}
-            title={researchRunning ? 'Araştırma devam ediyor' : 'Henüz aday raporu yok'}
-            description="Sonuçlar hazır olduğunda adaylar ve bütün güvenlik kapıları burada görünür."
-          />
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="min-w-full text-sm">
-              <thead>
-                <tr className="text-left text-[11px] uppercase tracking-wider text-gray-500">
-                  <th className="px-3 py-2 font-semibold">Piyasa / Strateji</th>
-                  <th className="px-3 py-2 text-right font-semibold">Fold</th>
-                  <th className="px-3 py-2 text-right font-semibold">OOS İşlem</th>
-                  <th className="px-3 py-2 text-right font-semibold">Holdout PF</th>
-                  <th className="px-3 py-2 text-right font-semibold">Holdout %</th>
-                  <th className="px-3 py-2 text-right font-semibold">2× Spread %</th>
-                  <th className="px-3 py-2 font-semibold">Kapılar</th>
-                  <th className="px-3 py-2 text-right font-semibold">Karar</th>
-                </tr>
-              </thead>
-              <tbody>
-                {researchRows.map((row) => {
-                  const allPass = !!row?.gates?.all_pass
-                  const fold = row?.fold_summary || {}
-                  const holdout = row?.holdout_metrics || {}
-                  const stress = row?.double_spread_metrics || {}
-                  return (
-                    <tr key={`${row.symbol_key}-${row.strategy}`} className="border-t border-dark-700/60">
-                      <td className="px-3 py-2.5">
-                        <div className="font-semibold text-white">{row.symbol || row.symbol_key}</div>
-                        <div className="text-xs text-gray-500">{row.strategy}</div>
-                      </td>
-                      <td className="px-3 py-2.5 text-right text-gray-300">{fold.count || 0}</td>
-                      <td className="px-3 py-2.5 text-right text-gray-300">{fold.total_oos_trades || 0}</td>
-                      <td className="px-3 py-2.5 text-right text-gray-300">{fmtNum(holdout.profit_factor, 2)}</td>
-                      <td className={`px-3 py-2.5 text-right ${pnlCls(holdout.total_return_pct)}`}>{fmtNum(holdout.total_return_pct, 2)}</td>
-                      <td className={`px-3 py-2.5 text-right ${pnlCls(stress.total_return_pct)}`}>{fmtNum(stress.total_return_pct, 2)}</td>
-                      <td className="px-3 py-2.5">
-                        <Badge tone={allPass ? 'jade' : 'ember'}>{allPass ? 'ONAYA HAZIR' : 'RED'}</Badge>
-                      </td>
-                      <td className="px-3 py-2.5">
-                        <div className="flex justify-end gap-2">
-                          <Button
-                            variant={allPass ? 'gold' : 'outline'}
-                            size="sm"
-                            disabled={!allPass || researchBusy || positions.length > 0}
-                            onClick={() => approveResearch(row)}
-                          >
-                            Onayla
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            icon={RotateCcw}
-                            disabled={researchBusy || positions.length > 0}
-                            onClick={() => rollbackResearch(row.symbol_key)}
-                          >
-                            Geri Al
-                          </Button>
-                        </div>
-                      </td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
-        <div className="border-t border-dark-700 px-4 py-3 text-xs text-gray-500">
-          Araştırma hiçbir zaman emir göndermez. Aday ancak bütün kapıları geçip yönetici tarafından onaylandığında MT5 demo champion olur; açık bot pozisyonu varken onay ve geri alma engellenir.
-        </div>
-      </Card>
-
-      {/* ── 6. İŞLEM GEÇMİŞİ + İSTATİSTİK ────────────────────────────────── */}
-      <Card padding="none">
-        <div className="border-b border-dark-700 px-4 py-3">
-          <SectionTitle icon={History} title="İşlem Geçmişi" sub="Son 100 kapanan işlem" />
-        </div>
-
-        {/* Mini istatistik */}
-        <div className="grid grid-cols-2 gap-px border-b border-dark-700 bg-dark-700 sm:grid-cols-4">
-          {[
-            { label: 'Toplam İşlem', value: fmtNum(stats?.total ?? stats?.total_trades ?? trades.length, 0), cls: 'text-white' },
-            { label: 'Kazanma %', value: stats?.win_rate != null ? `%${fmtNum(stats.win_rate, 1)}` : (stats?.winrate != null ? `%${fmtNum(stats.winrate, 1)}` : '—'), cls: 'text-gold-300' },
-            { label: 'Profit Factor', value: fmtNum(stats?.profit_factor ?? stats?.profitFactor, 2), cls: 'text-white' },
-            { label: 'Toplam K/Z', value: fmtMoney(stats?.total_profit ?? stats?.net_profit ?? stats?.total_pnl), cls: pnlCls(stats?.total_profit ?? stats?.net_profit ?? stats?.total_pnl) },
-          ].map((s) => (
-            <div key={s.label} className="bg-dark-900 px-3 py-3">
-              <div className="text-[10px] font-semibold uppercase tracking-wider text-gray-500">{s.label}</div>
-              <div className={`mt-1 text-lg font-bold ${s.cls}`}>{s.value}</div>
-            </div>
-          ))}
-        </div>
-
-        {trades.length === 0 ? (
-          <EmptyState compact icon={History} title="Kapanan işlem yok" description="Bot işlem kapattıkça burada görünür." />
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="text-left text-[11px] uppercase tracking-wider text-gray-500">
-                  <th className="px-3 py-2 font-semibold">Sembol</th>
-                  <th className="px-3 py-2 font-semibold">Yön</th>
-                  <th className="px-3 py-2 text-right font-semibold">Lot</th>
-                  <th className="px-3 py-2 font-semibold">Açılış</th>
-                  <th className="px-3 py-2 text-right font-semibold">Aç. Fiyat</th>
-                  <th className="px-3 py-2 font-semibold">Kapanış</th>
-                  <th className="px-3 py-2 text-right font-semibold">Kap. Fiyat</th>
-                  <th className="px-3 py-2 font-semibold">Strateji</th>
-                  <th className="px-3 py-2 text-right font-semibold">K/Z</th>
-                </tr>
-              </thead>
-              <tbody>
-                {trades.map((t, i) => (
-                  <tr key={t.position_id ?? i} className="border-t border-dark-700/60">
-                    <td className="px-3 py-2.5 font-semibold text-white">{t.symbol}</td>
-                    <td className="px-3 py-2.5"><DirBadge direction={t.direction} /></td>
-                    <td className="px-3 py-2.5 text-right text-gray-300">{fmtNum(t.volume, 2)}</td>
-                    <td className="px-3 py-2.5 text-xs text-gray-400">{fmtDateTime(t.open_time)}</td>
-                    <td className="px-3 py-2.5 text-right text-gray-300">{fmtNum(t.open_price, 2)}</td>
-                    <td className="px-3 py-2.5 text-xs text-gray-400">{fmtDateTime(t.close_time)}</td>
-                    <td className="px-3 py-2.5 text-right text-gray-300">{fmtNum(t.close_price, 2)}</td>
-                    <td className="px-3 py-2.5 text-xs text-gray-400">{t.strategy || '—'}</td>
-                    <td className={`px-3 py-2.5 text-right font-semibold ${pnlCls(t.profit)}`}>{fmtMoney(t.profit)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </Card>
-
-      {/* ── 6. ANALİZ & ÖNERİLER ─────────────────────────────────────────── */}
-      <Card>
-        <SectionTitle icon={Sparkles} title="Analiz & Öneriler" sub={learn?.generated_at ? `Üretim: ${fmtDateTime(learn.generated_at)}` : 'Journal verisine göre öneriler'}>
-          <Button variant="outline" size="sm" icon={BarChart3} loading={learnBusy} onClick={runLearn}>
-            Analizi Çalıştır
-          </Button>
-        </SectionTitle>
-
-        {!learn ? (
-          <p className="py-4 text-center text-sm text-gray-500">Analizi başlatmak için “Analizi Çalıştır”a basın.</p>
-        ) : (
-          <div className="space-y-3">
-            {(learn.suggestions || []).length === 0 ? (
-              <p className="text-sm text-gray-500">Öneri yok — mevcut ayarlar uygun görünüyor.</p>
-            ) : (
-              <ul className="space-y-2">
-                {learn.suggestions.map((s, i) => {
-                  const sev = String(s.severity || 'info').toLowerCase()
-                  const tone = sev === 'high' || sev === 'critical' ? 'ember'
-                    : sev === 'medium' || sev === 'warn' || sev === 'warning' ? 'gold' : 'jade'
-                  return (
-                    <li key={i} className="flex items-start gap-2.5 rounded-lg border border-dark-700 px-3 py-2.5">
-                      <Badge tone={tone}>{(s.severity || 'bilgi').toUpperCase()}</Badge>
-                      <span className="text-sm text-gray-300">{s.text}</span>
-                    </li>
-                  )
-                })}
-              </ul>
-            )}
-            {learn.proposed_params && Object.keys(learn.proposed_params).length > 0 && (
-              <div className="rounded-lg border border-dark-700 bg-dark-800/40 px-3 py-3">
-                <div className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-gray-500">Önerilen parametreler</div>
-                <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs sm:grid-cols-3">
-                  {Object.entries(learn.proposed_params).map(([k, v]) => (
-                    <div key={k} className="flex justify-between gap-2">
-                      <span className="text-gray-500">{k}</span>
-                      <span className="font-mono text-gray-200">{String(v)}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-      </Card>
-
-      {/* ── 7. OLAY GÜNLÜĞÜ ──────────────────────────────────────────────── */}
-      <Card padding="none">
-        <div className="border-b border-dark-700 px-4 py-3">
-          <SectionTitle icon={ScrollText} title="Olay Günlüğü" sub="Bot olayları + arayüz kayıtları · en yeni üstte" />
-        </div>
-        {mergedLogs.length === 0 ? (
-          <EmptyState compact icon={Activity} title="Kayıt yok" description="Bot çalıştıkça olaylar burada akar." />
-        ) : (
-          <ul className="max-h-96 divide-y divide-dark-700/60 overflow-y-auto">
-            {mergedLogs.map((l, i) => {
-              const lvl = String(l.level || '').toLowerCase()
-              const tone = lvl.includes('err') || lvl.includes('crit') ? 'text-rose-300'
-                : lvl.includes('warn') ? 'text-amber-300'
-                : lvl.includes('trade') || lvl.includes('order') || lvl.includes('signal') ? 'text-emerald-300'
-                : 'text-gray-400'
-              return (
-                <li key={i} className="flex items-start gap-3 px-4 py-2 text-xs">
-                  <span className="w-16 flex-shrink-0 font-mono text-gray-500">{fmtTime(l.time)}</span>
-                  <span className={`w-16 flex-shrink-0 font-semibold uppercase ${tone}`}>{l.level}</span>
-                  <span className="min-w-0 flex-1 text-gray-300">{l.msg}</span>
-                </li>
-              )
-            })}
-          </ul>
-        )}
-      </Card>
+      {tab === 'botlar' && <BotlarTab />}
+      {tab === 'olustur' && <OlusturTab />}
+      {tab === 'yaris' && <YarisTab />}
+      {tab === 'altin' && <AltinTab />}
     </div>
   )
+}
+
+// ── SEKME 1: BOTLAR ───────────────────────────────────────────────────────────
+function BotlarTab() {
+  const [data, setData] = useState(null)
+  const [err, setErr] = useState('')
+  const [busy, setBusy] = useState('')
+
+  const load = useCallback(async () => {
+    try { const { data } = await api.get('/bot/builder'); setData(data); setErr('') }
+    catch (e) { setErr(e?.response?.status === 403 ? 'Yetki yok.' : 'Bota ulaşılamıyor, yeniden deneniyor…') }
+  }, [])
+  useEffect(() => { load(); const t = setInterval(load, 15000); return () => clearInterval(t) }, [load])
+
+  const toggleEnabled = async (bot) => {
+    setBusy(bot.id)
+    try { await api.post(`/bot/builder/settings/${bot.id}`, { enabled: !bot.enabled }); await load() }
+    catch { setErr('İşlem başarısız.') } finally { setBusy('') }
+  }
+  const toggleTf = async (bot, tf) => {
+    const cur = new Set(bot.selectedTimeframes || [])
+    cur.has(tf) ? cur.delete(tf) : cur.add(tf)
+    setBusy(bot.id + tf)
+    try { await api.post(`/bot/builder/settings/${bot.id}`, { timeframes: [...cur] }); await load() }
+    catch { setErr('İşlem başarısız.') } finally { setBusy('') }
+  }
+
+  if (err && !data) return <Msg kind="warn">{err}</Msg>
+  if (!data) return <Spinner />
+
+  return (
+    <div className="space-y-4">
+      <Msg kind="err">{err && data ? err : ''}</Msg>
+      <p className="text-sm text-gray-500">Her botu <b>aç/kapat</b> ve hangi <b>zaman dilimlerinde</b> işlem açacağını seç. Zaman dilimi seçmezsen <b>hepsi</b> açık kabul edilir.</p>
+      <div className="grid gap-4 sm:grid-cols-2">
+        {data.catalog.map((bot) => (
+          <div key={bot.id} className={cls('rounded-2xl border bg-white p-5 transition-shadow hover:shadow-md', bot.enabled ? 'border-gray-200' : 'border-gray-200 opacity-70')}>
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xl">{CAT_ICON[bot.category] || '🤖'}</span>
+                  <h3 className="font-bold text-gray-800">{bot.name}</h3>
+                </div>
+                <div className="text-xs text-gray-400 mt-0.5">{bot.category}{bot.magic ? ` · magic ${bot.magic}` : ''}</div>
+              </div>
+              <div className="flex flex-col items-end gap-1">
+                <Toggle on={bot.enabled} busy={busy === bot.id} onClick={() => toggleEnabled(bot)} />
+                <span className={cls('text-xs font-medium', bot.enabled ? 'text-emerald-600' : 'text-gray-400')}>{bot.enabled ? 'Açık' : 'Kapalı'}</span>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap gap-1.5 mt-3">
+              {bot.strategies.map((s, i) => <Tag key={i}>{s}</Tag>)}
+            </div>
+
+            <div className="mt-4">
+              <div className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">
+                Zaman Dilimleri {(!bot.selectedTimeframes || !bot.selectedTimeframes.length) && <span className="text-emerald-500 normal-case">· hepsi açık</span>}
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {bot.availableTimeframes.map((tf) => (
+                  <Chip key={tf} active={(bot.selectedTimeframes || []).includes(tf)} onClick={() => toggleTf(bot, tf)}>{tf}</Chip>
+                ))}
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+// ── SEKME 2: BOT OLUŞTUR ──────────────────────────────────────────────────────
+const emptyForm = { name: '', indicators: [], logic: 'majority', timeframes: ['1h'], ictStrategy: '', pairs: [], atrSlMult: 1.5, atrTpMult: 2.5 }
+
+function OlusturTab() {
+  const [meta, setMeta] = useState(null)
+  const [form, setForm] = useState(emptyForm)
+  const [msg, setMsg] = useState(null)
+  const [busy, setBusy] = useState(false)
+
+  const load = useCallback(async () => {
+    try { const { data } = await api.get('/bot/builder'); setMeta(data) } catch { /* sessiz */ }
+  }, [])
+  useEffect(() => { load(); const t = setInterval(load, 20000); return () => clearInterval(t) }, [load])
+
+  const set = (k, v) => setForm((f) => ({ ...f, [k]: v }))
+  const toggleArr = (k, v) => setForm((f) => { const s = new Set(f[k]); s.has(v) ? s.delete(v) : s.add(v); return { ...f, [k]: [...s] } })
+
+  const create = async () => {
+    setMsg(null)
+    if (!form.indicators.length && !form.ictStrategy) return setMsg({ kind: 'err', text: 'En az bir indikatör veya ICT stratejisi seç.' })
+    if (!form.pairs.length) return setMsg({ kind: 'err', text: 'En az bir parite seç.' })
+    if (!form.timeframes.length) return setMsg({ kind: 'err', text: 'En az bir zaman dilimi seç.' })
+    setBusy(true)
+    try {
+      const { data } = await api.post('/bot/builder/custom', { ...form, ictStrategy: form.ictStrategy || null })
+      setMsg({ kind: 'ok', text: `"${data.bot.name}" oluşturuldu (magic ${data.bot.magic}). Sinyal üretmeye başlayacak.` })
+      setForm(emptyForm); await load()
+    } catch (e) { setMsg({ kind: 'err', text: e?.response?.data?.error || 'Oluşturulamadı.' }) } finally { setBusy(false) }
+  }
+  const removeBot = async (id) => { try { await api.delete(`/bot/builder/custom/${id}`); await load() } catch { /* */ } }
+  const toggleBot = async (b) => { try { await api.patch(`/bot/builder/custom/${b.id}`, { enabled: !b.enabled }); await load() } catch { /* */ } }
+
+  if (!meta) return <Spinner />
+  const step = (n, title) => <div className="flex items-center gap-2 mb-3"><span className="flex h-6 w-6 items-center justify-center rounded-full bg-emerald-500 text-white text-xs font-bold">{n}</span><h4 className="font-semibold text-gray-700">{title}</h4></div>
+
+  return (
+    <div className="grid gap-6 lg:grid-cols-5">
+      {/* SİHİRBAZ */}
+      <div className="lg:col-span-3 rounded-2xl border border-gray-200 bg-white p-5 sm:p-6 space-y-6">
+        <div>
+          <h3 className="text-lg font-bold text-gray-800">Yeni Bot Yarat 🛠️</h3>
+          <p className="text-sm text-gray-500">Seç, birleştir, işlem aç. Kod yazmadan kendi botun.</p>
+        </div>
+
+        <div>{step(1, 'Bot adı')}
+          <input value={form.name} onChange={(e) => set('name', e.target.value)} placeholder="Örn: Süper Trend Avcısı"
+            className="w-full rounded-xl border border-gray-200 px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-emerald-400" />
+        </div>
+
+        <div>{step(2, 'İndikatörler (birden fazla seçebilirsin)')}
+          <div className="grid gap-2 sm:grid-cols-2">
+            {meta.indicators.map((ind) => {
+              const on = form.indicators.includes(ind.id)
+              return (
+                <button key={ind.id} type="button" onClick={() => toggleArr('indicators', ind.id)}
+                  className={cls('text-left rounded-xl border p-3 transition-colors', on ? 'border-emerald-500 bg-emerald-50' : 'border-gray-200 hover:border-emerald-300')}>
+                  <div className="flex items-center justify-between">
+                    <span className="font-semibold text-gray-800">{ind.label}</span>
+                    <span className={cls('h-5 w-5 rounded-md border flex items-center justify-center text-xs', on ? 'bg-emerald-500 border-emerald-500 text-white' : 'border-gray-300')}>{on ? '✓' : ''}</span>
+                  </div>
+                  <div className="text-xs text-gray-500 mt-0.5">{ind.desc}</div>
+                </button>
+              )
+            })}
+          </div>
+        </div>
+
+        <div>{step(3, 'Sinyal kuralı')}
+          <div className="flex gap-2">
+            <button type="button" onClick={() => set('logic', 'all')} className={cls('flex-1 rounded-xl border p-3 text-sm', form.logic === 'all' ? 'border-emerald-500 bg-emerald-50 font-semibold' : 'border-gray-200')}>
+              <div className="font-semibold">Hepsi aynı yönde 🔒</div><div className="text-xs text-gray-500">Tüm indikatörler aynı yönü gösterirse (az ama kuvvetli sinyal)</div>
+            </button>
+            <button type="button" onClick={() => set('logic', 'majority')} className={cls('flex-1 rounded-xl border p-3 text-sm', form.logic === 'majority' ? 'border-emerald-500 bg-emerald-50 font-semibold' : 'border-gray-200')}>
+              <div className="font-semibold">Çoğunluk 🗳️</div><div className="text-xs text-gray-500">Çoğu indikatör aynı yönü gösterirse (daha sık sinyal)</div>
+            </button>
+          </div>
+        </div>
+
+        <div>{step(4, 'Zaman dilimleri')}
+          <div className="flex flex-wrap gap-2">
+            {meta.allTimeframes.map((tf) => <Chip key={tf} active={form.timeframes.includes(tf)} onClick={() => toggleArr('timeframes', tf)}>{tf}</Chip>)}
+          </div>
+        </div>
+
+        <div>{step(5, 'ICT / SMC stratejisi ekle (opsiyonel)')}
+          <select value={form.ictStrategy} onChange={(e) => set('ictStrategy', e.target.value)}
+            className="w-full rounded-xl border border-gray-200 px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-emerald-400 bg-white">
+            <option value="">— Yok (yalnız indikatörler) —</option>
+            {meta.ictStrategies.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+          </select>
+          <p className="text-xs text-gray-400 mt-1">Seçersen: sinyal ancak ICT stratejisi de aynı yönü onaylarsa açılır (daha güçlü).</p>
+        </div>
+
+        <div>{step(6, 'Pariteler')}
+          <div className="flex flex-wrap gap-2">
+            {meta.pairs.map((p) => <Chip key={p.id} tone="amber" active={form.pairs.includes(p.id)} onClick={() => toggleArr('pairs', p.id)}>{p.symbol}</Chip>)}
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-3">
+          <label className="text-sm">Stop mesafesi (ATR ×)
+            <input type="number" step="0.1" min="0.2" value={form.atrSlMult} onChange={(e) => set('atrSlMult', e.target.value)} className="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2" />
+          </label>
+          <label className="text-sm">Hedef mesafesi (ATR ×)
+            <input type="number" step="0.1" min="0.3" value={form.atrTpMult} onChange={(e) => set('atrTpMult', e.target.value)} className="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2" />
+          </label>
+        </div>
+
+        {msg && <Msg kind={msg.kind}>{msg.text}</Msg>}
+        <button onClick={create} disabled={busy}
+          className="w-full rounded-xl bg-emerald-500 py-3 font-bold text-white hover:bg-emerald-600 disabled:opacity-60">
+          {busy ? 'Oluşturuluyor…' : '⭐ Botu Oluştur'}
+        </button>
+      </div>
+
+      {/* OLUŞTURULAN BOTLAR */}
+      <div className="lg:col-span-2">
+        <h3 className="font-bold text-gray-800 mb-3">Oluşturduğun Botlar</h3>
+        {(!meta.customBots || !meta.customBots.length) && (
+          <div className="rounded-2xl border border-dashed border-gray-300 p-8 text-center text-gray-400 text-sm">Henüz bot oluşturmadın. Soldan bir tane yarat! ⭐</div>
+        )}
+        <div className="space-y-3">
+          {meta.customBots?.map((b) => (
+            <div key={b.id} className="rounded-2xl border border-gray-200 bg-white p-4">
+              <div className="flex items-start justify-between">
+                <div>
+                  <div className="font-bold text-gray-800">⭐ {b.name}</div>
+                  <div className="text-xs text-gray-400">magic {b.magic} · {b.timeframes.join(', ')} · {b.pairs.join(', ')}</div>
+                </div>
+                <div className="flex flex-col items-end gap-1">
+                  <Toggle on={b.enabled} onClick={() => toggleBot(b)} />
+                  <button onClick={() => removeBot(b.id)} className="text-xs text-rose-500 hover:underline">Sil</button>
+                </div>
+              </div>
+              <div className="flex flex-wrap gap-1.5 mt-2">
+                {b.indicators.map((i) => <Tag key={i}>{i}</Tag>)}
+                {b.ictStrategy && <span className="px-2 py-0.5 rounded-md bg-amber-100 text-amber-700 text-xs">ICT</span>}
+              </div>
+              <div className="grid grid-cols-4 gap-2 mt-3 text-center">
+                <Stat label="işlem" value={b.stats?.trades ?? 0} />
+                <Stat label="kazanma" value={`%${b.stats?.winRate ?? 0}`} />
+                <Stat label="net R" value={fmt(b.stats?.netR ?? 0, 2)} tone={(b.stats?.netR ?? 0) >= 0 ? 'up' : 'dn'} />
+                <Stat label="açık" value={b.stats?.open ?? 0} />
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}
+function Stat({ label, value, tone }) {
+  return <div className="rounded-lg bg-gray-50 py-2"><div className={cls('font-bold', tone === 'up' ? 'text-emerald-600' : tone === 'dn' ? 'text-rose-600' : 'text-gray-800')}>{value}</div><div className="text-[10px] uppercase tracking-wide text-gray-400">{label}</div></div>
+}
+
+// ── SEKME 3: YARIŞ ────────────────────────────────────────────────────────────
+function YarisTab() {
+  const [comp, setComp] = useState(null)
+  const [custom, setCustom] = useState([])
+  const [err, setErr] = useState('')
+
+  const load = useCallback(async () => {
+    try {
+      const [c, b] = await Promise.all([api.get('/bot/competition'), api.get('/bot/builder')])
+      setComp(c.data); setCustom(b.data?.customLeaderboard || []); setErr('')
+    } catch { setErr('Yarış verisi alınamıyor…') }
+  }, [])
+  useEffect(() => { load(); const t = setInterval(load, 15000); return () => clearInterval(t) }, [load])
+
+  if (err && !comp) return <Msg kind="warn">{err}</Msg>
+  if (!comp) return <Spinner />
+  const bots = [...(comp.bots || [])].sort((a, b) => (b.score || 0) - (a.score || 0))
+  const champ = comp.champion
+
+  return (
+    <div className="space-y-5">
+      {champ && (
+        <div className="rounded-2xl border-2 border-amber-300 bg-gradient-to-br from-amber-50 to-white p-5">
+          <div className="text-xs font-bold uppercase tracking-wider text-amber-600">👑 Şampiyon · geliştirme önceliği</div>
+          <div className="text-2xl font-extrabold text-gray-800 mt-1">{champ.name}</div>
+          <div className="flex flex-wrap gap-4 mt-2 text-sm">
+            <span>Skor: <b className="text-amber-600">{fmt(champ.score ?? champ.champion_score, 1)}</b></span>
+            <span>Net R: <b className={cls((champ.net_r ?? 0) >= 0 ? 'text-emerald-600' : 'text-rose-600')}>{fmt(champ.net_r, 2)}</b></span>
+            <span>İşlem: <b>{champ.closed ?? champ.trades ?? 0}</b></span>
+            {champ.consistency_score != null && <span>Tutarlılık: <b>{fmt(champ.consistency_score, 0)}</b></span>}
+          </div>
+        </div>
+      )}
+
+      <div>
+        <h3 className="font-bold text-gray-800 mb-2">🏆 Lider Tablosu ({comp.summary?.competitors ?? bots.length} bot)</h3>
+        <p className="text-sm text-gray-500 mb-3">Her stratejiye eşit ${fmt(comp.summary?.starting_equity, 0)} sanal sermaye. Kim ne kadar başarılı?</p>
+        <div className="overflow-x-auto rounded-2xl border border-gray-200 bg-white">
+          <table className="w-full text-sm">
+            <thead className="bg-gray-50 text-gray-400 text-xs uppercase tracking-wide">
+              <tr><th className="text-left px-4 py-3">#</th><th className="text-left px-4 py-3">Bot</th><th className="text-right px-4 py-3">Skor</th><th className="text-right px-4 py-3">Net R</th><th className="text-right px-4 py-3">Kazanma</th><th className="text-right px-4 py-3">İşlem</th><th className="text-right px-4 py-3">Durum</th></tr>
+            </thead>
+            <tbody>
+              {bots.map((b, i) => (
+                <tr key={b.id} className={cls('border-t border-gray-100', b.is_champion && 'bg-amber-50')}>
+                  <td className="px-4 py-3 text-gray-400">{i + 1}</td>
+                  <td className="px-4 py-3 font-semibold text-gray-800">{b.is_champion && '👑 '}{b.name}</td>
+                  <td className="px-4 py-3 text-right font-mono">{fmt(b.score, 1)}</td>
+                  <td className={cls('px-4 py-3 text-right font-mono', (b.net_r ?? 0) >= 0 ? 'text-emerald-600' : 'text-rose-600')}>{fmt(b.net_r, 2)}</td>
+                  <td className="px-4 py-3 text-right font-mono">%{fmt(b.win_rate ?? b.winRate, 0)}</td>
+                  <td className="px-4 py-3 text-right font-mono">{b.closed ?? 0}</td>
+                  <td className="px-4 py-3 text-right"><span className={cls('text-xs px-2 py-0.5 rounded-full', b.runtime_status === 'active' ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-500')}>{b.runtime_status === 'active' ? 'aktif' : 'bekliyor'}</span></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {custom.length > 0 && (
+        <div>
+          <h3 className="font-bold text-gray-800 mb-2">⭐ Senin Botların (MT5 fiyatıyla ölçüm)</h3>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {custom.map((b) => (
+              <div key={b.botId} className="rounded-2xl border border-gray-200 bg-white p-4">
+                <div className="font-bold text-gray-800">{b.name}</div>
+                <div className="grid grid-cols-3 gap-2 mt-2 text-center">
+                  <Stat label="işlem" value={b.trades} />
+                  <Stat label="kazanma" value={`%${b.winRate}`} />
+                  <Stat label="net R" value={fmt(b.netR, 2)} tone={b.netR >= 0 ? 'up' : 'dn'} />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── SEKME 4: ALTIN BOTU ───────────────────────────────────────────────────────
+function AltinTab() {
+  const [status, setStatus] = useState(null)
+  const [positions, setPositions] = useState([])
+  const [offline, setOffline] = useState(false)
+  const [busy, setBusy] = useState(false)
+  const [note, setNote] = useState('')
+  const mounted = useRef(true)
+
+  const load = useCallback(async () => {
+    try {
+      const [s, p] = await Promise.all([api.get('/bot/status'), api.get('/bot/positions')])
+      if (!mounted.current) return
+      setStatus(s.data); setPositions(Array.isArray(p.data) ? p.data : (p.data?.positions || [])); setOffline(false)
+    } catch (e) {
+      const st = e?.response?.status
+      if (!e?.response || st === 502 || st === 503 || st === 504) setOffline(true)
+    }
+  }, [])
+  useEffect(() => { mounted.current = true; load(); const t = setInterval(load, 5000); return () => { mounted.current = false; clearInterval(t) } }, [load])
+
+  const engineOn = !!status?.engine_enabled
+  const toggleEngine = async () => {
+    setBusy(true); setNote('')
+    try { await api.post(engineOn ? '/bot/engine/stop' : '/bot/engine/start', {}); await load() }
+    catch (e) { setNote(e?.response?.data?.error || 'Komut bota ulaşmadı.'); await load() } finally { setBusy(false) }
+  }
+  const closePos = async (ticket) => {
+    setBusy(true)
+    try { const { data } = await api.post('/bot/trade/close', { ticket }); if (data && data.ok === false) setNote(data.message || 'Kapatılamadı.'); await load() }
+    catch { setNote('Kapatma başarısız.') } finally { setBusy(false) }
+  }
+
+  if (offline && !status) return <Msg kind="warn">Altın botuna ulaşılamıyor. VPS'te köprü/bot çalışıyor mu kontrol et — yeniden deneniyor…</Msg>
+  if (!status) return <Spinner />
+  const acc = status.account || {}
+  const guardOk = status.account_guard?.ok
+
+  return (
+    <div className="space-y-4">
+      {offline && <Msg kind="warn">Bağlantı koptu — son bilinen değerler gösteriliyor.</Msg>}
+      {note && <Msg kind="err">{note}</Msg>}
+
+      <div className="rounded-2xl border border-gray-200 bg-white p-5">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <div className="text-xs uppercase tracking-wide text-gray-400">Otomatik İşlem</div>
+            <div className={cls('text-2xl font-extrabold', engineOn ? 'text-emerald-600' : 'text-gray-400')}>{engineOn ? 'ÇALIŞIYOR' : 'DURDU'}</div>
+            {status.active_strategy && <div className="text-xs text-gray-400 mt-0.5">Strateji: {status.active_strategy}</div>}
+          </div>
+          <div className="flex flex-col items-center gap-1">
+            <Toggle on={engineOn} busy={busy} onClick={toggleEngine} />
+            <span className="text-xs text-gray-400">{engineOn ? 'Durdurmak için tıkla' : 'Başlatmak için tıkla'}</span>
+          </div>
+        </div>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-4">
+          <Kpi label="Bağlantı" value={status.connected ? 'Bağlı' : 'Kopuk'} tone={status.connected ? 'up' : 'dn'} />
+          <Kpi label="Hesap" value={acc.login ? `#${acc.login}` : '—'} />
+          <Kpi label="Bakiye" value={acc.balance != null ? `${fmt(acc.balance)} $` : '—'} />
+          <Kpi label="Hesap Kilidi" value={guardOk ? 'Güvenli' : 'Engel'} tone={guardOk ? 'up' : 'dn'} />
+        </div>
+      </div>
+
+      <div>
+        <h3 className="font-bold text-gray-800 mb-2">Açık İşlemler ({positions.length})</h3>
+        {positions.length === 0 ? (
+          <div className="rounded-2xl border border-dashed border-gray-300 p-8 text-center text-gray-400 text-sm">Şu an açık işlem yok.</div>
+        ) : (
+          <div className="space-y-2">
+            {positions.map((p) => (
+              <div key={p.ticket || p.id} className="rounded-xl border border-gray-200 bg-white p-3 flex items-center justify-between gap-3">
+                <div>
+                  <span className={cls('text-sm font-bold', (p.type === 0 || p.direction === 'buy' || p.side === 'long') ? 'text-emerald-600' : 'text-rose-600')}>
+                    {(p.type === 0 || p.direction === 'buy' || p.side === 'long') ? '▲ AL' : '▼ SAT'}
+                  </span>
+                  <span className="ml-2 font-semibold text-gray-800">{p.symbol}</span>
+                  <span className="ml-2 text-xs text-gray-400">lot {fmt(p.volume ?? p.lot, 2)}</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <span className={cls('font-mono text-sm', (p.profit ?? 0) >= 0 ? 'text-emerald-600' : 'text-rose-600')}>{fmt(p.profit)} $</span>
+                  <button onClick={() => closePos(p.ticket)} disabled={busy} className="text-xs px-3 py-1.5 rounded-lg bg-rose-500 text-white hover:bg-rose-600 disabled:opacity-60">Kapat</button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+function Kpi({ label, value, tone }) {
+  return <div className="rounded-xl bg-gray-50 p-3"><div className="text-xs text-gray-400">{label}</div><div className={cls('font-bold', tone === 'up' ? 'text-emerald-600' : tone === 'dn' ? 'text-rose-600' : 'text-gray-800')}>{value}</div></div>
 }
