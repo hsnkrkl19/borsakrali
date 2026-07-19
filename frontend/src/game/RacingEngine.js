@@ -1,24 +1,25 @@
 // ============================================================================
-// HİSSE YARIŞI — Fizik & render motoru (v2: TradingView görünümü + zengin fizik)
+// HİSSE YARIŞI — Fizik & render motoru (v3: parallax şehir + yay süspansiyon)
 // ----------------------------------------------------------------------------
 // Pist = seçilen hissenin LOG fiyat grafiği (resample + ping-pong sonsuz).
-// Sahne gerçek bir TradingView koyu grafik ekranı gibi çizilir: ızgara, sağ
-// fiyat ekseni (gerçek ₺), alt tarih ekseni, alan-dolgulu fiyat çizgisi
-// (sürülen zemin), canlı fiyat etiketi/crosshair, sembol filigranı, ticker.
+// Sahne bir TradingView koyu grafiği + arkasında MUM ÇUBUĞU ŞEHRİ silüeti,
+// bulutlar, ışık halesi ve pistte mesafe bayrakları ile canlandırılır.
 //
-// Fizik: rijit şasi + 2 penalty-contact yaylı teker. Ek detaylar: tepeden
-// fırlatma, takla kombosu, iniş kalitesi, yokuş-aşağı momentum, çarpma
-// toleransı, ekran sarsıntısı, lastik izi, hız çizgileri, parçacıklar.
+// Fizik (v3): rijit şasi + 2 RAYCAST yay-sönüm süspansiyonu (dinlenme boyu →
+// görünür yay yolu, yumuşak sürüş). Yükseltmeler aracı fiziksel BÜYÜTÜR ve
+// görsel olarak değiştirir (yay/lastik/egzoz/kanat/depo/turbo). Ek: tepeden
+// fırlatma, takla kombosu, iniş kalitesi, yokuş-aşağı momentum, ekran sarsıntısı,
+// lastik izi, hız çizgileri, egzoz dumanı, parçacıklar.
 // ============================================================================
 
 const GRAV = 1750
-const SUBSTEPS = 6
+const SUBSTEPS = 8
 const SX = 110              // örnek nokta yatay aralığı
-const AMP = 600             // fiyat → yükseklik bandı
-const MAXSTEP = AMP * 0.13
+const AMP = 660             // fiyat → yükseklik bandı (biraz daha yüksek → belirgin tepeler)
+const MAXSTEP = AMP * 0.19  // daha sert eğim izni ("sert pist")
 const TERRAIN_POINTS = 150
 const METER = 30
-const PHYS_DT_MAX = 1 / 50
+const PHYS_DT_MAX = 1 / 60
 const AXW = 56             // sağ fiyat ekseni genişliği
 const TAXH = 22            // alt zaman ekseni yüksekliği
 
@@ -123,9 +124,10 @@ export class RacingEngine {
       resDates.push(times[Math.round(t)] ?? times[times.length - 1])
     }
 
+    // hafif yumuşatma (sert kalsın diye zayıf ağırlıklı: a + 3v + b)
     const sm = res.map((v, i) => {
       const a = res[Math.max(0, i - 1)], b = res[Math.min(N - 1, i + 1)]
-      return (a + v * 2 + b) / 4
+      return (a + v * 3 + b) / 5
     })
 
     const min = Math.min(...sm), max = Math.max(...sm), range = max - min || 1
@@ -148,7 +150,7 @@ export class RacingEngine {
     let bi = 12
     while (bi < N - 6) {
       if (hash32(bi * 53 + 11) % 4 === 0) {
-        const peak = AMP * 0.20
+        const peak = AMP * 0.28
         h[bi - 1] += peak * 0.5
         h[bi] += peak
         h[bi + 1] += peak * 0.5
@@ -204,10 +206,25 @@ export class RacingEngine {
   // --------------------------------------------------------------------------
   _initVehicle() {
     const s = this.stats
+    const wb = s.wheelBase
+    this.wheelR = s.wheelR
+    const sus = (s.lv && s.lv.suspension) || 0
+    // RAYCAST yay süspansiyonu: teker eksenden 'susRest' kadar aşağı sarkar →
+    // görünür yay yolu + yumuşak sürüş. Süspansiyon yükseltmesi yolu uzatır.
+    this.susRest = s.wheelR * (0.55 + 0.05 * sus)
+    this.susTravel = this.susRest * 0.9
+
+    this.wheels = [
+      { lx: -wb / 2, lyAxle: -s.bodyH * 0.28, drive: true },   // arka
+      { lx: wb / 2, lyAxle: -s.bodyH * 0.28, drive: true },    // ön
+    ]
+
     const startX = SX * 2
     this.startX = startX
+    // hafif ön-yükle → spawn'da yere oturur, drop-in spin yok
+    const restY = this.heightAt(startX) + this.wheelR + this.susRest * 0.7 + s.bodyH * 0.28
     this.car = {
-      x: startX, y: this.heightAt(startX) + 45,   // zemine yakın doğ → drop-in spin yok
+      x: startX, y: restY,
       vx: 0, vy: 0, angle: 0, angVel: 0,
       onGround: false, groundN: { x: 0, y: 1 },
     }
@@ -218,12 +235,7 @@ export class RacingEngine {
     this._lastTrailX = this.car.x
     this.wheelSpin = [0, 0]
     this.suspComp = [0, 0]
-
-    const wb = s.wheelBase
-    this.wheels = [
-      { lx: -wb / 2, ly: -s.bodyH * 0.45, r: s.wheelR, drive: true },
-      { lx: wb / 2, ly: -s.bodyH * 0.45, r: s.wheelR, drive: true },
-    ]
+    this.wheelSusLen = [this.susRest, this.susRest]
     this.invMass = 1 / s.mass
     const I = s.mass * (s.bodyW * s.bodyW + s.bodyH * s.bodyH) / 12 * 4.0
     this.invI = 1 / I
@@ -257,31 +269,37 @@ export class RacingEngine {
 
     for (let wi = 0; wi < this.wheels.length; wi++) {
       const w = this.wheels[wi]
-      const wx = car.x + w.lx * rightX + w.ly * upX
-      const wy = car.y + w.lx * rightY + w.ly * upY
-      const gy = this.heightAt(wx)
-      const penetration = (gy + w.r) - wy
-      this.suspComp[wi] = clamp(penetration, 0, w.r * 1.4)
+      const axleX = car.x + w.lx * rightX + w.lyAxle * upX
+      const axleY = car.y + w.lx * rightY + w.lyAxle * upY
+      const gy = this.heightAt(axleX)
+      const gap = axleY - gy                          // eksenden yere düşey mesafe
 
-      if (penetration > 0) {
+      // teker eksenden 'susRest' aşağı sarkar; temas = (susRest+r) > gap
+      let comp = (this.susRest + this.wheelR) - gap
+      let susLen = gap - this.wheelR                  // tekerin gövde altında oturduğu boy
+      if (susLen > this.susRest) susLen = this.susRest
+      if (susLen < this.susRest - this.susTravel) susLen = this.susRest - this.susTravel
+      this.wheelSusLen[wi] = susLen
+      this.suspComp[wi] = clamp(this.susRest - susLen, 0, this.susTravel)
+
+      if (comp > 0) {
+        comp = Math.min(comp, this.susTravel)
         groundContacts++
-        const n = this.normalAt(wx)
+        const n = this.normalAt(axleX)
         avgN.x += n.x; avgN.y += n.y
-        const rx = wx - car.x
-        const ry = (wy - w.r) - car.y
-        const rcx = wx - car.x
-        const rcy = wy - car.y
-        const vcx = car.vx - car.angVel * ry
-        const vcy = car.vy + car.angVel * rx
-        const vn = vcx * n.x + vcy * n.y
+        const rx = axleX - car.x
+        const ry = axleY - car.y
+        const vpx = car.vx - car.angVel * ry
+        const vpy = car.vy + car.angVel * rx
+        const vn = vpx * n.x + vpy * n.y
 
-        let Fn = s.suspK * penetration - s.suspDamp * vn
+        let Fn = s.suspK * comp - s.suspDamp * vn
         if (Fn < 0) Fn = 0
         this._applyImpulse(n.x * Fn * dt, n.y * Fn * dt, rx, ry)
 
         let tx = n.y, ty = -n.x
         if (tx * rightX + ty * rightY < 0) { tx = -tx; ty = -ty }
-        const vt = vcx * tx + vcy * ty
+        const vt = vpx * tx + vpy * ty
 
         let drive = 0
         if (w.drive && hasFuel) {
@@ -293,13 +311,13 @@ export class RacingEngine {
         const maxF = s.grip * Fn
         let Ft = drive - 7 * vt
         Ft = clamp(Ft, -maxF, maxF)
-        this._applyImpulse(tx * Ft * dt, ty * Ft * dt, rcx, rcy)
-        this.wheelSpin[wi] += (vt / w.r) * dt
+        this._applyImpulse(tx * Ft * dt, ty * Ft * dt, rx, ry)
+        this.wheelSpin[wi] += (vt / this.wheelR) * dt
 
         if (fwd && hasFuel && speed > 120 && Math.abs(vt) > 60 && hash32(this._frame * 7 + wi) % 3 === 0) {
-          this._spawnDust(wx, gy, -tx, -ty)
+          this._spawnDust(axleX, gy, -tx, -ty)
         }
-      } else this.suspComp[wi] = 0
+      }
     }
 
     car.onGround = groundContacts > 0
@@ -317,24 +335,21 @@ export class RacingEngine {
     }
 
     // YERDE ÖN/ARKA KALDIRMA — sürerken SOL/SAĞ ile aracın önünü/arkasını kaldır.
-    // HIZA ORANTILI: dururken etkisiz, hızlandıkça daha çok kalkar. Hedef-açı yayı →
-    // devrilmeden bir yatışta dengelenir; bıraktığında zemin doğrultur. Rampaya bu
-    // açıyla girersen takla başlatmak kolaylaşır.
+    // HIZA ORANTILI: dururken etkisiz, hızlandıkça daha çok kalkar.
     if (car.onGround && this._hasLanded && (this.input.flipL || this.input.flipR)) {
-      const sf = clamp(speed / (s.topSpeed * 0.30), 0.45, 1)     // düşük hızda bile belirgin kalkar
+      const sf = clamp(speed / (s.topSpeed * 0.30), 0.45, 1)
       const target = (this.input.flipL ? 1 : -1) * 0.7 * sf      // ~40° net kaldırma (SOL=ön, SAĞ=arka)
       car.angVel += (target - car.angle) * 40 * dt               // sert hedef-açı yayı → hızlı kalkar
       car.angVel -= car.angVel * 8 * dt                          // kritik sönüm → aşmaz/devrilmez
     }
 
-    // HAVA KONTROLÜ — SOL/SAĞ = takla (klasik Hill-Climb riski):
-    //  • Havada SOL/SAĞ'a DOKUNMAZSAN → araç düz inişe yönelir (güvenli).
-    //  • SOL = geri takla, SAĞ = ön takla. Ama dönüşü tamamlayamayıp sürücünün
-    //    KAFASI yere değerse oyun biter. Yani takla riskli bir ustalık hamlesi.
+    // HAVA KONTROLÜ — SOL/SAĞ = takla:
+    //  • Dokunmazsan → araç düz inişe yönelir (güvenli).
+    //  • SOL = geri takla, SAĞ = ön takla. Ters inersen kafan yere değer = bitiş.
     if (!car.onGround && this._hasLanded) {
       const a = wrapPi(car.angle)
-      const ramp = clamp(this._physAirTimer / 0.07, 0.75, 1)   // neredeyse anında tepki
-      const at = s.airControl * 4.2 * ramp                     // ölçülü tork → kontrollü takla (çok hızlı değil)
+      const ramp = clamp(this._physAirTimer / 0.07, 0.75, 1)
+      const at = s.airControl * 4.2 * ramp
       if (this.input.flipL) car.angVel += at * dt          // SOL → geri takla (CCW) — RİSK
       else if (this.input.flipR) car.angVel -= at * dt     // SAĞ → ön takla (CW) — RİSK
       else car.angVel += (-a * 14 - car.angVel * 6) * dt   // dokunma → düz inişe yönel
@@ -352,15 +367,12 @@ export class RacingEngine {
 
     // kalkış / iniş kenarı
     if (this._wasGroundPhys && !car.onGround) {
-      // Kalkışta takla girişi yoksa crest'in verdiği spin'i kır → araç DÜZ uçar.
       if (!this.input.flipL && !this.input.flipR) car.angVel *= 0.2
-      // Crest fırlatması: hızlıysan tepeden uçarsın (zıplama/takla için hava).
       const nL = this.normalAt(car.x - SX * 0.5).x
       const nR = this.normalAt(car.x + SX * 0.5).x
       if (nL < -0.05 && nR > 0.05 && car.vx > 180) car.vy += clamp(car.vx, 0, 950) * 0.55 + 160
       this._physAirTimer = 0
     } else if (!this._wasGroundPhys && car.onGround) {
-      // iniş açısını yakala (clamp öncesi) → ters/yan iniş ölümcül
       this._pendingLanding = { vy: car.vy, airTime: this._physAirTimer, flips: this._flipsThisAir, angle: wrapPi(car.angle) }
     }
     if (car.onGround) this._hasLanded = true
@@ -406,6 +418,18 @@ export class RacingEngine {
       this.fuel = Math.max(0, this.fuel - burn * frameDt)
     }
 
+    // EGZOZ DUMANI — gaz verirken, motor seviyesiyle yoğunlaşır
+    if (this.input.fwd && this.fuel > 0) {
+      const eng = (s.lv && s.lv.engine) || 0
+      const every = Math.max(1, 3 - Math.floor(eng / 4))
+      if (this._frame % every === 0) {
+        const cosA = Math.cos(car.angle), sinA = Math.sin(car.angle)
+        const bx = car.x - cosA * (s.bodyW * 0.5 + 4) + (-sinA) * (s.bodyH * 0.15)
+        const by = car.y - sinA * (s.bodyW * 0.5 + 4) + (cosA) * (s.bodyH * 0.15)
+        this._spawnSmoke(bx, by, -cosA, -sinA, eng)
+      }
+    }
+
     this.run.distanceM = Math.max(this.run.distanceM, (car.x - this.startX) / METER)
     const spd = Math.hypot(car.vx, car.vy)
     this.run.maxSpeed = Math.max(this.run.maxSpeed, spd)
@@ -415,8 +439,6 @@ export class RacingEngine {
       this._airTimer += frameDt
       this._airAccum += car.angVel * frameDt
       if (Math.abs(this._airAccum) >= Math.PI * 1.3) {   // ~234° = bir tur döndü
-        // Ödül DEĞİL: sadece say. Ödül/ceza İNİŞTE belli olur (temiz in = ödül,
-        // ters in = ölüm). Böylece takla gerçek bir risk.
         this._flipsThisAir++
         this._airAccum -= Math.sign(this._airAccum) * Math.PI * 1.3
         this._beep(560 + this._flipsThisAir * 110, 0.06)
@@ -430,32 +452,29 @@ export class RacingEngine {
 
     // iniş kalitesi
     if (this._pendingLanding) {
-      const L = this._pendingLanding; this._pendingLanding = null
+      const Lp = this._pendingLanding; this._pendingLanding = null
       const gN = car.groundN
       const groundAngle = Math.atan2(gN.x, gN.y)
-      if (Math.abs(L.angle) > 1.55) {
-        // TERS / YAN İNDİ → boyun kırıldı = oyun biter (klasik Hill-Climb riski)
-        return this._gameOver('crash')
+      if (Math.abs(Lp.angle) > 1.55) {
+        return this._gameOver('crash')     // TERS / YAN İNDİ → oyun biter
       }
-      if (L.flips >= 1) {
-        // TAM TAKLA atıp DÜZ indi → ustalık ödülü (sadece indirilen taklalar sayılır)
-        this.run.flips += L.flips
+      if (Lp.flips >= 1) {
+        this.run.flips += Lp.flips
         car.angle = -groundAngle
         car.angVel *= 0.2
-        const coin = 14 * L.flips                 // takla = ekstra para (risk ödülü)
+        const coin = 14 * Lp.flips
         this.run.coins += coin
-        this._addFloat(car.x, car.y + 55, (L.flips > 1 ? L.flips + 'X TAKLA! +' : 'TAKLA! +') + coin, '#fbbf24')
+        this._addFloat(car.x, car.y + 55, (Lp.flips > 1 ? Lp.flips + 'X TAKLA! +' : 'TAKLA! +') + coin, '#fbbf24')
         this._beep(1040, 0.12); this._addShake(5); this._spawnSparkle(car.x, car.y + 20)
-      } else if (L.airTime > 0.4) {
+      } else if (Lp.airTime > 0.4) {
         const misalign = Math.abs(wrapPi(car.angle + groundAngle))
         if (misalign < 0.32) {
           this.run.coins += 8
           this._addFloat(car.x, car.y + 55, 'MÜKEMMEL İNİŞ!', '#22c55e')
           this._beep(990, 0.12); this._addShake(4); this._spawnSparkle(car.x, car.y + 20)
-        } else if (L.vy < -520) {
-          // sert ama ÖLÜMCÜL değil — sadece sarsıntı + toz (affedici tasarım)
-          this._addShake(clamp(-L.vy / 120, 4, 16))
-          this._spawnPoof(car.x, this.heightAt(car.x), -L.vy / 90)
+        } else if (Lp.vy < -520) {
+          this._addShake(clamp(-Lp.vy / 120, 4, 16))
+          this._spawnPoof(car.x, this.heightAt(car.x), -Lp.vy / 90)
         }
       }
     }
@@ -465,9 +484,7 @@ export class RacingEngine {
     this.shake = Math.max(0, this.shake - this.shake * Math.min(1, 12 * frameDt))
     this._updateAudio(spd)
 
-    // ÇARPMA — SÜRÜCÜNÜN KAFASI YERE DEĞERSE oyun ANINDA biter. Takla yaparken
-    // dönüşü tamamlayamayıp ters/yan inersen kask zemine çarpar = bitiş. Düz
-    // sürüp flip'e basmazsan kafa hep yukarıda kalır (güvenli).
+    // ÇARPMA — SÜRÜCÜNÜN KAFASI YERE DEĞERSE oyun ANINDA biter.
     const cosA = Math.cos(car.angle), sinA = Math.sin(car.angle)
     const headX = car.x + (-sinA) * (s.bodyH * 0.5 + 14)
     const headY = car.y + (cosA) * (s.bodyH * 0.5 + 14)
@@ -554,8 +571,13 @@ export class RacingEngine {
   // PARÇACIKLAR
   // --------------------------------------------------------------------------
   _spawnDust(x, y, dx, dy) {
-    if (this.particles.length > 200) return
+    if (this.particles.length > 220) return
     this.particles.push({ kind: 'dust', x, y, vx: dx * 40 + (hash32(x | 0) % 30 - 15), vy: 30 + (hash32(y | 0) % 40), life: 0.5, age: 0, r: 5 + (hash32((x + y) | 0) % 6) })
+  }
+  _spawnSmoke(x, y, dx, dy, eng) {
+    if (this.particles.length > 240) return
+    const spd = 26 + eng * 4
+    this.particles.push({ kind: 'smoke', x, y, vx: dx * spd + (hash32(this._frame) % 20 - 10), vy: -18 - (hash32(x | 0) % 18), life: 0.5 + eng * 0.02, age: 0, r: 4 + eng * 0.5 })
   }
   _spawnSparkle(x, y) {
     for (let k = 0; k < 8; k++) {
@@ -583,6 +605,7 @@ export class RacingEngine {
     for (const p of this.particles) {
       p.age += dt; p.x += p.vx * dt; p.y += p.vy * dt
       if (p.kind === 'dust') { p.vy -= 60 * dt; p.vx *= 0.92 }
+      else if (p.kind === 'smoke') { p.vy -= 30 * dt; p.vx *= 0.94 }
       else if (p.kind === 'shard') { p.vy -= 400 * dt }
       else p.vy -= 200 * dt
     }
@@ -649,7 +672,9 @@ export class RacingEngine {
     canvas.width = Math.round(w * dpr)
     canvas.height = Math.round(h * dpr)
     this.dpr = dpr; this.viewW = w; this.viewH = h
-    this.zoomBase = clamp(h / 2150, 0.20, 0.40)   // daha da uzak → tüm parkur daha iyi görünür
+    // Kamera: araç net görünsün (yükseltmeler seçilsin) ama tepeler de gelirken görünsün.
+    // Sürat arttıkça _render'da geri çekilir (aşağı bak).
+    this.zoomBase = clamp(h / 1800, 0.23, 0.42)
     if (this._zoom == null) this._zoom = this.zoomBase
   }
 
@@ -667,12 +692,13 @@ export class RacingEngine {
 
     const spd = Math.hypot(car.vx, car.vy)
     const k = (rate) => 1 - Math.exp(-rate * Math.min(frameDt, 0.05))
-    const lookAhead = clamp(car.vx * 0.32 + Math.sign(car.vx) * spd * 0.06, -200, 520)
+    // daha çok ileriye bakan, biraz daha yumuşak kamera (yaklaşan tepeleri gör)
+    const lookAhead = clamp(car.vx * 0.40 + Math.sign(car.vx) * spd * 0.05, -240, 620)
     const tgtX = car.x + lookAhead
-    const tgtY = car.y + 52 + spd * 0.010 + (!car.onGround ? 60 : 0)
-    this.camX = lerp(this.camX ?? car.x, tgtX, k(11))
-    this.camY = lerp(this.camY ?? car.y, tgtY, k(8))
-    const zTarget = this.zoomBase * clamp(1 - spd / 9000, 0.8, 1)
+    const tgtY = car.y + 64 + spd * 0.010 + (!car.onGround ? 70 : 0)
+    this.camX = lerp(this.camX ?? car.x, tgtX, k(10))
+    this.camY = lerp(this.camY ?? car.y, tgtY, k(7))
+    const zTarget = this.zoomBase * clamp(1 - spd / 6000, 0.70, 1)   // hızlıyken daha çok geri çekil
     this._zoom = lerp(this._zoom ?? this.zoomBase, zTarget, k(3))
     const zoom = this._zoom
 
@@ -682,9 +708,14 @@ export class RacingEngine {
     const sx = (wx) => (wx - this.camX) * zoom + W / 2 + ox
     const sy = (wy) => H / 2 - (wy - this.camY) * zoom + oy
 
-    this._drawBackground(ctx, W, H, sx)
+    // ARKA PLAN (uzaktan yakına): gökyüzü → şehir silüeti → bulut → ızgara
+    this._drawSky(ctx, W, H)
+    this._drawSkyline(ctx, W, H)
+    this._drawClouds(ctx, W, H)
+    this._drawGrid(ctx, W, H, sx)
     this._drawWatermark(ctx, W, H)
     this._drawAreaLine(ctx, W, H, sx, sy)
+    this._drawDistanceFlags(ctx, W, H, sx, sy)
     this._drawTrail(ctx, sx, sy, zoom)
     this._drawCollectibles(ctx, sx, sy, zoom)
     this._drawParticles(ctx, sx, sy, zoom)
@@ -697,11 +728,72 @@ export class RacingEngine {
     this._drawSpeedLines(ctx, W, H, spd)
   }
 
-  _drawBackground(ctx, W, H, sx) {
+  _drawSky(ctx, W, H) {
     const g = ctx.createLinearGradient(0, 0, 0, H)
-    g.addColorStop(0, TV.bg); g.addColorStop(1, TV.bg2)
+    g.addColorStop(0, '#0f1420'); g.addColorStop(0.5, '#0c0f18'); g.addColorStop(1, '#090b11')
     ctx.fillStyle = g; ctx.fillRect(0, 0, W, H)
-    // dikey ızgara (kamera ile kayar)
+    // yumuşak ışık halesi (hafif parallax güneş/ay) — trend rengine göre tonlanır
+    const gx = W * 0.74 - (this.camX * 0.02) % (W * 2)
+    const rg = ctx.createRadialGradient(gx, H * 0.20, 0, gx, H * 0.20, H * 0.6)
+    const tint = this.up ? '38,166,154' : '41,98,255'
+    rg.addColorStop(0, `rgba(${tint},0.13)`); rg.addColorStop(0.5, `rgba(${tint},0.04)`); rg.addColorStop(1, 'rgba(0,0,0,0)')
+    ctx.fillStyle = rg; ctx.fillRect(0, 0, W, H)
+  }
+
+  // Arka planda MUM ÇUBUĞU ŞEHRİ silüeti — iki parallax katmanı (borsa teması)
+  _drawSkyline(ctx, W, H) {
+    const horizon = H * 0.72
+    const layers = [
+      { par: 0.09, step: 34, w: 20, alpha: 0.13, maxH: H * 0.26, salt: 17 },
+      { par: 0.20, step: 42, w: 27, alpha: 0.22, maxH: H * 0.36, salt: 91 },
+    ]
+    for (const Ly of layers) {
+      const scroll = this.camX * Ly.par
+      const first = Math.floor((scroll - Ly.w) / Ly.step)
+      const last = Math.ceil((scroll + W + Ly.w) / Ly.step)
+      for (let i = first; i <= last; i++) {
+        const hsh = hash32(i * 131 + Ly.salt)
+        const x = i * Ly.step - scroll
+        if (x < -Ly.w || x > W + Ly.w) continue
+        const hh = (0.26 + (hsh % 1000) / 1000 * 0.74) * Ly.maxH
+        const up = ((hsh >> 12) & 1) === 0
+        const col = up ? '38,166,154' : '239,83,80'
+        const bodyTop = horizon - hh
+        const cx = x + Ly.w / 2
+        // fitil
+        ctx.strokeStyle = `rgba(${col},${Ly.alpha * 0.75})`; ctx.lineWidth = 1
+        ctx.beginPath(); ctx.moveTo(cx, bodyTop - hh * 0.16); ctx.lineTo(cx, horizon + 4); ctx.stroke()
+        // gövde
+        ctx.fillStyle = `rgba(${col},${Ly.alpha})`
+        ctx.fillRect(x, bodyTop, Ly.w, hh)
+      }
+    }
+    // ufuk çizgisi tonu (silüeti zemine bağlar)
+    const hg = ctx.createLinearGradient(0, horizon - 40, 0, horizon + 40)
+    hg.addColorStop(0, 'rgba(9,11,17,0)'); hg.addColorStop(1, 'rgba(9,11,17,0.55)')
+    ctx.fillStyle = hg; ctx.fillRect(0, horizon - 40, W, 80)
+  }
+
+  _drawClouds(ctx, W, H) {
+    const par = 0.05, step = W * 0.66, puff = W * 0.09
+    const scroll = this.camX * par
+    const first = Math.floor((scroll - puff) / step) - 1
+    const last = Math.ceil((scroll + W + puff) / step) + 1
+    for (let i = first; i <= last; i++) {
+      const hsh = hash32(i * 769 + 13)
+      const x = i * step - scroll + (hsh % 90)
+      const y = H * (0.07 + (hsh % 1000) / 1000 * 0.16)
+      if (x < -puff * 2 || x > W + puff * 2) continue
+      ctx.fillStyle = 'rgba(180,190,205,0.045)'
+      for (let b = 0; b < 4; b++) {
+        const bx = x + (b - 1.5) * puff * 0.44
+        const br = puff * (0.5 + (hash32(i * 31 + b) % 50) / 100)
+        ctx.beginPath(); ctx.ellipse(bx, y, br, br * 0.5, 0, 0, Math.PI * 2); ctx.fill()
+      }
+    }
+  }
+
+  _drawGrid(ctx, W, H, sx) {
     const gx = SX * 4
     const left = this.camX - W / (2 * this._zoom)
     let wx0 = Math.ceil(left / gx) * gx
@@ -714,7 +806,6 @@ export class RacingEngine {
       ctx.moveTo(px, 0); ctx.lineTo(px, H)
     }
     ctx.stroke()
-    // yatay ızgara (fiyat satırları)
     ctx.strokeStyle = TV.grid
     ctx.beginPath()
     for (const py of this._rows(H)) { ctx.moveTo(0, py); ctx.lineTo(W - AXW, py) }
@@ -724,18 +815,17 @@ export class RacingEngine {
   _drawWatermark(ctx, W, H) {
     ctx.save()
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle'
-    ctx.fillStyle = 'rgba(120,123,134,0.07)'
+    ctx.fillStyle = 'rgba(120,123,134,0.06)'
     ctx.font = '700 64px -apple-system,Segoe UI,sans-serif'
     ctx.fillText(this.symbol, W / 2, H * 0.40)
     ctx.font = '600 16px -apple-system,Segoe UI,sans-serif'
-    ctx.fillStyle = 'rgba(120,123,134,0.06)'
+    ctx.fillStyle = 'rgba(120,123,134,0.05)'
     ctx.fillText('BIST · 15DK', W / 2, H * 0.40 + 42)
     ctx.restore()
   }
 
   _drawAreaLine(ctx, W, H, sx, sy) {
     const accent = this.up ? TV.up : TV.down
-    // dünya-x üzerinden ilerle + sx/sy kullan → sarsıntıda araç/çizgi birlikte oynar
     const left = this.camX - (W / 2) / this._zoom - 40
     const right = this.camX + (W / 2) / this._zoom + 40
     const stepW = Math.max(8, SX / 8)
@@ -748,7 +838,7 @@ export class RacingEngine {
     ctx.lineTo(pts[pts.length - 1][0], H); ctx.lineTo(pts[0][0], H); ctx.closePath()
     const g = ctx.createLinearGradient(0, 0, 0, H)
     const rgb = this.up ? '38,166,154' : '239,83,80'
-    g.addColorStop(0, `rgba(${rgb},0.30)`); g.addColorStop(0.55, `rgba(${rgb},0.08)`); g.addColorStop(1, `rgba(${rgb},0)`)
+    g.addColorStop(0, `rgba(${rgb},0.32)`); g.addColorStop(0.55, `rgba(${rgb},0.09)`); g.addColorStop(1, `rgba(${rgb},0)`)
     ctx.fillStyle = g; ctx.fill()
     // çizgi (glow + crisp)
     ctx.beginPath()
@@ -758,6 +848,35 @@ export class RacingEngine {
     ctx.shadowColor = accent; ctx.shadowBlur = 10
     ctx.strokeStyle = accent; ctx.lineWidth = 2.5; ctx.stroke()
     ctx.shadowBlur = 0
+  }
+
+  // pistte mesafe bayrakları (500m aralık) — ilerleme hissi + sahne detayı
+  _drawDistanceFlags(ctx, W, H, sx, sy) {
+    const startX = this.startX
+    const stepM = 500
+    const left = this.camX - (W / 2) / this._zoom - SX
+    const right = this.camX + (W / 2) / this._zoom + SX
+    const zoom = this._zoom
+    let firstM = Math.ceil((left - startX) / METER / stepM) * stepM
+    if (firstM < stepM) firstM = stepM
+    for (let m = firstM; ; m += stepM) {
+      const wx = startX + m * METER
+      if (wx > right) break
+      if (wx < left) continue
+      const gy = this.heightAt(wx)
+      const bx = sx(wx), by = sy(gy)
+      const poleH = 46 * zoom
+      ctx.strokeStyle = 'rgba(200,205,214,0.75)'; ctx.lineWidth = 2
+      ctx.beginPath(); ctx.moveTo(bx, by); ctx.lineTo(bx, by - poleH); ctx.stroke()
+      const fw = 24 * zoom, fh = 15 * zoom, fy = by - poleH
+      for (let r = 0; r < 2; r++) for (let c = 0; c < 3; c++) {
+        ctx.fillStyle = (r + c) % 2 ? '#e6e9ee' : '#11151d'
+        ctx.fillRect(bx + c * fw / 3, fy + r * fh / 2, fw / 3, fh / 2)
+      }
+      ctx.fillStyle = 'rgba(226,232,240,0.9)'; ctx.font = `700 ${11 * zoom}px -apple-system,Segoe UI,sans-serif`
+      ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic'
+      ctx.fillText(`${m}m`, bx, fy - 5 * zoom)
+    }
   }
 
   _drawTrail(ctx, sx, sy, zoom) {
@@ -810,6 +929,9 @@ export class RacingEngine {
       if (p.kind === 'dust') {
         ctx.fillStyle = `rgba(120,123,134,${a * 0.45})`
         ctx.beginPath(); ctx.arc(px, py, p.r * zoom * (1 + p.age), 0, Math.PI * 2); ctx.fill()
+      } else if (p.kind === 'smoke') {
+        ctx.fillStyle = `rgba(120,124,134,${a * 0.32})`
+        ctx.beginPath(); ctx.arc(px, py, p.r * zoom * (1 + p.age * 1.6), 0, Math.PI * 2); ctx.fill()
       } else if (p.kind === 'shard') {
         ctx.save(); ctx.translate(px, py); ctx.rotate(p.age * 8)
         ctx.fillStyle = p.col; ctx.fillRect(-3 * zoom, -1.5 * zoom, 6 * zoom, 3 * zoom); ctx.restore()
@@ -854,7 +976,6 @@ export class RacingEngine {
       ctx.fillStyle = TV.axisText
       ctx.fillText(price >= 100 ? price.toFixed(0) : price.toFixed(2), gutterX + 6, py)
     }
-    // canlı fiyat pill'i (aracın seviyesinde)
     const car = this.car
     const py = clamp(H / 2 - (car.y - this.camY) * this._zoom, 12, H - TAXH - 12)
     const price = this._heightToPrice(this.heightAt(car.x))
@@ -913,61 +1034,185 @@ export class RacingEngine {
       ctx.strokeStyle = `rgba(${col},${0.04 + 0.13 * intensity})`
       ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + len, y); ctx.stroke()
     }
-    // hız vignette
     const g = ctx.createRadialGradient(W / 2, H / 2, H * 0.3, W / 2, H / 2, H * 0.75)
     g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(1, `rgba(0,0,0,${0.26 * intensity})`)
     ctx.fillStyle = g; ctx.fillRect(0, 0, W, H)
   }
 
+  // --------------------------------------------------------------------------
+  // ARAÇ ÇİZİMİ — yükseltmelere göre görsel değişir (yay/lastik/egzoz/kanat/depo)
+  // --------------------------------------------------------------------------
   _drawVehicle(ctx, sx, sy, zoom) {
     const car = this.car, s = this.stats
+    const Lv = s.lv || {}
+    const eng = Lv.engine || 0, tir = Lv.tires || 0, sus = Lv.suspension || 0
+    const gear = Lv.gearbox || 0, fuel = Lv.fuel || 0, aero = Lv.aero || 0
+    const ratio = s.upgradeRatio || 0
     const px = sx(car.x), py = sy(car.y)
+    const bw = s.bodyW, bh = s.bodyH, wr = this.wheelR
+    const accel = this.input.fwd && this.fuel > 0
+    const speed = Math.hypot(car.vx, car.vy)
+
     ctx.save(); ctx.translate(px, py); ctx.rotate(-car.angle); ctx.scale(zoom, zoom)
 
-    const bw = s.bodyW, bh = s.bodyH, wb = s.wheelBase, wr = s.wheelR
-    const squash = 1 - 0.05 * ((this.suspComp[0] + this.suspComp[1]) / (wr * 1.4 * 2))
-
     // gölge
-    ctx.fillStyle = 'rgba(0,0,0,0.25)'
-    ctx.beginPath(); ctx.ellipse(0, bh * 0.55 + wr, bw * 0.52 * (car.onGround ? 1 : 0.6), 7, 0, 0, Math.PI * 2); ctx.fill()
+    ctx.fillStyle = 'rgba(0,0,0,0.28)'
+    ctx.beginPath(); ctx.ellipse(0, bh * 0.55 + wr, bw * 0.55 * (car.onGround ? 1 : 0.6), 8, 0, 0, Math.PI * 2); ctx.fill()
 
-    // tekerler
-    for (let wi = 0; wi < this.wheels.length; wi++) {
-      const w = this.wheels[wi]
-      const comp = this.suspComp[wi] * 0.6
-      const wx = w.lx, wy = -w.ly + comp
-      ctx.strokeStyle = '#334155'; ctx.lineWidth = 4
-      ctx.beginPath(); ctx.moveTo(wx, -bh * 0.1); ctx.lineTo(wx, wy - wr * 0.3); ctx.stroke()
-      ctx.beginPath(); ctx.arc(wx, wy, wr, 0, Math.PI * 2); ctx.fillStyle = '#15181f'; ctx.fill()
-      ctx.strokeStyle = '#0a0c10'; ctx.lineWidth = 3; ctx.stroke()
-      ctx.save(); ctx.translate(wx, wy); ctx.rotate(this.wheelSpin[wi])
-      const hubG = ctx.createRadialGradient(0, 0, 1, 0, 0, wr * 0.55)
-      hubG.addColorStop(0, '#e2e8f0'); hubG.addColorStop(1, '#64748b')
-      ctx.fillStyle = hubG; ctx.beginPath(); ctx.arc(0, 0, wr * 0.5, 0, Math.PI * 2); ctx.fill()
-      ctx.strokeStyle = '#475569'; ctx.lineWidth = 2
-      for (let kk = 0; kk < 6; kk++) { ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(Math.cos(kk * Math.PI / 3) * wr * 0.5, Math.sin(kk * Math.PI / 3) * wr * 0.5); ctx.stroke() }
-      ctx.restore()
+    // yüksek doluluk aurası — çok yükseltilmiş araç "parlar"
+    if (ratio > 0.45) {
+      ctx.save(); ctx.shadowColor = s.color; ctx.shadowBlur = 16 * ratio
+      ctx.strokeStyle = `rgba(255,255,255,${0.05 + 0.14 * ratio})`; ctx.lineWidth = 2
+      this._roundRect(ctx, -bw / 2 - 3, -bh / 2 - 3, bw + 6, bh + 6, 10); ctx.stroke(); ctx.restore()
     }
 
+    // ARKA KANAT / SPOİLER (aero) — seviyeyle büyür, yan plakalı belirgin kanat
+    if (aero > 0 && !s.bike) {
+      const wgH = bh * 0.42 + aero * 2.6
+      const wgW = bw * (0.34 + aero * 0.022)
+      const wgT = 5 + aero * 0.7                    // kanat kalınlığı
+      const rx = -bw * 0.46
+      const topY = -bh * 0.32 - wgH
+      // iki destek çubuğu
+      ctx.strokeStyle = s.accent; ctx.lineWidth = 3.5
+      ctx.beginPath(); ctx.moveTo(rx + wgW * 0.12, -bh * 0.32); ctx.lineTo(rx + wgW * 0.12, topY); ctx.stroke()
+      ctx.beginPath(); ctx.moveTo(rx + wgW * 0.62, -bh * 0.32); ctx.lineTo(rx + wgW * 0.62, topY); ctx.stroke()
+      // yatay kanat kanadı (parlak üst kenar)
+      const wg = ctx.createLinearGradient(0, topY - wgT, 0, topY + wgT)
+      wg.addColorStop(0, this._shade(s.color, 1.35)); wg.addColorStop(1, this._shade(s.color, 0.7))
+      ctx.fillStyle = wg; ctx.strokeStyle = s.accent; ctx.lineWidth = 2
+      this._roundRect(ctx, rx - wgW * 0.14, topY - wgT / 2, wgW, wgT, 2); ctx.fill(); ctx.stroke()
+      // yan plakalar (uç kanatçıklar) → spoiler'ı net gösterir
+      ctx.fillStyle = this._shade(s.color, 0.6)
+      this._roundRect(ctx, rx - wgW * 0.16, topY - wgT * 1.6, 3, wgT * 3, 1); ctx.fill()
+      this._roundRect(ctx, rx + wgW * 0.80, topY - wgT * 1.6, 3, wgT * 3, 1); ctx.fill()
+    }
+
+    // EGZOZ (motor) — seviyeyle çift boru + alev
+    {
+      const pipes = eng >= 3 ? 2 : 1
+      for (let p = 0; p < pipes; p++) {
+        const ppy = bh * 0.30 - p * bh * 0.34
+        const ex = -bw * 0.5 - 2
+        ctx.fillStyle = '#3a4150'; this._roundRect(ctx, ex - 9, ppy - 3, 11, 6, 2); ctx.fill()
+        ctx.fillStyle = '#12151c'; ctx.beginPath(); ctx.ellipse(ex - 9, ppy, 2.3, 3, 0, 0, Math.PI * 2); ctx.fill()
+        if (accel) {
+          const fl = 8 + eng * 2.4 + Math.abs(Math.sin(this._frame * 0.7 + p)) * 6
+          const grd = ctx.createLinearGradient(ex - 9, ppy, ex - 9 - fl, ppy)
+          grd.addColorStop(0, 'rgba(255,240,150,0.95)'); grd.addColorStop(0.5, 'rgba(255,150,40,0.8)'); grd.addColorStop(1, 'rgba(255,60,20,0)')
+          ctx.fillStyle = grd
+          ctx.beginPath(); ctx.moveTo(ex - 9, ppy - 3.4); ctx.lineTo(ex - 9 - fl, ppy); ctx.lineTo(ex - 9, ppy + 3.4); ctx.closePath(); ctx.fill()
+        }
+      }
+    }
+
+    // ROKET BOOSTER — sadece roket aracı, gaz verirken
+    if (s.id === 'rocket' && accel) {
+      const fl = 22 + Math.abs(Math.sin(this._frame * 0.9)) * 14
+      const bx = -bw * 0.5 - 4
+      ctx.fillStyle = '#334155'; this._roundRect(ctx, bx - 6, -bh * 0.18, 8, bh * 0.36, 3); ctx.fill()
+      const grd = ctx.createLinearGradient(bx - 6, 0, bx - 6 - fl, 0)
+      grd.addColorStop(0, 'rgba(180,230,255,0.95)'); grd.addColorStop(0.4, 'rgba(90,160,255,0.8)'); grd.addColorStop(1, 'rgba(40,90,255,0)')
+      ctx.fillStyle = grd
+      ctx.beginPath(); ctx.moveTo(bx - 6, -bh * 0.16); ctx.lineTo(bx - 6 - fl, 0); ctx.lineTo(bx - 6, bh * 0.16); ctx.closePath(); ctx.fill()
+    }
+
+    // YAKIT DEPOSU (fuel) — arka üstte, seviyeyle büyür (gövde önünde çizilir → örtülür)
+    if (fuel > 0 && !s.bike) {
+      const tkW = bw * 0.10 + fuel * 1.3
+      const tkH = bh * 0.34 + fuel * 0.7
+      const tx = -bw * 0.30, ty = -bh * 0.5 - tkH * 0.5
+      ctx.fillStyle = '#c3ccd8'; this._roundRect(ctx, tx - tkW / 2, ty, tkW, tkH, tkH * 0.42); ctx.fill()
+      ctx.strokeStyle = '#5b6675'; ctx.lineWidth = 1.5; ctx.stroke()
+      ctx.fillStyle = TV.up
+      const fillH = (tkH - 4) * clamp(this.fuel / s.fuelMax, 0, 1)
+      this._roundRect(ctx, tx - tkW / 2 + 2, ty + tkH - 2 - fillH, tkW - 4, fillH, tkH * 0.3); ctx.fill()
+    }
+
+    // TEKER + YAY SÜSPANSİYON
+    for (let wi = 0; wi < this.wheels.length; wi++) {
+      const w = this.wheels[wi]
+      const axY = -w.lyAxle                    // gövde ekseni (aşağı +)
+      const susLen = this.wheelSusLen ? this.wheelSusLen[wi] : this.susRest
+      const wcx = w.lx, wcy = axY + susLen
+      const springTop = -bh * 0.10
+      const springBot = wcy - wr * 0.55
+      // damper gövdesi (accent renkli koilover kovanı) — arkada
+      ctx.strokeStyle = this._shade(s.color, 0.55); ctx.lineWidth = 5 + sus * 0.2
+      ctx.lineCap = 'round'
+      ctx.beginPath(); ctx.moveTo(wcx, springTop + 2); ctx.lineTo(wcx, wcy - wr * 0.2); ctx.stroke()
+      // coilover yay — parlak metalik sarım (seviyeyle daha çok sarım + kalınlık)
+      const coils = 3 + Math.round(sus * 0.6)
+      const amp = 4 + sus * 0.5
+      ctx.strokeStyle = sus > 2 ? '#dfe6ef' : '#b6bfcc'; ctx.lineWidth = 2.2 + sus * 0.16
+      ctx.beginPath()
+      const segs = coils * 2
+      for (let kk = 0; kk <= segs; kk++) {
+        const tt = kk / segs
+        const yy = springTop + (springBot - springTop) * tt
+        const off = (kk === 0 || kk === segs) ? 0 : (kk % 2 ? amp : -amp)
+        const xx = wcx + off
+        if (kk === 0) ctx.moveTo(xx, yy); else ctx.lineTo(xx, yy)
+      }
+      ctx.stroke(); ctx.lineCap = 'butt'
+      // lastik
+      this._drawWheel(ctx, wcx, wcy, wr, tir, this.wheelSpin[wi])
+    }
+
+    // GÖVDE
+    const squash = 1 - 0.06 * ((this.suspComp[0] + this.suspComp[1]) / (this.susTravel * 2 || 1))
     ctx.save(); ctx.scale(1, squash)
-    // gövde (gradient)
     const bg = ctx.createLinearGradient(0, -bh / 2, 0, bh / 2)
-    bg.addColorStop(0, this._shade(s.color, 1.25)); bg.addColorStop(1, s.color)
+    bg.addColorStop(0, this._shade(s.color, 1.3)); bg.addColorStop(0.5, s.color); bg.addColorStop(1, this._shade(s.color, 0.78))
     ctx.fillStyle = bg; ctx.strokeStyle = s.accent; ctx.lineWidth = 3
-    this._roundRect(ctx, -bw / 2, -bh / 2, bw, bh, 8); ctx.fill(); ctx.stroke()
+    this._roundRect(ctx, -bw / 2, -bh / 2, bw, bh, s.bike ? bh * 0.42 : 9); ctx.fill(); ctx.stroke()
+    // üst parlama şeridi
     ctx.strokeStyle = 'rgba(255,255,255,0.4)'; ctx.lineWidth = 1.5
     ctx.beginPath(); ctx.moveTo(-bw / 2 + 8, -bh / 2 + 2); ctx.lineTo(bw / 2 - 8, -bh / 2 + 2); ctx.stroke()
+    // yan gövde çizgisi (karakter)
+    ctx.strokeStyle = this._shade(s.color, 0.6); ctx.lineWidth = 1.5
+    ctx.beginPath(); ctx.moveTo(-bw / 2 + 6, bh * 0.12); ctx.lineTo(bw / 2 - 6, bh * 0.12); ctx.stroke()
+    // kabin / camlar (bisiklet hariç)
     if (!s.bike) {
-      ctx.fillStyle = 'rgba(210,230,255,0.85)'; ctx.strokeStyle = s.accent; ctx.lineWidth = 3
-      this._roundRect(ctx, -bw * 0.18, -bh * 0.5 - bh * 0.55, bw * 0.5, bh * 0.6, 6); ctx.fill(); ctx.stroke()
+      ctx.fillStyle = 'rgba(200,225,255,0.88)'; ctx.strokeStyle = s.accent; ctx.lineWidth = 3
+      this._roundRect(ctx, -bw * 0.16, -bh * 0.5 - bh * 0.55, bw * 0.5, bh * 0.6, 6); ctx.fill(); ctx.stroke()
+      // cam bölme çubuğu
+      ctx.strokeStyle = s.accent; ctx.lineWidth = 1.5
+      ctx.beginPath(); ctx.moveTo(bw * 0.09, -bh * 0.5); ctx.lineTo(bw * 0.09, -bh * 0.5 - bh * 0.55); ctx.stroke()
+    } else {
+      // gidon (bisiklet)
+      ctx.strokeStyle = '#1f2937'; ctx.lineWidth = 2.5
+      ctx.beginPath(); ctx.moveTo(bw * 0.30, -bh * 0.3); ctx.lineTo(bw * 0.5, -bh * 0.9); ctx.stroke()
     }
     ctx.restore()
 
-    // far / fren ışığı
-    if (Math.hypot(car.vx, car.vy) > 200) {
+    // TURBO / HAVA GİRİŞİ (motor yüksek) — kaputta trapez scoop
+    if (eng >= 5 && !s.bike) {
+      const sw = bw * 0.13, sh = bh * 0.45, sxp = bw * 0.14
+      ctx.fillStyle = '#1f2937'
+      ctx.beginPath()
+      ctx.moveTo(sxp - sw, -bh * 0.5); ctx.lineTo(sxp + sw, -bh * 0.5)
+      ctx.lineTo(sxp + sw * 0.55, -bh * 0.5 - sh); ctx.lineTo(sxp - sw * 0.55, -bh * 0.5 - sh); ctx.closePath(); ctx.fill()
+      ctx.fillStyle = '#0b0e14'; ctx.fillRect(sxp - sw * 0.55, -bh * 0.5 - sh, sw * 1.1, 3)
+    }
+
+    // ŞANZIMAN rozeti (gear) — küçük vites göstergesi
+    if (gear > 0 && !s.bike) {
+      ctx.fillStyle = 'rgba(15,23,42,0.85)'
+      this._roundRect(ctx, bw * 0.16, bh * 0.02, 16, 12, 3); ctx.fill()
+      ctx.fillStyle = '#fbbf24'; ctx.font = 'bold 9px ui-monospace,monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'
+      ctx.fillText('G' + Math.min(6, 1 + Math.round(gear * 0.5)), bw * 0.16 + 8, bh * 0.02 + 6)
+      ctx.textBaseline = 'alphabetic'
+    }
+
+    // far ışığı
+    if (speed > 200) {
       ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.fillStyle = 'rgba(255,247,200,0.12)'
       ctx.beginPath(); ctx.moveTo(bw / 2, bh * 0.1); ctx.lineTo(bw / 2 + bw * 0.7, -bh * 0.3); ctx.lineTo(bw / 2 + bw * 0.7, bh * 0.5); ctx.closePath(); ctx.fill(); ctx.restore()
     }
+    // ön far lambası
+    ctx.fillStyle = '#fde68a'; ctx.beginPath(); ctx.arc(bw * 0.46, bh * 0.02, 3.2, 0, Math.PI * 2); ctx.fill()
+    // fren / geri ışığı
     if (this.input.rev) {
       ctx.save(); ctx.shadowColor = '#ef4444'; ctx.shadowBlur = 8; ctx.fillStyle = '#ef4444'
       ctx.fillRect(-bw / 2 - 1, bh * 0.05, 3, bh * 0.3); ctx.restore()
@@ -979,6 +1224,35 @@ export class RacingEngine {
     ctx.strokeStyle = '#92400e'; ctx.lineWidth = 2; ctx.stroke()
     ctx.fillStyle = '#1e293b'; ctx.beginPath(); ctx.arc(hx + 4, hy, 9, -0.5, 0.9); ctx.fill()
 
+    ctx.restore()
+  }
+
+  _drawWheel(ctx, cx, cy, r, tir, spin) {
+    // dış lastik
+    ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.fillStyle = '#14171e'; ctx.fill()
+    ctx.lineWidth = 2.5 + tir * 0.15; ctx.strokeStyle = '#0a0c10'; ctx.stroke()
+    // sırt deseni (lastik yükseldikçe kalın/çentikli)
+    const treads = 12 + tir
+    ctx.strokeStyle = '#20242c'; ctx.lineWidth = 1.4 + tir * 0.28
+    for (let k = 0; k < treads; k++) {
+      const a = spin + k / treads * Math.PI * 2
+      ctx.beginPath()
+      ctx.moveTo(cx + Math.cos(a) * r * 0.80, cy + Math.sin(a) * r * 0.80)
+      ctx.lineTo(cx + Math.cos(a) * r, cy + Math.sin(a) * r)
+      ctx.stroke()
+    }
+    // jant
+    ctx.save(); ctx.translate(cx, cy); ctx.rotate(spin)
+    const rimR = r * (0.52 - tir * 0.012)
+    const hubG = ctx.createRadialGradient(0, 0, 1, 0, 0, rimR)
+    hubG.addColorStop(0, '#e2e8f0'); hubG.addColorStop(1, '#64748b')
+    ctx.fillStyle = hubG; ctx.beginPath(); ctx.arc(0, 0, rimR, 0, Math.PI * 2); ctx.fill()
+    ctx.strokeStyle = '#475569'; ctx.lineWidth = 2
+    for (let k = 0; k < 6; k++) {
+      ctx.beginPath(); ctx.moveTo(0, 0)
+      ctx.lineTo(Math.cos(k * Math.PI / 3) * rimR, Math.sin(k * Math.PI / 3) * rimR); ctx.stroke()
+    }
+    ctx.fillStyle = '#334155'; ctx.beginPath(); ctx.arc(0, 0, rimR * 0.28, 0, Math.PI * 2); ctx.fill()
     ctx.restore()
   }
 

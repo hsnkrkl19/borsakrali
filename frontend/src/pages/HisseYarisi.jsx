@@ -341,7 +341,7 @@ export default function HisseYarisi() {
               {stockInfo.symbol} grafiğinde {vehicle.name}
             </h2>
             <p className="text-xs mb-4 max-w-xs text-slate-400">
-              {stockInfo.name} fiyat grafiği senin pistin. İLERİ/GERİ ile sür; SOL/SAĞ yerdeyken aracın önünü/arkasını kaldırır (hıza orantılı), havadayken takla attırır. Takla = ekstra para, ama kafan yere değerse oyun biter. Düz sürmek güvenli; risk almak kazandırır.
+              {stockInfo.name} fiyat grafiği senin pistin. İLERİ/GERİ ile sür; SOL/SAĞ yerdeyken aracın önünü/arkasını kaldırır (hıza orantılı), havadayken takla attırır. Takla = ekstra para, ama kafan yere değerse oyun biter. Düz sürmek güvenli; risk almak kazandırır. Garajdan aldığın yükseltmeler aracı büyütür ve görünüşünü değiştirir — yay, egzoz, turbo, kanat…
             </p>
             <button
               onClick={startRun}

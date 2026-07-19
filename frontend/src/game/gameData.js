@@ -108,12 +108,12 @@ export const VEHICLE_ORDER = [
 // Gerçek maliyet upgradeCost'ta araç costMul'u ile ölçeklenir (cost70 özdeşliği için).
 export const UPGRADE_MAX = 10
 export const UPGRADES = [
-  { key: 'engine',     name: 'Motor',        emoji: '⚙️', desc: 'Daha fazla güç ve ivme.',            baseCost: 60, growth: 1.28, max: UPGRADE_MAX },
-  { key: 'tires',      name: 'Lastik',       emoji: '🛞', desc: 'Daha iyi tutuş, az patinaj.',         baseCost: 60, growth: 1.28, max: UPGRADE_MAX },
-  { key: 'suspension', name: 'Süspansiyon',  emoji: '🔩', desc: 'Yumuşak iniş, az takla.',             baseCost: 60, growth: 1.28, max: UPGRADE_MAX },
-  { key: 'gearbox',    name: 'Şanzıman',     emoji: '🔧', desc: 'Daha yüksek son hız.',                baseCost: 60, growth: 1.28, max: UPGRADE_MAX },
-  { key: 'fuel',       name: 'Yakıt Deposu', emoji: '⛽', desc: 'Daha uzun mesafe, daha çok kazanç.',  baseCost: 60, growth: 1.28, max: UPGRADE_MAX },
-  { key: 'aero',       name: 'Aerodinamik',  emoji: '🪽', desc: 'Havada kontrol + denge.',             baseCost: 60, growth: 1.28, max: UPGRADE_MAX },
+  { key: 'engine',     name: 'Motor',        emoji: '⚙️', desc: 'Güç + ivme. Gövde büyür, egzoz alevlenir.', baseCost: 60, growth: 1.28, max: UPGRADE_MAX },
+  { key: 'tires',      name: 'Lastik',       emoji: '🛞', desc: 'Tutuş + tırmanış. Tekerler kalınlaşır.',    baseCost: 60, growth: 1.28, max: UPGRADE_MAX },
+  { key: 'suspension', name: 'Süspansiyon',  emoji: '🔩', desc: 'Yumuşak iniş, dengeli ön/arka. Yaylar uzar.', baseCost: 60, growth: 1.28, max: UPGRADE_MAX },
+  { key: 'gearbox',    name: 'Şanzıman',     emoji: '🔧', desc: 'Daha yüksek son hız.',                       baseCost: 60, growth: 1.28, max: UPGRADE_MAX },
+  { key: 'fuel',       name: 'Yakıt Deposu', emoji: '⛽', desc: 'Uzun mesafe + kazanç. Depo büyür.',          baseCost: 60, growth: 1.28, max: UPGRADE_MAX },
+  { key: 'aero',       name: 'Aerodinamik',  emoji: '🪽', desc: 'Havada kontrol + denge. Kanat/spoiler takılır.', baseCost: 60, growth: 1.28, max: UPGRADE_MAX },
 ]
 
 // Yükseltme seviyesinin maliyeti (sonraki seviyeye geçiş). costMul = araca özel çarpan.
@@ -129,11 +129,20 @@ export function effectiveStats(vehicleId, upgradesForVehicle = {}) {
   const lv = (k) => Math.min(upgradesForVehicle[k] || 0, UPGRADE_MAX)   // eski kayıt seviyelerini clamp'le
   const eng = lv('engine'), tir = lv('tires'), sus = lv('suspension')
   const gear = lv('gearbox'), fuel = lv('fuel'), aero = lv('aero')
+  const totalLv = eng + tir + sus + gear + fuel + aero
+
+  // YÜKSELTMELER ARACI FİZİKSEL OLARAK BÜYÜTÜR (görsel + hitbox + atalet birlikte).
+  //  motor/yakıt → gövde büyür · lastik → tekerlek büyür (daha iyi tırmanır) ·
+  //  süspansiyon → daha yüksek/uzun yol · böylece dolu bir araç gözle görülür şekilde iri ve güçlüdür.
+  const bodyW    = base.bodyW * (1 + 0.030 * eng + 0.018 * fuel)
+  const bodyH    = base.bodyH * (1 + 0.018 * eng + 0.026 * sus)
+  const wheelR   = base.wheelR * (1 + 0.048 * tir)
+  const wheelBase = base.wheelBase * (1 + 0.016 * eng + 0.010 * tir)
 
   return {
     ...base,
-    // Katsayılar max=10'a göre ölçeklendi. Base hız ×1.12 (araç biraz daha hızlı),
-    // motor+şanzıman hıza daha çok katkı (yükseltmelerle daha da hızlanır).
+    bodyW, bodyH, wheelR, wheelBase,
+    // Katsayılar max=10'a göre ölçeklendi. Base hız ×1.20, motor+şanzıman hıza daha çok katkı.
     enginePower: base.enginePower * 1.16 * (1 + 0.20 * eng),
     grip:        base.grip * (1 + 0.14 * tir),
     suspK:       base.suspK * (1 + 0.12 * sus),
@@ -143,7 +152,13 @@ export function effectiveStats(vehicleId, upgradesForVehicle = {}) {
     airControl:  base.airControl * (1 + 0.18 * aero),
     stability:   1 + 0.14 * aero,   // havadaki açısal sönümleme
     landing:     1 + 0.12 * sus,    // çarpma toleransı
-    mass:        base.mass,
+    // SÜSPANSİYON = ön/arka hassasiyet: yükseldikçe yay yumuşar, yol uzar, iniş sakinleşir.
+    suspSoft:    1 + 0.10 * sus,    // yay yolu / yumuşaklık çarpanı (görsel + fizik)
+    mass:        base.mass * (1 + 0.006 * (eng + fuel)),   // büyüdükçe biraz ağırlaşır
+    // Motor render/ince-fizik için ham yükseltme seviyeleri + doluluk oranı:
+    lv: { engine: eng, tires: tir, suspension: sus, gearbox: gear, fuel, aero },
+    totalLv,
+    upgradeRatio: totalLv / (UPGRADES.length * UPGRADE_MAX),
   }
 }
 
