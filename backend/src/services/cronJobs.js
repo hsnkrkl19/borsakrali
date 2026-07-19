@@ -28,6 +28,7 @@ const altinBacktest = require('./altin/altinBacktest');
 // ICT/FVG — 4h yön + 1h yapı + 15m FVG + kapanmış 5m teyidi; yalnız paper yürütme.
 const ictFvgService = require('./ictFvg/ictFvgService');
 const ictSmcService = require('./ictSmc/ictSmcService');
+const customBotRunner = require('./botBuilder/customBotRunner');
 const ictFvgTracker = require('./ictFvg/ictFvgTracker');
 const ictFvgNotifier = require('./ictFvg/ictFvgNotifier');
 // BEAST TREND — Zero-Lag + Ichimoku + Scalper Beast füzyonu (altın/gümüş/BTC/ETH)
@@ -179,6 +180,8 @@ const ICT_FVG_STALE_MS = 4 * 60 * 1000;
 let _ictFvgCadenceLockAt = 0;
 const ICT_SMC_STALE_MS = 4 * 60 * 1000;
 let _ictSmcCadenceLockAt = 0;
+const CUSTOM_BOT_STALE_MS = 4 * 60 * 1000;
+let _customBotCadenceLockAt = 0;
 let _altinBacktestRunning = false;
 let _altinPrevBiasDir = null;
 // BEAST turu her 5 dk → 240 sn bayatlama penceresi.
@@ -1229,6 +1232,27 @@ async function runIctSmcCadence() {
   }
 }
 
+// Kullanıcının panelden oluşturduğu özel botlar (16., 17. ...). Kendi indikatör
+// setleriyle sinyal üretir, kağıt takip eder; açık pozisyonlar köprü feed'ine
+// girer → MT5'te gerçek emir. FOREX_ONLY'den bağımsız (kullanıcı botları).
+async function runCustomBotCadence() {
+  const now = Date.now();
+  if (_customBotCadenceLockAt && now - _customBotCadenceLockAt < CUSTOM_BOT_STALE_MS) return null;
+  _customBotCadenceLockAt = now;
+  try {
+    const r = await customBotRunner.run();
+    if (r && (r.opened || r.closed)) {
+      logger.info(`Özel bot turu — açılan ${r.opened} · kapanan ${r.closed} · açık ${r.openCount}`);
+    }
+    return r;
+  } catch (error) {
+    logger.error(`Özel bot turu hata: ${error.message}`);
+    return null;
+  } finally {
+    _customBotCadenceLockAt = 0;
+  }
+}
+
 async function runAltinBacktest() {
   if (forexOnly()) return null;
   if (_altinBacktestRunning) return null;
@@ -1601,6 +1625,13 @@ class CronJobsService {
       { scheduled: false, ...TR_TZ }
     );
 
+    // Özel botlar (kullanıcı-tanımlı) — her 4 dk.
+    const customBotJob = cron.schedule(
+      '1,5,9,13,17,21,25,29,33,37,41,45,49,53,57 * * * *',
+      () => runCustomBotCadence(),
+      { scheduled: false, ...TR_TZ }
+    );
+
     const beastSignalJob = cron.schedule(
       '*/5 * * * *',
       () => runBeastSignalCadence(),
@@ -1886,6 +1917,7 @@ class CronJobsService {
       altinBacktestJob,
       ictFvgJob,
       ictSmcJob,
+      customBotJob,
       beastSignalJob,
       waveScanJob,
       mtf1mJob,

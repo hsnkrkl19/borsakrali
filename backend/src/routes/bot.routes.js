@@ -20,6 +20,12 @@ const authService = require('../services/authService');
 const botClient = require('../services/botClient');
 const notificationBotManager = require('../services/botCenter/notificationBotManager');
 const competitionManager = require('../services/botCompetition/competitionManager');
+const builderStore = require('../services/botBuilder/store');
+const customBotEngine = require('../services/botBuilder/customBotEngine');
+const customBotRunner = require('../services/botBuilder/customBotRunner');
+const { metaFor } = require('../services/botBuilder/catalogMeta');
+const ictSmc = require('../services/ictSmc/ictSmcService');
+const { listInstruments } = require('../services/forex/forexInstruments');
 
 async function requireAdmin(req, res, next) {
   try {
@@ -135,6 +141,70 @@ router.post('/competition/:id', (req, res) => {
     const status = ['NOT_FOUND', 'NOT_TRADING'].includes(error?.code) ? 404 : 400;
     return res.status(status).json({ ok: false, error: error.message });
   }
+});
+
+// ── BOT BUILDER: 15 botun TF ayarı + 16. bot oluşturma (site-lokal, admin) ──
+router.get('/builder', (req, res) => {
+  try {
+    const compStatus = competitionManager.status();
+    const enabledById = {};
+    (compStatus.bots || []).forEach((b) => { enabledById[b.id] = b.enabled; });
+    const catalog = competitionManager.catalog
+      .filter((e) => e.competitionEligible)
+      .map((e) => {
+        const m = metaFor(e.id);
+        return {
+          id: e.id, name: e.name, category: e.category, magic: e.magic || null,
+          strategies: m.strategies, availableTimeframes: m.timeframes,
+          enabled: enabledById[e.id] !== false,
+          selectedTimeframes: builderStore.getBotTimeframes(e.id),
+        };
+      });
+    const lb = customBotRunner.leaderboard();
+    const lbById = {}; lb.forEach((x) => { lbById[x.botId] = x; });
+    const customBots = builderStore.listCustom().map((b) => ({
+      ...b, stats: lbById[b.id] || { trades: 0, wins: 0, netR: 0, winRate: 0, open: 0 },
+    }));
+    res.json({
+      catalog, customBots,
+      indicators: customBotEngine.INDICATORS,
+      ictStrategies: Object.entries(ictSmc.STRATS).map(([id, name]) => ({ id, name })),
+      pairs: listInstruments().map((i) => ({ id: i.id, name: i.name, symbol: i.symbol, class: i.class })),
+      allTimeframes: builderStore.ALL_TF,
+      customLeaderboard: lb,
+    });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+// 15 mevcut bot: zaman-dilimi filtresi + aç/kapat
+router.post('/builder/settings/:id', (req, res) => {
+  try {
+    const id = String(req.params.id || '');
+    if (Array.isArray(req.body?.timeframes)) builderStore.setBotTimeframes(id, req.body.timeframes);
+    if (typeof req.body?.enabled === 'boolean') {
+      competitionManager.setBotEnabled(id, req.body.enabled, req.user?.email || 'admin');
+    }
+    res.json({ ok: true, id, selectedTimeframes: builderStore.getBotTimeframes(id) });
+  } catch (e) {
+    const status = ['NOT_FOUND', 'NOT_TRADING'].includes(e?.code) ? 404 : 400;
+    res.status(status).json({ ok: false, error: e.message });
+  }
+});
+
+// 16. bot: oluştur / güncelle / sil
+router.post('/builder/custom', (req, res) => {
+  try { res.json({ ok: true, bot: builderStore.createCustom(req.body || {}) }); }
+  catch (e) { res.status(e?.code === 'LIMIT' ? 409 : 400).json({ ok: false, error: e.message }); }
+});
+router.patch('/builder/custom/:id', (req, res) => {
+  try { res.json({ ok: true, bot: builderStore.updateCustom(req.params.id, req.body || {}) }); }
+  catch (e) { res.status(e?.code === 'NOT_FOUND' ? 404 : 400).json({ ok: false, error: e.message }); }
+});
+router.delete('/builder/custom/:id', (req, res) => {
+  try { res.json(builderStore.deleteCustom(req.params.id)); }
+  catch (e) { res.status(e?.code === 'NOT_FOUND' ? 404 : 400).json({ ok: false, error: e.message }); }
 });
 
 // ── Okuma uçları ───────────────────────────────────────────────────────────

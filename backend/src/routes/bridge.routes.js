@@ -12,6 +12,8 @@
 const express = require('express');
 const router = express.Router();
 const competitionManager = require('../services/botCompetition/competitionManager');
+const builderStore = require('../services/botBuilder/store');
+const customBotRunner = require('../services/botBuilder/customBotRunner');
 
 function checkExecToken(req) {
   const need = process.env.FOREX_EXEC_TOKEN;
@@ -28,7 +30,18 @@ router.get('/positions', (req, res) => {
   if (!auth.ok) return res.status(auth.code).json({ success: false, error: auth.error });
   try {
     const feed = competitionManager.bridgeFeed();
-    res.json({ success: true, ...feed });
+    // 15 botun TF filtresi: panelde seçilen zaman dilimleri dışındaki pozisyonlar
+    // köprüye gönderilmez (filtre boşsa hepsi geçer; TF bilinmiyorsa geçer).
+    let positions = (feed.positions || []).filter((p) => {
+      const tf = p.timeframe;
+      if (!tf) return true;
+      try { return builderStore.tfAllowed(p.botId, tf); } catch (_) { return true; }
+    });
+    // Custom botların (16., 17. ...) açık pozisyonlarını ekle.
+    if (feed.enabled) {
+      try { positions = positions.concat(customBotRunner.feed()); } catch (_) {}
+    }
+    res.json({ success: true, enabled: feed.enabled, generatedAt: feed.generatedAt, count: positions.length, positions });
   } catch (e) {
     res.status(500).json({ success: false, error: e.message });
   }
