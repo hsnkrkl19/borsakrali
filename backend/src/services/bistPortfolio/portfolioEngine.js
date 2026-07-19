@@ -28,6 +28,7 @@
 const trailingManager = require('../tradingBotV2/trailingManager');
 const riskGuard = require('../botRiskGuard');
 const marketHours = require('../marketHours');
+const analytics = require('./analytics');
 const { ema } = require('../forex/indicators');
 
 function nowISO(d) { return (d || new Date()).toISOString(); }
@@ -374,6 +375,7 @@ function snapshot(store, cfg) {
   const openValue = open.reduce((s, p) => s + p.lastPrice * p.shares, 0);
   const equity = +(pf.cash + openValue).toFixed(2);
   const unrealizedTotal = +open.reduce((s, p) => s + p.unrealizedPnL, 0).toFixed(2);
+  const allTrades = (typeof store.listTrades === 'function' ? store.listTrades(500) : []);
   return {
     portfolio: pf,
     kpis: {
@@ -384,8 +386,9 @@ function snapshot(store, cfg) {
       winCount: pf.winCount || 0, lossCount: pf.lossCount || 0, winRate: pf.winRate || 0,
       tradingEnabled: pf.tradingEnabled !== false, haltReason: pf.haltReason || null,
     },
+    metrics: analytics.computeMetrics({ trades: allTrades, equityHistory: pf.equityHistory }),
     open: open.sort((a, b) => (b.score ?? 0) - (a.score ?? 0) || a.symbol.localeCompare(b.symbol)),
-    closed: (typeof store.listTrades === 'function' ? store.listTrades(50) : []),
+    closed: allTrades.slice(0, 50),
     equityHistory: pf.equityHistory || [],
   };
 }

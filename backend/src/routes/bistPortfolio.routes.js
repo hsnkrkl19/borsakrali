@@ -21,8 +21,15 @@ const alStore = require('../services/bistPortfolio/bistAlPortfolioStore');
 const signalStore = require('../services/bistPortfolio/bistSignalPortfolioStore');
 const bistScoreEngine = require('../services/bistSignals/bistScoreEngine');
 const bistSignalNotifier = require('../services/bistSignals/bistSignalNotifier');
+const benchmark = require('../services/bistPortfolio/benchmark');
 const cronJobs = require('../services/cronJobs');
 const authService = require('../services/authService');
+
+async function withBenchmark(snap) {
+  try { snap.benchmark = await benchmark.compare(snap.equityHistory, snap.kpis.totalReturnPct); }
+  catch (_) { snap.benchmark = null; }
+  return snap;
+}
 
 const BOTS = {
   al: { bot: alBot, store: alStore, label: 'BIST AL (>=80)' },
@@ -46,15 +53,16 @@ async function requireAdmin(req, res, next) {
 }
 
 // ── Public read ──────────────────────────────────────────────────────────────
-router.get('/', (_req, res) => {
+router.get('/', async (_req, res) => {
   try {
-    res.json({ ok: true, al: alBot.getSnapshot(), signals: signalBot.getSnapshot() });
+    const [al, signals] = await Promise.all([withBenchmark(alBot.getSnapshot()), withBenchmark(signalBot.getSnapshot())]);
+    res.json({ ok: true, al, signals });
   } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
 });
 
-router.get('/:bot/snapshot', (req, res) => {
+router.get('/:bot/snapshot', async (req, res) => {
   const b = pick(req, res); if (!b) return;
-  try { res.json({ ok: true, bot: req.params.bot, ...b.bot.getSnapshot() }); }
+  try { res.json({ ok: true, bot: req.params.bot, ...(await withBenchmark(b.bot.getSnapshot())) }); }
   catch (e) { res.status(500).json({ ok: false, error: e.message }); }
 });
 

@@ -121,7 +121,9 @@ function createPortfolioBot(opts) {
     if (!snap.open.length && !closedToday.length && (pf.winCount || 0) + (pf.lossCount || 0) === 0) {
       return { skipped: 'nothing-to-report' };
     }
-    const tg = await sendTelegram(M.buildDailySummaryMessages({ dateKey, snapshot: snap, closedToday }, dialect));
+    let bench = null;
+    try { bench = await require('./benchmark').compare(snap.equityHistory, snap.kpis.totalReturnPct); } catch (_) {}
+    const tg = await sendTelegram(M.buildDailySummaryMessages({ dateKey, snapshot: snap, closedToday, benchmark: bench }, dialect));
     await sendBroadcasts([M.buildDailySummaryBroadcast({ dateKey, snapshot: snap }, dialect)]);
     pf.lastSummaryDate = dateKey;   // gün-bazlı dedup (cron günde 1 çağırır)
     store.savePortfolio(pf);

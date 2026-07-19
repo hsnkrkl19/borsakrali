@@ -83,6 +83,8 @@ export default function BistPortfoy() {
 
   const snap = data?.[bot]
   const k = snap?.kpis
+  const m = snap?.metrics
+  const bench = snap?.benchmark
   const open = snap?.open || []
   const closed = snap?.closed || []
 
@@ -139,11 +141,38 @@ export default function BistPortfoy() {
               sub={`${k.winCount}G / ${k.lossCount}K · ${k.openCount} açık`} />
           </div>
 
+          {/* BIST100 kıyası (alfa) */}
+          {bench && (
+            <div className="rounded-lg border border-gray-700 bg-gray-800/30 px-3 py-2 flex items-center justify-between text-xs flex-wrap gap-2">
+              <span className="text-gray-400">Portföy <b className={pctCls(k.totalReturnPct)}>{sgn(k.totalReturnPct)}{fmt(k.totalReturnPct)}%</b> · BIST100 <b className={pctCls(bench.indexReturnPct)}>{sgn(bench.indexReturnPct)}{fmt(bench.indexReturnPct)}%</b></span>
+              <span className={`font-bold ${pctCls(bench.alphaPct)}`}>Alfa: {sgn(bench.alphaPct)}{fmt(bench.alphaPct)}%</span>
+            </div>
+          )}
+
           {/* Özsermaye eğrisi */}
           {(snap.equityHistory || []).length >= 2 && (
             <div className="rounded-xl border border-gray-700 bg-gray-800/30 p-3">
               <div className="text-[11px] text-gray-500 mb-1">Özsermaye eğrisi ({snap.equityHistory.length} gün)</div>
               <Sparkline history={snap.equityHistory} capital={k.capital} />
+            </div>
+          )}
+
+          {/* Risk & performans metrikleri (kapanan işlem oldukça) */}
+          {m && m.closedCount > 0 && (
+            <div className="grid grid-cols-3 md:grid-cols-6 gap-2 text-center">
+              {[
+                { l: 'Max Düşüş', v: `%${fmt(m.maxDrawdownPct, 1)}`, c: 'text-red-400' },
+                { l: 'Profit Factor', v: fmt(m.profitFactor, 2), c: m.profitFactor >= 1 ? 'text-emerald-400' : 'text-red-400' },
+                { l: 'Beklenti/işlem', v: `${sgn(m.expectancyTL)}${money(m.expectancyTL)}₺`, c: pctCls(m.expectancyTL) },
+                { l: 'Ort. Kazanç', v: `+${fmt(m.avgWinPct)}%`, c: 'text-emerald-400' },
+                { l: 'Ort. Kayıp', v: `${fmt(m.avgLossPct)}%`, c: 'text-red-400' },
+                { l: 'Ort. Tutuş', v: `${fmt(m.avgHoldDays, 0)}g`, c: 'text-gray-300' },
+              ].map((x) => (
+                <div key={x.l} className="rounded-lg border border-gray-700 bg-gray-800/30 py-2">
+                  <div className="text-[10px] text-gray-500">{x.l}</div>
+                  <div className={`text-sm font-bold ${x.c}`}>{x.v}</div>
+                </div>
+              ))}
             </div>
           )}
 

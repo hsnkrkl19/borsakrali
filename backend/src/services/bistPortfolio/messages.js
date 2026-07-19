@@ -85,12 +85,20 @@ function buildExitBroadcast(ev, dialect) {
 }
 
 // ── Günlük portföy özeti ─────────────────────────────────────────────────────
-function buildDailySummaryMessages({ dateKey, snapshot, closedToday }, dialect) {
+function buildDailySummaryMessages({ dateKey, snapshot, closedToday, benchmark }, dialect) {
   const k = snapshot.kpis;
+  const m = snapshot.metrics || {};
+  const benchLine = benchmark
+    ? `\nBIST100: ${sign(benchmark.indexReturnPct)}${fmt(benchmark.indexReturnPct, 2)}% · <b>Alfa: ${sign(benchmark.alphaPct)}${fmt(benchmark.alphaPct, 2)}%</b>`
+    : '';
+  const metricLine = (m.closedCount > 0)
+    ? `\nMax dusus %${fmt(m.maxDrawdownPct, 1)} · PF ${fmt(m.profitFactor, 2)} · beklenti ${sign(m.expectancyTL)}${money(m.expectancyTL)} TL/islem · ort. tutus ${fmt(m.avgHoldDays, 0)}g`
+    : '';
   const header =
     `📊 <b>${dialect.name} PORTFOY OZETI</b> — ${htmlEscape(dateKey)}\n` +
     `Ozsermaye: <b>${money(k.equity)} TL</b> (${sign(k.totalReturnPct)}${fmt(k.totalReturnPct, 2)}%) · Nakit: ${money(k.cash)} TL · Acik: ${k.openCount}\n` +
-    `Gerceklesen K/Z: ${sign(k.totalRealizedPnL)}${money(k.totalRealizedPnL)} TL · Kazanma: %${fmt(k.winRate, 0)} (${k.winCount}G/${k.lossCount}K)`;
+    `Gerceklesen K/Z: ${sign(k.totalRealizedPnL)}${money(k.totalRealizedPnL)} TL · Kazanma: %${fmt(k.winRate, 0)} (${k.winCount}G/${k.lossCount}K)` +
+    benchLine + metricLine;
 
   const openLines = (snapshot.open || []).length
     ? ['<b>Acik pozisyonlar:</b>', ...snapshot.open.map(p => {
