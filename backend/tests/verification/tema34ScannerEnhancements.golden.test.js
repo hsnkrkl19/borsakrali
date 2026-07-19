@@ -64,9 +64,23 @@ describe('tema34ScanEngine — giriş filtresi (C, whipsaw azaltıcı)', () => {
     expect(engine.passesEntryFilter({ rising: true, turnover: null }, '4h')).toBe(true);
   });
 
+  test('1d: uzun-trend konfluans — aboveTrend=false ELER; true/null geçer', () => {
+    delete process.env.TEMA34_REQUIRE_TREND;
+    process.env.TEMA34_MIN_TURNOVER = '50000000';
+    expect(engine.passesEntryFilter({ rising: true, turnover: 1e9, aboveTrend: false }, '1d')).toBe(false);
+    expect(engine.passesEntryFilter({ rising: true, turnover: 1e9, aboveTrend: true }, '1d')).toBe(true);
+    expect(engine.passesEntryFilter({ rising: true, turnover: 1e9, aboveTrend: null }, '1d')).toBe(true);  // MA yok → geçer
+  });
+
+  test('TEMA34_REQUIRE_TREND=0 → trend kapısı kapalı (aboveTrend=false yine geçer)', () => {
+    process.env.TEMA34_REQUIRE_TREND = '0';
+    process.env.TEMA34_MIN_TURNOVER = '50000000';
+    expect(engine.passesEntryFilter({ rising: true, turnover: 1e9, aboveTrend: false }, '1d')).toBe(true);
+  });
+
   test('TEMA34_FILTER_DISABLED=1 → ham davranış (her cross_above geçer)', () => {
     process.env.TEMA34_FILTER_DISABLED = '1';
-    expect(engine.passesEntryFilter({ rising: false, turnover: null }, '1d')).toBe(true);
+    expect(engine.passesEntryFilter({ rising: false, turnover: null, aboveTrend: false }, '1d')).toBe(true);
   });
 });
 

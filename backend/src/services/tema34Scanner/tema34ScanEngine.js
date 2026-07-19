@@ -31,6 +31,7 @@ const liveDataService = require('../liveDataService');
 const marketHours = require('../marketHours');
 const { allBistStocks } = require('../../data/allBistStocks');
 const { calcTEMASeries, classifyCross } = require('../crossover/crossoverIndicators');
+const { ema, sma } = require('../forex/indicators');
 
 const PERIOD = 34;
 const MIN_CANDLES = 100;     // TEMA34 warmup
@@ -46,7 +47,19 @@ function filterCfg() {
     // Likidite tabanı (yalnız 1d): ort. 20-gün günlük TL cirosu bu eşiğin altındaysa
     // "yeni giren" sayılmaz → küçük-cap/spekülatif whipsaw kaynağı elenir.
     minTurnover: envNum('TEMA34_MIN_TURNOVER', 50000000),       // 50M TL/gün (BIST AL 200M'den gevşek)
+    // UZUN-TREND KONFLUANS (yalnız 1d): yalnız fiyat uzun MA'nın üstündeyken al —
+    // "gelgite karşı işlem yapma". 2026-07-19 konfluans backtest'i: TEK işe yarayan
+    // ek kapı budur (EMA100: 5y PF 1.86→1.88, işlem ~%11 azalır); ADX/RSI kapıları
+    // bugünkü rejimde EDGE'İ KÖTÜLEŞTİRDİĞİ için BİLEREK eklenmedi (trend-başı
+    // işlemlerini eliyorlar). TEMA34_REQUIRE_TREND=0 ile kapatılır.
+    requireTrend: process.env.TEMA34_REQUIRE_TREND !== '0',     // vars. AÇIK
+    trendMa: (process.env.TEMA34_TREND_MA || 'ema100').toLowerCase(),   // 'ema100' | 'sma200'
   };
+}
+// Uzun-trend MA'yı hesapla (kapatıldıysa/hesaplanamadıysa null → over-eleme yok).
+function longTrendMa(closes, cfg = filterCfg()) {
+  if (!cfg.requireTrend) return null;
+  return cfg.trendMa === 'sma200' ? sma(closes, 200) : ema(closes, 100);
 }
 
 // Zaman dilimi başına Yahoo çekim ayarı.
@@ -96,6 +109,9 @@ function passesEntryFilter(a, tf, cfg = filterCfg()) {
     // ciro bilinmiyorsa (null) ELEME — güvenli tarafta likidite şüphesi
     if (a.turnover == null || a.turnover < cfg.minTurnover) return false;
   }
+  // Uzun-trend konfluans (yalnız 1d): aboveTrend===false → gelgite karşı, ELE.
+  // aboveTrend null (MA hesaplanamadı/kapalı) → geçir (over-eleme yok).
+  if (tf === '1d' && cfg.requireTrend && a.aboveTrend === false) return false;
   return true;
 }
 
@@ -143,6 +159,13 @@ async function analyzeSymbolTF(stock, tf, now = new Date()) {
     ? temaSeries[n - 1] > temaSeries[n - 1 - RISING_LOOKBACK]
     : false;
 
+  // Uzun-trend konfluans (yalnız 1d): fiyat uzun MA üstünde mi? MA yoksa null→geçer.
+  let aboveTrend = null;
+  if (tf === '1d') {
+    const ma = longTrendMa(closes);
+    if (ma != null) aboveTrend = closes[closes.length - 1] > ma;
+  }
+
   const lastBar = candles[candles.length - 1];
   return {
     symbol, name,
@@ -152,6 +175,7 @@ async function analyzeSymbolTF(stock, tf, now = new Date()) {
     rising,
     aboveNow: tema.aboveNow,
     turnover: tf === '1d' ? avgTurnover(candles) : null,
+    aboveTrend,
   };
 }
 
