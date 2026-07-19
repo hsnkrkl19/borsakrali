@@ -80,10 +80,27 @@ describe('bistAlScannerTracker.checkClosures — TP/SL/EXPIRE + sahte-stop', () 
       { date: '2099-01-02', close: 100, high: 101, low: 99 },
       { date: '2099-01-03', close: 109, high: 112, low: 104 },   // high 112 ≥ 110 → TP1
     ];
-    const ev = await tracker.checkClosures();
+    const ev = await tracker.checkClosures();                   // TESPİT (silmez)
     expect(ev).toHaveLength(1);
     expect(ev[0]).toMatchObject({ symbol: 'TPS', outcome: 'TP1', exit: 110, pnlPct: 10 });
+    // ⚠️ detect/commit: tespit sonrası hâlâ açık; commit ile (gönderim başarısı sonrası) kapanır
+    expect(await tracker.getOpen()).toHaveLength(1);
+    tracker.commitClosures(ev);
     expect(await tracker.getOpen()).toHaveLength(0);           // kapandı → open'dan silindi
+  });
+
+  test('gönderim başarısız → commit çağrılmazsa açık kalır, yeniden tespit edilir (retry)', async () => {
+    await openOne('RTY');
+    mockHist['RTY'] = [
+      { date: '2099-01-02', close: 100, high: 101, low: 99 },
+      { date: '2099-01-03', close: 109, high: 112, low: 104 },   // TP1
+    ];
+    const ev1 = await tracker.checkClosures();
+    expect(ev1).toHaveLength(1);
+    expect(await tracker.getOpen()).toHaveLength(1);            // commit yok → açık
+    const ev2 = await tracker.checkClosures();                 // sonraki tur yeniden tespit
+    expect(ev2).toHaveLength(1);
+    expect(ev2[0]).toMatchObject({ symbol: 'RTY', outcome: 'TP1' });
   });
 
   test('stopa düşünce SL (exit=stop, negatif pnl)', async () => {
@@ -141,6 +158,7 @@ describe('bistAlScannerTracker.checkClosures — TP/SL/EXPIRE + sahte-stop', () 
     expect(ev).toHaveLength(1);
     expect(ev[0].outcome).toBe('EXPIRE');
     expect(ev[0].exit).toBe(103);
+    tracker.commitClosures(ev);                                // closed'a yazılması commit ile
     const closed = await tracker.getClosedRecent();
     expect(closed[0].symbol).toBe('EXP');
   });

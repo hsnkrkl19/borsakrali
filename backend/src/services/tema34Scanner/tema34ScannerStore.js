@@ -25,7 +25,7 @@ const DIR = path.join(DATA_ROOT, SUBDIR);
 const FILE = path.join(DIR, FILENAME);
 
 function emptyState() {
-  return { lastBar: {}, lastResult: null, history: [] };
+  return { lastBar: {}, lastResult: null, history: [], lastDailyReport: null };
 }
 
 function read() {
@@ -36,6 +36,7 @@ function read() {
       lastBar: parsed?.lastBar && typeof parsed.lastBar === 'object' ? parsed.lastBar : {},
       lastResult: parsed?.lastResult || null,
       history: Array.isArray(parsed?.history) ? parsed.history.slice(-HISTORY_LIMIT) : [],
+      lastDailyReport: parsed?.lastDailyReport || null,
     };
   } catch (e) {
     console.error('[TEMA34Scanner] state okuma hatası:', e.message);
@@ -48,6 +49,7 @@ function write(state) {
     lastBar: state?.lastBar && typeof state.lastBar === 'object' ? state.lastBar : {},
     lastResult: state?.lastResult || null,
     history: Array.isArray(state?.history) ? state.history.slice(-HISTORY_LIMIT) : [],
+    lastDailyReport: state?.lastDailyReport || null,
   };
   try {
     if (!fs.existsSync(DIR)) fs.mkdirSync(DIR, { recursive: true });
@@ -84,9 +86,17 @@ function listRuns(limit = 30) {
   return read().history.slice().reverse().slice(0, Math.min(HISTORY_LIMIT, Math.max(1, limit)));
 }
 
+// Günlük açık-pozisyon P&L raporu için gün-bazlı dedup (aynı gün iki kez atmaz).
+function getDailyReportDate() { return read().lastDailyReport || null; }
+function markDailyReport(dateKey) {
+  const state = read();
+  state.lastDailyReport = dateKey;
+  return write(state);
+}
+
 function reset() {
   write(emptyState());
   return { ok: true, reset: true };
 }
 
-module.exports = { read, recordRun, markBar, getLastBar, getLastResult, listRuns, reset, SUBDIR, FILENAME };
+module.exports = { read, recordRun, markBar, getLastBar, getLastResult, listRuns, getDailyReportDate, markDailyReport, reset, SUBDIR, FILENAME };

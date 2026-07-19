@@ -41,8 +41,10 @@ jest.mock('../../src/services/tema34Scanner/tema34ScannerStore', () => ({
 // Tracker'ı no-op mock'la — runAndNotify diske dokunmasın (sonuç/ters-kesişim
 // mantığı AYRI dosyada: tema34ScannerTracker.golden.test.js).
 const mockSync = jest.fn(async () => ({ closures: [], opened: [] }));
+const mockCommit = jest.fn(() => ({ committed: 0 }));
 jest.mock('../../src/services/tema34Scanner/tema34ScannerTracker', () => ({
   sync: (...a) => mockSync(...a),
+  commitClosures: (...a) => mockCommit(...a),
 }));
 
 const engine = require('../../src/services/tema34Scanner/tema34ScanEngine');

@@ -591,6 +591,32 @@ async function runBistAlScanner() {
   }
 }
 
+// GÜNLÜK KÂR/ZARAR RAPORU — BIST kapanışından sonra (18:45 TR), TEMA34 tarama
+// (@tema34sinyal) ve BIST AL (@borsasinyal34) kanallarına açık pozisyonların
+// bugünkü kâr/zararı + o gün kapananların sonucunu özetler (kullanıcı isteği:
+// "AL sinyallerinin sonucunu HER GÜN ver"). Her notifier kendi kanalına gönderir;
+// kanal yok / kill-switch / gün-bazlı dedup fonksiyon içindedir. FOREX_ONLY_MODE'dan
+// MUAF (bu iki bot zaten muaf). TR resmi tatilinde sessiz.
+async function runDailyPnlReports() {
+  try {
+    const dateKey = todayKeyTR();
+    if (TR_HOLIDAYS_2026.has(dateKey)) {
+      logger.info(`⏭️ Günlük K/Z raporu: ${dateKey} resmi tatil — atlandı`);
+      return null;
+    }
+    logger.info('⏰ Günlük kâr/zarar raporu (TEMA34 + BIST AL)');
+    const out = {};
+    try { out.tema34 = await tema34ScannerNotifier.pushDailyReport(); }
+    catch (e) { logger.error(`[TEMA34Scanner] günlük rapor hata: ${e.message}`); }
+    try { out.bistAl = await bistAlScannerNotifier.pushDailyReport(); }
+    catch (e) { logger.error(`[BistAlScanner] günlük rapor hata: ${e.message}`); }
+    return out;
+  } catch (e) {
+    logger.error(`[GünlükRapor] hata: ${e.message}`);
+    return null;
+  }
+}
+
 // ── Kullanıcı-tanımlı (custom) botlar ──────────────────────────────────────
 // Günlük tarama — BIST kapanışından sonra her aktif botun stratejisini evreninde
 // koşturur (giriş/çıkış sinyalleri). TR resmi tatilinde sessiz. Botlar sırayla
@@ -1742,6 +1768,16 @@ class CronJobsService {
       { scheduled: false, ...TR_TZ }
     );
 
+    // 27e. GÜNLÜK KÂR/ZARAR RAPORU — 18:45 TR, Pzt-Cuma (BIST kapanışından sonra).
+    //      Açık AL pozisyonlarının bugünkü kâr/zararı + o gün kapananların sonucu →
+    //      @tema34sinyal + @borsasinyal34. Kullanıcı isteği: "her gün sonuç ver".
+    //      Kanal yok / kill-switch / gün-dedup / tatil fonksiyon içinde. FOREX_ONLY MUAF.
+    const dailyPnlReportJob = cron.schedule(
+      '45 18 * * 1-5',
+      () => runDailyPnlReports(),
+      { scheduled: false, ...TR_TZ }
+    );
+
     // 28. Kripto Bot tick — her 15 dk, 7/24 (kripto piyasası kapanmaz).
     //     Açık long/short pozisyonların TP/SL/timeout/trailing kontrolü.
     const cryptoBotTickJob = cron.schedule(
@@ -1869,6 +1905,7 @@ class CronJobsService {
       crossoverAlertJob,
       tema34ScannerJob,
       bistAlScannerJob,
+      dailyPnlReportJob,
       cryptoBotTickJob,
       customBotDailyJob,
       customBotTickJob,
@@ -2001,6 +2038,18 @@ class CronJobsService {
    */
   async triggerBistAlScanner(opts = {}) {
     return bistAlScannerNotifier.runAndNotify(opts);
+  }
+
+  /**
+   * Manuel tetikleme — GÜNLÜK KÂR/ZARAR raporu (TEMA34 + BIST AL kanalları).
+   * opts.force=true → gün-bazlı dedup atlanır (aynı gün tekrar gönderir).
+   */
+  async triggerDailyPnlReports(opts = {}) {
+    const [tema34, bistAl] = await Promise.all([
+      tema34ScannerNotifier.pushDailyReport(opts).catch((e) => ({ error: e.message })),
+      bistAlScannerNotifier.pushDailyReport(opts).catch((e) => ({ error: e.message })),
+    ]);
+    return { tema34, bistAl };
   }
 
   /**

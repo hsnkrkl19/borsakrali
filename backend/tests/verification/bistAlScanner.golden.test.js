@@ -44,9 +44,11 @@ jest.mock('../../src/services/bistAlScanner/bistAlScannerStore', () => ({
 // mantığı AYRI dosyada test edilir: bistAlScannerTracker.golden.test.js).
 const mockRegister = jest.fn(async () => []);
 const mockCheckClosures = jest.fn(async () => []);
+const mockCommit = jest.fn(() => ({ committed: 0 }));
 jest.mock('../../src/services/bistAlScanner/bistAlScannerTracker', () => ({
   registerSignals: (...a) => mockRegister(...a),
   checkClosures: (...a) => mockCheckClosures(...a),
+  commitClosures: (...a) => mockCommit(...a),
 }));
 
 // Likidite tabanını test için düşür (mum hacimleri küçük) — modül YÜKLENMEDEN önce.

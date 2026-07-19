@@ -175,23 +175,42 @@ async function evalOne(p) {
   };
 }
 
+// TESPİT: açık pozisyonların TP/SL/EXPIRE kapanışlarını bul — ama SİLME.
+// ⚠️ 2026-07-19: pozisyon burada silinmez. Notifier önce Telegram'a P&L gönderir,
+// BAŞARIRSA commitClosures ile kapatır. Gönderim başarısızsa pozisyon açık kalır →
+// evalOne geçmişten idempotent yeniden türetir → sonraki turda tekrar denenir.
+// Böylece tek Telegram hıçkırığı sonucu mesajı KAYBETMEZ.
 async function checkClosures() {
   if (_checking) return [];           // eşzamanlı tetik (15 dk kadans) tek tur
   _checking = (async () => {
     await load();
     const events = [];
     for (const p of openList()) {
-      try { const ev = await evalOne(p); if (ev) { events.push(ev); delete state.open[p.symbol]; } } catch (_) {}
-    }
-    if (events.length) {
-      const closedAt = new Date().toISOString();
-      state.closed = [...events.map(e => ({ ...e, closedAt })), ...(state.closed || [])].slice(0, MAX_CLOSED);
-      persist();
+      try { const ev = await evalOne(p); if (ev) events.push(ev); } catch (_) {}
     }
     return events;
   })();
   try { return await _checking; }
   finally { _checking = null; }
+}
+
+// KESİNLEŞTİR: TESPİT edilen kapanışları open'dan sil + closed'a yaz + persist.
+// Notifier YALNIZ Telegram gönderimi BAŞARILINCA (veya bilinçli olarak
+// gönderilmeyecekse) çağırır. Idempotent: open'da olmayan sembol atlanır.
+function commitClosures(events) {
+  const list = Array.isArray(events) ? events : [];
+  if (!list.length) return { committed: 0 };
+  let committed = 0;
+  const closedAt = new Date().toISOString();
+  const records = [];
+  for (const ev of list) {
+    if (!ev || !ev.symbol) continue;
+    if (state.open[ev.symbol]) { delete state.open[ev.symbol]; committed++; }
+    records.push({ ...ev, closedAt });
+  }
+  if (records.length) state.closed = [...records, ...(state.closed || [])].slice(0, MAX_CLOSED);
+  if (committed || records.length) persist();
+  return { committed };
 }
 
 async function getOpen() {
@@ -208,6 +227,6 @@ async function getClosedRecent() {
 function __resetForTest() { state = { open: {}, closed: [], version: 1 }; loaded = true; }
 
 module.exports = {
-  load, registerSignals, checkClosures, getOpen, getClosedRecent,
+  load, registerSignals, checkClosures, commitClosures, getOpen, getClosedRecent,
   evalOne, __resetForTest, EXPIRE_DAYS, BIST_BAND,
 };
