@@ -76,6 +76,13 @@ DEFAULTS = {
     "min_rr": 0.5,
     "min_confidence": 0,          # feed'de bu güvenin altındakini açma (0 = hepsi)
     "close_on_feed_drift": True,  # feed'den düşen kodu MT5'te kapat (competition kapattı)
+    # ── FLIP-FLOP / ÇIĞ KORUMASI (çok önemli) ──────────────────────────────────
+    # Feed boş/uyku/hata gelince TOPLU KAPATMA yapma; pozisyonu min süre tut; kod
+    # ardışık N tur feed'de yoksa kapat; kapanan sembol+yönü bir süre tekrar açma.
+    "drift_confirm_turns": 3,       # bir kod kaç ardışık SAĞLIKLI turda yoksa kapatılır
+    "min_hold_minutes": 20,         # açılan pozisyon en az bu kadar dk kapatılmaz
+    "reopen_cooldown_minutes": 30,  # kapanan sembol+yön bu kadar dk tekrar açılmaz
+    "feed_drop_guard_pct": 40,      # feed önceki tura göre %şu kadar düşerse drift-kapatma ATLA (uyku şüphesi)
     # GÖLGE GÜNLÜĞÜ: gerçek emir açılamasa da (piyasa kapalı/dry_run/sembol yok) her
     # botun sinyalini MT5 FİYATINDAN "açmış gibi" kaydeder, SL/TP'yi MT5 girişine
     # göre kurar, kapanınca R/başarı hesaplar. "Hangi bot ne kadar başarılı" her
@@ -187,6 +194,10 @@ def ensure_symbol(broker_sym):
 _symbol_cache = {}
 # Piyasa kapalı (retcode 10018) sembolleri: bu zamana kadar tekrar deneme (log spam'ı önler).
 _market_closed_until = {}
+# FLIP-FLOP KORUMASI durumu
+_missing_turns = {}      # code -> ardışık kaç SAĞLIKLI turda feed'de görünmedi
+_reopen_until = {}       # "SYMBOL|dir" -> bu zamana kadar tekrar açma (sec)
+_prev_feed_count = None  # önceki turun feed büyüklüğü (ani düşüş tespiti)
 
 
 def resolve_broker_symbol(cfg, feed_sym):
@@ -287,6 +298,9 @@ def open_from_feed(cfg, s):
     # Piyasa kapalıysa (son denemede 10018) bu sembolü bir süre atla — log spam'ı önle.
     if _market_closed_until.get(broker_sym, 0) > time.time():
         return "piyasa_kapali"
+    # FLIP-FLOP: az önce kapatılan sembol+yön cooldown süresince tekrar açılmaz.
+    if _reopen_until.get("%s|%s" % (broker_sym, s["direction"]), 0) > time.time():
+        return "reopen_cooldown"
     info = ensure_symbol(broker_sym)
     if info is None:
         return "sembol_yok"
@@ -627,27 +641,60 @@ def run_once(cfg):
     if blocked:
         log.warning("🛑 Günlük zarar freni AKTİF (%s) — yeni emir yok.", why)
 
+    global _prev_feed_count
     try:
         data = fetch_feed(cfg)
     except Exception as exc:
-        log.error("feed çekilemedi: %s", exc)
+        # Feed hatası (Render uyku/502/timeout) → HİÇBİR ŞEY YAPMA. Kapatma YOK
+        # (çığ önlenir). Pozisyonlar SL/TP + min-hold ile korunur.
+        log.warning("feed çekilemedi (%s) — bu tur atlandı, kapatma YOK.", exc)
         return
-    if data is None or not data.get("enabled"):
-        log.info("competition kapalı veya feed boş — köprü bekliyor.")
-        feed = []
-    else:
-        feed = data.get("positions") or []
 
+    # Feed SAĞLIKLI mı? enabled=True + geçerli. Değilse toplu kapatma YAPMA.
+    feed_healthy = bool(data and data.get("enabled"))
+    feed = (data.get("positions") or []) if feed_healthy else []
     feed_codes = {str(p["code"]) for p in feed}
     open_pos = our_positions(cfg)
     open_codes = {parse_code(p.comment) for p in open_pos}
 
-    # 1) feed'den düşen (competition kapatmış) pozisyonları MT5'te kapat
-    if bool(cfg.get("close_on_feed_drift", True)):
+    # Ani-düşüş koruması: feed önceki tura göre çok düştüyse ŞÜPHELİ (uyku) → drift-kapatma atla.
+    now = time.time()
+    drop_pct = int(cfg.get("feed_drop_guard_pct", 40))
+    suspicious = False
+    if feed_healthy and _prev_feed_count and _prev_feed_count > 5:
+        if len(feed) < _prev_feed_count * (1 - drop_pct / 100.0):
+            suspicious = True
+            log.warning("⚠️ feed ani düştü (%d → %d) — TOPLU KAPATMA ATLANDI (uyku/geçici hata şüphesi).",
+                        _prev_feed_count, len(feed))
+    if feed_healthy:
+        _prev_feed_count = len(feed)
+
+    if not feed_healthy:
+        log.info("feed sağlıksız (enabled=%s) — bu tur açma/kapama YOK, mevcut pozisyonlar korunur.",
+                 bool(data and data.get("enabled")))
+
+    # 1) feed'den düşen pozisyonları kapat — ÇOK KATMANLI: feed sağlıklı + şüpheli
+    #    değil + kod ARDIŞIK N tur yok + pozisyon min-hold'u geçmiş ise kapat.
+    min_hold = float(cfg.get("min_hold_minutes", 20)) * 60
+    confirm = int(cfg.get("drift_confirm_turns", 3))
+    BUY = getattr(mt5, "POSITION_TYPE_BUY", 0)
+    if feed_healthy and not suspicious and bool(cfg.get("close_on_feed_drift", True)):
         for p in open_pos:
             code = parse_code(p.comment)
-            if code and code not in feed_codes:
+            if not code:
+                continue
+            if code in feed_codes:
+                _missing_turns.pop(code, None)   # feed'de görüldü → sayaç sıfırla
+                continue
+            age = now - (getattr(p, "time", 0) or 0)
+            if age < min_hold:
+                continue                          # yeni açılmış → hemen kapatma (flip-flop önle)
+            _missing_turns[code] = _missing_turns.get(code, 0) + 1
+            if _missing_turns[code] >= confirm:   # ardışık N tur yok → gerçekten kapandı
                 close_position(cfg, p, "competition-kapatti")
+                _missing_turns.pop(code, None)
+                sdir = "long" if p.type == BUY else "short"
+                _reopen_until["%s|%s" % (p.symbol, sdir)] = now + float(cfg.get("reopen_cooldown_minutes", 30)) * 60
 
     # 2) yeni pozisyonları aç (tavanlar + haftasonu/haber + guard)
     reasons = {}  # neden kodu -> adet (tur özeti için)

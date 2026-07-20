@@ -31,6 +31,12 @@
   "loss_reopen_cooldown_min": 45,
   "close_on_feed_drift": true,
 
+  "_FLIP_FLOP_KORUMASI": "Cig/flip-flop onler. Feed bos/uyku gelince TOPLU KAPATMA yapmaz; pozisyonu min tutar; kod ardisik N tur yoksa kapatir; kapanan sembol+yon cooldown.",
+  "drift_confirm_turns": 3,
+  "min_hold_minutes": 20,
+  "reopen_cooldown_minutes": 30,
+  "feed_drop_guard_pct": 40,
+
   "_GOLGE": "true = her botun sinyalini MT5 fiyatindan 'acmis gibi' kaydet (piyasa kapali/dry_run olsa bile). Hangi bot ne kadar basarili -> shadow_trades.jsonl + her tur lider tablosu.",
   "shadow_journal": true,
 
