@@ -35,6 +35,7 @@ export const VEHICLES = {
   hatchback: {
     id: 'hatchback', name: 'Şehir Arabası', emoji: '🚗', price: 0, free: true, costMul: 0.4,
     desc: 'Dengeli başlangıç aracı. Her piste uygun.',
+    torqueTW: 1.05,
     enginePower: 2400, mass: 1.0, grip: 1.0, suspK: 240, suspDamp: 26,
     fuelMax: 100, topSpeed: 760, airControl: 9, wheelBase: 78, wheelR: 24,
     bodyW: 116, bodyH: 40, color: '#10b981', accent: '#065f46',
@@ -43,6 +44,7 @@ export const VEHICLES = {
   motorcycle: {
     id: 'motorcycle', name: 'Motosiklet', emoji: '🏍️', price: 2340, costMul: 0.7,
     desc: 'Hafif ve hızlı. Tutuşu zayıf, kolay takla atar — usta sürücü işi.',
+    torqueTW: 1.25,
     enginePower: 2750, mass: 0.62, grip: 0.82, suspK: 200, suspDamp: 20,
     fuelMax: 78, topSpeed: 900, airControl: 14, wheelBase: 70, wheelR: 22,
     bodyW: 92, bodyH: 26, color: '#f59e0b', accent: '#92400e', bike: true,
@@ -50,6 +52,7 @@ export const VEHICLES = {
   jeep: {
     id: 'jeep', name: '4x4 Jip', emoji: '🚙', price: 4080, costMul: 1.1,
     desc: 'Yüksek tutuş ve tırmanış. Sarp/oynak hisseler için ideal.',
+    torqueTW: 1.15,
     enginePower: 3000, mass: 1.35, grip: 1.28, suspK: 320, suspDamp: 34,
     fuelMax: 120, topSpeed: 700, airControl: 8, wheelBase: 86, wheelR: 28,
     bodyW: 124, bodyH: 46, color: '#0ea5e9', accent: '#075985',
@@ -58,6 +61,7 @@ export const VEHICLES = {
   pickup: {
     id: 'pickup', name: 'Pikap', emoji: '🛻', price: 6600, costMul: 1.7,
     desc: 'Güçlü motor, ağır gövde. Tork canavarı.',
+    torqueTW: 1.2,
     enginePower: 3300, mass: 1.5, grip: 1.18, suspK: 300, suspDamp: 32,
     fuelMax: 135, topSpeed: 720, airControl: 7, wheelBase: 92, wheelR: 27,
     bodyW: 134, bodyH: 44, color: '#8b5cf6', accent: '#4c1d95',
@@ -66,6 +70,7 @@ export const VEHICLES = {
   sports: {
     id: 'sports', name: 'Spor Araba', emoji: '🏎️', price: 10080, costMul: 2.6,
     desc: 'Müthiş hız, zayıf tutuş. Düz/yükseliş trendli hisselerde uçar.',
+    torqueTW: 1.4,
     enginePower: 3400, mass: 0.9, grip: 0.92, suspK: 260, suspDamp: 24,
     fuelMax: 105, topSpeed: 1180, airControl: 10, wheelBase: 92, wheelR: 22,
     bodyW: 132, bodyH: 34, color: '#ef4444', accent: '#7f1d1d',
@@ -73,6 +78,7 @@ export const VEHICLES = {
   monster: {
     id: 'monster', name: 'Canavar Kamyon', emoji: '🚚', price: 15600, costMul: 4.0,
     desc: 'Devasa tekerler. Neredeyse her tepeyi ezer geçer.',
+    torqueTW: 1.3,
     enginePower: 3800, mass: 1.7, grip: 1.4, suspK: 360, suspDamp: 38,
     fuelMax: 150, topSpeed: 760, airControl: 9, wheelBase: 104, wheelR: 38,
     bodyW: 142, bodyH: 50, color: '#22c55e', accent: '#14532d',
@@ -81,6 +87,7 @@ export const VEHICLES = {
   tractor: {
     id: 'tractor', name: 'Traktör', emoji: '🚜', price: 23760, costMul: 6.0,
     desc: 'Yavaş ama durdurulamaz tork ve tutuş. Asla takılmaz.',
+    torqueTW: 1.1,
     enginePower: 3600, mass: 1.6, grip: 1.55, suspK: 330, suspDamp: 40,
     fuelMax: 160, topSpeed: 560, airControl: 6, wheelBase: 96, wheelR: 34,
     bodyW: 120, bodyH: 48, color: '#84cc16', accent: '#3f6212',
@@ -88,6 +95,7 @@ export const VEHICLES = {
   tank: {
     id: 'tank', name: 'Tank', emoji: '🛡️', price: 35700, costMul: 9.0,
     desc: 'Ultra ağır, devrilmez. Her şeyi yarıp geçer.',
+    torqueTW: 1.15,
     enginePower: 4200, mass: 2.4, grip: 1.7, suspK: 420, suspDamp: 48,
     fuelMax: 190, topSpeed: 600, airControl: 5, wheelBase: 112, wheelR: 30,
     bodyW: 156, bodyH: 52, color: '#64748b', accent: '#1e293b',
@@ -95,6 +103,7 @@ export const VEHICLES = {
   rocket: {
     id: 'rocket', name: 'Roketli Araba', emoji: '🚀', price: 53520, costMul: 13.0,
     desc: 'Son sınır. Akıl almaz hız ve ivme — sadece ustalar için.',
+    torqueTW: 1.55,
     enginePower: 4800, mass: 0.85, grip: 1.05, suspK: 300, suspDamp: 28,
     fuelMax: 130, topSpeed: 1600, airControl: 13, wheelBase: 100, wheelR: 24,
     bodyW: 140, bodyH: 34, color: '#ec4899', accent: '#831843',
@@ -102,6 +111,7 @@ export const VEHICLES = {
   bigrig: {
     id: 'bigrig', name: 'Dev TIR', emoji: '🚛', price: 72000, costMul: 16.0,
     desc: 'Devasa çekici. Durdurulamaz güç ve tutuş — koleksiyonun tacı.',
+    torqueTW: 1.25,
     enginePower: 5200, mass: 2.6, grip: 1.75, suspK: 440, suspDamp: 50,
     fuelMax: 210, topSpeed: 780, airControl: 5, wheelBase: 120, wheelR: 34,
     bodyW: 170, bodyH: 56, color: '#0891b2', accent: '#164e63',
@@ -256,17 +266,18 @@ export function effectiveStats(vehicleId, upgradesForVehicle = {}) {
     ...base,
     bodyW, bodyH, wheelR, wheelBase,
     // Katsayılar max=10'a göre ölçeklendi. Base hız ×1.20, motor+şanzıman hıza daha çok katkı.
-    // v6 DENGE: yükseltmeler ham HIZ yerine tork/tutuş/kontrol getirir.
-    // (eskiden motor ×3.48, son hız ×4.08 → araç kontrolden çıkıyordu)
-    enginePower: base.enginePower * 1.16 * (1 + 0.09 * eng),   // max ×1.9 (eskiden ×3.0)
-    grip:        base.grip * (1 + 0.16 * tir),                 // tutuş biraz daha değerli
-    suspK:       base.suspK * (1 + 0.12 * sus),
-    suspDamp:    base.suspDamp * (1 + 0.12 * sus),
-    topSpeed:    base.topSpeed * 1.12 * (1 + 0.035 * eng + 0.07 * gear),  // max ×2.3 (eskiden ×4.08)
+    // v7 DENGE (araştırma referanslı): itki artık YERÇEKİMİNDEN BAĞIMSIZ "thrust-to-weight".
+    // Box2D arcade referansı TW≈1.13, simülasyon≈0.46. Eskiden bizimki 1.97–6.36 idi →
+    // araç sürekli sürtünme limitinde takılıydı, gaz analog davranmıyordu.
+    torqueTW:    (base.torqueTW || 1.05) * (1 + 0.055 * eng),   // max ×1.55
+    grip:        base.grip * (1 + 0.085 * tir),                 // max ×1.85
+    topSpeed:    base.topSpeed * (1 + 0.012 * eng + 0.028 * gear), // max ×1.40 (eskiden ×4.08!)
+    airTorque:   5.0 * (1 + 0.020 * aero),                      // rad/s² — tam takla ~2.3sn
+    suspStiff:   1,                                             // yay sag'dan türetilir (motor)
     fuelMax:     base.fuelMax * (1 + 0.32 * fuel),
     airControl:  base.airControl * (1 + 0.18 * aero),
-    stability:   1 + 0.14 * aero,   // havadaki açısal sönümleme
-    landing:     1 + 0.12 * sus,    // çarpma toleransı
+    stability:   1 + 0.06 * aero,   // max 1.60 — "bıraktığında düz in" (artık dönüşü HIZLANDIRMIYOR)
+    landing:     1 + 0.045 * sus,   // max 1.45 — iniş açı toleransı (motorda KULLANILIYOR)
     // SÜSPANSİYON = ön/arka hassasiyet: yükseldikçe yay yumuşar, yol uzar, iniş sakinleşir.
     suspSoft:    1 + 0.10 * sus,    // yay yolu / yumuşaklık çarpanı (görsel + fizik)
     mass:        base.mass * (1 + 0.006 * (eng + fuel)),   // büyüdükçe biraz ağırlaşır

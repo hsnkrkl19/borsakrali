@@ -600,7 +600,7 @@ function GarageModal({ save, stats, onClose, onBuyUpgrade, onBuyVehicle, onSelec
                   </div>
                 </div>
                 <div className={`grid grid-cols-3 gap-1 my-2 ${locked ? 'opacity-60' : ''}`}>
-                  <StatBar label="Güç" v={v.enginePower / 5000} />
+                  <StatBar label="Güç" v={(v.torqueTW || 1) / 1.6} />
                   <StatBar label="Tutuş" v={v.grip / 1.8} />
                   <StatBar label="Hız" v={v.topSpeed / 1600} />
                 </div>

@@ -12,11 +12,14 @@
 // lastik izi, hız çizgileri, egzoz dumanı, parçacıklar.
 // ============================================================================
 
-const GRAV = 1750
+// GRAV: 10 m/s² × METER(30) = 300 wu/s². Eskiden 1750 = 58.3 m/s² = 5.95 g (!) — gerçek
+// rampalar bu yerçekiminde hava üretemediği için sahte "crest fırlatması" eklenmişti.
+// Referans: Box2D testbed car.cpp ve alexzh3/hillclimbracing (SCALE=30 px/m, gravity 10).
+const GRAV = 300
 const SUBSTEPS = 8
 const SX = 110              // örnek nokta yatay aralığı
-const AMP = 660             // fiyat → yükseklik bandı (biraz daha yüksek → belirgin tepeler)
-const MAXSTEP = AMP * 0.16  // orijinalden (0.13) sert ama başlangıç aracıyla TIRMANILABİLİR
+const AMP = 660             // fiyat → yükseklik bandı
+const MAXSTEP = AMP * 0.13  // ~38° max eğim (gerçekçi tırmanış sınırı)
 const TERRAIN_POINTS = 150
 const METER = 30
 const PHYS_DT_MAX = 1 / 60
@@ -158,14 +161,21 @@ export class RacingEngine {
     // ZIPLAMA TÜMSEKLERİ — hava/takla için simetrik yumuşak tepeler (uçurum
     // DEĞİL). Dokunmazsan düz uçup güvenle inersin; gaz/fren tutarsan takla atar
     // ama ters inersen boynun kırılır. Grafiğin genel şekli korunur.
-    let bi = 12
-    while (bi < N - 6) {
-      if (hash32(bi * 53 + 11) % 7 === 0) {          // daha seyrek (eskiden %4)
-        const peak = AMP * 0.11                       // daha alçak rampa (eskiden 0.23)
-        h[bi - 1] += peak * 0.5
-        h[bi] += peak
-        h[bi + 1] += peak * 0.5
-        bi += 10
+    // RAMPA (kicker) — yalnız grafiğin ZATEN YÜKSELDİĞİ yere, ASİMETRİK:
+    // yumuşak giriş → dik dudak → arkasında iniş alanı. (Simetrik tümsek, iniş
+    // yamacında çukur gibi okunuyordu ve fırlatma dudağı vermiyordu.)
+    let bi = 14
+    while (bi < N - 8) {
+      const rising = h[bi] - h[bi - 3]
+      if (rising > AMP * 0.02 && hash32(bi * 53 + 11) % 5 === 0) {
+        const A = AMP * 0.10
+        h[bi - 3] += A * 0.10
+        h[bi - 2] += A * 0.34
+        h[bi - 1] += A * 0.72
+        h[bi] += A * 1.00                 // dudak
+        h[bi + 1] += A * 0.18             // arkası hızla düşer → iniş alanı
+        for (let k = 2; k <= 4; k++) h[bi + k] += A * 0.06 * (4 - k)   // iniş yumuşatıcı
+        bi += 16
       } else bi += 1
     }
 
@@ -242,11 +252,19 @@ export class RacingEngine {
     this.susRest = s.wheelR * (0.55 + 0.05 * sus)
     this.susTravel = this.susRest * 0.9
 
+    // Yay sabiti MUTLAK değil, STATİK ÇÖKME'den (sag) türetilir → GRAV/araç/seviye
+    // değişse de oran sabit kalır. Box2D testbed sag ≈ %21.6.
+    const SAG = 0.22
+    this.suspK = ((s.mass * GRAV) / 2) / (SAG * this.susTravel) * (s.suspStiff ?? 1)
+    this.suspZeta = 0.65
+    this.suspC = 2 * this.suspZeta * Math.sqrt(this.suspK * (s.mass / 2))
+
     // arka-çekiş ağırlıklı (doğal wheelie + daha az geriye takla) ama ön de çeker (tırmanış gücü)
     this.wheels = [
       { lx: -wb / 2, lyAxle: -s.bodyH * 0.28, drive: true, driveW: 1.0 },   // arka
       { lx: wb / 2, lyAxle: -s.bodyH * 0.28, drive: true, driveW: 0.7 },    // ön
     ]
+    this.driveWSum = this.wheels.reduce((a, w) => a + (w.drive ? (w.driveW ?? 1) : 0), 0)
 
     const startX = this.startX   // _setupLevel'de belirlendi (seviyeye özel)
     // hafif ön-yükle → spawn'da yere oturur, drop-in spin yok
@@ -265,7 +283,7 @@ export class RacingEngine {
     this.suspComp = [0, 0]
     this.wheelSusLen = [this.susRest, this.susRest]
     this.invMass = 1 / s.mass
-    const I = s.mass * (s.bodyW * s.bodyW + s.bodyH * s.bodyH) / 12 * 4.0
+    const I = s.mass * (s.bodyW * s.bodyW + s.bodyH * s.bodyH) / 12 * 2.6   // 4.0 → 2.6: pitch görünür olsun
     this.invI = 1 / I
   }
 
@@ -335,9 +353,10 @@ export class RacingEngine {
         const vpy = car.vy + car.angVel * rx
         const vn = vpx * n.x + vpy * n.y
 
-        // asimetrik sönüm: sıkışırken sert (tümsek yutma), açılırken yumuşak (zıplama/rebound kesme)
-        const dampC = vn < 0 ? s.suspDamp * 1.6 : s.suspDamp * 0.7
-        let Fn = s.suspK * comp - dampC * vn
+        // Asimetrik sönüm — GERÇEK amortisör gibi: sıkışırken YUMUŞAK (tümseği yut),
+        // geri açılırken SERT (pogo/zıplamayı kes). Öncesi tam tersiydi (araç zıplıyordu).
+        const dampC = vn < 0 ? this.suspC * 0.75 : this.suspC * 1.60
+        let Fn = this.suspK * comp - dampC * vn
         if (Fn < 0) Fn = 0
         this._applyImpulse(n.x * Fn * dt, n.y * Fn * dt, rx, ry)
 
@@ -345,16 +364,24 @@ export class RacingEngine {
         if (tx * rightX + ty * rightY < 0) { tx = -tx; ty = -ty }
         const vt = vpx * tx + vpy * ty
 
+        // MOTOR: sabit kuvvet + yapay hız duvarı DEĞİL — hedef-hızlı motor + kuvvet tavanı
+        // (Box2D b2WheelJoint mantığı). Son hız artık EMERGENT: taper sıfırlandığı yer.
         let drive = 0
-        if (w.drive && hasFuel) {
-          const dw = w.driveW ?? 1
-          if (fwd) drive += s.enginePower * dw
-          if (rev) drive -= s.enginePower * 0.72 * dw   // geri vites — biraz daha zayıf
+        const dir = (fwd ? 1 : 0) - (rev ? 1 : 0)
+        if (w.drive && hasFuel && dir !== 0) {
+          const dw = (w.driveW ?? 1) / this.driveWSum
+          const Fmax = s.torqueTW * s.mass * GRAV * dw * (dir > 0 ? 1 : 0.55)
+          const vT = dir * s.topSpeed * (dir > 0 ? 1 : 0.45)
+          const K = Fmax / (0.25 * s.topSpeed)
+          drive = clamp((vT - vt) * K, -Fmax * 0.30, Fmax)
         }
-        if (speed > s.topSpeed && drive > 0) drive = 0
 
         const maxF = s.grip * Fn
-        let Ft = drive - 7 * vt
+        let Ft = drive
+        if (dir === 0) {
+          Ft -= 0.045 * Fn * Math.sign(vt)          // yuvarlanma direnci (gaz bırakınca savrulmadan yavaşla)
+          if (Math.abs(vt) < 40) Ft = -vt * 9       // yokuşta tutma: durunca kaymasın
+        }
         Ft = clamp(Ft, -maxF, maxF)
         this._applyImpulse(tx * Ft * dt, ty * Ft * dt, rx, ry)
         this.wheelSpin[wi] += (vt / this.wheelR) * dt
@@ -371,18 +398,14 @@ export class RacingEngine {
     // yokuş-aşağı momentum yardımı (Hill-Climb hissi)
     if (car.onGround) {
       const fX = Math.cos(car.angle), fY = Math.sin(car.angle)
-      const downhill = -fY
-      if (downhill > 0.15 && car.vx > 80) {
-        const assist = GRAV * 0.022 * downhill   // hafif akış yardımı (eskiden 0.055 — yapay hızlanma)
-        car.vx += fX * assist * dt
-        car.vy += fY * assist * dt
-      }
-      // KREST YAPIŞMASI (downforce): tümsek üstünden geçerken tekerler yerde kalsın.
-      // Katapültün fiziksel TERSİ — araba sebepsiz havalanmaz, hava yalnız gerçek rampada olur.
+      // Yokuş-aşağı yapay itki SİLİNDİ: GRAV=300'de yerçekiminin eğim bileşeni
+      // (GRAV·sinθ) zaten doğru ivmeyi veriyor — sahte kuvvete gerek yok.
+      // KREST YAPIŞMASI: yalnız küçük dalgaları yut (lastik/süspansiyon uyumu yerine geçer).
+      // 0.28 g — daha yüksek olursa gerçek rampalardan da havalanmayı engeller.
       const hC = this.heightAt(car.x)
       const curv = (this.heightAt(car.x - 45) + this.heightAt(car.x + 45)) / 2 - hC
       if (curv < 0) {   // konveks = tepe
-        const stick = Math.min(1, Math.abs(car.vx) / 700) * Math.min(1, -curv / 26) * GRAV * 0.85
+        const stick = Math.min(1, Math.abs(car.vx) / 900) * Math.min(1, -curv / 45) * GRAV * 0.28
         car.vy -= stick * dt
       }
       // OTURAKLI HİS: flip tuşuna basılmadıkça aracı zemin eğimine yumuşakça hizala
@@ -396,10 +419,10 @@ export class RacingEngine {
     // YERDE ÖN/ARKA KALDIRMA — sürerken SOL/SAĞ ile aracın önünü/arkasını kaldır.
     // HIZA ORANTILI: dururken etkisiz, hızlandıkça daha çok kalkar.
     if (car.onGround && this._hasLanded && (this.input.flipL || this.input.flipR)) {
-      const sf = clamp(speed / (s.topSpeed * 0.30), 0.45, 1)
-      const target = (this.input.flipL ? 1 : -1) * 0.7 * sf      // ~40° net kaldırma (SOL=ön, SAĞ=arka)
-      car.angVel += (target - car.angle) * 40 * dt               // sert hedef-açı yayı → hızlı kalkar
-      car.angVel -= car.angVel * 8 * dt                          // kritik sönüm → aşmaz/devrilmez
+      const sf = clamp(speed / (s.topSpeed * 0.30), 0.40, 1)
+      const target = (this.input.flipL ? 1 : -1) * 0.55 * sf     // ~31° (40° kendini takla attırıyordu)
+      car.angVel += (target - car.angle) * 18 * dt               // yumuşak servo → ağırlık aktarımı görünür
+      car.angVel -= car.angVel * 5.5 * dt
     }
 
     // HAVA KONTROLÜ — SOL/SAĞ = takla:
@@ -407,19 +430,22 @@ export class RacingEngine {
     //  • SOL = geri takla, SAĞ = ön takla. Ters inersen kafan yere değer = bitiş.
     if (!car.onGround && this._hasLanded) {
       const a = wrapPi(car.angle)
-      // Hava kontrolü GERÇEKÇİ: yavaş, kasıtlı dönüş. Tam takla ~2sn sürer (eskiden ~0.5sn).
+      // Hava kontrolü: tork + SÖNÜM dengesi hızı belirler (sert clamp değil).
+      // α=5.0, λ=1.2 → terminal ω≈3.9 rad/s, tam tur ~2.3sn (kasıtlı, hak edilmiş takla).
       const ramp = clamp(this._physAirTimer / 0.12, 0.5, 1)
-      const at = s.airControl * 0.55 * ramp
+      const at = (s.airTorque || 5.0) * ramp
       if (this.input.flipL) car.angVel += at * dt          // SOL → geri takla (CCW) — RİSK
       else if (this.input.flipR) car.angVel -= at * dt     // SAĞ → ön takla (CW) — RİSK
-      else car.angVel += (-a * 14 - car.angVel * 6) * dt   // dokunma → düz inişe yönel
+      // dokunma → düz inişe yönel. AERO artık BURAYI güçlendirir (eskiden sönümü BÖLÜP
+      // aracı daha hızlı döndürüyordu = yükseltmenin vaadinin tersi).
+      else car.angVel += (-a * 14 * s.stability - car.angVel * 6 * s.stability) * dt
     }
 
-    car.vx -= car.vx * 0.16 * dt
+    car.vx -= car.vx * 0.035 * dt               // sürüklenme (0.16 çok yüksekti: inişleri öldürüyordu)
     car.vy -= car.vy * 0.02 * dt
-    const angDamp = car.onGround ? 4.5 : (0.5 / s.stability)
+    const angDamp = car.onGround ? 4.5 : 1.2    // havada sabit sönüm → dönüş hızını BU belirler
     car.angVel -= car.angVel * angDamp * dt
-    car.angVel = clamp(car.angVel, -3.6, 3.6)   // ~2sn'de tam tur (eskiden ±13 = saniyede 2 tur!)
+    car.angVel = clamp(car.angVel, -6.5, 6.5)   // yalnız emniyet ağı — oyunda bağlanmamalı
 
     car.x += car.vx * dt
     car.y += car.vy * dt
@@ -528,7 +554,10 @@ export class RacingEngine {
       const Lp = this._pendingLanding; this._pendingLanding = null
       const gN = car.groundN
       const groundAngle = Math.atan2(gN.x, gN.y)
-      if (Math.abs(Lp.angle) > 1.55) {
+      // Kaza toleransı artık DARBE HIZINA ve süspansiyon seviyesine bağlı (sabit 88.8° değil).
+      const impact = clamp(-Lp.vy / (GRAV * 1.6), 0, 1)
+      const tol = (1.30 + 0.45 * ((s.landing || 1) - 1)) * (1 - 0.35 * impact)
+      if (Math.abs(Lp.angle) > tol) {
         return this._gameOver('crash')     // TERS / YAN İNDİ → oyun biter
       }
       if (Lp.flips >= 1) {
@@ -545,9 +574,9 @@ export class RacingEngine {
           this.run.coins += 8
           this._addFloat(car.x, car.y + 55, 'MÜKEMMEL İNİŞ!', '#22c55e')
           this._beep(990, 0.12); this._addShake(4); this._spawnSparkle(car.x, car.y + 20)
-        } else if (Lp.vy < -520) {
-          this._addShake(clamp(-Lp.vy / 120, 4, 16))
-          this._spawnPoof(car.x, this.heightAt(car.x), -Lp.vy / 90)
+        } else if (Lp.vy < -280) {                       // GRAV ölçeğine göre (eskiden -520)
+          this._addShake(clamp(-Lp.vy / 45, 4, 16))
+          this._spawnPoof(car.x, this.heightAt(car.x), -Lp.vy / 32)
         }
       }
     }
