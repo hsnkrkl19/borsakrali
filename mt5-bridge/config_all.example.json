@@ -17,7 +17,8 @@
   "max_lot": 0.5,
 
   "_TAVANLAR": "Acik pozisyon tavani. 0 = SINIRSIZ (tum botlarin tum islemleri acilir - hangi bot ne kadar basarili net gormek icin). Dikkat: cok pozisyon = cok margin/risk; gunluk zarar freni yine korur.",
-  "max_open_total": 0,
+  "_TAVAN_NOTU": "0=sinirsiz ama margin patlayabilir (No money). Makul tavan onerilir; dedup zaten ayni sembol+yon tekrarini engeller.",
+  "max_open_total": 15,
   "max_open_per_bot": 0,
   "min_rr": 0.5,
   "min_confidence": 0,

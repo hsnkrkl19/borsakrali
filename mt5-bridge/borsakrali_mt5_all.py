@@ -305,6 +305,13 @@ def open_from_feed(cfg, s):
     if info is None:
         return "sembol_yok"
     is_long = s["direction"] == "long"
+    magic = int(s.get("magic") or 0)
+    # DEDUP: aynı bot(magic) + sembol + yönde zaten açık pozisyon varsa TEKRAR AÇMA.
+    # Çift maruziyet + "No money" margin patlaması önlenir; gölge günlüğü yine ölçer.
+    _BUY = getattr(mt5, "POSITION_TYPE_BUY", 0)
+    for _op in (mt5.positions_get(symbol=info.name) or []):
+        if int(getattr(_op, "magic", 0) or 0) == magic and (getattr(_op, "type", 0) == _BUY) == is_long:
+            return "zaten_acik_sembol"
     tick = mt5.symbol_info_tick(info.name)
     if tick is None or not (tick.ask > 0 and tick.bid > 0):
         return "fiyat_yok"
@@ -333,7 +340,6 @@ def open_from_feed(cfg, s):
     lot = compute_lot(cfg, s.get("category"), info, price, sl)
     if lot <= 0:
         return "lot_sifir"
-    magic = int(s.get("magic") or 0)
     label = "LONG" if is_long else "SHORT"
     if cfg["dry_run"]:
         log.info("[DRY] AÇ %s | %s %s lot=%s @%.*f SL=%.*f TP=%.*f magic=%s (%s)",
@@ -354,6 +360,8 @@ def open_from_feed(cfg, s):
         _market_closed_until[info.name] = time.time() + 900
         log.info("⏸ %s piyasa kapalı — 15 dk atlanacak (%s).", info.name, s.get("botName"))
         return "piyasa_kapali"
+    elif r and r.retcode == getattr(mt5, "TRADE_RETCODE_NO_MONEY", 10019):
+        return "no_money"
     else:
         rc = r.retcode if r else "None"
         log.error("❌ AÇILAMADI %s %s: retcode=%s %s", s.get("botName"), info.name, rc, (r.comment if r else mt5.last_error()))
@@ -730,6 +738,10 @@ def run_once(cfg):
             if res in ("acildi", "dry"):
                 per_bot[bkey] = per_bot.get(bkey, 0) + 1
                 total_open += 1
+            elif res == "no_money":
+                # Margin doldu → bu tur yeni emir DURDUR (spam yok, mevcutlar korunur).
+                log.warning("💰 Margin doldu — bu tur yeni emir durduruldu (%d açık). Tavan/lot düşür.", total_open)
+                break
 
     # 3) GÖLGE GÜNLÜĞÜ — her koşulda çalışır (dry_run/piyasa-kapalı/hafta-sonu fark etmez).
     #    Gerçek emir açılmasa da her botun sinyalini MT5 fiyatından "açmış gibi" takip eder.
