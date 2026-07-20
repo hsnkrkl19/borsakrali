@@ -272,28 +272,28 @@ def our_positions(cfg):
 
 
 def open_from_feed(cfg, s):
+    # Dönüş: neden kodu (özet için). "acildi" = MT5'te emir açıldı.
     if not account_allowed(cfg, mt5.account_info()):
-        return
+        return "hesap_kilidi"
     conf = s.get("confidence")
     if conf is not None and float(conf) < float(cfg.get("min_confidence", 0)):
-        return
+        return "dusuk_guven"
     cats = cfg.get("allow_categories") or []
     if cats and s.get("category") not in cats:
-        return
+        return "kategori_disi"
     broker_sym = resolve_broker_symbol(cfg, s["symbol"])
     if not broker_sym:
-        log.info("↷ %s (%s) atlandı: broker'da sembol yok.", s["symbol"], s.get("botName"))
-        return
+        return "sembol_yok"
     # Piyasa kapalıysa (son denemede 10018) bu sembolü bir süre atla — log spam'ı önle.
     if _market_closed_until.get(broker_sym, 0) > time.time():
-        return
+        return "piyasa_kapali"
     info = ensure_symbol(broker_sym)
     if info is None:
-        return
+        return "sembol_yok"
     is_long = s["direction"] == "long"
     tick = mt5.symbol_info_tick(info.name)
     if tick is None or not (tick.ask > 0 and tick.bid > 0):
-        return
+        return "fiyat_yok"
     price = tick.ask if is_long else tick.bid
     # SEVİYELER MT5 FİYATINA GÖRE (mutlak): sinyalin risk/ödül MESAFESİNİ koru ama
     # SL/TP'yi MT5 giriş fiyatina yeniden bağla. Böylece fiyat-uzayi uyumsuzlugu
@@ -302,9 +302,9 @@ def open_from_feed(cfg, s):
     risk = abs(sig_entry - sig_stop)
     reward = abs(float(s["target1"]) - sig_entry) if s.get("target1") else risk * 2
     if risk <= 0:
-        return
+        return "gecersiz_stop"
     if reward / risk < float(cfg.get("min_rr", 0.5)):
-        return
+        return "dusuk_rr"
     # Broker asgari stop mesafesi: çok dar stop reddedilmesin diye mesafeye çek
     # (R:R korunur; reward risk oraninca büyütülür).
     md = min_stop_dist(info)
@@ -318,14 +318,13 @@ def open_from_feed(cfg, s):
     sl, tp = round(sl, d), round(tp1, d)
     lot = compute_lot(cfg, s.get("category"), info, price, sl)
     if lot <= 0:
-        log.info("↷ %s %s: lot 0 — atlandı.", s.get("botName"), info.name)
-        return
+        return "lot_sifir"
     magic = int(s.get("magic") or 0)
     label = "LONG" if is_long else "SHORT"
     if cfg["dry_run"]:
         log.info("[DRY] AÇ %s | %s %s lot=%s @%.*f SL=%.*f TP=%.*f magic=%s (%s)",
                  s.get("botName"), info.name, label, lot, d, price, d, sl, d, tp, magic, s["code"])
-        return
+        return "dry"
     req = {
         "action": mt5.TRADE_ACTION_DEAL, "symbol": info.name, "volume": float(lot),
         "type": mt5.ORDER_TYPE_BUY if is_long else mt5.ORDER_TYPE_SELL,
@@ -335,13 +334,16 @@ def open_from_feed(cfg, s):
     r = send_with_filling(req)
     if r and r.retcode == mt5.TRADE_RETCODE_DONE:
         log.info("✅ AÇILDI %s | %s %s lot=%s magic=%s ticket=%s", s.get("botName"), info.name, label, lot, magic, r.order)
+        return "acildi"
     elif r and r.retcode == getattr(mt5, "TRADE_RETCODE_MARKET_CLOSED", 10018):
         # Piyasa kapalı (hafta sonu / seans dışı): sembolü 15 dk atla, bir kez INFO logla.
         _market_closed_until[info.name] = time.time() + 900
         log.info("⏸ %s piyasa kapalı — 15 dk atlanacak (%s).", info.name, s.get("botName"))
+        return "piyasa_kapali"
     else:
         rc = r.retcode if r else "None"
         log.error("❌ AÇILAMADI %s %s: retcode=%s %s", s.get("botName"), info.name, rc, (r.comment if r else mt5.last_error()))
+        return "hata:%s" % rc
 
 
 def close_position(cfg, pos, reason):
@@ -648,6 +650,10 @@ def run_once(cfg):
                 close_position(cfg, p, "competition-kapatti")
 
     # 2) yeni pozisyonları aç (tavanlar + haftasonu/haber + guard)
+    reasons = {}  # neden kodu -> adet (tur özeti için)
+    def _bump(k): reasons[k] = reasons.get(k, 0) + 1
+    if not new_orders_allowed:
+        _bump("stop_veya_gunluk_fren")
     if new_orders_allowed:
         weekend = trade_guard.in_weekend_closed()
         news = news_blackout_active(cfg)
@@ -664,18 +670,17 @@ def run_once(cfg):
         for s in sorted(feed, key=lambda x: -(x.get("confidence") or 0)):
             code = str(s["code"])
             if code in open_codes:
-                continue
+                _bump("zaten_acik"); continue
             if max_total > 0 and total_open >= max_total:
-                break
+                _bump("tavan_doldu"); break
             bkey = s.get("botId")
             if max_per_bot > 0 and per_bot.get(bkey, 0) >= max_per_bot:
-                continue
+                _bump("bot_tavani"); continue
             if symbol_guarded(cfg, s["symbol"], weekend, news):
-                continue
-            before = len(our_positions(cfg))
-            open_from_feed(cfg, s)
-            after = len(our_positions(cfg))
-            if after > before or cfg["dry_run"]:
+                _bump("guard_hafta_haber"); continue
+            res = open_from_feed(cfg, s) or "bilinmiyor"
+            _bump(res)
+            if res in ("acildi", "dry"):
                 per_bot[bkey] = per_bot.get(bkey, 0) + 1
                 total_open += 1
 
@@ -694,7 +699,11 @@ def run_once(cfg):
         log.warning("gerçek sonuç besleme hatası: %s", exc)
 
     if feed:
-        log.info("tur: feed %d poz, MT5 açık %d (dry_run=%s)", len(feed), len(open_pos), cfg["dry_run"])
+        acildi = reasons.get("acildi", 0) + reasons.get("dry", 0)
+        atlanan = {k: v for k, v in reasons.items() if k not in ("acildi", "dry", "zaten_acik")}
+        ozet = " · ".join("%s=%d" % (k, v) for k, v in sorted(atlanan.items(), key=lambda x: -x[1]))
+        log.info("📋 TUR ÖZETİ: feed %d · AÇILDI %d · zaten-açık %d%s",
+                 len(feed), acildi, reasons.get("zaten_acik", 0), (" · atlanan → " + ozet) if ozet else "")
 
 
 def main():
