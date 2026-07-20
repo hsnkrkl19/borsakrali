@@ -60,6 +60,33 @@ function tradeStats(trades) {
   };
 }
 
+/**
+ * Skor-kovası performansı — "hangi avgScore aralığı GERÇEKTEN kazanıyor?"
+ * ⚠️ Bilinçli olarak yalnız ŞEFFAFLIK: eşikleri OTOMATİK değiştirmez. Bugünün
+ * dersi: dar pencereye parametre uydurmak (overfit) iki kez yanlış sonuç verdi;
+ * karar insana bırakılır, veri gösterilir.
+ */
+function scoreBuckets(trades) {
+  const B = [[0, 80, '<80'], [80, 85, '80-84'], [85, 90, '85-89'], [90, 1e9, '90+']];
+  const out = {};
+  for (const [lo, hi, label] of B) {
+    const list = (trades || []).filter(t => t && Number.isFinite(t.realizedPnL) && Number.isFinite(t.score) && t.score >= lo && t.score < hi);
+    if (!list.length) continue;
+    const wins = list.filter(t => t.realizedPnL > 0);
+    const gw = wins.reduce((s, t) => s + t.realizedPnL, 0);
+    const gl = Math.abs(list.filter(t => t.realizedPnL < 0).reduce((s, t) => s + t.realizedPnL, 0));
+    const rets = list.map(t => num(t.priceReturnPct ?? t.realizedPnLPct));
+    out[label] = {
+      count: list.length,
+      winRate: +((wins.length / list.length) * 100).toFixed(1),
+      avgReturnPct: +(rets.reduce((s, v) => s + v, 0) / rets.length).toFixed(2),
+      profitFactor: gl > 0 ? +(gw / gl).toFixed(2) : (gw > 0 ? 999 : 0),
+      totalPnL: +list.reduce((s, t) => s + t.realizedPnL, 0).toFixed(2),
+    };
+  }
+  return out;
+}
+
 function sharpe(equityHistory) {
   const eq = (equityHistory || []).filter(p => p && Number.isFinite(p.equity)).map(p => p.equity);
   if (eq.length < 3) return 0;
@@ -89,7 +116,8 @@ function computeMetrics({ trades, equityHistory } = {}) {
     bestPct: ts.bestPct, worstPct: ts.worstPct,
     closedCount: ts.count, wins: ts.wins, losses: ts.losses, winRate: ts.winRate,
     byReason: ts.byReason,
+    scoreBuckets: scoreBuckets(trades),
   };
 }
 
-module.exports = { maxDrawdown, tradeStats, sharpe, computeMetrics, daysBetween };
+module.exports = { maxDrawdown, tradeStats, sharpe, scoreBuckets, computeMetrics, daysBetween };

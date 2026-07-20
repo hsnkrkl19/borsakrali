@@ -38,6 +38,21 @@ function sameDayKey(dateLike) {
 function dateOf(c) { return c.date || (Number.isFinite(c.timestamp) ? new Date(c.timestamp).toISOString().slice(0, 10) : null); }
 function num(v, def) { const n = Number(v); return Number.isFinite(n) ? n : def; }
 
+// Sembol → sektör (allBistStocks'tan tembel harita; aday/pozisyon üzerinde
+// açıkça verilmişse o kullanılır → motor test edilebilir kalır).
+let _sectorMap = null;
+function sectorOf(symbol, explicit) {
+  if (explicit) return explicit;
+  if (!_sectorMap) {
+    _sectorMap = {};
+    try {
+      const { allBistStocks } = require('../../data/allBistStocks');
+      for (const s of (allBistStocks || [])) if (s && s.symbol) _sectorMap[s.symbol] = s.sector || null;
+    } catch (_) { _sectorMap = {}; }
+  }
+  return _sectorMap[symbol] || null;
+}
+
 // ── Konfig (env-tabanlı; bot cfg'i bunları override edebilir) ────────────────
 function buildConfig(overrides = {}) {
   const capital = num(process.env.BIST_PORTFOLIO_CAPITAL, 100000);
@@ -71,6 +86,10 @@ function buildConfig(overrides = {}) {
     // "Kazananı koştur, bozulanı kes": strateji-SAT yalnız pozisyon ZARARDAYKEN
     // tetiklensin (kârdaki pozisyon trend sarsıntısında satılmasın; onu TP/trailing yönetir).
     sellOnlyWhenLosing: process.env.BIST_PORTFOLIO_SELL_ONLY_LOSING === '1',
+    // Sektör konsantrasyon tavanı (0 = sınırsız). Aynı sektörden en fazla N açık
+    // pozisyon — 5 bankayı birlikte tutup topluca düşmeyi önler. ⚠️ Varsayılan 0:
+    // faydası backtest'te KANITLANANA kadar kapalı.
+    maxPerSector: num(process.env.BIST_PORTFOLIO_MAX_PER_SECTOR, 0),
     band: 0.20,                     // sahte-stop bandı (BIST ±%20)
     maxDrawdownPct: num(process.env.BIST_PORTFOLIO_MAX_DD_PCT, 25),
     dailyLossLimitPct: num(process.env.BIST_PORTFOLIO_DAILY_LOSS_PCT, 10),
@@ -145,6 +164,7 @@ function openPosition(store, cfg, sig, opts = {}) {
 
   const pos = store.addPosition({
     symbol: sig.symbol, name: sig.name || sig.symbol,
+    sector: sectorOf(sig.symbol, sig.sector),
     direction: 'long', status: 'open', source: opts.source || 'strategy',
     ticket,
     signalDate, entryDate,
@@ -457,6 +477,14 @@ function syncBuys(store, candidates, cfg, opts = {}) {
   for (const sig of sorted) {
     if (store.findBySymbol(sig.symbol, ['open', 'pending'])) continue;   // ⭐ tutulan sembole ikinci AL YOK
     if (store.listOpen().length >= cfg.maxConcurrent) break;             // slot doldu
+    // Sektör konsantrasyon tavanı (aktifse)
+    if (cfg.maxPerSector > 0) {
+      const sec = sectorOf(sig.symbol, sig.sector);
+      if (sec) {
+        const inSector = store.listOpen().filter(p => sectorOf(p.symbol, p.sector) === sec).length;
+        if (inSector >= cfg.maxPerSector) { skipped.push({ symbol: sig.symbol, reason: 'sector_cap', sector: sec }); continue; }
+      }
+    }
     const res = openPosition(store, cfg, sig, { now });
     if (res.ok) opened.push(res.position);
     else skipped.push({ symbol: sig.symbol, reason: res.reason });

@@ -68,6 +68,26 @@ describe('analytics.sharpe / computeMetrics', () => {
   });
 });
 
+describe('analytics.scoreBuckets — hangi skor aralığı kazanıyor (şeffaflık)', () => {
+  const t = (score, pnl, ret) => ({ score, realizedPnL: pnl, priceReturnPct: ret, exitReason: pnl > 0 ? 'target' : 'stop' });
+  test('skorlara göre kovalar + kazanma/PF hesaplanır', () => {
+    const b = analytics.scoreBuckets([
+      t(82, 100, 5), t(83, 200, 8), t(81, -50, -3),   // 80-84: 2W/1L
+      t(87, -100, -4), t(88, 50, 2),                   // 85-89: 1W/1L
+      t(95, 300, 10),                                  // 90+: 1W
+    ]);
+    expect(b['80-84'].count).toBe(3);
+    expect(b['80-84'].winRate).toBeCloseTo(66.7, 1);
+    expect(b['80-84'].profitFactor).toBeCloseTo(6, 1);   // (100+200)/50
+    expect(b['85-89'].winRate).toBe(50);
+    expect(b['90+'].count).toBe(1);
+    expect(b['90+'].profitFactor).toBe(999);             // kayıp yok
+  });
+  test('skoru olmayan işlemler kovalara girmez', () => {
+    expect(analytics.scoreBuckets([{ realizedPnL: 10, priceReturnPct: 1 }])).toEqual({});
+  });
+});
+
 describe('benchmark.compare — BIST100 kıyası + alfa', () => {
   beforeEach(() => { benchmark.__clearCache(); mockHist.mockReset(); });
 

@@ -100,6 +100,26 @@ describe('openPosition + syncBuys — nakit korunumu + held-guard', () => {
     expect(store.listOpen().length).toBe(1);
   });
 
+  test('sektör tavanı: aynı sektörden N+1. pozisyon açılmaz', () => {
+    const store = createInMemoryStore(100000, 'TRY');
+    const cfg = engine.buildConfig({ capital: 100000, maxPerSector: 2 });
+    const banks = ['B1', 'B2', 'B3'].map((s, i) => ({ ...SIG, symbol: s, name: s, sector: 'Bankacılık', avgVoteScore: 90 - i }));
+    const r = engine.syncBuys(store, banks, cfg);
+    expect(r.opened.length).toBe(2);                                   // 3. banka elendi
+    expect(r.skipped.find(x => x.reason === 'sector_cap')).toBeTruthy();
+    // Farklı sektör serbest
+    const r2 = engine.syncBuys(store, [{ ...SIG, symbol: 'X1', name: 'X1', sector: 'Havacılık' }], cfg);
+    expect(r2.opened.length).toBe(1);
+  });
+
+  test('sektör tavanı 0 (varsayılan) → sınırsız', () => {
+    const store = createInMemoryStore(100000, 'TRY');
+    const cfg = engine.buildConfig({ capital: 100000 });
+    expect(cfg.maxPerSector).toBe(0);
+    const banks = ['B1', 'B2', 'B3'].map((s, i) => ({ ...SIG, symbol: s, name: s, sector: 'Bankacılık', avgVoteScore: 90 - i }));
+    expect(engine.syncBuys(store, banks, cfg).opened.length).toBe(3);
+  });
+
   test('slot tavanı: maxConcurrent aşılınca yeni AL yok', () => {
     const store = createInMemoryStore(100000, 'TRY');
     const cfg = engine.buildConfig({ capital: 100000, maxConcurrent: 2 });
