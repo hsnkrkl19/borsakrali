@@ -50,12 +50,27 @@ function buildConfig(overrides = {}) {
     maxConcurrent: num(process.env.BIST_PORTFOLIO_MAX_CONCURRENT, 10),
     commissionPct: num(process.env.BIST_PORTFOLIO_COMMISSION_PCT, 0.002),
     slippagePct: num(process.env.BIST_PORTFOLIO_SLIPPAGE_PCT, 0.001),
-    timeoutDays: num(process.env.BIST_PORTFOLIO_TIMEOUT_DAYS, 20),
+    // 20→40 (2026-07-19, 2y/2-pencere OOS). ⚠️ ETKİLEŞİM: timeout tek başına
+    // FAYDASIZ (60 tek başına baseline'ın ALTINDA kaldı); yalnız strategySell
+    // KAPALIYKEN kazandırıyor. İkisi birlikte: ort. getiri %11.67→%17.86.
+    timeoutDays: num(process.env.BIST_PORTFOLIO_TIMEOUT_DAYS, 40),
     minPositionTL: num(process.env.BIST_PORTFOLIO_MIN_POSITION_TL, 100),
     // Scale-out: TP1'de pozisyonun tp1Fraction'ı satılır, stop girişe (breakeven)
     // çekilir, kalan TP2'ye trailing ile koşar → kazananlar erken kesilmez.
     scaleOut: process.env.BIST_PORTFOLIO_SCALEOUT !== '0',
     tp1Fraction: num(process.env.BIST_PORTFOLIO_TP1_FRACTION, 0.5),
+    // ⭐ Strateji-SAT (trend-kırılım çıkışı) VARSAYILAN KAPALI (2026-07-19 backtest).
+    // 2 yıl / 2 bağımsız pencere: bu çıkış WHIPSAW üretiyor — EMA34 altına sarkan
+    // hisse satılıyor, sonra toparlanıyor. Kapatınca (timeout40 ile birlikte) ort.
+    // getiri %11.67→%17.86, PF 1.65→1.95 & 1.22→1.38, düşüş P2'de %9.98→%7.65.
+    // Açmak için: BIST_PORTFOLIO_STRATEGY_SELL=1
+    // ⚠️ KISIT: her iki test penceresi de BOĞA piyasası. Ayı rejiminde trend-kırılım
+    // çıkışı koruyucu olabilir; pozisyon başına düşüş yine STOP ile sınırlı.
+    strategySell: process.env.BIST_PORTFOLIO_STRATEGY_SELL === '1',
+    sellConfirmDays: num(process.env.BIST_PORTFOLIO_SELL_CONFIRM_DAYS, 1),
+    // "Kazananı koştur, bozulanı kes": strateji-SAT yalnız pozisyon ZARARDAYKEN
+    // tetiklensin (kârdaki pozisyon trend sarsıntısında satılmasın; onu TP/trailing yönetir).
+    sellOnlyWhenLosing: process.env.BIST_PORTFOLIO_SELL_ONLY_LOSING === '1',
     band: 0.20,                     // sahte-stop bandı (BIST ±%20)
     maxDrawdownPct: num(process.env.BIST_PORTFOLIO_MAX_DD_PCT, 25),
     dailyLossLimitPct: num(process.env.BIST_PORTFOLIO_DAILY_LOSS_PCT, 10),
@@ -363,7 +378,13 @@ async function manageHeld(store, cfg, ctx = {}) {
     const closes = completed.map(c => c.close);
     const ema34 = ema(closes, 34);
     const dropped = qualified != null && !qualified.has(cur.symbol);
-    if (qualified != null && !enteredToday && dropped && ema34 != null && lastClose < ema34) {
+    // N gün üst üste EMA34 altı kapanış teyidi (sellConfirmDays=1 → eski davranış)
+    const confirmN = Math.max(1, cfg.sellConfirmDays || 1);
+    const lastN = closes.slice(-confirmN);
+    const belowConfirmed = ema34 != null && lastN.length === confirmN && lastN.every(c => c < ema34);
+    const losing = lastClose < cur.entryPrice;
+    const sellAllowed = !cfg.sellOnlyWhenLosing || losing;
+    if (cfg.strategySell !== false && sellAllowed && qualified != null && !enteredToday && dropped && belowConfirmed) {
       intents.push({
         pos: cur, exitPrice: +Number(lastClose).toFixed(cur.precision ?? cfg.precision),
         reason: 'signal_exit', exitDate: dateOf(completed[completed.length - 1]) || sameDayKey(now),

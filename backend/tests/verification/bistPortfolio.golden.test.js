@@ -308,8 +308,22 @@ describe('completedCandles — oluşan (yarım) bar düşürme', () => {
 describe('manageHeld — strateji SAT (trend kırıldı + nitelik-dışı, held-only)', () => {
   // signalDate Ocak barlarının SONRASI → hiçbir bar stop/tp için değerlendirilmez
   // (fiyat-tetikli çıkışı izole et); timeout devre dışı → yalnız strateji SAT ölçülür.
-  const SELLCFG = engine.buildConfig({ timeoutDays: 100000 });
+  // strategySell 2026-07-19'dan beri VARSAYILAN KAPALI (backtest: whipsaw üretiyor)
+  // → bu blokta AÇIKÇA aç; ayrıca varsayılanın kapalı olduğunu da doğrula.
+  const SELLCFG = engine.buildConfig({ timeoutDays: 100000, strategySell: true });
   const OPEN_OVR = { signalDate: '2026-02-01', entryDate: '2026-02-01T09:00:00.000Z', stopSetDate: '2026-02-01' };
+
+  test('VARSAYILAN: strategySell KAPALI → trend kırılsa bile SAT yok', async () => {
+    const store = createInMemoryStore(100000, 'TRY');
+    const def = engine.buildConfig({ timeoutDays: 100000 });   // varsayılan cfg
+    expect(def.strategySell).toBe(false);
+    engine.openPosition(store, def, { ...SIG, entry: 100, stop: 80, target1: 200 }, OPEN_OVR);
+    const { intents } = await engine.manageHeld(store, def, {
+      qualifiedSymbols: new Set([]), candlesBySymbol: { AAA: downSeries(35, 100, 10) },
+      now: new Date('2026-03-01T10:00:00+03:00'),
+    });
+    expect(intents.find(i => i.reason === 'signal_exit')).toBeUndefined();
+  });
 
   test('nitelik-dışı + close<EMA34 → signal_exit niyeti', async () => {
     const store = createInMemoryStore(100000, 'TRY');

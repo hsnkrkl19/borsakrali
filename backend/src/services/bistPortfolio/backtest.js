@@ -159,10 +159,11 @@ async function replay(perSymbol, cfg, opts = {}) {
     for (const pos of store.listOpen()) candlesForHeld[pos.symbol] = slicedTo(pos.symbol, D);
     const { intents } = await engine.manageHeld(store, cfg, { qualifiedSymbols: qualByDate[D] || new Set(), candlesBySymbol: candlesForHeld, now });
     engine.commitCloses(store, cfg, intents, { now });
-    // 3) Gün sonu equity işaretle (D kapanışıyla)
+    // 3) Gün sonu equity + MARUZİYET işaretle (D kapanışıyla)
     const pf = store.getPortfolio();
     const openVal = store.listOpen().reduce((s, p) => s + ((p.lastPrice || p.entryPrice) * p.shares), 0);
-    equityHistory.push({ date: D, equity: +(pf.cash + openVal).toFixed(2) });
+    const eq = +(pf.cash + openVal).toFixed(2);
+    equityHistory.push({ date: D, equity: eq, invested: +(eq > 0 ? (openVal / eq) * 100 : 0).toFixed(1), openCount: store.listOpen().length });
   }
 
   const trades = typeof store.listTradesChrono === 'function' ? store.listTradesChrono() : store.listTrades(99999);
@@ -178,9 +179,15 @@ async function report(sim, cfg) {
   const metrics = analytics.computeMetrics({ trades: sim.trades, equityHistory: eh });
   let bench = null;
   try { bench = await benchmark.compare(eh, totalReturnPct); } catch (_) {}
+  // MARUZİYET: ortalama yatırımda kalma oranı — düşükse portföy nakitte bekliyor
+  // demektir ve yükselen piyasada endeksi yapısal olarak geçemez.
+  const invs = eh.map(p => p.invested).filter(v => Number.isFinite(v));
+  const avgExposurePct = invs.length ? +(invs.reduce((s, v) => s + v, 0) / invs.length).toFixed(1) : 0;
+  const daysFlat = invs.filter(v => v < 5).length;
   return {
     capital, finalEquity: finalEq, totalReturnPct, days: sim.days,
     closedTrades: (sim.trades || []).length,
+    avgExposurePct, flatDays: daysFlat, flatDaysPct: invs.length ? +((daysFlat / invs.length) * 100).toFixed(1) : 0,
     metrics, benchmark: bench,
     equityHistory: eh,
     from: eh[0] && eh[0].date, to: eh[eh.length - 1] && eh[eh.length - 1].date,
