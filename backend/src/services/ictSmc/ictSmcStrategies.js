@@ -33,6 +33,7 @@ const STRATS = {
   range: 'Klasik Range',
   momentum: 'Klasik Momentum',
   scalp: 'Klasik Scalp',
+  pd_fvg: 'Premium/Discount + FVG',
 };
 
 function newStratState() {
@@ -239,6 +240,14 @@ function stepStrategy(S, B, O) {
     const sesOk = !O.scalpKzOnly || B.inAnyKZ;
     if (stackUp && B.low <= B.e8 && B.close > B.e5 && B.close > B.open && sesOk) { rawLong = true; slLongRaw = B.e13; }
     if (stackDn && B.high >= B.e8 && B.close < B.e5 && B.close < B.open && sesOk) { rawShort = true; slShortRaw = B.e13; }
+  }
+
+  // ── Premium/Discount + FVG (kullanıcı isteği) ──
+  // DISCOUNT (EQ altı, ucuz) → sadece LONG (boğa FVG retesti).
+  // PREMIUM (EQ üstü, pahalı) → sadece SHORT (ayı FVG retesti).
+  if (strat === 'pd_fvg') {
+    if (B.inDisc) { const sl = zoneRetestLong(z.fvg, B, O); if (sl != null) { rawLong = true; slLongRaw = sl; } }
+    if (B.inPrem) { const sl = zoneRetestShort(z.fvg, B, O); if (sl != null) { rawShort = true; slShortRaw = sl; } }
   }
 
   // ── Global filtreler (Pine longFiltOK/shortFiltOK) ──

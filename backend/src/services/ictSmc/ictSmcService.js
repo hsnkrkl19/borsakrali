@@ -15,7 +15,7 @@ const { STRATS } = require('./ictSmcStrategies');
 
 const SUPPORTED_STRATEGIES = Object.keys(STRATS);
 // Canlıda öntanımlı çalışan yüksek-değerli alt küme (hepsi panelden açılabilir).
-const DEFAULT_STRATEGIES = ['ict2022', 'silver_bullet', 'ob_retest', 'fvg_retest', 'sweep_reversal', 'choch', 'bos_continuation'];
+const DEFAULT_STRATEGIES = ['pd_fvg', 'ict2022', 'silver_bullet', 'ob_retest', 'fvg_retest', 'sweep_reversal', 'choch', 'bos_continuation'];
 
 function finite(v, f = NaN) { const n = Number(v); return Number.isFinite(n) ? n : f; }
 
@@ -181,7 +181,8 @@ async function generate(options = {}) {
   const strategies = options.strategies || configuredStrategies();
   const ids = options.instrumentIds || configuredInstrumentIds(getInstrument);
   const instruments = ids.map((id) => getInstrument(id)).filter(Boolean);
-  const opts = { freshBars: options.freshBars != null ? options.freshBars : 2, ...(options.engineOpts || {}) };
+  // pdFilter: discount'ta long / premium'da short (kullanıcı isteği). preset: Dengeli.
+  const opts = { freshBars: options.freshBars != null ? options.freshBars : 2, pdFilter: true, preset: 'balanced', ...(options.engineOpts || {}) };
 
   const prices = {};
   const rows = await Promise.all(instruments.map(async (inst) => {

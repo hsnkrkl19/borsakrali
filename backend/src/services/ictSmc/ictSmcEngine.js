@@ -221,8 +221,13 @@ function runEngine(candles, opts = {}) {
     donLen: 20, emaFastLen: 50, emaSlowLen: 200, emaPullLen: 21, rngLen: 50,
     adxTh: 20, adxRangeTh: 20, rsiOS: 35, rsiOB: 65, volMult: 1.5, volFilterOn: true,
     scalpKzOnly: true, entryMode: 'market', chochRetest: false, swpReqMss: true, smtReqStruct: true,
+    preset: 'balanced', // Pine PR_BAL: displacement + MSS-FVG bağı gevşetilir (çoğu TF için önerilen)
     ...opts,
   };
+  // Preset: sinyal sıklığı. Katı=ICT disiplini, Dengeli=önerilen, Agresif=çok sinyal.
+  const dispMultEff = O.preset === 'strict' ? O.dispMult : O.preset === 'aggressive' ? O.dispMult * 0.55 : O.dispMult * 0.8;
+  const mssStrictEff = O.preset === 'strict' ? O.mssStrict : false;
+  const fvgLinkBars = O.preset === 'strict' ? 1 : O.preset === 'aggressive' ? 5 : 3;
   const n = candles.length;
   const c = candles;
   const events = [];
@@ -300,10 +305,10 @@ function runEngine(candles, opts = {}) {
     cur = i;
     const bar = c[i], prev = c[i - 1] || bar;
     const A200 = atr200[i] || 0;
-    const dispBull = bar.close > bar.open && dispBase[i] > (dispStd[i] || Infinity) * O.dispMult;
-    const dispBear = bar.close < bar.open && dispBase[i] > (dispStd[i] || Infinity) * O.dispMult;
-    const dispBullPrev = i > 0 && c[i - 1].close > c[i - 1].open && dispBase[i - 1] > (dispStd[i - 1] || Infinity) * O.dispMult;
-    const dispBearPrev = i > 0 && c[i - 1].close < c[i - 1].open && dispBase[i - 1] > (dispStd[i - 1] || Infinity) * O.dispMult;
+    const dispBull = bar.close > bar.open && dispBase[i] > (dispStd[i] || Infinity) * dispMultEff;
+    const dispBear = bar.close < bar.open && dispBase[i] > (dispStd[i] || Infinity) * dispMultEff;
+    const dispBullPrev = i > 0 && c[i - 1].close > c[i - 1].open && dispBase[i - 1] > (dispStd[i - 1] || Infinity) * dispMultEff;
+    const dispBearPrev = i > 0 && c[i - 1].close < c[i - 1].open && dispBase[i - 1] > (dispStd[i - 1] || Infinity) * dispMultEff;
     const bodySize = Math.max(Math.abs(bar.close - bar.open), 1e-9);
     const topWick = bar.high - Math.max(bar.open, bar.close);
     const botWick = Math.min(bar.open, bar.close) - bar.low;
@@ -388,8 +393,8 @@ function runEngine(candles, opts = {}) {
     }
 
     // ── MSS ──
-    const mssBull = iEv.brkUp && (!O.mssStrict || iEv.chU) && (dispBull || dispBullPrev) && i - lastBullFvgBar <= 1;
-    const mssBear = iEv.brkDn && (!O.mssStrict || iEv.chD) && (dispBear || dispBearPrev) && i - lastBearFvgBar <= 1;
+    const mssBull = iEv.brkUp && (!mssStrictEff || iEv.chU) && (dispBull || dispBullPrev) && i - lastBullFvgBar <= fvgLinkBars;
+    const mssBear = iEv.brkDn && (!mssStrictEff || iEv.chD) && (dispBear || dispBearPrev) && i - lastBearFvgBar <= fvgLinkBars;
 
     // ── Order Block (bacak taraması) ──
     if (iEv.brkUp) { const ob = scanLeg(c, i, struct.internal.lastHbar, false, atr200, O.obVolMult); if (ob) addZone(zones.ob, 2, 1, ob.top, ob.bot, ob.bar); }

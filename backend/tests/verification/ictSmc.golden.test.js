@@ -19,7 +19,7 @@ function breakoutSeries() {
 
 describe('ICT/SMC motoru — port doğrulaması', () => {
   test('22 stratejinin tümü desteklenir ve çıktı sözleşmesi tutar', () => {
-    expect(svc.SUPPORTED_STRATEGIES.length).toBe(22);
+    expect(svc.SUPPORTED_STRATEGIES.length).toBe(23);
     expect(svc.DEFAULT_STRATEGIES.every((s) => svc.SUPPORTED_STRATEGIES.includes(s))).toBe(true);
     expect(() => svc.analyzeCandles([], 'ict2022')).not.toThrow();
     expect(() => svc.analyzeCandles([bar(0, 1, 1, 1, 1)], 'yok_boyle_strateji')).toThrow(/Bilinmeyen/);
