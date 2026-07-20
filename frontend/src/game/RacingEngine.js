@@ -15,7 +15,10 @@
 // GRAV: 10 m/s² × METER(30) = 300 wu/s². Eskiden 1750 = 58.3 m/s² = 5.95 g (!) — gerçek
 // rampalar bu yerçekiminde hava üretemediği için sahte "crest fırlatması" eklenmişti.
 // Referans: Box2D testbed car.cpp ve alexzh3/hillclimbracing (SCALE=30 px/m, gravity 10).
-const GRAV = 300
+// NOT: 1.0g (300) fizik olarak "doğru" ama 91 km/h hızlarda araba 10 m yükselip 2.5sn
+// havada kalıyordu — arcade oyunlar yerçekimini bilerek abartır. 1.87g bunu yarıya indirir.
+// (Sürüş/tırmanış ETKİLENMEZ: itki torqueTW·m·GRAV olduğu için itki/ağırlık sabit kalır.)
+const GRAV = 560
 const SUBSTEPS = 8
 const SX = 110              // örnek nokta yatay aralığı
 const AMP = 660             // fiyat → yükseklik bandı
@@ -168,13 +171,17 @@ export class RacingEngine {
     while (bi < N - 8) {
       const rising = h[bi] - h[bi - 3]
       if (rising > AMP * 0.02 && hash32(bi * 53 + 11) % 5 === 0) {
-        const A = AMP * 0.10
+        const A = AMP * 0.075             // 0.10 → 0.075: kalkış açısı/vy düşer
         h[bi - 3] += A * 0.10
         h[bi - 2] += A * 0.34
         h[bi - 1] += A * 0.72
         h[bi] += A * 1.00                 // dudak
-        h[bi + 1] += A * 0.18             // arkası hızla düşer → iniş alanı
-        for (let k = 2; k <= 4; k++) h[bi + k] += A * 0.06 * (4 - k)   // iniş yumuşatıcı
+        // Dudaktan sonra UÇURUM YOK: yer ayağın altından kaçmasın diye kademeli iniş
+        // (eskiden 1.00→0.18 tek adımda düşüyordu, uçuşu yapay olarak uzatıyordu).
+        h[bi + 1] += A * 0.62
+        h[bi + 2] += A * 0.34
+        h[bi + 3] += A * 0.16
+        h[bi + 4] += A * 0.06
         bi += 16
       } else bi += 1
     }
@@ -574,9 +581,9 @@ export class RacingEngine {
           this.run.coins += 8
           this._addFloat(car.x, car.y + 55, 'MÜKEMMEL İNİŞ!', '#22c55e')
           this._beep(990, 0.12); this._addShake(4); this._spawnSparkle(car.x, car.y + 20)
-        } else if (Lp.vy < -280) {                       // GRAV ölçeğine göre (eskiden -520)
-          this._addShake(clamp(-Lp.vy / 45, 4, 16))
-          this._spawnPoof(car.x, this.heightAt(car.x), -Lp.vy / 32)
+        } else if (Lp.vy < -400) {                       // GRAV=560 ölçeğine göre
+          this._addShake(clamp(-Lp.vy / 62, 4, 16))
+          this._spawnPoof(car.x, this.heightAt(car.x), -Lp.vy / 45)
         }
       }
     }
