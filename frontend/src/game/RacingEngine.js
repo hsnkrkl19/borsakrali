@@ -160,8 +160,8 @@ export class RacingEngine {
     // ama ters inersen boynun kırılır. Grafiğin genel şekli korunur.
     let bi = 12
     while (bi < N - 6) {
-      if (hash32(bi * 53 + 11) % 4 === 0) {
-        const peak = AMP * 0.23
+      if (hash32(bi * 53 + 11) % 7 === 0) {          // daha seyrek (eskiden %4)
+        const peak = AMP * 0.11                       // daha alçak rampa (eskiden 0.23)
         h[bi - 1] += peak * 0.5
         h[bi] += peak
         h[bi + 1] += peak * 0.5
@@ -373,9 +373,17 @@ export class RacingEngine {
       const fX = Math.cos(car.angle), fY = Math.sin(car.angle)
       const downhill = -fY
       if (downhill > 0.15 && car.vx > 80) {
-        const assist = GRAV * 0.055 * downhill
+        const assist = GRAV * 0.022 * downhill   // hafif akış yardımı (eskiden 0.055 — yapay hızlanma)
         car.vx += fX * assist * dt
         car.vy += fY * assist * dt
+      }
+      // KREST YAPIŞMASI (downforce): tümsek üstünden geçerken tekerler yerde kalsın.
+      // Katapültün fiziksel TERSİ — araba sebepsiz havalanmaz, hava yalnız gerçek rampada olur.
+      const hC = this.heightAt(car.x)
+      const curv = (this.heightAt(car.x - 45) + this.heightAt(car.x + 45)) / 2 - hC
+      if (curv < 0) {   // konveks = tepe
+        const stick = Math.min(1, Math.abs(car.vx) / 700) * Math.min(1, -curv / 26) * GRAV * 0.85
+        car.vy -= stick * dt
       }
       // OTURAKLI HİS: flip tuşuna basılmadıkça aracı zemin eğimine yumuşakça hizala
       // (araç zemine paralel kalır → daha az sebepsiz devrilme, floaty hissi azalır)
@@ -399,8 +407,9 @@ export class RacingEngine {
     //  • SOL = geri takla, SAĞ = ön takla. Ters inersen kafan yere değer = bitiş.
     if (!car.onGround && this._hasLanded) {
       const a = wrapPi(car.angle)
-      const ramp = clamp(this._physAirTimer / 0.07, 0.75, 1)
-      const at = s.airControl * 4.2 * ramp
+      // Hava kontrolü GERÇEKÇİ: yavaş, kasıtlı dönüş. Tam takla ~2sn sürer (eskiden ~0.5sn).
+      const ramp = clamp(this._physAirTimer / 0.12, 0.5, 1)
+      const at = s.airControl * 0.55 * ramp
       if (this.input.flipL) car.angVel += at * dt          // SOL → geri takla (CCW) — RİSK
       else if (this.input.flipR) car.angVel -= at * dt     // SAĞ → ön takla (CW) — RİSK
       else car.angVel += (-a * 14 - car.angVel * 6) * dt   // dokunma → düz inişe yönel
@@ -410,7 +419,7 @@ export class RacingEngine {
     car.vy -= car.vy * 0.02 * dt
     const angDamp = car.onGround ? 4.5 : (0.5 / s.stability)
     car.angVel -= car.angVel * angDamp * dt
-    car.angVel = clamp(car.angVel, -13, 13)
+    car.angVel = clamp(car.angVel, -3.6, 3.6)   // ~2sn'de tam tur (eskiden ±13 = saniyede 2 tur!)
 
     car.x += car.vx * dt
     car.y += car.vy * dt
@@ -418,10 +427,10 @@ export class RacingEngine {
 
     // kalkış / iniş kenarı
     if (this._wasGroundPhys && !car.onGround) {
-      if (!this.input.flipL && !this.input.flipR) car.angVel *= 0.2
-      const nL = this.normalAt(car.x - SX * 0.5).x
-      const nR = this.normalAt(car.x + SX * 0.5).x
-      if (nL < -0.05 && nR > 0.05 && car.vx > 180) car.vy += clamp(car.vx, 0, 950) * 0.55 + 160
+      // NOT: eskiden burada "crest fırlatması" vardı (car.vy += vx*0.55+160) — her tepede
+      // aracı yapay olarak havaya fırlatıyordu. KALDIRILDI: hava artık yalnızca gerçek
+      // momentum + rampa şeklinden doğar (gerçek hill-climb davranışı).
+      if (!this.input.flipL && !this.input.flipR) car.angVel *= 0.35
       this._physAirTimer = 0
     } else if (!this._wasGroundPhys && car.onGround) {
       this._pendingLanding = { vy: car.vy, airTime: this._physAirTimer, flips: this._flipsThisAir, angle: wrapPi(car.angle) }

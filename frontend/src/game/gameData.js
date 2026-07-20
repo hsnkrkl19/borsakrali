@@ -256,11 +256,13 @@ export function effectiveStats(vehicleId, upgradesForVehicle = {}) {
     ...base,
     bodyW, bodyH, wheelR, wheelBase,
     // Katsayılar max=10'a göre ölçeklendi. Base hız ×1.20, motor+şanzıman hıza daha çok katkı.
-    enginePower: base.enginePower * 1.16 * (1 + 0.20 * eng),
-    grip:        base.grip * (1 + 0.14 * tir),
+    // v6 DENGE: yükseltmeler ham HIZ yerine tork/tutuş/kontrol getirir.
+    // (eskiden motor ×3.48, son hız ×4.08 → araç kontrolden çıkıyordu)
+    enginePower: base.enginePower * 1.16 * (1 + 0.09 * eng),   // max ×1.9 (eskiden ×3.0)
+    grip:        base.grip * (1 + 0.16 * tir),                 // tutuş biraz daha değerli
     suspK:       base.suspK * (1 + 0.12 * sus),
-    suspDamp:    base.suspDamp * (1 + 0.10 * sus),
-    topSpeed:    base.topSpeed * 1.20 * (1 + 0.09 * eng + 0.15 * gear),
+    suspDamp:    base.suspDamp * (1 + 0.12 * sus),
+    topSpeed:    base.topSpeed * 1.12 * (1 + 0.035 * eng + 0.07 * gear),  // max ×2.3 (eskiden ×4.08)
     fuelMax:     base.fuelMax * (1 + 0.32 * fuel),
     airControl:  base.airControl * (1 + 0.18 * aero),
     stability:   1 + 0.14 * aero,   // havadaki açısal sönümleme
