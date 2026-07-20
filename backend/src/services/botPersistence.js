@@ -29,7 +29,7 @@ const SUBDIRS = ['bot', 'crypto-bot', 'tema34-bot', 'custom-bots', 'crossover-al
 // kırılım bildirimcisi (state); registry.json → custom bot tanım defteri;
 // learning.json → mt5-scanner öğrenme katmanı (kombo istatistik + mod kararları).
 // Liste tüm alt-dizinlere uygulanır; olmayan dosyalar loadAll'da sessizce atlanır.
-const FILES = ['portfolio.json', 'positions.json', 'trades.json', 'signal-log.json', 'runs.json', 'registry.json', 'learning.json'];
+const FILES = ['portfolio.json', 'positions.json', 'trades.json', 'signal-log.json', 'runs.json', 'registry.json', 'learning.json', 'backtest.json'];
 const DEBOUNCE_MS = 2500;
 
 // Bir custom bot portföy alt-dizini mi? ('custom-<id>', registry'nin 'custom-bots'u hariç)

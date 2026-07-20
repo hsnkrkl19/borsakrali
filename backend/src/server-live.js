@@ -8272,6 +8272,11 @@ server.listen(PORT, () => {
       try {
         const bt = require('./services/bistPortfolio/backtest');
         const routeCache = require('./routes/bistPortfolio.routes');
+        // Kalıcı rapor varsa tekrar koşma — Render free tier'da her soğuk
+        // başlangıçta 80 sembol taramak israf (rapor zaten diskten yüklenir).
+        if (routeCache.hasBacktest && routeCache.hasBacktest()) {
+          return console.log('[Warmup] backtest raporu zaten var — atlandı');
+        }
         console.log('[Warmup] BIST portföy backtest tetikleniyor...');
         bt.run({ limit: Number(process.env.BIST_BACKTEST_LIMIT) || 80 })
           .then((rep) => { if (routeCache.setBacktest) routeCache.setBacktest(rep); console.log(`[Warmup] backtest bitti — ${rep.closedTrades} islem, getiri ${rep.totalReturnPct}%, alfa ${rep.benchmark ? rep.benchmark.alphaPct : '?'}%`); })
