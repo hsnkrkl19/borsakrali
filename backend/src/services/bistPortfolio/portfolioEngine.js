@@ -38,6 +38,15 @@ function sameDayKey(dateLike) {
 function dateOf(c) { return c.date || (Number.isFinite(c.timestamp) ? new Date(c.timestamp).toISOString().slice(0, 10) : null); }
 function num(v, def) { const n = Number(v); return Number.isFinite(n) ? n : def; }
 
+// Fiyat referansa göre ±band içinde mi? (BIST günlük limiti ±%10, istisnai ±%20 →
+// dışı veri hatası/parmak hatası sayılır.) Referans yoksa doğrula kabul edilir.
+function priceInBand(v, ref, band = 0.20) {
+  if (!(v > 0)) return false;
+  if (!(ref > 0)) return true;
+  const r = v / ref;
+  return r >= (1 - band) && r <= (1 + band);
+}
+
 // Sembol → sektör (allBistStocks'tan tembel harita; aday/pozisyon üzerinde
 // açıkça verilmişse o kullanılır → motor test edilebilir kalır).
 let _sectorMap = null;
@@ -322,6 +331,7 @@ function detectDailyExit(pos, candles, cfg, opts = {}) {
   const arr = (candles || []).filter(c => c && Number.isFinite(c.close));
   const issueDate = sameDayKey(pos.signalDate || pos.entryDate);
   const stopSince = pos.stopSetDate || issueDate;
+  const targetSince = pos.targetSetDate || issueDate;   // hedef yalnız konduğu tarihten SONRA tetikler
   const band = cfg.band ?? 0.20;
   let prevClose = null;
   for (const c of arr) {
@@ -333,7 +343,11 @@ function detectDailyExit(pos, candles, cfg, opts = {}) {
     const badLow = lo == null || lo <= 0 || (pc && lo < pc * (1 - band));
     const badHigh = hi == null || (pc && hi > pc * (1 + band));
     const slHit = !badLow && (stopSince == null || d > stopSince) && lo <= pos.currentStop;
-    const tpHit = !badHigh && pos.currentTarget != null && hi >= pos.currentTarget;
+    // ⚠️ HEDEF de İLERİ-YÖNLÜ olmalı: hedef sonradan DÜŞÜRÜLÜRSE (manuel), geçmiş
+    // bir barın tepesi retroaktif "TP oldu" üretip UYDURMA kâr defterliyordu
+    // (stop tarafındaki koruma vardı, hedef tarafı yoktu — 2026-07-21 incelemesi).
+    const tpHit = !badHigh && pos.currentTarget != null
+      && (targetSince == null || d > targetSince) && hi >= pos.currentTarget;
     if (slHit) return { hit: 'stop', exitPrice: pos.currentStop, exitDate: d, ref: lo };   // aynı barda ikisi → ihtiyatlı SL
     if (tpHit) return { hit: 'target', exitPrice: pos.currentTarget, exitDate: d, ref: hi };
   }
@@ -447,6 +461,71 @@ function commitCloses(store, cfg, intents, opts = {}) {
   return { closed };
 }
 
+// ── MANUEL MÜDAHALE (admin) ─────────────────────────────────────────────────
+// ⭐ held-only KORUNUR: yalnız store'da AÇIK olan pozisyon kapatılabilir/düzenlenebilir.
+// Elde olmayan sembol için manuel kapanış da imkânsız (findById + status kontrolü).
+function manualClose(store, cfg, posId, opts = {}) {
+  const pos = store.findById ? store.findById(posId) : null;
+  if (!pos || pos.status !== 'open') { const e = new Error('Acik pozisyon bulunamadi'); e.code = 'NOT_FOUND'; throw e; }
+  const ref = pos.lastPrice || pos.entryPrice;
+  let exitPrice;
+  if (opts.price != null) {
+    exitPrice = Number(opts.price);
+    if (!Number.isFinite(exitPrice) || exitPrice <= 0) { const e = new Error('Gecersiz fiyat'); e.code = 'BAD_INPUT'; throw e; }
+    // ±%20 akıl kontrolü: tek parmak hatası (0 fazla/eksik) defteri kalıcı zehirlemesin
+    if (ref > 0 && !priceInBand(exitPrice, ref, cfg.band ?? 0.20)) {
+      const e = new Error(`Cikis fiyati bant disi (referans ${ref.toFixed(2)}, +/-%20)`); e.code = 'BAD_INPUT'; throw e;
+    }
+  } else {
+    exitPrice = ref;
+  }
+  if (!Number.isFinite(exitPrice) || exitPrice <= 0) { const e = new Error('Gecerli cikis fiyati yok'); e.code = 'BAD_INPUT'; throw e; }
+  const ev = closePosition(store, cfg, pos, +Number(exitPrice).toFixed(4), 'manual_close',
+    opts.note || 'Elle kapatildi (admin)', { now: opts.now });
+  recomputeEquity(store);
+  return ev;
+}
+
+// SL/TP elle düzenle. Stop yükseltilirse stopSetDate BUGÜNE çekilir → geçmiş
+// günlerin dibi yeni stopu RETROAKTİF tetikleyemez (sahte-stop koruması).
+function manualAdjust(store, posId, patch = {}, opts = {}) {
+  const pos = store.findById ? store.findById(posId) : null;
+  if (!pos || pos.status !== 'open') { const e = new Error('Acik pozisyon bulunamadi'); e.code = 'NOT_FOUND'; throw e; }
+  const ref = pos.lastPrice || pos.entryPrice;
+  const out = {};
+  const notes = [];
+  const today = sameDayKey(opts.now || new Date());
+  if (patch.stop !== undefined) {
+    // ⚠️ null/'' → Number() bunlari 0'a cevirir (NaN degil) → acikca reddet
+    if (patch.stop === null || patch.stop === '') { const e = new Error('Stop sayi olmali (bos/gecersiz kabul edilmez)'); e.code = 'BAD_INPUT'; throw e; }
+    const s = Number(patch.stop);
+    // ⚠️ null/NaN KABUL EDİLMEZ: eskiden `stop:null` korumayı SESSİZCE siliyordu
+    // (`lo <= null` daima false → stop bir daha ASLA tetiklenmez). Frontend'den
+    // gelen NaN de JSON'da null'a döndüğü için buraya düşüyordu.
+    if (!Number.isFinite(s)) { const e = new Error('Stop sayi olmali (bos/gecersiz kabul edilmez)'); e.code = 'BAD_INPUT'; throw e; }
+    if (!(s > 0 && s < ref)) { const e = new Error(`Stop guncel fiyatin (${ref}) ALTINDA olmali`); e.code = 'BAD_INPUT'; throw e; }
+    out.currentStop = s;
+    // stopSetDate YALNIZ stop YÜKSELTİLİNCE ileri çekilir. Her düzenlemede ileri
+    // çekmek, stopu bir gün boyunca geçmiş barlara karşı KÖRLEŞTİRİYORDU.
+    if (pos.currentStop == null || s > pos.currentStop) out.stopSetDate = today;
+    notes.push(`stop ${s}`);
+  }
+  if (patch.target !== undefined) {
+    if (patch.target === null || patch.target === '') { const e = new Error('Hedef sayi olmali (bos/gecersiz kabul edilmez)'); e.code = 'BAD_INPUT'; throw e; }
+    const t = Number(patch.target);
+    if (!Number.isFinite(t)) { const e = new Error('Hedef sayi olmali (bos/gecersiz kabul edilmez)'); e.code = 'BAD_INPUT'; throw e; }
+    if (!(t > ref)) { const e = new Error(`Hedef guncel fiyatin (${ref}) USTUNDE olmali`); e.code = 'BAD_INPUT'; throw e; }
+    out.currentTarget = t;
+    // Hedef DÜŞÜRÜLÜRSE geçmiş barın tepesi retroaktif TP açardı → ileri-yönlü kapı
+    if (pos.currentTarget == null || t < pos.currentTarget) out.targetSetDate = today;
+    notes.push(`hedef ${t}`);
+  }
+  if (!Object.keys(out).length) { const e = new Error('Degisiklik yok'); e.code = 'BAD_INPUT'; throw e; }
+  const updated = store.updatePosition(posId, out);
+  if (typeof store.appendNote === 'function') store.appendNote(posId, 'manual', `Elle duzenlendi — ${notes.join(', ')}.`);
+  return updated;
+}
+
 // ── Equity yeniden hesapla ───────────────────────────────────────────────────
 function recomputeEquity(store) {
   const pf = store.getPortfolio();
@@ -470,12 +549,21 @@ function syncBuys(store, candidates, cfg, opts = {}) {
   const halt = riskGuard.shouldHaltEntries(pf, { maxDrawdownPct: cfg.maxDrawdownPct, dailyLossLimitPct: cfg.dailyLossLimitPct }, todayPnL);
   if (halt.halt) return { opened, skipped, halted: true, haltReason: halt.reason };
 
+  // Admin bugün ELLE kapattıysa aynı gün TEKRAR ALMA — aksi halde 15 dk sonraki
+  // tarama admin kararını sessizce geri alıyordu.
+  const manualToday = new Set(
+    (typeof store.listTrades === 'function' ? store.listTrades(200) : [])
+      .filter(t => t && t.exitReason === 'manual_close' && String(t.exitDate || '').slice(0, 10) === today)
+      .map(t => t.symbol),
+  );
+
   const sorted = [...(candidates || [])]
     .filter(c => c && c.direction === 'long' && Number(c.entry) > 0 && Number(c.stop) > 0 && Number(c.stop) < Number(c.entry))
     .sort((a, b) => (num(b.score ?? b.avgVoteScore ?? b.confidence, 0)) - (num(a.score ?? a.avgVoteScore ?? a.confidence, 0)));
 
   for (const sig of sorted) {
     if (store.findBySymbol(sig.symbol, ['open', 'pending'])) continue;   // ⭐ tutulan sembole ikinci AL YOK
+    if (manualToday.has(sig.symbol)) { skipped.push({ symbol: sig.symbol, reason: 'manual_closed_today' }); continue; }
     if (store.listOpen().length >= cfg.maxConcurrent) break;             // slot doldu
     // Sektör konsantrasyon tavanı (aktifse)
     if (cfg.maxPerSector > 0) {
@@ -537,6 +625,7 @@ async function withLock(key, fn) {
 
 module.exports = {
   buildConfig, computeSize, openPosition, closePosition, partialClose,
+  manualClose, manualAdjust,
   completedCandles, detectDailyExit, manageHeld, commitCloses,
   recomputeEquity, syncBuys, snapshot, withLock,
   // test yardımcıları

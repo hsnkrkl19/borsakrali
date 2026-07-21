@@ -264,6 +264,109 @@ describe('SCALE-OUT — TP1 yarı sat, stop girişe, kalan TP2\'ye koşar', () =
   });
 });
 
+describe('MANUEL MÜDAHALE — held-only korunur', () => {
+  test('manualClose açık pozisyonu kapatır, nakit döner', () => {
+    const store = createInMemoryStore(100000, 'TRY');
+    const { position } = engine.openPosition(store, CFG, SIG);
+    const cashAfterOpen = store.getPortfolio().cash;
+    const ev = engine.manualClose(store, CFG, position.id, { price: 120 });
+    expect(ev.reason).toBe('manual_close');
+    expect(ev.realizedPnL).toBeGreaterThan(0);
+    expect(store.listOpen().length).toBe(0);
+    expect(store.getPortfolio().cash).toBeGreaterThan(cashAfterOpen);
+  });
+
+  test('⭐ olmayan/kapali pozisyon → NOT_FOUND (elde olmayan kapatilamaz)', () => {
+    const store = createInMemoryStore(100000, 'TRY');
+    expect(() => engine.manualClose(store, CFG, 'yok-boyle-id')).toThrow(/bulunamadi/i);
+    const { position } = engine.openPosition(store, CFG, SIG);
+    engine.manualClose(store, CFG, position.id, { price: 110 });
+    expect(() => engine.manualClose(store, CFG, position.id, { price: 110 })).toThrow(/bulunamadi/i);  // ikinci kez YOK
+  });
+
+  test('manualAdjust: stop güncel fiyatın altında, hedef üstünde olmalı', () => {
+    const store = createInMemoryStore(100000, 'TRY');
+    const { position } = engine.openPosition(store, CFG, SIG);
+    store.updatePosition(position.id, { lastPrice: 105 });
+    const upd = engine.manualAdjust(store, position.id, { stop: 99, target: 130 });
+    expect(upd.currentStop).toBe(99);
+    expect(upd.currentTarget).toBe(130);
+    expect(() => engine.manualAdjust(store, position.id, { stop: 120 })).toThrow(/ALTINDA/);
+    expect(() => engine.manualAdjust(store, position.id, { target: 90 })).toThrow(/USTUNDE/);
+  });
+
+  test('manualAdjust stop yükseltince stopSetDate BUGÜNE çekilir (retroaktif sahte-stop yok)', () => {
+    const store = createInMemoryStore(100000, 'TRY');
+    const { position } = engine.openPosition(store, CFG, SIG, { stopSetDate: '2020-01-01' });
+    const upd = engine.manualAdjust(store, position.id, { stop: 97 }, { now: new Date('2026-05-05T10:00:00Z') });
+    expect(upd.stopSetDate).toBe('2026-05-05');
+  });
+
+  test('⭐ RETROAKTİF TP: hedef DÜŞÜRÜLÜNCE geçmiş barın tepesi TP açmaz', async () => {
+    const store = createInMemoryStore(100000, 'TRY');
+    const NOEXP = engine.buildConfig({ capital: 100000, timeoutDays: 100000, scaleOut: false });
+    engine.openPosition(store, NOEXP, { ...SIG, entry: 100, stop: 90, target1: 130 },
+      { signalDate: '2026-01-01', entryDate: '2026-01-01T09:00:00.000Z', stopSetDate: '2026-01-01' });
+    const pos = store.listOpen()[0];
+    // 01-02 barı 125'e çıkmış, sonra fiyat 105'e dönmüş
+    const cs = candles([{ c: 100 }, { c: 120, h: 125, l: 100 }, { c: 105, h: 121, l: 104 }], 1);
+    store.updatePosition(pos.id, { lastPrice: 105 });
+    // Admin BUGÜN hedefi 118'e DÜŞÜRÜR (105'in üstünde → geçerli)
+    engine.manualAdjust(store, pos.id, { target: 118 }, { now: new Date('2026-01-10T10:00:00Z') });
+    const { intents } = await engine.manageHeld(store, NOEXP, {
+      candlesBySymbol: { AAA: cs }, now: new Date('2026-01-10T16:00:00Z'),
+    });
+    // Geçmişteki 125'lik tepe UYDURMA TP üretmemeli
+    expect(intents.find(i => i.reason === 'target')).toBeUndefined();
+    expect(store.listTrades().length).toBe(0);
+  });
+
+  test('⭐ stop:null / NaN REDDEDİLİR (koruma sessizce silinmez)', () => {
+    const store = createInMemoryStore(100000, 'TRY');
+    const { position } = engine.openPosition(store, CFG, SIG);
+    expect(() => engine.manualAdjust(store, position.id, { stop: null })).toThrow(/sayi olmali/i);
+    expect(() => engine.manualAdjust(store, position.id, { stop: NaN })).toThrow(/sayi olmali/i);
+    expect(() => engine.manualAdjust(store, position.id, { target: null })).toThrow(/sayi olmali/i);
+    expect(store.listOpen()[0].currentStop).toBe(95);   // korunmuş
+  });
+
+  test('⭐ manualClose: geçersiz/bant-dışı fiyat REDDEDİLİR', () => {
+    const store = createInMemoryStore(100000, 'TRY');
+    const { position } = engine.openPosition(store, CFG, SIG);
+    expect(() => engine.manualClose(store, CFG, position.id, { price: NaN })).toThrow(/Gecersiz fiyat/);
+    expect(() => engine.manualClose(store, CFG, position.id, { price: 0 })).toThrow(/Gecersiz fiyat/);
+    expect(() => engine.manualClose(store, CFG, position.id, { price: 1000 })).toThrow(/bant disi/i);  // parmak hatası
+    expect(store.listOpen().length).toBe(1);            // hâlâ açık
+    const ev = engine.manualClose(store, CFG, position.id, { price: 110 });  // makul → geçer
+    expect(ev.realizedPnL).toBeGreaterThan(0);
+  });
+
+  test('stopSetDate YALNIZ stop yükseltilince ileri çekilir', () => {
+    const store = createInMemoryStore(100000, 'TRY');
+    const { position } = engine.openPosition(store, CFG, SIG, { stopSetDate: '2020-01-01' });
+    store.updatePosition(position.id, { lastPrice: 105 });
+    const lowered = engine.manualAdjust(store, position.id, { stop: 92 }, { now: new Date('2026-05-05T10:00:00Z') });
+    expect(lowered.stopSetDate).toBe('2020-01-01');     // düşürüldü → değişmez
+    const raised = engine.manualAdjust(store, position.id, { stop: 99 }, { now: new Date('2026-05-05T10:00:00Z') });
+    expect(raised.stopSetDate).toBe('2026-05-05');      // yükseltildi → bugün
+  });
+
+  test('elle kapatılan sembol AYNI GÜN tekrar alınmaz', () => {
+    const store = createInMemoryStore(100000, 'TRY');
+    const { position } = engine.openPosition(store, CFG, SIG);
+    engine.manualClose(store, CFG, position.id, { price: 105 });
+    const r = engine.syncBuys(store, [SIG], CFG);
+    expect(r.opened.length).toBe(0);
+    expect(r.skipped.find(x => x.reason === 'manual_closed_today')).toBeTruthy();
+  });
+
+  test('boş patch → BAD_INPUT', () => {
+    const store = createInMemoryStore(100000, 'TRY');
+    const { position } = engine.openPosition(store, CFG, SIG);
+    expect(() => engine.manualAdjust(store, position.id, {})).toThrow(/Degisiklik yok/);
+  });
+});
+
 describe('detectDailyExit — sahte-stop koruması', () => {
   const pos = { symbol: 'AAA', entryPrice: 100, currentStop: 90, currentTarget: 120, signalDate: '2026-01-01', entryDate: '2026-01-01', stopSetDate: '2026-01-01', precision: 2 };
   const NOEXP = engine.buildConfig({ timeoutDays: 100000 });   // timeout'u devre dışı bırak (stop mantığını izole et)

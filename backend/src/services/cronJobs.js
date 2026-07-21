@@ -575,6 +575,13 @@ async function runBistAlScanner() {
     } else {
       logger.info(`📈 BIST AL portföy — taranan ${result.scanned}, nitelikli ${result.qualified}, AL ${result.opened}, kapanan ${result.closed}, TG ${result.telegramSent}`);
     }
+    // Portföy-seviyesi uyarı (drawdown eşiği / yeni-alım kesici) — gün-bazlı dedup
+    try { await require('./bistPortfolio/alPortfolioBot').checkAlerts(); }
+    catch (e) { logger.error(`[BistAlPortfolio] uyarı kontrolü hata: ${e.message}`); }
+    // ≥75 portföyü de uyarı üretsin (kendi kanalına; forexOnly'de dormant olsa da
+    // açık pozisyonu varsa drawdown/halt bildirimi gelmeli).
+    try { await require('./bistPortfolio/signalPortfolioBot').checkAlerts(); }
+    catch (e) { logger.error(`[BistSignalPortfolio] uyarı kontrolü hata: ${e.message}`); }
     return result;
   } catch (e) {
     logger.error(`[BistAlScanner] hata: ${e.message}`, e.stack);

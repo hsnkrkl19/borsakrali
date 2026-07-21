@@ -9,8 +9,9 @@
  */
 
 import { useCallback, useEffect, useState } from 'react'
-import { RefreshCw, TrendingUp, TrendingDown, Target, Shield, Wallet, CheckCircle2, XCircle, Clock, ArrowUpRight, ArrowDownRight, Hash, Info, FlaskConical } from 'lucide-react'
+import { RefreshCw, TrendingUp, TrendingDown, Target, Shield, Wallet, CheckCircle2, XCircle, Clock, ArrowUpRight, ArrowDownRight, Hash, Info, FlaskConical, Settings2, LogOut } from 'lucide-react'
 import api from '../services/api'
+import { useAuthStore } from '../store/authStore'
 
 function fmt(v, p = 2) { return v == null || !Number.isFinite(Number(v)) ? '—' : Number(v).toLocaleString('tr-TR', { minimumFractionDigits: p, maximumFractionDigits: p }) }
 function money(v) { return v == null || !Number.isFinite(Number(v)) ? '—' : Number(v).toLocaleString('tr-TR', { maximumFractionDigits: 0 }) }
@@ -67,19 +68,66 @@ export default function BistPortfoy() {
   const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState(null)
 
+  const user = useAuthStore((s) => s.user)
+  const isAdmin = user?.role === 'admin'
+  const [mh, setMh] = useState(null)          // işlem penceresi durumu
+  const [busy, setBusy] = useState(null)      // işlem yapılan pozisyon id
+  const [actErr, setActErr] = useState(null)
+
   const load = useCallback(async () => {
     try {
-      const [r, btr] = await Promise.all([
+      const [r, btr, mhr] = await Promise.all([
         api.get('/bist-portfolio'),
         api.get('/bist-portfolio/backtest').catch(() => null),
+        api.get('/bist-portfolio/market-hours').catch(() => null),
       ])
       if (r.data?.ok) { setData(r.data); setError(null) }
       else setError(r.data?.error || 'Portföy yüklenemedi')
       if (btr?.data?.ok) setBt(btr.data)
+      if (mhr?.data?.ok) setMh(mhr.data)
     } catch (e) {
       setError(e.response?.data?.error || e.message)
     } finally { setLoading(false); setRefreshing(false) }
   }, [])
+
+  // Admin: pozisyonu elle kapat / SL-TP düzenle
+  const closePos = useCallback(async (bots, pos) => {
+    if (!window.confirm(`${pos.symbol} pozisyonu piyasa fiyatından KAPATILSIN mı? (${pos.shares} adet)`)) return
+    setBusy(pos.id); setActErr(null)
+    try { await api.post(`/bist-portfolio/${bots}/positions/${pos.id}/close`, {}); await load() }
+    catch (e) { setActErr(e.response?.data?.error || e.message) }
+    finally { setBusy(null) }
+  }, [load])
+
+  // '41,25' (TR virgül) ve '41.25 TL' gibi girdileri güvenle sayıya çevir.
+  // ⚠️ Geçersizde null DÖNDÜRME: NaN JSON'da null'a dönüşüp backend'de korumayı
+  // sessizce siliyordu (stop null → bir daha asla tetiklenmez).
+  const parseNum = (raw) => {
+    const cleaned = String(raw).replace(/[^\d,.-]/g, '').replace(',', '.')
+    const n = Number(cleaned)
+    return Number.isFinite(n) ? n : undefined
+  }
+
+  const adjustPos = useCallback(async (bots, pos) => {
+    const s = window.prompt(`${pos.symbol} — yeni STOP (boş bırak = değiştirme)`, pos.currentStop ?? '')
+    const t = window.prompt(`${pos.symbol} — yeni HEDEF (boş bırak = değiştirme)`, pos.currentTarget ?? '')
+    const body = {}
+    if (s !== null && s.trim() !== '') {
+      const v = parseNum(s)
+      if (v === undefined) { setActErr(`Geçersiz stop: "${s}" — sayı girin (örn. 41.25)`); return }
+      body.stop = v
+    }
+    if (t !== null && t.trim() !== '') {
+      const v = parseNum(t)
+      if (v === undefined) { setActErr(`Geçersiz hedef: "${t}" — sayı girin (örn. 52.80)`); return }
+      body.target = v
+    }
+    if (!Object.keys(body).length) return
+    setBusy(pos.id); setActErr(null)
+    try { await api.patch(`/bist-portfolio/${bots}/positions/${pos.id}`, body); await load() }
+    catch (e) { setActErr(e.response?.data?.error || e.message) }
+    finally { setBusy(null) }
+  }, [load])
 
   useEffect(() => {
     load()
@@ -182,6 +230,20 @@ export default function BistPortfoy() {
             </div>
           )}
 
+          {isAdmin && (
+            <div className="rounded-lg border border-gray-700 bg-gray-800/30 px-3 py-2 text-[11px] text-gray-400 flex items-center justify-between flex-wrap gap-2">
+              <span>👤 Admin — açık pozisyonlarda <b>Kapat</b> / <b>SL-TP</b> düzenleme aktif.</span>
+              <span className={mh?.canClose ? 'text-emerald-400' : 'text-amber-400'}>
+                {mh ? (mh.canClose ? `İşlem penceresi AÇIK (${mh.openLabel}–${mh.closeLabel})` : (mh.closeReason || 'İşlem saati dışında')) : ''}
+              </span>
+            </div>
+          )}
+          {actErr && (
+            <div className="rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-2 text-xs text-red-300 flex items-center gap-2">
+              <Info className="w-4 h-4" /> {actErr}
+            </div>
+          )}
+
           {k.tradingEnabled === false && (
             <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 text-xs text-amber-300 flex items-center gap-2">
               <Info className="w-4 h-4" /> Yeni alım duraklatıldı{k.haltReason ? ` (${k.haltReason})` : ''}. Açık pozisyon yönetimi (SAT/STOP/TP) sürer.
@@ -220,6 +282,28 @@ export default function BistPortfoy() {
                       <span>{money(p.shares)} adet · {money(p.positionSizeTL)} ₺ · risk %{fmt(p.riskPct, 1)}{p.rewardPct != null ? ` / ödül %${fmt(p.rewardPct, 1)}` : ''}</span>
                       <span className={pctCls(p.unrealizedPnL)}>{sgn(p.unrealizedPnL)}{money(p.unrealizedPnL)} ₺</span>
                     </div>
+                    {p.tp1Done && (
+                      <div className="mt-1.5 text-[10px] text-emerald-300/80">🏃 TP1 alındı — stop girişte, kalan TP2'ye koşuyor (risk sıfır)</div>
+                    )}
+                    {isAdmin && (
+                      <div className="flex items-center gap-2 mt-2 pt-2 border-t border-gray-700/60">
+                        <button
+                          onClick={() => closePos(bot, p)}
+                          disabled={busy === p.id || (mh && !mh.canClose)}
+                          title={mh && !mh.canClose ? (mh.closeReason || 'İşlem saati dışında') : 'Piyasa fiyatından kapat'}
+                          className="flex items-center gap-1 px-2 py-1 rounded-md text-[11px] bg-red-600/20 text-red-300 border border-red-500/40 hover:bg-red-600/30 disabled:opacity-40 disabled:cursor-not-allowed"
+                        >
+                          <LogOut className="w-3 h-3" /> {busy === p.id ? '…' : 'Kapat'}
+                        </button>
+                        <button
+                          onClick={() => adjustPos(bot, p)}
+                          disabled={busy === p.id}
+                          className="flex items-center gap-1 px-2 py-1 rounded-md text-[11px] bg-gray-700/50 text-gray-300 border border-gray-600 hover:bg-gray-700 disabled:opacity-40"
+                        >
+                          <Settings2 className="w-3 h-3" /> SL/TP
+                        </button>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>

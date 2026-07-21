@@ -23,6 +23,8 @@ const bistScoreEngine = require('../services/bistSignals/bistScoreEngine');
 const bistSignalNotifier = require('../services/bistSignals/bistSignalNotifier');
 const benchmark = require('../services/bistPortfolio/benchmark');
 const backtest = require('../services/bistPortfolio/backtest');
+const engine = require('../services/bistPortfolio/portfolioEngine');
+const marketHours = require('../services/marketHours');
 const cronJobs = require('../services/cronJobs');
 const authService = require('../services/authService');
 
@@ -129,6 +131,51 @@ router.post('/:bot/resume', requireAdmin, (req, res) => {
 router.post('/:bot/reset', requireAdmin, (req, res) => {
   const b = pick(req, res); if (!b) return;
   try { res.json({ ok: true, ...b.store.reset() }); }
+  catch (e) { res.status(500).json({ ok: false, error: e.message }); }
+});
+
+// ── MANUEL MÜDAHALE (admin) ───────────────────────────────────────────────
+// KAPATMA işlem-saati (10:15–18:00 TR) korumalıdır; SL/TP DÜZENLEME bilinçli
+// olarak serbesttir (risk yönetimi seans dışında da yapılabilmeli).
+// ⭐ held-only: yalnız AÇIK pozisyon kapatılabilir/düzenlenebilir (motorda zorlanır).
+router.post('/:bot/positions/:posId/close', requireAdmin, (req, res) => {
+  const b = pick(req, res); if (!b) return;
+  try {
+    marketHours.assertCanClose();          // 10:15–18:00 TR dışında reddeder
+    const ev = engine.manualClose(b.store, b.bot.cfg(), req.params.posId, { price: req.body?.price });
+    // Kapanisi otomatik cikislarla ayni kanaldan duyur (best-effort, yaniti bloklamaz)
+    Promise.resolve(b.bot.announceClose(ev)).catch(() => {});
+    res.json({ ok: true, closed: ev, snapshot: b.bot.getSnapshot() });
+  } catch (e) {
+    const code = e.code === 'MARKET_CLOSED' ? 409 : e.code === 'NOT_FOUND' ? 404 : e.code === 'BAD_INPUT' ? 400 : 500;
+    res.status(code).json({ ok: false, error: e.message, code: e.code || null });
+  }
+});
+
+router.patch('/:bot/positions/:posId', requireAdmin, (req, res) => {
+  const b = pick(req, res); if (!b) return;
+  try {
+    const patch = {};
+    if (req.body && 'stop' in req.body) patch.stop = req.body.stop;
+    if (req.body && 'target' in req.body) patch.target = req.body.target;
+    const pos = engine.manualAdjust(b.store, req.params.posId, patch);
+    res.json({ ok: true, position: pos });
+  } catch (e) {
+    const code = e.code === 'NOT_FOUND' ? 404 : e.code === 'BAD_INPUT' ? 400 : 500;
+    res.status(code).json({ ok: false, error: e.message, code: e.code || null });
+  }
+});
+
+// İşlem penceresi durumu (UI butonlarını aktif/pasif etmek için) — public
+router.get('/market-hours', (_req, res) => {
+  try { res.json({ ok: true, ...marketHours.getWindowState() }); }
+  catch (e) { res.status(500).json({ ok: false, error: e.message }); }
+});
+
+// Portföy uyarılarını elle kontrol ettir (admin)
+router.post('/:bot/check-alerts', requireAdmin, async (req, res) => {
+  const b = pick(req, res); if (!b) return;
+  try { res.json({ ok: true, ...(await b.bot.checkAlerts()) }); }
   catch (e) { res.status(500).json({ ok: false, error: e.message }); }
 });
 

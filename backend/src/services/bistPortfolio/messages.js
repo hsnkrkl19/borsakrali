@@ -49,6 +49,7 @@ function exitHead(reason) {
   if (reason === 'target') return '✅ <b>TP OLDU (Hedef)</b>';
   if (reason === 'stop') return '🛑 <b>STOP OLDU</b>';
   if (reason === 'signal_exit') return '🔵 <b>SAT (Trend/Sinyal cikisi)</b>';
+  if (reason === 'manual_close') return '✋ <b>ELLE KAPATILDI</b>';
   return '⏱️ <b>SURE DOLDU (kapandi)</b>';
 }
 function buildExitBlock(ev, kpis, dialect) {
@@ -81,7 +82,7 @@ function buildBuyBroadcast(pos, dialect) {
 }
 function buildExitBroadcast(ev, dialect) {
   const pr = ev.precision ?? 2;
-  const head = ev.reason === 'tp1_partial' ? '🟢 TP1 (yari)' : ev.reason === 'target' ? '✅ TP' : ev.reason === 'stop' ? '🛑 STOP' : ev.reason === 'signal_exit' ? '🔵 SAT' : '⏱️ Sure doldu';
+  const head = ev.reason === 'tp1_partial' ? '🟢 TP1 (yari)' : ev.reason === 'target' ? '✅ TP' : ev.reason === 'stop' ? '🛑 STOP' : ev.reason === 'signal_exit' ? '🔵 SAT' : ev.reason === 'manual_close' ? '✋ Elle kapatildi' : '⏱️ Sure doldu';
   const tail = ev.partial ? ` · kalan ${ev.remainingShares} adet kosuyor, stop girise` : '';
   return {
     title: `${head} · ${dialect.name}: ${ev.symbol}${ev.ticket ? ` #${ev.ticket}` : ''}`,

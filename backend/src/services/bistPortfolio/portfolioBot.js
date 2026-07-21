@@ -15,6 +15,7 @@ const liveDataService = require('../liveDataService');
 const bistScoreEngine = require('../bistSignals/bistScoreEngine');
 const telegramService = require('../telegramService');
 const pushNotificationService = require('../pushNotificationService');
+const riskGuard = require('../botRiskGuard');
 const logger = require('../../utils/logger');
 
 const HARD_TIMEOUT_MS = 16000;
@@ -22,6 +23,7 @@ function withTimeout(p, ms, label) {
   return Promise.race([Promise.resolve(p), new Promise((_, rej) => setTimeout(() => rej(new Error('timeout:' + label)), ms))]);
 }
 function trToday(now = new Date()) { return now.toLocaleDateString('en-CA', { timeZone: 'Europe/Istanbul' }); }
+function sameDay(d) { try { return new Date(d).toISOString().slice(0, 10); } catch (_) { return null; } }
 
 /**
  * cfgFactory: () => cfg  (env her çağrıda okunur; buildConfig(overrides))
@@ -135,6 +137,86 @@ function createPortfolioBot(opts) {
 
   function getSnapshot() { return engine.snapshot(store, cfg()); }
 
+  // Manuel (admin) kapanışını da otomatik kapanışlarla AYNI kanaldan duyur —
+  // aksi halde takipçi pozisyonun neden kaybolduğunu göremiyordu.
+  async function announceClose(ev) {
+    if (!ev) return { sent: 0 };
+    const c = cfg();
+    engine.recomputeEquity(store);
+    const kpis = engine.snapshot(store, c).kpis;
+    const tg = await sendTelegram(M.buildExitMessages([ev], kpis, dialect));
+    await sendBroadcasts([M.buildExitBroadcast(ev, dialect)]);
+    if (competitionKey && !ev.partial) {
+      try { require('../botCompetition/competitionManager').recordClosures(competitionKey, [ev]); } catch (_) {}
+    }
+    return { sent: tg.sent || 0 };
+  }
+
+  // ── Portföy-seviyesi UYARI (drawdown eşiği / yeni-giriş kesici) ────────────
+  // Gün-bazlı dedup (portfolio.lastAlert) → aynı uyarı günde bir kez. Kill-switch
+  // (kanal yok / disabled) gönderimi susturur ama durum yine kaydedilir.
+  async function checkAlerts(o = {}) {
+    return engine.withLock(`${opts.key}:alerts`, () => _checkAlerts(o));
+  }
+
+  async function _checkAlerts(o = {}) {
+    const now = o.now || new Date();
+    const dateKey = trToday(now);
+    const c = cfg();
+    engine.recomputeEquity(store);           // bayat equity ile halt/dd ölçme
+    const snap = engine.snapshot(store, c);
+    const pf = store.getPortfolio();
+    const last = { ...(pf.lastAlert || {}) };
+    const ddEnv = Number(process.env.BIST_PORTFOLIO_ALERT_DD_PCT);
+    const ddLimit = Number.isFinite(ddEnv) && ddEnv > 0 ? ddEnv : 15;
+    const fired = [];
+
+    // 1) GÜNCEL düşüş (tepe→şimdi) eşiği aşıldı.
+    // ⚠️ metrics.maxDrawdownPct TÜM ZAMANLARIN en kötüsüdür; onu kullanmak tek bir
+    // dip sonrası portföy toparlansa bile HER GÜN sonsuza dek alarm üretiyordu.
+    const eqHist = (snap.equityHistory || []).map(p => p.equity).filter(Number.isFinite);
+    const peak = Math.max(snap.kpis.capital, ...(eqHist.length ? eqHist : [snap.kpis.capital]));
+    const dd = peak > 0 ? +(((peak - snap.kpis.equity) / peak) * 100).toFixed(2) : 0;
+    if (Number.isFinite(dd) && dd >= ddLimit && last.drawdown !== dateKey) {
+      last.drawdown = dateKey;
+      fired.push({ type: 'drawdown', head: '⚠️ <b>DUSUS UYARISI</b>', text: `Tepe-noktasindan max dusus <b>%${dd}</b> (esik %${ddLimit}). Ozsermaye ${Math.round(snap.kpis.equity)} TL.` });
+    }
+
+    // 2) Yeni giriş durdu (manuel duraklatma / drawdown / günlük zarar kesicisi)
+    const todayPnL = riskGuard.sumTodayRealizedPnL(store.listTrades(300), sameDay(now));
+    const halt = riskGuard.shouldHaltEntries(pf, { maxDrawdownPct: c.maxDrawdownPct, dailyLossLimitPct: c.dailyLossLimitPct }, todayPnL);
+    const halted = pf.tradingEnabled === false || halt.halt;
+    const reason = pf.tradingEnabled === false ? (pf.haltReason || 'manual_pause') : halt.reason;
+    // ⚠️ `delete last.halt` YAPILMAZ: gün-bazlı dedup silinince eşik etrafında
+    // salınan halt aynı gün defalarca uyarı üretiyordu. Ertesi gün dateKey zaten
+    // eşleşmeyeceği için yeniden uyarılır.
+    if (halted && last.halt !== dateKey) {
+      last.halt = dateKey;
+      fired.push({ type: 'halt', head: '🛑 <b>YENI ALIM DURDURULDU</b>', text: `Sebep: ${reason}. Acik pozisyon yonetimi (SAT/STOP/TP) DEVAM eder.` });
+    }
+
+    if (fired.length) {
+      const msgs = fired.map(f => `${f.head} — ${dialect.name}\n${f.text}\nDetay: ${dialect.deepLink}`);
+      const tg = await sendTelegram(msgs);
+      const bc = await sendBroadcasts(fired.map(f => ({
+        title: `${f.type === 'drawdown' ? '⚠️ Dusus' : '🛑 Alim durdu'} · ${dialect.name}`,
+        body: f.text.replace(/<[^>]+>/g, ''),
+        category: 'signal', path: dialect.deepLink, channelId: 'borsa-krali-announcements', topic: 'all',
+      })));
+      // ⚠️ Dedup'ı YALNIZ gerçekten teslim edildiyse işaretle. Aksi halde kanal
+      // yokken/kill-switch açıkken uyarı "gönderildi" sayılıp gün boyu yutuluyordu.
+      const delivered = (tg.sent || 0) > 0 || (bc.app || 0) > 0;
+      if (delivered) {
+        const fresh = store.getPortfolio();
+        fresh.lastAlert = last;
+        store.savePortfolio(fresh);
+      }
+      logger.warn(`[${opts.key}] portfoy uyarisi: ${fired.map(f => f.type).join(',')} (teslim: ${delivered})`);
+      return { fired: fired.map(f => f.type), drawdownPct: dd, halted, delivered };
+    }
+    return { fired: [], drawdownPct: dd, halted };
+  }
+
   // Cutover: eski tracker'ın AÇIK sinyallerini portföye BİR KEZ adopt et.
   // legacyOpen: [{symbol,name,entry,stop,target1,target2,rr1,rr2,score/avgVoteScore/confidence,issuedAt,precision}]
   function adoptLegacy(legacyOpen) {
@@ -160,7 +242,7 @@ function createPortfolioBot(opts) {
     return { adopted };
   }
 
-  return { openBuys, manageAndReport, pushDailySummary, getSnapshot, adoptLegacy, resolveCandles, cfg, channelId };
+  return { openBuys, manageAndReport, pushDailySummary, checkAlerts, announceClose, getSnapshot, adoptLegacy, resolveCandles, cfg, channelId };
 }
 
 module.exports = { createPortfolioBot };
