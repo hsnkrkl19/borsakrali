@@ -12,7 +12,7 @@
 
   "_LOT": "fixed=sabit kucuk lot (tutucu); risk=stop mesafesine gore. Cok bot -> kucuk basla.",
   "lot_mode": "fixed",
-  "fixed_lot": 0.05,
+  "fixed_lot": 0.02,
   "risk_pct": 0.25,
   "max_lot": 0.5,
 
