@@ -141,6 +141,7 @@ function buildSignalBlock(p) {
 function buildTelegramMessages(result) {
   const { tradingDate, scanned, signals } = result;
   const header =
+    `🤖 <b>${require('../botCompetition/botLabels').botLabel('bist-buy-scanner')}</b>\n` +
     `📈 <b>BIST AL SİNYALLERİ</b> — ${htmlEscape(tradingDate || '-')}\n` +
     `Taranan ${scanned} hisse · Güç≥${MIN_AVGSCORE} (5 strateji ort.) + trend (EMA34/ADX) + hacim + RSI süzgeci`;
   const footer = `Detay: ${DEEP_LINK}\nNot: Yatırım tavsiyesi değildir.`;

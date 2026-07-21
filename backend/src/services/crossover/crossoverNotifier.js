@@ -63,6 +63,7 @@ function buildTelegramSection(emoji, title, rows) {
 function buildTelegramMessages(result) {
   const { candleDate, scanned, tema34, ema34 } = result;
   const header =
+    `🤖 <b>${require('../botCompetition/botLabels').botLabel('crossover')}</b>\n` +
     `📐 <b>GÜNLÜK KIRILIM TARAMASI</b> — ${htmlEscape(candleDate || '-')}\n` +
     `Taranan ${scanned} hisse · EMA34 &amp; TEMA34 günlük kapanış`;
   const sections = [

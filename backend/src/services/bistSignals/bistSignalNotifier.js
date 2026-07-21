@@ -34,6 +34,7 @@ function chatId() { return process.env.TELEGRAM_BIST_CHANNEL || ''; }
 function buildNewTelegram(p) {
   const pr = p.precision ?? 2;
   const lines = [
+    `🤖 <b>${require('../botCompetition/botLabels').botLabel('bist-signals')}</b>`,
     `📈 <b>BIST LONG (Spot Al) — ${p.symbol}</b> · <b>#${p.code}</b>`,
     p.name && p.name !== p.symbol ? p.name : null,
     `Güven: <b>${p.confidence}/100</b> (${p.grade || ''})`.trim(),

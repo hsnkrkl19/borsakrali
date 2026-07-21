@@ -26,6 +26,7 @@ function fmt(v, p) { return Number(v).toFixed(p); }
 function newMsg(p) {
   const arrow = p.direction === 'long' ? '🟢 AL' : '🔴 SAT';
   const lines = [
+    `🤖 <b>${require('../botCompetition/botLabels').botLabel('beast-signals')}</b>`,
     `🔱 <b>${p.short}</b> · ${arrow}`,
     ``,
     `Giriş: <b>${fmt(p.entry, p.precision)}</b>`,

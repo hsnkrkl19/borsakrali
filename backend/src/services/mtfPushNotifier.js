@@ -173,7 +173,7 @@ async function evaluateAndPush(confluences) {
 
 // Telegram için zengin HTML mesaj formatı
 function formatTelegramMessage(upgrades) {
-  const lines = ['<b>📡 BORSA KRALI — Yeni Fırsatlar</b>', ''];
+  const lines = [`🤖 <b>${require('./botCompetition/botLabels').botLabel('mtf-confluence')}</b>`, '<b>📡 BORSA KRALI — Yeni Fırsatlar</b>', ''];
   for (const c of upgrades) {
     const arrow = c.verdict === 'STRONG_LONG' ? '🟢⬆️' : '🔴⬇️';
     const verdictLabel = c.verdict === 'STRONG_LONG' ? 'GÜÇLÜ AL' : 'GÜÇLÜ DÜŞÜŞ';

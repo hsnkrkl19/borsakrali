@@ -19,6 +19,7 @@ function dirWord(d) { return d === 'long' ? 'LONG (AL)' : 'SHORT (SAT)'; }
 function buildNew(p) {
   const pr = p.precision ?? 2;
   const lines = [
+    `🤖 <b>${require('../botCompetition/botLabels').botLabel('wave-scan')}</b>`,
     `🌊 <b>DALGA ANALİZİ</b> — <b>#${p.code}</b> <i>(özel tarama)</i>`,
     `📊 <b>${p.symbol}</b> · ${p.tf} · <b>${dirWord(p.direction)}</b>`,
     `Elliott + SNR + Mum + Fraktal konfluansı · Güven <b>${p.score}/100</b>`,

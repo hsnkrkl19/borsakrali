@@ -41,6 +41,7 @@ function buildOpenMessage(position) {
   const risk = Math.abs(position.entry - position.stop);
   const rr = risk > 0 ? Math.abs(position.target1 - position.entry) / risk : null;
   const lines = [
+    `🤖 <b>${require('../botCompetition/botLabels').botLabel('ict-fvg')}</b>`,
     `🧠 <b>ICT / FVG</b> · <b>${escapeHtml(position.symbol)}</b>`,
     `Yön: <b>${directionLabel(position.direction)}</b> · Uygulama: ${escapeHtml(position.fillTf || '5m')}`,
     '',

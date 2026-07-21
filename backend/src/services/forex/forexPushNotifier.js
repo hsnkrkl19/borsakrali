@@ -42,6 +42,7 @@ function metrics(p) {
 function buildNew(p, reverseOf) {
   const pr = p.precision ?? 4;
   const lines = [];
+  lines.push(`🤖 <b>${require('../botCompetition/botLabels').botLabel('forex-signals')}</b>`);
   if (reverseOf && reverseOf.length) lines.push(`🔴⚠️ <b>TERS SİNYAL</b> — zıt yönde açık pozisyon var (#${reverseOf.join(', #')})`);
   lines.push(`📊 <b>FOREX ${dirWord(p.direction)} — ${p.symbol}</b> · <b>#${p.code}</b>`);
   lines.push(`⏱ Zaman dilimi: ${p.tfs.join(', ')}`);

@@ -49,6 +49,7 @@ function buildNew(pos, sig, budget) {
   const s = sig.sizing || {};
   const pnl = sig.pnl || {};
   const lines = [];
+  lines.push(`🤖 <b>${require('../botCompetition/botLabels').botLabel('mt5-scanner')}</b>`);
   lines.push(`⚡ <b>MT5 GÜN-İÇİ ${dirWord(pos.direction)} ${dirIcon(pos.direction)} — ${pos.symbol}</b> · <b>#${pos.code}</b>`);
   lines.push(`⏱ Grafik: <b>${pos.tf}</b> · 🎯 Güven: <b>${pos.confidence}/100</b>${sig.grade ? ` (${sig.grade})` : ''}`);
   lines.push(`Giriş: <b>${fmt(pos.entry, pr)}</b> (piyasa)`);

@@ -133,6 +133,7 @@ function buildNew(p, reverseOf, meta) {
   const grade = meta && (meta.grade || meta.confidenceBand);
   const lines = [];
   if (reverseOf && reverseOf.length) lines.push(`🔴⚠️ <b>TERS SİNYAL</b> — zıt yönde açık pozisyon var (#${reverseOf.join(', #')})`);
+  lines.push(`🤖 <b>${require('../botCompetition/botLabels').botLabel('pro-robot')}</b>`);
   lines.push(`🤖 <b>YENİ ROBOT</b> — ${p.symbol} ${dirWord(p.direction)} · <b>#${p.code}</b>`);
   lines.push(`Güven: <b>${p.confidence}/100</b>${grade ? ` (${grade})` : ''}`);
   const hist = historyLine(meta);

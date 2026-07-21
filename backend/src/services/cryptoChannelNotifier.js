@@ -62,6 +62,7 @@ function flatten(result) {
 function buildNew(p) {
   const dirWord = p.direction === 'long' ? 'LONG (AL)' : 'SHORT (SAT)';
   return [
+    `🤖 <b>${require('./botCompetition/botLabels').botLabel('crypto-signals')}</b>`,
     `🪙 <b>KRİPTO ${LABEL[p.strategy] || ''}</b> — <b>#${p.code}</b>`,
     `<b>${(p.symbol || '').toUpperCase()}/USDT</b> · ${dirWord}`,
     `Giriş: <b>${fmtPrice(p.entry)}</b> · SL: ${fmtPrice(p.stop)} · TP: ${fmtPrice(p.target1)}`,

@@ -109,6 +109,7 @@ function buildSignalMsg(p, bias, meta, sr) {
   const pr = 1;
   const lines = [];
   // Yön EN BAŞTA, belirgin yeşil/kırmızı okla — long/short karışmaz.
+  lines.push(`🤖 <b>${require('../botCompetition/botLabels').botLabel('gold-signals')}</b>`);
   lines.push(`🥇 <b>ALTIN</b> · ${dirArrow(p.direction)} <b>${dirWord(p.direction)}</b> — ${p.symbol || 'XAU/USD'} · #${p.code}`);
   const desc = p.label || p.type || 'sinyal';
   lines.push(`Zaman dilimi: ${tfLabel(p.tf)} · ${desc}`);

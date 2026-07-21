@@ -92,6 +92,7 @@ function buildTimeframeMessages(tfResult) {
         ? new Date(tfResult.barTime).toLocaleString('tr-TR', { timeZone: 'Europe/Istanbul', dateStyle: 'short', timeStyle: 'short' })
         : (tfResult.candleDate || '-'));
   const header =
+    `🤖 <b>${require('../botCompetition/botLabels').botLabel('tema34')}</b>\n` +
     `📊 <b>TEMA34 TARAMASI — ${TF_LABEL[tf] || tf}</b>\n` +
     `${htmlEscape(stamp)} · Taranan ${tfResult.scanned} hisse · TEMA34 kapanış kesişimi`;
   const sections = [
