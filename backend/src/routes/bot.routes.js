@@ -214,6 +214,37 @@ router.post('/daily-report/test', async (req, res) => {
   catch (e) { res.status(500).json({ ok: false, error: e.message }); }
 });
 
+// TEST: her bot kendi "Bot N · İsim" etiketiyle Telegram'a bir test mesajı atar.
+// Token korumalı (FOREX_EXEC_TOKEN) — kanalı yetkisiz kimse spam'leyemesin.
+router.post('/test-telegram', async (req, res) => {
+  try {
+    const need = process.env.FOREX_EXEC_TOKEN || '';
+    const given = String(req.headers.authorization || '').replace(/^Bearer\s+/i, '') || (req.body && req.body.token) || '';
+    if (need && given !== need) return res.status(401).json({ ok: false, error: 'yetkisiz' });
+
+    const catalog = require('../services/botCompetition/catalog');
+    const { botLabel } = require('../services/botCompetition/botLabels');
+    const telegram = require('../services/telegramService');
+    const { signalChannel } = require('../services/signalDelivery');
+    const chatId = (req.body && req.body.chatId) || signalChannel();
+    if (!chatId) return res.status(400).json({ ok: false, error: 'kanal tanımsız (TELEGRAM_FOREX_CHANNEL / TELEGRAM_SIGNAL_CHANNEL)' });
+
+    const bots = catalog.filter((e) => e.competitionEligible);
+    const sent = [];
+    for (const b of bots) {
+      const text = `🤖 <b>${botLabel(b.id)}</b>\n🧪 <i>TEST</i> — bu bot artık sinyallerini bu isimle gönderiyor.\nKategori: ${b.category} · MT5 magic: <code>${b.magic}</code>`;
+      try {
+        await telegram.sendMessage(chatId, text, 'HTML');
+        sent.push({ no: b.no, id: b.id, label: botLabel(b.id), ok: true });
+      } catch (e) {
+        sent.push({ no: b.no, id: b.id, ok: false, error: e.message });
+      }
+      await new Promise((r) => setTimeout(r, 500)); // Telegram kanal hız sınırı
+    }
+    res.json({ ok: true, chatId, total: bots.length, gonderilen: sent.filter((s) => s.ok).length, sent });
+  } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
+});
+
 // ── Okuma uçları ───────────────────────────────────────────────────────────
 router.get('/status', handle((req) => botClient.get('/api/status', undefined, bearer(req))));
 router.get('/positions', handle((req) => botClient.get('/api/positions', undefined, bearer(req))));
