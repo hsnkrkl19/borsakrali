@@ -37,7 +37,7 @@ describe('Telegram bot yarışı — izole paper yürütme', () => {
 
   test('15 strateji yarışır; haber ve rapor işlem açamaz', () => {
     const status = manager.status();
-    expect(status.summary.competitors).toBe(15);
+    expect(status.summary.competitors).toBe(19);
     expect(status.bots.some((row) => row.id === 'ict-fvg')).toBe(true);
     expect(status.bots.some((row) => row.id === 'ict-smc')).toBe(true);
     expect(status.support.map((row) => row.id).sort()).toEqual(['account-report', 'news-warning']);

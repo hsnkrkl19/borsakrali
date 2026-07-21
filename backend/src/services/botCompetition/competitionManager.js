@@ -795,6 +795,10 @@ function bridgeFeed() {
   const positions = [];
   for (const entry of catalog) {
     if (!entry.competitionEligible) continue;
+    // BIST botları MT5/FTMO'da bulunmayan semboller üretir (THYAO vb.) → köprüye
+    // gönderme (feed'i şişirip her turda "sembol_yok" olarak boşa dönüyorlardı).
+    // Sitede + Telegram BIST kanallarında çalışmaya devam ederler.
+    if (entry.mt5Tradeable === false) continue;
     if (entry.engineDisableEnv && process.env[entry.engineDisableEnv] === '1') continue;
     const bot = state.bots[entry.id];
     if (!bot || !bot.enabled) continue;

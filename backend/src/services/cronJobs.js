@@ -28,6 +28,7 @@ const altinBacktest = require('./altin/altinBacktest');
 // ICT/FVG — 4h yön + 1h yapı + 15m FVG + kapanmış 5m teyidi; yalnız paper yürütme.
 const ictFvgService = require('./ictFvg/ictFvgService');
 const ictSmcService = require('./ictSmc/ictSmcService');
+const mt5Bots = require('./mt5Bots');
 const customBotRunner = require('./botBuilder/customBotRunner');
 const botDailyReport = require('./botDailyReport');
 const ictFvgTracker = require('./ictFvg/ictFvgTracker');
@@ -1229,6 +1230,41 @@ async function runIctSmcCadence() {
   }
 }
 
+// MT5 BOT AİLESİ (4 preset) — YALNIZ FTMO/MT5'te işlem gören 15 enstrüman
+// (4 kripto + 2 metal + 2 endeks + 7 parite). Her preset AYRI yarışmacı bottur;
+// açık pozisyonları köprü feed'ine girer → MT5'te gerçek emir (her biri kendi
+// magic'i ile). Yüksek TF + R:R≥1.5 + kapalı bar + stabil signalId.
+let _mt5BotsCadenceLockAt = 0;
+async function runMt5BotsCadence() {
+  const now = Date.now();
+  if (_mt5BotsCadenceLockAt && now - _mt5BotsCadenceLockAt < 4 * 60 * 1000) return null;
+  _mt5BotsCadenceLockAt = now;
+  const out = [];
+  try {
+    const engineDisabled = process.env.MT5_BOTS_DISABLED === '1';
+    for (const preset of mt5Bots.PRESETS) {
+      try {
+        const snap = await mt5Bots.generate(preset.id);
+        if (engineDisabled) {
+          // Motor donuk: yalnız fiyat besle (açık paper pozisyonlar SL/TP'de kapansın).
+          raceObserve(preset.id, { prices: snap && snap.prices, signals: [] }, { source: 'mt5-bots' });
+        } else {
+          raceObserve(preset.id, snap, { source: 'mt5-bots' });
+          if (snap.signals.length) {
+            logger.info(`${preset.name}: ${snap.signals.length} sinyal (long ${snap.summary.long} / short ${snap.summary.short})`);
+          }
+        }
+        out.push({ id: preset.id, signals: snap.signals.length });
+      } catch (error) {
+        logger.error(`MT5 bot ${preset.id} turu hata: ${error.message}`);
+      }
+    }
+    return out;
+  } finally {
+    _mt5BotsCadenceLockAt = 0;
+  }
+}
+
 // Kullanıcının panelden oluşturduğu özel botlar (16., 17. ...). Kendi indikatör
 // setleriyle sinyal üretir, kağıt takip eder; açık pozisyonlar köprü feed'ine
 // girer → MT5'te gerçek emir. FOREX_ONLY'den bağımsız (kullanıcı botları).
@@ -1622,6 +1658,13 @@ class CronJobsService {
       { scheduled: false, ...TR_TZ }
     );
 
+    // MT5 bot ailesi — 5 dk'da bir (ictSmc'den kaydırılmış dakikalarda).
+    const mt5BotsJob = cron.schedule(
+      '1,6,11,16,21,26,31,36,41,46,51,56 * * * *',
+      () => runMt5BotsCadence(),
+      { scheduled: false, ...TR_TZ }
+    );
+
     // GÜNLÜK BOT RAPORU — her akşam 20:15 TR, tüm botların gün-içi istatistiği Telegram'a.
     const botDailyReportJob = cron.schedule(
       '15 20 * * *',
@@ -1926,6 +1969,7 @@ class CronJobsService {
       altinBacktestJob,
       ictFvgJob,
       ictSmcJob,
+      mt5BotsJob,
       customBotJob,
       botDailyReportJob,
       beastSignalJob,
