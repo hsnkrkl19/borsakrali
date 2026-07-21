@@ -66,26 +66,52 @@ async function load() {
       if (data) {
         const text = typeof data.text === 'function' ? await data.text() : Buffer.from(await data.arrayBuffer()).toString('utf8');
         const p = JSON.parse(text);
-        // en çok işlemi olan (en eksiksiz) durum kazanır — deploy taze diski ezmesin
-        if (p && Array.isArray(p.trades) && p.trades.length > state.trades.length) state = { ...state, ...p };
+        if (p && typeof p === 'object') {
+          // ⚠️ DEDUP (sent) HER ZAMAN birleştirilir — trades sayısına BAKILMAZ.
+          // Eski kod `p.trades.length > state.trades.length` kapısına bağlıydı:
+          // gün içinde giriş olup henüz KAPANIŞ olmadığında (trades=0) dedup geri
+          // YÜKLENMİYOR, Render'da disk de geçici olduğu için her soğuk başlangıç
+          // aynı girişi TEKRAR duyuruyordu (2026-07-21: yüzlerce mükerrer mesaj).
+          state.sent = { ...(p.sent || {}), ...(state.sent || {}) };
+          // İşlem geçmişinde en eksiksiz olan kazanır (deploy taze diski ezmesin)
+          if (Array.isArray(p.trades) && p.trades.length > state.trades.length) {
+            state = { ...state, ...p, sent: state.sent };
+          }
+        }
       }
     } catch (_) {}
   }
 }
 
-function persist() {
+function writeDisk() {
   try {
     const dir = path.dirname(DISK_FILE);
     if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
     fs.writeFileSync(DISK_FILE, JSON.stringify(state, null, 2), 'utf8');
   } catch (_) {}
+}
+
+async function uploadSupa() {
+  if (!(supaEnabled && supaEnabled())) return;
+  try { await supa.storage.from(BUCKET).upload(SUPA_KEY, Buffer.from(JSON.stringify(state), 'utf8'), { contentType: 'application/json', upsert: true }); } catch (_) {}
+}
+
+function persist() {
+  writeDisk();
   if (supaEnabled && supaEnabled()) {
     if (saveTimer) clearTimeout(saveTimer);
-    saveTimer = setTimeout(async () => {
-      try { await supa.storage.from(BUCKET).upload(SUPA_KEY, Buffer.from(JSON.stringify(state), 'utf8'), { contentType: 'application/json', upsert: true }); } catch (_) {}
-    }, 2500);
+    saveTimer = setTimeout(() => { uploadSupa(); }, 2500);
     if (saveTimer.unref) saveTimer.unref();
   }
+}
+
+// Duyuru anında BEKLEYEREK kaydet. Debounce+unref'li yükleme, süreç hemen
+// kapanırsa (Render soğuk başlangıç/deploy) HİÇ çalışmıyordu → dedup anahtarı
+// Supabase'e ulaşmıyor, sonraki boot aynı olayı tekrar duyuruyordu.
+async function persistNow() {
+  writeDisk();
+  if (saveTimer) { clearTimeout(saveTimer); saveTimer = null; }
+  await uploadSupa();
 }
 
 async function say(key, msg) {
@@ -94,7 +120,9 @@ async function say(key, msg) {
   // sözlük şişmesin: 14 günden eskiyi at
   const cut = Math.floor(Date.now() / 1000) - 14 * 86400;
   for (const k of Object.keys(state.sent)) if (state.sent[k] < cut) delete state.sent[k];
-  persist();
+  // Mesajı göndermeden ÖNCE dedup anahtarını KALICI yaz. Bir mesajı kaçırmak,
+  // yüzlerce mükerrer mesaj atmaktan iyidir.
+  await persistNow();
   logger.info(`[NR7-Gölge] ${msg.replace(/\n/g, ' · ')}`);
   if (pushOff()) return;
   const chat = signalDelivery.signalChannel();
@@ -221,5 +249,8 @@ function start() {
 function stop() { if (timer) { clearInterval(timer); timer = null; } }
 function summary() { const n = state.trades.length, w = state.trades.filter(x => x.pnl > 0).length; return { n, winRate: n ? Math.round(100 * w / n) : null, totalUsdOz: +state.trades.reduce((a, x) => a + x.pnl, 0).toFixed(2), open: state.open, trades: state.trades.slice(-20) }; }
 function _resetForTest() { state = { trades: [], sent: {}, open: null, version: 1 }; loaded = true; }
+// Süreç yeniden başlamasını simüle et (loaded=false → sonraki tick load() ile
+// diskten/Supabase'ten dedup sözlüğünü geri yükler).
+function _setLoadedForTest(v) { loaded = !!v; }
 
-module.exports = { start, stop, tick, summary, nr7Setup, simDay, _resetForTest, COST_RT };
+module.exports = { start, stop, tick, summary, nr7Setup, simDay, _resetForTest, _setLoadedForTest, COST_RT };
