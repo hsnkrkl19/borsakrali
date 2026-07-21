@@ -17,6 +17,18 @@ const TEST_EPHEMERAL = process.env.NODE_ENV === 'test' && !process.env.BOT_COMPE
 const BY_ID = new Map(catalog.map((entry) => [entry.id, entry]));
 
 function nowISO() { return new Date().toISOString(); }
+// Zaman dilimi metnini ms'e çevir ("15m"→900000, "1h"→3600000, "1d"→86400000).
+function timeframeMs(tf) {
+  const m = String(tf || '').toLowerCase().match(/^(\d+)\s*(m|h|d|w)?$/);
+  if (!m) return 15 * 60000;
+  const n = Number(m[1]) || 15;
+  const u = m[2] || 'm';
+  const unit = u === 'w' ? 604800000 : u === 'd' ? 86400000 : u === 'h' ? 3600000 : 60000;
+  return Math.max(60000, n * unit);
+}
+// Aşırı düşük güvenli sinyalleri competition/gerçek yürütmeye sokma (kalite kapısı).
+// COMPETITION_MIN_CONFIDENCE=0 ile kapatılır. Güven taşımayan sinyaller etkilenmez.
+const MIN_CONFIDENCE = Number(process.env.COMPETITION_MIN_CONFIDENCE ?? 55);
 function finite(value, fallback = null) {
   if (value == null || (typeof value === 'string' && value.trim() === '')) return fallback;
   const n = Number(value);
@@ -193,10 +205,15 @@ function normalizeSignal(botId, input, meta = {}) {
   const externalId = String(rawValue(raw, 'signalId', 'eventId', 'setupKey', 'code', 'positionId') || meta.externalId || '');
   const sourceObservedAt = rawValue(raw, 'issuedAt', 'generatedAt', 'signalDate', 'candleDate', 'barKey', 'time') || meta.observedAt || '';
   const observedAt = String(sourceObservedAt || nowISO());
-  // Kaynak zaman/id vermiyorsa nowISO'yu parmak izine katma. Aksi halde aynı
-  // snapshot her dakikada yeni sinyal sayılır ve kapanıştan sonra tekrar açılır.
-  const eventBucket = sourceObservedAt ? String(sourceObservedAt).slice(0, 16) : '';
-  const fingerprintBasis = externalId || [symbol, timeframe, strategy, side, round(entry, 8), round(stop, 8), round(target, 8), eventBucket].join('|');
+  // AŞIRI-İŞLEM KÖK ÇÖZÜMÜ: parmak izi CANLI FİYATA (entry/stop/target) bağlıydı →
+  // fiyat her dakika oynadığı için aynı setup her turda YENİ parmak izi alıp tekrar
+  // açılıyordu (924 işlem). Artık TF-bazlı ZAMAN KOVASI kullanılır: aynı mum
+  // penceresinde aynı setup TEK parmak izi alır → dakikalık çığ biter, yeni pozisyon
+  // ancak yeni mumda (setup hâlâ geçerliyse) açılır.
+  const bucket = sourceObservedAt
+    ? String(sourceObservedAt).slice(0, 16)
+    : String(Math.floor(Date.now() / timeframeMs(timeframe)));
+  const fingerprintBasis = externalId || [symbol, timeframe, strategy, side, bucket].join('|');
   return {
     botId: entryMeta.id,
     symbol,
@@ -453,6 +470,11 @@ function recordOpen(botId, raw = {}, meta = {}) {
     return { ok: false, skipped: 'engine-disabled' };
   }
   if (bot.seen.includes(signal.fingerprint)) return { ok: false, skipped: 'duplicate' };
+  // KALİTE KAPISI: düşük güvenli sinyaller (motor tabanı 40 junk) hem paper hem
+  // GERÇEK MT5'e gidiyordu → zarar. Güven eşiği altındakini alma (0 = kapalı).
+  if (MIN_CONFIDENCE > 0 && signal.confidence != null && signal.confidence < MIN_CONFIDENCE) {
+    return { ok: false, skipped: 'low-confidence' };
+  }
   const key = positionKey(signal);
   const existing = bot.open[key];
   if (existing) {
