@@ -61,9 +61,9 @@ describe('Bot Builder — store', () => {
   test('custom bot oluşturma + doğrulama + stabil magic', () => {
     const b = store.createCustom({ name: 'Botum', indicators: ['ema', 'rsi'], timeframes: ['1h'], pairs: ['BTCUSD'] });
     expect(b.id).toMatch(/^custom-/);
-    expect(b.magic).toBe(5720);
+    expect(b.magic).toBe(5800);
     const b2 = store.createCustom({ name: 'İkinci', indicators: ['adx'], timeframes: ['4h'], pairs: ['XAUUSD'] });
-    expect(b2.magic).toBe(5721);
+    expect(b2.magic).toBe(5801);
     expect(() => store.createCustom({ name: 'x', indicators: [], pairs: ['BTCUSD'] })).toThrow(/indikatör/);
     expect(() => store.createCustom({ name: 'x', indicators: ['ema'], pairs: [] })).toThrow(/parite/);
   });

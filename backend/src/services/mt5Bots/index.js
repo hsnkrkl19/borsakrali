@@ -34,8 +34,14 @@ async function generate(presetId, options = {}) {
   const preset = getPreset(presetId);
   if (!preset) throw new Error(`Bilinmeyen MT5 bot preseti: ${presetId}`);
 
+  // SADE ICT botu: Pine motorunun (ictSmc) tek/az stratejisi MT5 evreninde.
+  if (preset.kind === 'ict') return generateIct(preset, options);
+
   const signals = [];
   const prices = {};
+  // BİRLEŞİK botta indikatör yönü ICT kurulumuyla teyit edilir.
+  const isCombo = preset.kind === 'combo';
+  const ictSvc = isCombo ? require('../ictSmc/ictSmcService') : null;
 
   for (const tf of preset.tfs) {
     await Promise.all(INSTRUMENTS.map(async (inst) => {
@@ -47,7 +53,19 @@ async function generate(presetId, options = {}) {
         const candles = all.slice(0, -1);
         if (candles.length < 60) return;
 
-        const sig = evaluate(candles, preset.def);
+        let def = preset.def;
+        if (isCombo) {
+          // ICT teyidi: aynı yönde taze bir ICT kurulumu yoksa evaluate iptal eder.
+          let ictSignals = [];
+          try {
+            ictSignals = ictSvc.analyzeLatest(candles, preset.ictStrategies,
+              { freshBars: 3, pdFilter: true, preset: 'balanced' }) || [];
+          } catch (_) { ictSignals = []; }
+          if (!ictSignals.length) return;
+          def = { ...preset.def, ictStrategy: true, ictSignals };
+        }
+
+        const sig = evaluate(candles, def);
         if (!sig) return;
 
         const bar = candles[candles.length - 1];
@@ -90,4 +108,46 @@ async function generate(presetId, options = {}) {
   };
 }
 
-module.exports = { generate, PRESETS, getPreset, toMsCandles };
+/**
+ * SADE ICT botu: kullanıcının Pine motorunun backend portu (ictSmc) — preset'in
+ * ictStrategies'i MT5 evrenindeki 15 enstrümanda, preset'in TF'lerinde çalışır.
+ * Premium/Discount kuralı (discount→long, premium→short) ve 'balanced' preset açık.
+ */
+async function generateIct(preset, options = {}) {
+  const ictSvc = require('../ictSmc/ictSmcService');
+  const instrumentIds = INSTRUMENTS.map((i) => i.id);
+  const signals = [];
+  const prices = {};
+
+  for (const tf of preset.tfs) {
+    try {
+      const snap = await ictSvc.generate({
+        tf,
+        strategies: preset.ictStrategies,
+        instrumentIds,
+        freshBars: 2,
+        nowMs: options.nowMs,
+      });
+      Object.assign(prices, snap.prices || {});
+      for (const s of snap.signals || []) {
+        // Bot kimliği preset'e sabitlenir (competition positionKey/istatistik ayrışsın).
+        signals.push({ ...s, strategyName: `${preset.name} · ${s.strategyName || s.strategy}` });
+      }
+    } catch (_) { /* TF çekilemedi — sessiz geç */ }
+  }
+
+  return {
+    engine: preset.id,
+    botName: preset.name,
+    generatedAt: new Date(options.nowMs || Date.now()).toISOString(),
+    summary: {
+      signals: signals.length,
+      long: signals.filter((s) => s.direction === 'long').length,
+      short: signals.filter((s) => s.direction === 'short').length,
+    },
+    prices,
+    signals,
+  };
+}
+
+module.exports = { generate, generateIct, PRESETS, getPreset, toMsCandles };

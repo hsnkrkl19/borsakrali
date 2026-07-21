@@ -117,9 +117,10 @@ function createCustom(input) {
   const norm = normalizeCustom(input || {});
   if (!norm.indicators.length && !norm.ictStrategy) { const e = new Error('En az bir indikatör veya ICT stratejisi seç.'); e.code = 'BAD'; throw e; }
   if (!norm.pairs.length) { const e = new Error('En az bir parite seç.'); e.code = 'BAD'; throw e; }
-  // Stabil magic: 5720'den başlayan ilk boş numara (köprüde ayrı işlem kimliği).
+  // Stabil magic: 5800'den başlayan ilk boş numara (köprüde ayrı işlem kimliği).
+  // 5700-5799 katalog botlarına ayrılmıştır (mt5Bots + ICT ailesi 5730-5739).
   const used = new Set(state.customBots.map((b) => b.magic).filter(Boolean));
-  let magic = 5720; while (used.has(magic)) magic++;
+  let magic = 5800; while (used.has(magic)) magic++;
   const bot = { id: 'custom-' + crypto.randomBytes(4).toString('hex'), magic, createdAt: nowISO(), ...norm };
   state.customBots.push(bot);
   persist();

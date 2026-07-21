@@ -29,6 +29,19 @@ const entries = [
   { id: 'mt5-momentum', name: 'MT5 Momentum', category: 'MT5', costBps: 4, engineDisableEnv: 'MT5_BOTS_DISABLED', magic: 5717 },
   { id: 'mt5-reversion', name: 'MT5 Aşırı Bölge Dönüşü', category: 'MT5', costBps: 4, engineDisableEnv: 'MT5_BOTS_DISABLED', magic: 5718 },
   { id: 'mt5-cloud', name: 'MT5 Ichimoku Bulut', category: 'MT5', costBps: 4, engineDisableEnv: 'MT5_BOTS_DISABLED', magic: 5719 },
+  // ICT/SMC ailesi (kullanıcının Pine motorunun portu) — her güçlü kurulum AYRI
+  // bot olarak MT5 evreninde çalışır; hangisinin gerçekten kazandığı ayrı ölçülür.
+  { id: 'ict-2022', name: 'ICT 2022 Modeli', category: 'ICT', costBps: 5, engineDisableEnv: 'MT5_BOTS_DISABLED', magic: 5730 },
+  { id: 'ict-silver-bullet', name: 'ICT Silver Bullet', category: 'ICT', costBps: 5, engineDisableEnv: 'MT5_BOTS_DISABLED', magic: 5731 },
+  { id: 'ict-unicorn', name: 'ICT Unicorn (Breaker+FVG)', category: 'ICT', costBps: 5, engineDisableEnv: 'MT5_BOTS_DISABLED', magic: 5732 },
+  { id: 'ict-ote', name: 'ICT OTE (Optimal Giriş)', category: 'ICT', costBps: 5, engineDisableEnv: 'MT5_BOTS_DISABLED', magic: 5733 },
+  { id: 'ict-cisd', name: 'ICT CISD Dönüşü', category: 'ICT', costBps: 5, engineDisableEnv: 'MT5_BOTS_DISABLED', magic: 5734 },
+  { id: 'ict-sweep', name: 'ICT Likidite Süpürme', category: 'ICT', costBps: 5, engineDisableEnv: 'MT5_BOTS_DISABLED', magic: 5735 },
+  { id: 'ict-blocks', name: 'ICT OB / Breaker Retest', category: 'ICT', costBps: 5, engineDisableEnv: 'MT5_BOTS_DISABLED', magic: 5736 },
+  { id: 'ict-structure', name: 'ICT Yapı (CHoCH/BOS)', category: 'ICT', costBps: 5, engineDisableEnv: 'MT5_BOTS_DISABLED', magic: 5737 },
+  // Birleşik: indikatör oyu + ICT teyidi (en seçici katman)
+  { id: 'combo-trend-ict', name: 'Trend + ICT Teyidi', category: 'ICT', costBps: 5, engineDisableEnv: 'MT5_BOTS_DISABLED', magic: 5738 },
+  { id: 'combo-momentum-ict', name: 'Momentum + ICT Teyidi', category: 'ICT', costBps: 5, engineDisableEnv: 'MT5_BOTS_DISABLED', magic: 5739 },
   { id: 'news-warning', name: 'Haber Uyarıları', category: 'Koruma', role: 'support' },
   { id: 'account-report', name: 'MT5 Kâr/Zarar Raporu', category: 'Rapor', role: 'support' },
 ];
