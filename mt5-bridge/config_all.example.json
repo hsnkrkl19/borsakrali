@@ -20,7 +20,8 @@
   "_TAVAN_NOTU": "0=sinirsiz ama margin patlayabilir (No money). Makul tavan onerilir; dedup zaten ayni sembol+yon tekrarini engeller.",
   "max_open_total": 15,
   "max_open_per_bot": 0,
-  "min_rr": 0.5,
+  "_MIN_RR_NOTU": "Kupus K/Z engeli: seviyeler artik >=1.8 R:R uretiyor; 1.5 alti gelirse kopru ACMAZ.",
+  "min_rr": 1.5,
   "min_confidence": 0,
   "deviation_points": 30,
 
