@@ -624,15 +624,76 @@ def report_real_results(cfg, force=False):
     if not rows:
         return
     try:
-        url = _backend_base(cfg) + "/api/bridge/results"
         headers = {"Authorization": "Bearer %s" % cfg["exec_token"]} if cfg.get("exec_token") else {}
-        r = requests.post(url, json={"deals": rows}, headers=headers, timeout=15, allow_redirects=False)
+        # /state ucu hem lider tablosunu besler HEM kapanışı Telegram'a duyurur
+        # (SİNYAL = İŞLEM 1:1). Site kendi dedup'ını tutar → tekrar mesaj olmaz.
+        url = _backend_base(cfg) + "/api/bridge/state"
+        r = requests.post(url, json={"closed": rows}, headers=headers, timeout=20, allow_redirects=False)
         if r.status_code == 200:
-            log.info("📤 Gerçek sonuçlar siteye beslendi: %d kapanan işlem", len(rows))
+            log.info("📤 Gerçek sonuçlar siteye beslendi: %d kapanan işlem (kapanış Telegram'a gider)", len(rows))
         else:
             log.warning("gerçek sonuç POST %s: %s", r.status_code, r.text[:120])
     except Exception as exc:
         log.warning("gerçek sonuç POST hatası: %s", exc)
+
+
+_notified_open = set()      # bu süreçte siteye bildirilmiş açık ticket'lar
+_last_state_report = 0.0
+
+
+def report_mt5_state(cfg):
+    """SİNYAL = İŞLEM (1:1). MT5'teki GERÇEK açık pozisyonları + son kapananları
+    siteye bildirir; site daha önce duyurulmamışlar için Telegram mesajı atar.
+    Kaynak MT5'in kendisi olduğundan 'sinyal var işlem yok' durumu imkânsızdır.
+    Her turda çalışır (açılış anında duyurulsun diye)."""
+    global _last_state_report
+    now = time.time()
+    if now - _last_state_report < 25:      # aynı turda çift göndermeyi önle
+        return
+    _last_state_report = now
+    try:
+        positions = mt5.positions_get() or []
+    except Exception as exc:
+        log.warning("pozisyon okunamadı (durum bildirimi): %s", exc)
+        return
+
+    open_rows = []
+    for p in positions:
+        magic = int(getattr(p, "magic", 0) or 0)
+        if magic <= 0:
+            continue                        # bot işlemi değil
+        ticket = str(getattr(p, "ticket", ""))
+        if not ticket:
+            continue
+        is_long = getattr(p, "type", 0) == getattr(mt5, "POSITION_TYPE_BUY", 0)
+        open_rows.append({
+            "ticket": ticket,
+            "magic": magic,
+            "symbol": str(getattr(p, "symbol", "")),
+            "direction": "long" if is_long else "short",
+            "lot": float(getattr(p, "volume", 0) or 0),
+            "price": float(getattr(p, "price_open", 0) or 0),
+            "sl": float(getattr(p, "sl", 0) or 0),
+            "tp": float(getattr(p, "tp", 0) or 0),
+            "openedSec": int(getattr(p, "time", 0) or 0),
+        })
+
+    # Yalnız YENİ açılanları yolla (site de ayrıca dedup yapar — çift emniyet).
+    fresh = [r for r in open_rows if r["ticket"] not in _notified_open]
+    if not fresh:
+        return
+    try:
+        url = _backend_base(cfg) + "/api/bridge/state"
+        headers = {"Authorization": "Bearer %s" % cfg["exec_token"]} if cfg.get("exec_token") else {}
+        r = requests.post(url, json={"open": fresh}, headers=headers, timeout=15, allow_redirects=False)
+        if r.status_code == 200:
+            for row in fresh:
+                _notified_open.add(row["ticket"])
+            log.info("📣 MT5 durumu siteye bildirildi: %d yeni açık işlem (Telegram'a sinyal gider)", len(fresh))
+        else:
+            log.warning("durum POST %s: %s", r.status_code, r.text[:120])
+    except Exception as exc:
+        log.warning("durum POST hatası: %s", exc)
 
 
 def run_once(cfg):
@@ -761,6 +822,13 @@ def run_once(cfg):
         report_real_results(cfg)
     except Exception as exc:
         log.warning("gerçek sonuç besleme hatası: %s", exc)
+
+    # 5) SİNYAL = İŞLEM (1:1): MT5'te GERÇEKTEN açılan her işlemi siteye bildir →
+    #    Telegram'a sinyal olarak gider. Sinyal/işlem sapması imkânsız hale gelir.
+    try:
+        report_mt5_state(cfg)
+    except Exception as exc:
+        log.warning("durum bildirimi hatası: %s", exc)
 
     if feed:
         acildi = reasons.get("acildi", 0) + reasons.get("dry", 0)

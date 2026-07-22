@@ -49,6 +49,26 @@ router.get('/positions', (req, res) => {
 
 // POST /api/bridge/results — köprü MT5 deal geçmişini (gerçek kapanan işlemler)
 // magic-bazlı yollar. Lider tablosu + günlük rapor bunu GERÇEK sonuç olarak kullanır.
+// POST /api/bridge/state — SİNYAL = İŞLEM (1:1). Köprü her turda MT5'teki AÇIK
+// pozisyonlarını + yeni kapananları bildirir; daha önce duyurulmamış olanlar için
+// Telegram mesajı atılır. Kaynak MT5'in kendisi olduğundan sinyal/işlem sapması
+// yapısal olarak imkânsızdır.
+router.post('/state', express.json({ limit: '2mb' }), async (req, res) => {
+  const auth = checkExecToken(req);
+  if (!auth.ok) return res.status(auth.code).json({ success: false, error: auth.error });
+  try {
+    const notifier = require('../services/mt5TradeNotifier');
+    const r = await notifier.ingestState(req.body || {});
+    // Kapananlar aynı yükte geldiyse gerçek-sonuç deposunu da besle (lider tablosu).
+    if (Array.isArray(req.body && req.body.closed) && req.body.closed.length) {
+      try { require('../services/realResults/store').ingest(req.body.closed); } catch (_) { /* yut */ }
+    }
+    res.json({ success: true, ...r });
+  } catch (e) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
 router.post('/results', express.json({ limit: '2mb' }), (req, res) => {
   const auth = checkExecToken(req);
   if (!auth.ok) return res.status(auth.code).json({ success: false, error: auth.error });
