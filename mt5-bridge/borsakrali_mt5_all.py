@@ -367,6 +367,9 @@ def open_from_feed(cfg, s):
         return "piyasa_kapali"
     elif r and r.retcode == getattr(mt5, "TRADE_RETCODE_NO_MONEY", 10019):
         return "no_money"
+    elif r and r.retcode == 10027:
+        # Algo Trading terminalde KAPALI — hiçbir emir geçmez; turu durdur (spam önle).
+        return "algo_kapali"
     else:
         rc = r.retcode if r else "None"
         log.error("❌ AÇILAMADI %s %s: retcode=%s %s", s.get("botName"), info.name, rc, (r.comment if r else mt5.last_error()))
@@ -807,6 +810,9 @@ def run_once(cfg):
             elif res == "no_money":
                 # Margin doldu → bu tur yeni emir DURDUR (spam yok, mevcutlar korunur).
                 log.warning("💰 Margin doldu — bu tur yeni emir durduruldu (%d açık). Tavan/lot düşür.", total_open)
+                break
+            elif res == "algo_kapali":
+                log.warning("🛑 ALGO TRADING KAPALI — MT5 terminalinde üstteki 'Algo Trading' düğmesine bas. Bu tur emir denenmeyecek.")
                 break
 
     # 3) GÖLGE GÜNLÜĞÜ — her koşulda çalışır (dry_run/piyasa-kapalı/hafta-sonu fark etmez).
