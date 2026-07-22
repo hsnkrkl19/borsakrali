@@ -58,6 +58,11 @@ const entries = [
   // STRATEJİ GELİŞTİREN bot: walk-forward hücre şampiyonu (kullanıcı isteği);
   // kanıt kapısı motorun kendisinde (PF≥1.25 + ≥6 işlem yoksa hücre susar).
   { id: 'mt5-evolver', name: 'Strateji Evrimi', category: 'MT5', costBps: 4, engineDisableEnv: 'MT5_BOTS_DISABLED', magic: 5748 },
+  // KONSENSÜS RADARI (kullanıcı isteği 2026-07-23): N bot aynı sembol+yönde
+  // işlemdeyse Telegram'a "AL verdi → alınabilir / SAT verdi → satılabilir"
+  // uyarısı atar VE kendisi de o yönde işlem açar (services/botConsensus).
+  // Eşik: CONSENSUS_MIN (vars. 3 farklı bot).
+  { id: 'consensus-radar', name: 'Konsensüs Radarı', category: 'MT5', costBps: 4, engineDisableEnv: 'CONSENSUS_DISABLED', magic: 5749 },
   { id: 'news-warning', name: 'Haber Uyarıları', category: 'Koruma', role: 'support' },
   { id: 'account-report', name: 'MT5 Kâr/Zarar Raporu', category: 'Rapor', role: 'support' },
 ];

@@ -1236,6 +1236,7 @@ async function runIctSmcCadence() {
 // açık pozisyonları köprü feed'ine girer → MT5'te gerçek emir (her biri kendi
 // magic'i ile). Yüksek TF + R:R≥1.5 + kapalı bar + stabil signalId.
 let _mt5BotsCadenceLockAt = 0;
+let _mt5LastPrices = {}; // son tur fiyatları — konsensüs botunun SL/TP takibi için
 async function runMt5BotsCadence() {
   const now = Date.now();
   if (_mt5BotsCadenceLockAt && now - _mt5BotsCadenceLockAt < 4 * 60 * 1000) return null;
@@ -1261,9 +1262,25 @@ async function runMt5BotsCadence() {
           }
         }
         out.push({ id: preset.id, signals: snap.signals.length });
+        if (snap && snap.prices) _mt5LastPrices = { ..._mt5LastPrices, ...snap.prices };
       } catch (error) {
         logger.error(`MT5 bot ${preset.id} turu hata: ${error.message}`);
       }
+    }
+
+    // KONSENSÜS RADARI (Bot: consensus-radar, magic 5749) — tüm botların AÇIK
+    // pozisyonları sembol+yön bazında sayılır; ≥CONSENSUS_MIN farklı bot aynı
+    // yöndeyse Telegram uyarısı + kendi sinyali (yarışa girer → köprüyle MT5).
+    try {
+      const consensus = require('./botConsensus');
+      const feed = competitionManager.bridgeFeed();
+      const r = await consensus.run(feed && feed.positions);
+      if (r && !r.disabled) {
+        raceObserve('consensus-radar', { prices: _mt5LastPrices, signals: r.signals || [] }, { source: 'consensus' });
+        if (r.alertsSent) logger.info(`Konsensüs Radarı: ${r.groups} grup, ${r.alertsSent} uyarı gönderildi`);
+      }
+    } catch (error) {
+      logger.error(`Konsensüs turu hata: ${error.message}`);
     }
     return out;
   } finally {
