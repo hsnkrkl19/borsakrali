@@ -271,8 +271,9 @@ export function effectiveStats(vehicleId, upgradesForVehicle = {}) {
     // araç sürekli sürtünme limitinde takılıydı, gaz analog davranmıyordu.
     torqueTW:    (base.torqueTW || 1.05) * (1 + 0.055 * eng),   // max ×1.55
     grip:        base.grip * (1 + 0.085 * tir),                 // max ×1.85
-    topSpeed:    base.topSpeed * (1 + 0.012 * eng + 0.028 * gear), // max ×1.40 (eskiden ×4.08!)
-    airTorque:   5.0 * (1 + 0.020 * aero),                      // rad/s² — tam takla ~2.3sn
+    // Hız: taban ×1.30 (takla/atlayış için yeterli momentum) + yükseltmeyle ×1.40'a kadar
+    topSpeed:    base.topSpeed * 1.30 * (1 + 0.012 * eng + 0.028 * gear),
+    airTorque:   9.0 * (1 + 0.030 * aero),                      // rad/s² — rampada TAM takla mümkün
     suspStiff:   1,                                             // yay sag'dan türetilir (motor)
     fuelMax:     base.fuelMax * (1 + 0.32 * fuel),
     airControl:  base.airControl * (1 + 0.18 * aero),

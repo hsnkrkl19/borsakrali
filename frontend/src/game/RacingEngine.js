@@ -18,12 +18,25 @@
 // NOT: 1.0g (300) fizik olarak "doğru" ama 91 km/h hızlarda araba 10 m yükselip 2.5sn
 // havada kalıyordu — arcade oyunlar yerçekimini bilerek abartır. 1.87g bunu yarıya indirir.
 // (Sürüş/tırmanış ETKİLENMEZ: itki torqueTW·m·GRAV olduğu için itki/ağırlık sabit kalır.)
-const GRAV = 560
+const GRAV = 680
 const SUBSTEPS = 8
-const SX = 110              // örnek nokta yatay aralığı
-const AMP = 660             // fiyat → yükseklik bandı
-const MAXSTEP = AMP * 0.13  // ~38° max eğim (gerçekçi tırmanış sınırı)
-const TERRAIN_POINTS = 150
+// DERİN UÇURUM / YÜKSEK TEPE — doğru yol: AMP ve SX'i BİRLİKTE büyütmek.
+// AMP tek başına büyütülürse eğim (AMP/SX) diklenir ve araç takılır; birlikte
+// büyüyünce eğim AYNI kalır, her şey büyür ve krest yarıçapı bedavaya iyileşir.
+// Rölyef 22m → 53m (2.4×), maks eğim ise 47° → 30°.
+const SX = 280              // örnek nokta yatay aralığı (110 → 280)
+const AMP = 1600            // fiyat → yükseklik bandı
+const TERRAIN_POINTS = 180
+// Eğim artık AÇI olarak yazılıyor (AMP'ye bağlı kesir değil — o yüzden sessizce kayıyordu).
+// 30°: gerçek sürülebilir tavan pitch/wheelie limiti olan 38.9°'nin güvenli altında.
+const MAX_SLOPE_DEG = 30
+const MAXSTEP = SX * Math.tan(MAX_SLOPE_DEG * Math.PI / 180)
+// EĞRİLİK KELEPÇESİ: asıl "her tepede havalanma" sebebi keskin krestti (yarıçap 52 wu,
+// dingil 78 wu → 171 wu/s'de balistik!). Kaynağında düzeltilir. Vadi yarıçapı çok daha
+// büyük: keskin krest eğlencelidir (hava), keskin vadi sadece süspansiyonu patlatır (21.9 g).
+const R_CREST = 2400    // doğal tepe: yumuşak → sebepsiz havalanma yok
+const R_RAMP = 520      // TASARLANMIŞ rampa dudağı: keskin → hak edilmiş fırlatma/takla
+const R_VALLEY = 9000   // vadi: en yumuşak (keskin vadi süspansiyonu patlatır)
 const METER = 30
 const PHYS_DT_MAX = 1 / 60
 const AXW = 56             // sağ fiyat ekseni genişliği
@@ -116,8 +129,15 @@ export class RacingEngine {
     let times = valid.map((c) => Number(c.time))
 
     if (closes.length < 8) {
-      closes = Array.from({ length: 160 }, (_, i) =>
-        100 * Math.exp(Math.sin(i * 0.11) * 0.35 + Math.sin(i * 0.045) * 0.5 + i * 0.003))
+      // Yedek pist (veri yoksa): gerçek 2y/1d hisse verisinin dokusuna yakın olsun diye
+      // çok-oktavlı — ölçüm: gerçek veri 150 noktada ~19-24 tepe veriyor, eskisi yalnız 6.
+      closes = Array.from({ length: 500 }, (_, i) =>
+        100 * Math.exp(
+          Math.sin(i * 0.055) * 0.42 +
+          Math.sin(i * 0.130) * 0.26 +
+          Math.sin(i * 0.310) * 0.13 +
+          Math.sin(i * 0.710) * 0.06 +
+          i * 0.0016))
       times = closes.map((_, i) => 1.6e9 + i * 86400)
     }
 
@@ -150,47 +170,110 @@ export class RacingEngine {
     const min = Math.min(...sm), max = Math.max(...sm), range = max - min || 1
     const h = sm.map((v) => ((v - min) / range) * AMP)
 
-    for (let i = 1; i < h.length; i++) {
-      const d = h[i] - h[i - 1]
-      if (d > MAXSTEP) h[i] = h[i - 1] + MAXSTEP
-      else if (d < -MAXSTEP) h[i] = h[i - 1] - MAXSTEP
-    }
-    for (let i = h.length - 2; i >= 0; i--) {
-      const d = h[i] - h[i + 1]
-      if (d > MAXSTEP) h[i] = h[i + 1] + MAXSTEP
-      else if (d < -MAXSTEP) h[i] = h[i + 1] - MAXSTEP
+    // NOT: rampalar (kicker) ARTIK ÖNCE ekleniyor — eskiden kelepçelerden SONRA
+    // ekleniyordu ve kelepçenin temizlediği dikliği geri enjekte ediyordu (ölçüm: 38°→47°).
+    this._addKickers(h)
+
+    // 1) EĞİM kelepçesi (açı tabanlı) — ileri/geri, birkaç kez
+    // 2) EĞRİLİK kelepçesi — krest/vadi yarıçapı (asimetrik)
+    const LC = (SX * SX) / R_CREST        // doğal krest için maks |ikinci fark|
+    const LC_RAMP = (SX * SX) / R_RAMP    // rampa dudağı: çok daha keskin olabilir
+    const LV = (SX * SX) / R_VALLEY       // vadi için (çok daha katı)
+    for (let pass = 0; pass < 7; pass++) {   // 4 → 7: vadi eğriliği yeterince yakınsasın (süspansiyon yükü)
+      for (let i = 1; i < h.length; i++) {
+        const d = h[i] - h[i - 1]
+        if (d > MAXSTEP) h[i] = h[i - 1] + MAXSTEP
+        else if (d < -MAXSTEP) h[i] = h[i - 1] - MAXSTEP
+      }
+      for (let i = h.length - 2; i >= 0; i--) {
+        const d = h[i] - h[i + 1]
+        if (d > MAXSTEP) h[i] = h[i + 1] + MAXSTEP
+        else if (d < -MAXSTEP) h[i] = h[i + 1] - MAXSTEP
+      }
+      for (let i = 1; i < h.length - 1; i++) {
+        const d2 = h[i + 1] - 2 * h[i] + h[i - 1]
+        // Rampa dudağında keskinliğe İZİN VAR (fırlatma oradan gelir); doğal tepeler yuvarlanır.
+        const lc = (this._kickerIdx && this._kickerIdx.has(i)) ? LC_RAMP : LC
+        if (d2 < -lc) h[i] += (d2 + lc) / 2        // fazla keskin TEPE → yuvarla
+        else if (d2 > LV) h[i] += (d2 - LV) / 2    // fazla keskin VADİ → doldur
+      }
     }
 
     // ZIPLAMA TÜMSEKLERİ — hava/takla için simetrik yumuşak tepeler (uçurum
     // DEĞİL). Dokunmazsan düz uçup güvenle inersin; gaz/fren tutarsan takla atar
     // ama ters inersen boynun kırılır. Grafiğin genel şekli korunur.
-    // RAMPA (kicker) — yalnız grafiğin ZATEN YÜKSELDİĞİ yere, ASİMETRİK:
-    // yumuşak giriş → dik dudak → arkasında iniş alanı. (Simetrik tümsek, iniş
-    // yamacında çukur gibi okunuyordu ve fırlatma dudağı vermiyordu.)
-    let bi = 14
-    while (bi < N - 8) {
-      const rising = h[bi] - h[bi - 3]
-      if (rising > AMP * 0.02 && hash32(bi * 53 + 11) % 5 === 0) {
-        const A = AMP * 0.075             // 0.10 → 0.075: kalkış açısı/vy düşer
-        h[bi - 3] += A * 0.10
-        h[bi - 2] += A * 0.34
-        h[bi - 1] += A * 0.72
-        h[bi] += A * 1.00                 // dudak
-        // Dudaktan sonra UÇURUM YOK: yer ayağın altından kaçmasın diye kademeli iniş
-        // (eskiden 1.00→0.18 tek adımda düşüyordu, uçuşu yapay olarak uzatıyordu).
-        h[bi + 1] += A * 0.62
-        h[bi + 2] += A * 0.34
-        h[bi + 3] += A * 0.16
-        h[bi + 4] += A * 0.06
-        bi += 16
-      } else bi += 1
-    }
-
     this.heights = h
     this.N = h.length
+    this._buildBridges(h)
     this.dates = resDates
     this.priceMin = min   // LOG fiyat min/max (eksen için)
     this.priceMax = max
+  }
+
+  // RAMPA (kicker) — yalnız grafiğin ZATEN YÜKSELDİĞİ yere. SX=280 olduğu için artık
+  // "keskin dudak" değil UZUN rampa (4 örnek ≈ 37m): fırlatma dik eğrilikten değil
+  // hız+eğimden gelir → yavaşken havalanmazsın, hızlıyken güzel uçarsın.
+  _addKickers(h) {
+    const N = h.length
+    this._kickerIdx = new Set()     // bu noktalarda eğrilik kelepçesi GEVŞEK olacak (fırlatma dudağı)
+    let bi = 10
+    while (bi < N - 8) {
+      const rising = h[bi] - h[bi - 3]
+      if (rising > AMP * 0.02 && hash32(bi * 53 + 11) % 5 === 0) {
+        const A = AMP * 0.15    // 0.085 → 0.15: takla için yeterli hava YALNIZ rampalarda
+        // Yükselen giriş → dudak → arkasında BOŞLUK (atlayış) → iniş rampası.
+        // Bu "her tepedeki rastgele uçurum" DEĞİL: yalnız tasarlanmış rampada,
+        // arkasında düzgün iniş alanıyla → hak edilmiş hava + takla.
+        h[bi - 3] += A * 0.12
+        h[bi - 2] += A * 0.40
+        h[bi - 1] += A * 0.78
+        h[bi] += A * 1.00                 // dudak (keskinliğe izin var)
+        this._kickerIdx.add(bi)
+        h[bi + 1] += A * 0.22             // hızlı düşüş → boşluk
+        h[bi + 2] -= A * 0.10             // hafif çukur = atlayış boşluğu
+        h[bi + 3] -= A * 0.04
+        h[bi + 4] += A * 0.05             // iniş rampası yükselmeye başlar
+        bi += 14
+      } else bi += 1
+    }
+  }
+
+  // DERİN VADİLERİ bul ve üzerlerine KÖPRÜ kur (yalnız dekor — fizik yok, çizgi ARKASINA çizilir).
+  // Vadi = iki tepe arasında yeterince derin çukur; köprü tabliyesi iki tepeyi birleştirir.
+  _buildBridges(h) {
+    this.bridges = []
+    const N = h.length
+    // 0.08: gerçek 2y/1d veriyle ölçüldü → GARAN 7, THYAO 10, ASELS 4 köprü
+    // (0.14'te ASELS gibi düzgün seyreden hisselerde hiç köprü çıkmıyordu)
+    const MIN_DEPTH = AMP * 0.08
+    const MIN_SPAN = 4, MAX_SPAN = 26 // örnek adımı cinsinden açıklık
+
+    // 1) yerel tepeleri topla (komşularından yüksek)
+    const peaks = []
+    for (let i = 1; i < N - 1; i++) if (h[i] >= h[i - 1] && h[i] >= h[i + 1]) peaks.push(i)
+
+    // 2) ardışık tepe çiftleri arasında yeterince derin çukur var mı?
+    for (let p = 0; p < peaks.length - 1; p++) {
+      const a = peaks[p]
+      for (let q = p + 1; q < peaks.length; q++) {
+        const b = peaks[q]
+        const span = b - a
+        if (span < MIN_SPAN) continue
+        if (span > MAX_SPAN) break
+        let lowIdx = a
+        for (let i = a + 1; i < b; i++) if (h[i] < h[lowIdx]) lowIdx = i
+        const depth = Math.min(h[a], h[b]) - h[lowIdx]
+        if (depth >= MIN_DEPTH) {
+          this.bridges.push({
+            x0: a * SX, x1: b * SX,
+            y0: h[a], y1: h[b], low: h[lowIdx],
+            type: span >= 10 ? 'suspension' : 'truss',   // uzun açıklık = asma köprü
+          })
+          p = q - 1   // çakışmasın: bu tepeden devam et
+          break
+        }
+      }
+    }
   }
 
   _raw(i) {
@@ -412,7 +495,10 @@ export class RacingEngine {
       const hC = this.heightAt(car.x)
       const curv = (this.heightAt(car.x - 45) + this.heightAt(car.x + 45)) / 2 - hC
       if (curv < 0) {   // konveks = tepe
-        const stick = Math.min(1, Math.abs(car.vx) / 900) * Math.min(1, -curv / 45) * GRAV * 0.28
+        // Artık yalnız 0.12 g: krest yarıçapı ARAZİDE düzeltildiği için (R_CREST kelepçesi)
+        // bu manyetiğe neredeyse gerek kalmadı. Eskiden 0.55 g idi ve gerçek rampaları da
+        // yapıştırıyordu — yani hack'in kendisi oyunu bozuyordu.
+        const stick = Math.min(1, Math.abs(car.vx) / 900) * Math.min(1, -curv / 45) * GRAV * 0.12
         car.vy -= stick * dt
       }
       // OTURAKLI HİS: flip tuşuna basılmadıkça aracı zemin eğimine yumuşakça hizala
@@ -426,10 +512,11 @@ export class RacingEngine {
     // YERDE ÖN/ARKA KALDIRMA — sürerken SOL/SAĞ ile aracın önünü/arkasını kaldır.
     // HIZA ORANTILI: dururken etkisiz, hızlandıkça daha çok kalkar.
     if (car.onGround && this._hasLanded && (this.input.flipL || this.input.flipR)) {
-      const sf = clamp(speed / (s.topSpeed * 0.30), 0.40, 1)
-      const target = (this.input.flipL ? 1 : -1) * 0.55 * sf     // ~31° (40° kendini takla attırıyordu)
-      car.angVel += (target - car.angle) * 18 * dt               // yumuşak servo → ağırlık aktarımı görünür
-      car.angVel -= car.angVel * 5.5 * dt
+      // Yerde ön/arka kaldırma — kontrol hissi güçlendirildi (kullanıcı: "kontroller zayıf")
+      const sf = clamp(speed / (s.topSpeed * 0.26), 0.55, 1)     // düşük hızda da tepki ver
+      const target = (this.input.flipL ? 1 : -1) * 0.68 * sf     // ~39° (0.55 = 31° zayıf kalıyordu)
+      car.angVel += (target - car.angle) * 26 * dt               // daha çevik servo (18 → 26)
+      car.angVel -= car.angVel * 6.0 * dt
     }
 
     // HAVA KONTROLÜ — SOL/SAĞ = takla:
@@ -452,7 +539,7 @@ export class RacingEngine {
     car.vy -= car.vy * 0.02 * dt
     const angDamp = car.onGround ? 4.5 : 1.2    // havada sabit sönüm → dönüş hızını BU belirler
     car.angVel -= car.angVel * angDamp * dt
-    car.angVel = clamp(car.angVel, -6.5, 6.5)   // yalnız emniyet ağı — oyunda bağlanmamalı
+    car.angVel = clamp(car.angVel, -7.6, 7.6)   // yalnız emniyet ağı — oyunda bağlanmamalı
 
     car.x += car.vx * dt
     car.y += car.vy * dt
@@ -581,9 +668,9 @@ export class RacingEngine {
           this.run.coins += 8
           this._addFloat(car.x, car.y + 55, 'MÜKEMMEL İNİŞ!', '#22c55e')
           this._beep(990, 0.12); this._addShake(4); this._spawnSparkle(car.x, car.y + 20)
-        } else if (Lp.vy < -400) {                       // GRAV=560 ölçeğine göre
-          this._addShake(clamp(-Lp.vy / 62, 4, 16))
-          this._spawnPoof(car.x, this.heightAt(car.x), -Lp.vy / 45)
+        } else if (Lp.vy < -490) {                       // GRAV=680 ölçeğine göre
+          this._addShake(clamp(-Lp.vy / 76, 4, 16))
+          this._spawnPoof(car.x, this.heightAt(car.x), -Lp.vy / 55)
         }
       }
     }
@@ -841,6 +928,7 @@ export class RacingEngine {
     this._drawClouds(ctx, W, H)
     this._drawGrid(ctx, W, H, sx)
     this._drawWatermark(ctx, W, H)
+    this._drawBridges(ctx, W, H, sx, sy)      // vadi köprüleri — pist çizgisinin ARKASINDA (dekor)
     this._drawAreaLine(ctx, W, H, sx, sy)
     this._drawLevelMarkers(ctx, W, H, sx, sy)
     this._drawTrail(ctx, sx, sy, zoom)
@@ -975,6 +1063,93 @@ export class RacingEngine {
     ctx.shadowColor = accent; ctx.shadowBlur = 10
     ctx.strokeStyle = accent; ctx.lineWidth = 2.5; ctx.stroke()
     ctx.shadowBlur = 0
+  }
+
+  // VADİ KÖPRÜLERİ — derin uçurumları geçen dekor yapılar (fizik YOK, çizgi arkasında).
+  // Ping-pong arazi periyoduna göre tekrarlanır, böylece her seviyede görünür.
+  _drawBridges(ctx, W, H, sx, sy) {
+    if (!this.bridges || !this.bridges.length) return
+    const zoom = this._zoom
+    const left = this.camX - (W / 2) / zoom - SX * 2
+    const right = this.camX + (W / 2) / zoom + SX * 2
+    const period = 2 * (this.N - 1) * SX
+    const kStart = Math.floor(left / period) - 1, kEnd = Math.ceil(right / period) + 1
+
+    for (let k = kStart; k <= kEnd; k++) {
+      const shift = k * period
+      for (const b of this.bridges) {
+        // ping-pong: tek periyotlarda ayna görüntüsü
+        const mirror = ((k % 2) + 2) % 2 === 1
+        const bx0 = mirror ? shift + (period - b.x1) : shift + b.x0
+        const bx1 = mirror ? shift + (period - b.x0) : shift + b.x1
+        if (bx1 < left || bx0 > right) continue
+        const y0 = mirror ? b.y1 : b.y0, y1 = mirror ? b.y0 : b.y1
+
+        const X0 = sx(bx0), X1 = sx(bx1)
+        const Y0 = sy(y0), Y1 = sy(y1)
+        const deckLift = 10 * zoom                      // tabliye tepe kotasının biraz üstünde
+        const D0 = Y0 - deckLift, D1 = Y1 - deckLift
+        const span = X1 - X0
+        if (span < 6) continue
+        const lowY = sy(b.low)
+
+        ctx.save()
+        ctx.globalAlpha = 0.55                          // arka planda kalsın (pist öne çıksın)
+
+        // AYAKLAR (pylon) — vadi tabanına inen dikmeler
+        ctx.strokeStyle = '#4a5162'; ctx.lineWidth = Math.max(1.5, 3.5 * zoom)
+        const piers = b.type === 'suspension' ? 2 : 3
+        for (let p = 1; p <= piers; p++) {
+          const t = p / (piers + 1)
+          const px = X0 + span * t, py = D0 + (D1 - D0) * t
+          ctx.beginPath(); ctx.moveTo(px, py); ctx.lineTo(px, lowY); ctx.stroke()
+          // çapraz destek
+          ctx.lineWidth = Math.max(1, 1.6 * zoom)
+          ctx.beginPath(); ctx.moveTo(px - 6 * zoom, lowY); ctx.lineTo(px, py + (lowY - py) * 0.45); ctx.lineTo(px + 6 * zoom, lowY); ctx.stroke()
+          ctx.lineWidth = Math.max(1.5, 3.5 * zoom)
+        }
+
+        if (b.type === 'suspension') {
+          // ASMA KÖPRÜ: iki kule + kablo eğrisi + askı telleri
+          const towerH = 46 * zoom
+          for (const [tx, ty] of [[X0 + span * 0.18, D0 + (D1 - D0) * 0.18], [X0 + span * 0.82, D0 + (D1 - D0) * 0.82]]) {
+            ctx.strokeStyle = '#5b6478'; ctx.lineWidth = Math.max(2, 4 * zoom)
+            ctx.beginPath(); ctx.moveTo(tx, ty); ctx.lineTo(tx, ty - towerH); ctx.stroke()
+          }
+          const tx0 = X0 + span * 0.18, ty0 = D0 + (D1 - D0) * 0.18 - towerH
+          const tx1 = X0 + span * 0.82, ty1 = D0 + (D1 - D0) * 0.82 - towerH
+          ctx.strokeStyle = 'rgba(148,163,184,0.9)'; ctx.lineWidth = Math.max(1.2, 2.2 * zoom)
+          ctx.beginPath(); ctx.moveTo(X0, D0)
+          ctx.quadraticCurveTo((tx0 + tx1) / 2, Math.max(ty0, ty1) + 34 * zoom, X1, D1)
+          ctx.stroke()
+          // askı telleri
+          ctx.lineWidth = Math.max(0.6, 1 * zoom); ctx.strokeStyle = 'rgba(148,163,184,0.55)'
+          for (let t = 0.12; t <= 0.88; t += 0.09) {
+            const hx = X0 + span * t, hy = D0 + (D1 - D0) * t
+            const cy = (1 - t) * (1 - t) * D0 + 2 * (1 - t) * t * (Math.max(ty0, ty1) + 34 * zoom) + t * t * D1
+            ctx.beginPath(); ctx.moveTo(hx, cy); ctx.lineTo(hx, hy); ctx.stroke()
+          }
+        } else {
+          // KAFES (truss) KÖPRÜ: üçgen örgü
+          ctx.strokeStyle = 'rgba(120,131,150,0.85)'; ctx.lineWidth = Math.max(1, 1.8 * zoom)
+          const trussH = 16 * zoom, segs = Math.max(4, Math.round(span / (26 * zoom)))
+          ctx.beginPath(); ctx.moveTo(X0, D0 - trussH); ctx.lineTo(X1, D1 - trussH); ctx.stroke()
+          for (let sIdx = 0; sIdx <= segs; sIdx++) {
+            const t = sIdx / segs, ux = X0 + span * t, uy = D0 + (D1 - D0) * t
+            ctx.beginPath(); ctx.moveTo(ux, uy); ctx.lineTo(ux, uy - trussH); ctx.stroke()
+            if (sIdx < segs) {
+              const t2 = (sIdx + 1) / segs, vx = X0 + span * t2, vy = D0 + (D1 - D0) * t2
+              ctx.beginPath(); ctx.moveTo(ux, uy); ctx.lineTo(vx, vy - trussH); ctx.stroke()
+            }
+          }
+        }
+
+        // TABLİYE (deck)
+        ctx.strokeStyle = '#8b95a8'; ctx.lineWidth = Math.max(2, 4.5 * zoom)
+        ctx.beginPath(); ctx.moveTo(X0, D0); ctx.lineTo(X1, D1); ctx.stroke()
+        ctx.restore()
+      }
+    }
   }
 
   // CHECKPOINT bayrakları (yakıt) + BİTİŞ çizgisi (dama kapısı) — seviye pisti

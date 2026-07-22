@@ -28,7 +28,9 @@ const candleCache = {}
 async function fetchCandles(symbol) {
   if (candleCache[symbol]) return candleCache[symbol]
   try {
-    const res = await fetch(`/api/market/stock/${symbol}/historical?period=1mo&interval=15m`)
+    // 2 YIL / GÜNLÜK: ölçüldü — en dalgalı arazi (ort. adım 31.9; 1mo/15m'de 13).
+    // 5y/max DAHA KÖTÜ: 20x-696x fiyat büyümesi log-aralığı domine edip detayı düzleştiriyor.
+    const res = await fetch(`/api/market/stock/${symbol}/historical?period=2y&interval=1d`)
     if (!res.ok) throw new Error('veri yok')
     const data = await res.json()
     const quotes = data.data || data.quotes || []
