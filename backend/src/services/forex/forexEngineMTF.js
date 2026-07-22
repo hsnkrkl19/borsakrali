@@ -56,7 +56,8 @@ async function evalTF(inst, tf, livePrice, equity) {
 
   const atrVal = atr(candles, 14);
   const entry = livePrice || candles[candles.length - 1].close;
-  const levels = levelsLib.buildLevels(agg.direction, entry, atrVal, tf, inst.precision);
+  // candles → fibo-yapısal seviyeler (swing ucu stop + fibo uzantı TP); yapı yoksa ATR.
+  const levels = levelsLib.buildLevels(agg.direction, entry, atrVal, tf, inst.precision, candles);
   if (!levels) return { tf, status: 'neutral', votes: agg.votes };
 
   const sizing = computeSizing({ instrument: inst, entry: levels.entry, stop: levels.stop, direction: agg.direction }, { equity });

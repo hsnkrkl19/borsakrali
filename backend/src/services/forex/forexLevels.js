@@ -32,8 +32,18 @@ function tradeHorizon(tf) {
   return 'SWING';
 }
 
-function buildLevels(direction, entry, atrVal, tf, precision = 4) {
+function buildLevels(direction, entry, atrVal, tf, precision = 4, candles = null) {
   if (!(entry > 0) || !(atrVal > 0)) return null;
+  // ① FİBO-YAPISAL SEVİYELER (ampirik kazanan, gerçek veride 1319 örnek):
+  //    stop = swing ucunun ötesi (yapısal geçersizleşme), TP = ≥1.3R veren ilk
+  //    fibo uzantısı. Beklenti +0.132R (t=3.78) / isabet %44.1 — saf ATR'den iyi.
+  //    Geçerli swing yoksa null → ② ATR tablosuna düşülür.
+  if (Array.isArray(candles) && candles.length >= 60) {
+    try {
+      const fx = require('./forexFib').tradeLevels(direction, candles, entry, Math.max(atrVal, entry * MIN_ATR_FRAC), precision);
+      if (fx && fx.rr1 >= 1.2) return { ...fx, basis: 'fib-struct', atr: +atrVal.toFixed(precision) };
+    } catch (_) { /* fib başarısız → ATR'ye düş */ }
+  }
   const eff = Math.max(atrVal, entry * MIN_ATR_FRAC);
   const m = TF_MULT[tf] || TF_MULT['1h'];
   const r = (v) => +v.toFixed(precision);

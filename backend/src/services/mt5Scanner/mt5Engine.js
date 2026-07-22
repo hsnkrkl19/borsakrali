@@ -79,7 +79,8 @@ async function evalTF(inst, tf, livePrice, equity, dailyAtr) {
 
   const atrVal = atr(candles, 14);
   const entry = livePrice || candles[candles.length - 1].close;
-  const levels = levelsLib.buildLevels(agg.direction, entry, atrVal, tf, inst.precision, dailyAtr);
+  // candles → fibo-yapısal seviyeler (swing ucu stop + fibo uzantı TP); yapı yoksa ATR.
+  const levels = levelsLib.buildLevels(agg.direction, entry, atrVal, tf, inst.precision, dailyAtr, candles);
   if (!levels) return { tf, status: 'neutral', votes: agg.votes };
 
   // %1 hedef risk × öğrenme çarpanı → kural kıskacı → kaldıraç/marj → broker lot adımı

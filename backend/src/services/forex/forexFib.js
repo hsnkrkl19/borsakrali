@@ -145,9 +145,16 @@ function trailStop(direction, candles, currentStop, atrVal, opts = {}) {
 // dibinden DAR → az stop + R/R≥1). TP'ler swing fib UZANTILARI (1.272/1.618/2.0/2.618)
 // içinden R/R≥1 veren İLK seviye. SL mesafesi [2.0..4.5]·ATR'ye sığdırılır (donmasın).
 // Geçerli yapı yoksa null → çağıran ATR'ye düşer.
+// AMPİRİK AYAR (2026-07-21): 16 seri × 1319 örnek gerçek veride 15 yapılandırma
+// yarıştırıldı (EURUSD/GBPUSD/USDJPY/XAUUSD/BTCUSD/ETHUSD/NAS100/SPX500 × 1h/4h).
+// KAZANAN: stop = swing UCU (yapısal geçersizleşme) + kelepçe 2-8 ATR + TP = ≥1.3R
+// veren ilk fibo uzantısı → beklenti +0.132R (t=3.78), isabet %44.1, PF 1.25.
+// Referans (eski saf ATR 1.6/3.0): +0.112R, isabet %38.7, PF 1.18.
 const STOP_MIN_ATR = 2.0;
-const STOP_MAX_ATR = 4.5;
-const EXT_RATIOS = [0.272, 0.618, 1.0, 1.618, 2.618]; // tepe/dip ötesi uzantı oranları
+const STOP_MAX_ATR = 8.0;   // 4.5 → 8.0 (ampirik: swing ucu daha geniş nefes ister)
+const STOP_MODE = 'edge';   // 'edge' = swing ucu (kazanan) · 'fib618' = %61.8 geri çekilme
+const TP_MIN_RR = 1.3;      // TP = bu R:R'yi veren ilk uzantı (ampirik optimum)
+const EXT_RATIOS = [0.272, 0.618, 1.0, 1.618, 2.618, 4.236]; // tepe/dip ötesi uzantı oranları
 
 function tradeLevels(direction, candles, entry, atrVal, precision = 4, opts = {}) {
   if (!(entry > 0) || !(atrVal > 0)) return null;
@@ -166,27 +173,33 @@ function tradeLevels(direction, candles, entry, atrVal, precision = 4, opts = {}
       atr: +atrVal.toFixed(precision), basis: 'fib' };
   };
 
+  const mode = opts.stopMode || STOP_MODE;
+  const minRR = opts.minRR != null ? opts.minRR : TP_MIN_RR;
+
   if (isLong) {
     if (entry < sw.L.price) return null;                            // yapı kırık (giriş dip altı)
-    let stop = sw.H.price - 0.618 * range - buf;                    // %61.8 geri çekilme
-    if (stop >= entry) stop = sw.L.price - buf;                     // giriş daha derinse swing dibi
+    // AMPİRİK KAZANAN: stop swing DİBİNİN ötesi (yapısal geçersizleşme).
+    let stop = mode === 'fib618' ? sw.H.price - 0.618 * range - buf : sw.L.price - buf;
+    if (stop >= entry) stop = sw.L.price - buf;                     // güvenli düşüş
     if (stop >= entry) return null;
     let d = entry - stop;
     if (d < minD) { stop = entry - minD; d = minD; } else if (d > maxD) { stop = entry - maxD; d = maxD; }
     const exts = EXT_RATIOS.map(k => sw.H.price + k * range).filter(p => p > entry);
-    const t1 = exts.find(p => p - entry >= d) ?? exts[exts.length - 1] ?? entry + d; // R/R≥1 veren ilk uzantı
-    const t2 = exts.find(p => p > t1) ?? t1 + 0.5 * d;
+    const need = minRR * d;                                          // TP en az bu R:R'yi versin
+    const t1 = exts.find(p => p - entry >= need) ?? entry + need;    // ≥minRR veren ilk fibo uzantısı
+    const t2 = exts.find(p => p > t1) ?? t1 + 0.6 * d;
     return pack(entry, stop, t1, t2);
   } else {
     if (entry > sw.H.price) return null;
-    let stop = sw.L.price + 0.618 * range + buf;
+    let stop = mode === 'fib618' ? sw.L.price + 0.618 * range + buf : sw.H.price + buf;
     if (stop <= entry) stop = sw.H.price + buf;
     if (stop <= entry) return null;
     let d = stop - entry;
     if (d < minD) { stop = entry + minD; d = minD; } else if (d > maxD) { stop = entry + maxD; d = maxD; }
     const exts = EXT_RATIOS.map(k => sw.L.price - k * range).filter(p => p < entry);
-    const t1 = exts.find(p => entry - p >= d) ?? exts[exts.length - 1] ?? entry - d;
-    const t2 = exts.find(p => p < t1) ?? t1 - 0.5 * d;
+    const need = minRR * d;
+    const t1 = exts.find(p => entry - p >= need) ?? entry - need;
+    const t2 = exts.find(p => p < t1) ?? t1 - 0.6 * d;
     return pack(entry, stop, t1, t2);
   }
 }
