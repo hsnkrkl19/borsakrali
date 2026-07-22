@@ -42,6 +42,22 @@ const entries = [
   // Birleşik: indikatör oyu + ICT teyidi (en seçici katman)
   { id: 'combo-trend-ict', name: 'Trend + ICT Teyidi', category: 'ICT', costBps: 5, engineDisableEnv: 'MT5_BOTS_DISABLED', magic: 5738 },
   { id: 'combo-momentum-ict', name: 'Momentum + ICT Teyidi', category: 'ICT', costBps: 5, engineDisableEnv: 'MT5_BOTS_DISABLED', magic: 5739 },
+  // KLASİK STRATEJİ ailesi (services/mt5Bots/strategyEngines): 9-ajanlı derin
+  // internet araştırması + sentezle doğrulanmış sistemler. Alligator/Heikin
+  // AYRI BOT olarak REDDEDİLDİ (yığılma riski) → evolver havuzunda yaşarlar.
+  { id: 'mt5-turtle', name: 'Turtle Kanal Kırılımı', category: 'MT5', costBps: 4, engineDisableEnv: 'MT5_BOTS_DISABLED', magic: 5740 },
+  { id: 'mt5-squeeze', name: 'TTM Squeeze Patlaması', category: 'MT5', costBps: 4, engineDisableEnv: 'MT5_BOTS_DISABLED', magic: 5741 },
+  { id: 'mt5-rsi2', name: 'RSI-2 Geri Dönüşü', category: 'MT5', costBps: 4, engineDisableEnv: 'MT5_BOTS_DISABLED', magic: 5742 },
+  // London: GÖLGE deney — araştırma "spread sonrası kenar ~sıfır" dedi; paper
+  // yarışır ama köprüye GİRMEZ. Terfi: ≥60 seans PF≥1.2 → bayrağı kaldır.
+  { id: 'mt5-london', name: 'London Breakout (Gölge)', category: 'MT5', costBps: 4, engineDisableEnv: 'MT5_BOTS_DISABLED', magic: 5743, mt5Tradeable: false },
+  { id: 'mt5-tsmom', name: 'Zaman Serisi Momentum', category: 'MT5', costBps: 4, engineDisableEnv: 'MT5_BOTS_DISABLED', magic: 5744 },
+  // Holy Grail: kamu backtest kanıtı YOK → paper'da kendini kanıtlayana kadar
+  // (PF≥1.2, ≥50 işlem) köprüye girmez.
+  { id: 'mt5-holygrail', name: 'ADX Pullback (Holy Grail)', category: 'MT5', costBps: 4, engineDisableEnv: 'MT5_BOTS_DISABLED', magic: 5745, mt5Tradeable: false },
+  // STRATEJİ GELİŞTİREN bot: walk-forward hücre şampiyonu (kullanıcı isteği);
+  // kanıt kapısı motorun kendisinde (PF≥1.25 + ≥6 işlem yoksa hücre susar).
+  { id: 'mt5-evolver', name: 'Strateji Evrimi', category: 'MT5', costBps: 4, engineDisableEnv: 'MT5_BOTS_DISABLED', magic: 5748 },
   { id: 'news-warning', name: 'Haber Uyarıları', category: 'Koruma', role: 'support' },
   { id: 'account-report', name: 'MT5 Kâr/Zarar Raporu', category: 'Rapor', role: 'support' },
 ];

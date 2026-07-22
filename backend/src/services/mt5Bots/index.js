@@ -42,9 +42,21 @@ async function generate(presetId, options = {}) {
   // BİRLEŞİK botta indikatör yönü ICT kurulumuyla teyit edilir.
   const isCombo = preset.kind === 'combo';
   const ictSvc = isCombo ? require('../ictSmc/ictSmcService') : null;
+  // KLASİK strateji botu (turtle/squeeze/rsi2/london/tsmom/holygrail/alligator/heikin).
+  const isStrategy = preset.kind === 'strategy';
+  const strategyEngines = isStrategy ? require('./strategyEngines') : null;
+  // STRATEJİ GELİŞTİREN bot: hücre şampiyonu walk-forward ile seçilir.
+  const isEvolver = preset.kind === 'evolver';
+  const evolver = isEvolver ? require('./strategyEvolver') : null;
+  const evolverBudget = isEvolver ? evolver.newBudget() : null;
+
+  // Preset yalnız belirli enstrümanlarla sınırlandırılabilir (örn. RSI2 endeks+altın).
+  const universe = Array.isArray(preset.instruments) && preset.instruments.length
+    ? INSTRUMENTS.filter((inst) => preset.instruments.includes(inst.id))
+    : INSTRUMENTS;
 
   for (const tf of preset.tfs) {
-    await Promise.all(INSTRUMENTS.map(async (inst) => {
+    await Promise.all(universe.map(async (inst) => {
       try {
         const raw = await forexKlines.fetchCandles(inst.yahoo, tf, FETCH_LIMIT);
         const all = toMsCandles(raw);
@@ -53,19 +65,27 @@ async function generate(presetId, options = {}) {
         const candles = all.slice(0, -1);
         if (candles.length < 60) return;
 
-        let def = preset.def;
-        if (isCombo) {
-          // ICT teyidi: aynı yönde taze bir ICT kurulumu yoksa evaluate iptal eder.
-          let ictSignals = [];
-          try {
-            ictSignals = ictSvc.analyzeLatest(candles, preset.ictStrategies,
-              { freshBars: 3, pdFilter: true, preset: 'balanced' }) || [];
-          } catch (_) { ictSignals = []; }
-          if (!ictSignals.length) return;
-          def = { ...preset.def, ictStrategy: true, ictSignals };
+        let sig;
+        if (isStrategy) {
+          // tf + enstrüman sınıfı motora geçer (RSI2 TF-eşiği, TSMOM kripto long-only).
+          sig = strategyEngines.evaluateStrategy(preset.strategyId, candles,
+            { ...preset.params, tf, cls: inst.class });
+        } else if (isEvolver) {
+          sig = evolver.evaluateCell(inst.id, tf, candles, evolverBudget, options.nowMs);
+        } else {
+          let def = preset.def;
+          if (isCombo) {
+            // ICT teyidi: aynı yönde taze bir ICT kurulumu yoksa evaluate iptal eder.
+            let ictSignals = [];
+            try {
+              ictSignals = ictSvc.analyzeLatest(candles, preset.ictStrategies,
+                { freshBars: 3, pdFilter: true, preset: 'balanced' }) || [];
+            } catch (_) { ictSignals = []; }
+            if (!ictSignals.length) return;
+            def = { ...preset.def, ictStrategy: true, ictSignals };
+          }
+          sig = evaluate(candles, def);
         }
-
-        const sig = evaluate(candles, def);
         if (!sig) return;
 
         const bar = candles[candles.length - 1];
@@ -76,8 +96,9 @@ async function generate(presetId, options = {}) {
           instrumentId: inst.id,
           symbol: inst.id,
           yahoo: inst.yahoo,
-          strategy: preset.id,
-          strategyName: preset.name,
+          strategy: sig.strategy || preset.id,
+          // Evolver şeffaflığı: seçilen şampiyon varyant görünür isimde taşınır.
+          strategyName: sig.variantId ? `${preset.name} · ${sig.variantId}` : preset.name,
           tf,
           timeframe: tf,
           direction: sig.direction,
