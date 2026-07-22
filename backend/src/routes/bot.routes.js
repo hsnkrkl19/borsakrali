@@ -118,6 +118,48 @@ router.post('/test-telegram', async (req, res) => {
   } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
 });
 
+// TEŞHİS: her botun canlı durumu — çalışıyor mu, açık pozisyonu var mı, motoru
+// kapalı mı, neden sinyal üretmiyor. "20 bot var ama 3'ü işlem açıyor" sorusunun
+// kesin cevabı. Token korumalı (requireAdmin'den önce).
+router.get('/diag', (req, res) => {
+  try {
+    const need = process.env.FOREX_EXEC_TOKEN || '';
+    const given = String(req.headers.authorization || '').replace(/^Bearer\s+/i, '') || String(req.query.token || '');
+    if (need && given !== need) return res.status(401).json({ ok: false, error: 'yetkisiz' });
+
+    const catalog = require('../services/botCompetition/catalog');
+    const cm = require('../services/botCompetition/competitionManager');
+    const { botLabel } = require('../services/botCompetition/botLabels');
+    const st = cm.status();
+    const byId = new Map((st.bots || []).map((b) => [b.id, b]));
+
+    const rows = catalog.filter((e) => e.competitionEligible).map((e) => {
+      const b = byId.get(e.id) || {};
+      const engineOff = !!(e.engineDisableEnv && process.env[e.engineDisableEnv] === '1');
+      let durum = 'çalışıyor';
+      if (engineOff) durum = 'MOTOR KAPALI (' + e.engineDisableEnv + '=1)';
+      else if (b.enabled === false) durum = 'BOT DURDURULMUŞ (panelden)';
+      else if (!b.open && !b.closed) durum = 'henüz sinyal üretmedi';
+      else if (!b.open) durum = 'açık pozisyon yok (seçici)';
+      return {
+        no: e.no, bot: botLabel(e.id) || e.name, id: e.id, kategori: e.category,
+        acik: b.open || 0, kapanan: b.closed || 0, netR: b.net_r != null ? b.net_r : null,
+        kopruye_gider: e.mt5Tradeable !== false, motor_kapali: engineOff,
+        bot_acik: b.enabled !== false, durum,
+      };
+    });
+    const ozet = {
+      toplam: rows.length,
+      acik_pozisyonu_olan: rows.filter((r) => r.acik > 0).length,
+      hic_islem_yapmamis: rows.filter((r) => !r.acik && !r.kapanan).length,
+      motoru_kapali: rows.filter((r) => r.motor_kapali).length,
+      durdurulmus: rows.filter((r) => !r.bot_acik).length,
+      yarisma_acik: st.summary ? st.summary.enabled !== false : null,
+    };
+    res.json({ ok: true, ozet, botlar: rows.sort((a, b) => (b.acik - a.acik) || (b.kapanan - a.kapanan)) });
+  } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
+});
+
 // Tüm bot rotaları admin.
 router.use(requireAdmin);
 
