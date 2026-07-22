@@ -16,15 +16,23 @@ const { MT5_SYMBOL } = require('../forex/forexLevels');
 
 // Gün-içi ATR çarpanları — TP1 yakın (isabet), TP2 koşturan.
 // 4h/1d yönü güçlü ama seviyeler gün-içi ölçekte: kendi ATR'lerinin küçük katı.
+// R:R DÜZELTMESİ (2026-07-21): eski değerler TP1/SL ≈ 1.08 veriyordu → başabaş için
+// %48 isabet gerekiyordu, ölçülen %44 → YAPISAL ZARAR (1025 işlem, netR -45).
+// Yeni tablo TP1'i ≥1.85R yapar: %35 isabetle bile pozitif beklenti.
 const TF_MULT = {
-  '5m':  { sl: 1.2, tp1: 1.3, tp2: 2.2 },
-  '15m': { sl: 1.3, tp1: 1.4, tp2: 2.4 },
-  '1h':  { sl: 1.4, tp1: 1.5, tp2: 2.6 },
-  '4h':  { sl: 1.0, tp1: 1.1, tp2: 1.9 },
-  '1d':  { sl: 0.5, tp1: 0.55, tp2: 0.95 },
+  '5m':  { sl: 1.4, tp1: 2.6, tp2: 4.2 },
+  '15m': { sl: 1.5, tp1: 2.8, tp2: 4.6 },
+  '1h':  { sl: 1.6, tp1: 3.0, tp2: 5.0 },
+  '4h':  { sl: 1.8, tp1: 3.4, tp2: 5.6 },
+  '1d':  { sl: 2.0, tp1: 3.8, tp2: 6.2 },
 };
-const MIN_ATR_FRAC = 0.0006;      // uçuk dar stop'a karşı taban
-const DAY_ATR_TP1_CAP = 0.90;     // TP1 mesafesi ≤ günlük ATR × bu oran (gün-içi ulaşılabilirlik)
+// KURUŞ İŞLEM ENGELİ (2026-07-21): 0.0006 = fiyatın %0.06'sı → EURUSD'de ~7 pip
+// taban, ×1.2 = 8 pip stop → 0.05 lotta ~2-3$ K/Z. Komisyon bunu yiyordu.
+// 0.0018 (%0.18) → EURUSD ~20 pip taban, ×1.6 = 32 pip stop → anlamlı mesafe.
+const MIN_ATR_FRAC = 0.0018;
+// 0.90 kıskacı TP1'i günlük ATR'ın altına eziyor, R:R'yi bozuyordu. 1.70 yalnız
+// gerçekten absürt hedefleri kırpar.
+const DAY_ATR_TP1_CAP = 1.70;
 
 function tradeHorizon() { return 'GÜN-İÇİ'; }
 

@@ -21,9 +21,13 @@ describe('proLevels.MIN_RR', () => {
 });
 
 describe('proLevels.buildLevels — rr1 < MIN_RR → null (kalite kapısı)', () => {
-  test('5m ATR fallback (rr1 1.33 < 1.5) → null', () => {
-    // candles yok → ATR fallback; 5m: tp1Mult 1.6 / slMult 1.2 = 1.33 < 1.5.
-    expect(proLevels.buildLevels('long', 100, 1, '5m', 2)).toBeNull();
+  test('5m artık kapıyı GEÇER (R:R düzeltmesi 2026-07-21)', () => {
+    // Eskiden 5m: tp1 1.6 / sl 1.2 = 1.33 < 1.5 → null (yapısal zarar üreten tablo).
+    // Yeni tablo: tp1 2.4 / sl 1.3 = 1.85 ≥ MIN_RR → geçerli kurulum döner.
+    const lv = proLevels.buildLevels('long', 100, 1, '5m', 2);
+    expect(lv).not.toBeNull();
+    expect(lv.rr1).toBeGreaterThanOrEqual(proLevels.MIN_RR);
+    expect(lv.rr1).toBeGreaterThanOrEqual(1.8);
   });
 
   test('entry/atr geçersiz → null', () => {
@@ -59,12 +63,16 @@ describe('proLevels.buildLevels — rr1 >= MIN_RR → geçerli obje', () => {
 });
 
 describe('proLevels.buildLevelsRaw — kapı YOK (rr1 < MIN_RR olabilir)', () => {
-  test('5m → rr1 1.33 < MIN_RR olsa bile obje döner (buildLevels null iken)', () => {
+  test('raw ve gated 5m\'de artık AYNI (R:R düzeltmesi sonrası kapı takılmıyor)', () => {
+    // Eskiden 5m rr1 1.33 < MIN_RR olduğu için gated null dönüyordu; yeni tabloda
+    // 1.85 → kapı takılmaz. Kapının kendisi hâlâ yerinde (rr1 < MIN_RR olursa eler).
     const raw = proLevels.buildLevelsRaw('long', 100, 1, '5m', 2);
+    const gated = proLevels.buildLevels('long', 100, 1, '5m', 2);
     expect(raw).not.toBeNull();
-    expect(raw.rr1).toBeLessThan(proLevels.MIN_RR);  // ham seviyede kapı uygulanmaz
-    // Aynı girdide kapılı sürüm null döner → kapı SADECE buildLevels'te.
-    expect(proLevels.buildLevels('long', 100, 1, '5m', 2)).toBeNull();
+    expect(gated).not.toBeNull();
+    expect(raw.rr1).toBeGreaterThanOrEqual(proLevels.MIN_RR);
+    expect(gated.stop).toBe(raw.stop);
+    expect(gated.target1).toBe(raw.target1);
   });
 
   test('4h → raw ve gated AYNI objeyi verir (rr1 zaten >= MIN_RR)', () => {

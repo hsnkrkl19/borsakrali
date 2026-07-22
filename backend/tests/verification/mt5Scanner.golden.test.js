@@ -85,34 +85,41 @@ function makeSignal(over = {}) {
 
 // ── 1) buildLevels ──────────────────────────────────────────────────────────
 describe('mt5Levels.buildLevels — gün-içi seviyeler', () => {
-  test('15m long: SL/TP çarpanları ve R/R doğru', () => {
+  test('15m long: SL/TP çarpanları ve R/R doğru (R:R düzeltmesi 2026-07-21)', () => {
     const l = levels.buildLevels('long', 100, 1, '15m', 2, null);
     expect(l.entry).toBe(100);
-    expect(l.stop).toBe(100 - 1.3);       // sl 1.3×ATR
-    expect(l.target1).toBe(100 + 1.4);    // tp1 1.4×ATR
-    expect(l.target2).toBe(100 + 2.4);    // tp2 2.4×ATR
-    expect(l.rr1).toBeCloseTo(1.4 / 1.3, 1);
+    expect(l.stop).toBe(100 - 1.5);       // sl 1.5×ATR
+    expect(l.target1).toBe(100 + 2.8);    // tp1 2.8×ATR
+    expect(l.target2).toBe(100 + 4.6);    // tp2 4.6×ATR
+    // Eski tablo 1.4/1.3 = 1.08 R:R veriyordu → %48 isabet gerekiyordu (yapısal
+    // zarar). Yeni tablo ≥1.8: %35 isabetle bile pozitif beklenti.
+    expect(l.rr1).toBeCloseTo(2.8 / 1.5, 1);
+    expect(l.rr1).toBeGreaterThanOrEqual(1.8);
   });
 
   test('short simetrik', () => {
     const l = levels.buildLevels('short', 100, 1, '15m', 2, null);
-    expect(l.stop).toBe(101.3);
-    expect(l.target1).toBe(98.6);
+    expect(l.stop).toBe(101.5);
+    expect(l.target1).toBe(97.2);
   });
 
-  test('günlük-ATR kıskacı: TP1 ≤ 0.9×dailyATR, oran korunur', () => {
-    // 1h ATR=5 → tp1 mesafesi 7.5; dailyATR=5 → tavan 4.5 → k=0.6
+  test('günlük-ATR kıskacı: TP1 ≤ 1.7×dailyATR, oran korunur', () => {
+    // 1h ATR=5 → tp1 mesafesi 3.0×5=15; dailyATR=5 → tavan 8.5 → k=8.5/15
     const l = levels.buildLevels('long', 100, 5, '1h', 2, 5);
-    expect(Math.abs(l.target1 - 100)).toBeCloseTo(4.5, 2);
-    expect(Math.abs(100 - l.stop)).toBeCloseTo(7 * 0.6, 2); // sl 1.4×5×k
+    const k = 8.5 / 15;
+    expect(Math.abs(l.target1 - 100)).toBeCloseTo(8.5, 2);
+    expect(Math.abs(100 - l.stop)).toBeCloseTo(1.6 * 5 * k, 2); // sl 1.6×5×k
     const rrPlain = levels.buildLevels('long', 100, 5, '1h', 2, null);
     expect(l.rr1).toBeCloseTo(rrPlain.rr1, 2); // R/R değişmedi
   });
 
-  test('1d: günlük ATRnin yarısıyla dar stop (gün-içi ölçek)', () => {
+  test('1d: geniş stop + ≥1.8 R:R (eski 0.5×ATR dar stop kaldırıldı)', () => {
+    // ESKİ: sl 0.5×ATR / tp1 0.55×ATR → R:R 1.10 ve aşırı dar stop (kuruş K/Z).
+    // YENİ: sl 2.0×ATR / tp1 3.8×ATR → R:R 1.90, anlamlı mesafe.
     const l = levels.buildLevels('long', 100, 4, '1d', 2, null);
-    expect(Math.abs(100 - l.stop)).toBeCloseTo(2, 5);   // 0.5×ATR
-    expect(Math.abs(l.target1 - 100)).toBeCloseTo(2.2, 5); // 0.55×ATR
+    expect(Math.abs(100 - l.stop)).toBeCloseTo(8, 5);      // 2.0×ATR
+    expect(Math.abs(l.target1 - 100)).toBeCloseTo(15.2, 5); // 3.8×ATR
+    expect(l.rr1).toBeGreaterThanOrEqual(1.8);
   });
 });
 

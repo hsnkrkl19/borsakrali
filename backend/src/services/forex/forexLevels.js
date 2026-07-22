@@ -6,14 +6,19 @@
 const { atr } = require('./indicators');
 
 // TF → ATR çarpanları (gün-içi → swing genişler)
+// R:R DÜZELTMESİ (2026-07-21): eski TP1/SL ≈ 1.33-1.56 → başabaş %39-43 isabet
+// gerekiyordu, ölçülen %44-45 ile kenar spread+komisyona gidiyordu (netR -9.4).
+// Yeni tablo TP1'i ≥1.85R yapar.
 const TF_MULT = {
-  '5m':  { sl: 1.2, tp1: 1.6, tp2: 2.8 },
-  '15m': { sl: 1.3, tp1: 1.9, tp2: 3.4 },
-  '1h':  { sl: 1.5, tp1: 2.2, tp2: 4.0 },
-  '4h':  { sl: 1.8, tp1: 2.8, tp2: 5.0 },
-  '1d':  { sl: 2.2, tp1: 3.4, tp2: 6.5 },
+  '5m':  { sl: 1.3, tp1: 2.4, tp2: 4.0 },
+  '15m': { sl: 1.4, tp1: 2.6, tp2: 4.4 },
+  '1h':  { sl: 1.6, tp1: 3.0, tp2: 5.2 },
+  '4h':  { sl: 1.9, tp1: 3.6, tp2: 6.0 },
+  '1d':  { sl: 2.3, tp1: 4.4, tp2: 7.2 },
 };
-const MIN_ATR_FRAC = 0.0006; // çok küçük ATR'de stop tabanı (R/R korunur)
+// KURUŞ İŞLEM ENGELİ (2026-07-21): 0.0006 (%0.06) → EURUSD 5m'de ~7 pip stop →
+// 0.05 lotta 2-4$ K/Z; komisyon kenarı yiyordu. 0.0018 (%0.18) anlamlı taban kurar.
+const MIN_ATR_FRAC = 0.0018; // çok küçük ATR'de stop tabanı (R/R korunur)
 
 // id → MetaTrader5 sembolü (yaygın broker adlandırması)
 const MT5_SYMBOL = {
