@@ -313,10 +313,21 @@ def open_from_feed(cfg, s):
     magic = int(s.get("magic") or 0)
     # DEDUP: aynı bot(magic) + sembol + yönde zaten açık pozisyon varsa TEKRAR AÇMA.
     # Çift maruziyet + "No money" margin patlaması önlenir; gölge günlüğü yine ölçer.
+    # + KORELASYON TAVANI (2026-07-23): 7 bot aynı anda BTCUSD long açınca tek
+    #   sembol düşüşü 7 pozisyonu birden vurur. Sembol+yön başına TÜM botlardan
+    #   en fazla max_per_symbol_side (vars. 3) pozisyon açılır.
     _BUY = getattr(mt5, "POSITION_TYPE_BUY", 0)
+    same_side_count = 0
     for _op in (mt5.positions_get(symbol=info.name) or []):
-        if int(getattr(_op, "magic", 0) or 0) == magic and (getattr(_op, "type", 0) == _BUY) == is_long:
+        _op_long = getattr(_op, "type", 0) == _BUY
+        _op_magic = int(getattr(_op, "magic", 0) or 0)
+        if _op_magic == magic and _op_long == is_long:
             return "zaten_acik_sembol"
+        if _op_magic > 0 and _op_long == is_long:
+            same_side_count += 1
+    max_sym_side = int(cfg.get("max_per_symbol_side", 3))
+    if max_sym_side > 0 and same_side_count >= max_sym_side:
+        return "sembol_yogunlugu"
     tick = mt5.symbol_info_tick(info.name)
     if tick is None or not (tick.ask > 0 and tick.bid > 0):
         return "fiyat_yok"
@@ -688,7 +699,7 @@ def report_mt5_state(cfg):
     try:
         url = _backend_base(cfg) + "/api/bridge/state"
         headers = {"Authorization": "Bearer %s" % cfg["exec_token"]} if cfg.get("exec_token") else {}
-        r = requests.post(url, json={"open": fresh}, headers=headers, timeout=15, allow_redirects=False)
+        r = requests.post(url, json={"open": fresh}, headers=headers, timeout=30, allow_redirects=False)
         if r.status_code == 200:
             for row in fresh:
                 _notified_open.add(row["ticket"])
