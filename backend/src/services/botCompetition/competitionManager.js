@@ -29,6 +29,9 @@ function timeframeMs(tf) {
 // Aşırı düşük güvenli sinyalleri competition/gerçek yürütmeye sokma (kalite kapısı).
 // COMPETITION_MIN_CONFIDENCE=0 ile kapatılır. Güven taşımayan sinyaller etkilenmez.
 const MIN_CONFIDENCE = Number(process.env.COMPETITION_MIN_CONFIDENCE ?? 55);
+// Komisyon/spread, riskin en fazla bu oranı kadar olabilir (0.15 = %15). Aşarsa
+// kurulum "kuruş işlem" sayılır ve alınmaz. 0 ile kapatılır.
+const MAX_COST_R = Number(process.env.COMPETITION_MAX_COST_R ?? 0.15);
 function finite(value, fallback = null) {
   if (value == null || (typeof value === 'string' && value.trim() === '')) return fallback;
   const n = Number(value);
@@ -475,6 +478,16 @@ function recordOpen(botId, raw = {}, meta = {}) {
   if (MIN_CONFIDENCE > 0 && signal.confidence != null && signal.confidence < MIN_CONFIDENCE) {
     return { ok: false, skipped: 'low-confidence' };
   }
+  // KURUŞ İŞLEM KAPISI (kullanıcı içgörüsü 2026-07-21): "kuruş işlemler daha fazla
+  // işlem ücreti ile daha zararlı". Risk-bazlı lotta stop ne kadar darsa lot o kadar
+  // büyür → komisyon R cinsinden şişer: costR = (costBps/1e4 × entry) / riskMesafesi.
+  // Ampirik: dar-stop yapılandırma -0.034R maliyet, fibo-yapısal -0.019R (yarısı).
+  // Maliyet riskin MAX_COST_R'sini aşıyorsa bu kurulum baştan alınmaz.
+  if (MAX_COST_R > 0) {
+    const riskDist = Math.abs(signal.entry - signal.stop);
+    const costR = riskDist > 0 ? ((finite(entryMeta.costBps, 0) / 10_000) * signal.entry) / riskDist : Infinity;
+    if (costR > MAX_COST_R) return { ok: false, skipped: 'cost-too-high' };
+  }
   const key = positionKey(signal);
   const existing = bot.open[key];
   if (existing) {
@@ -612,12 +625,18 @@ function observeSnapshot(botId, snapshot, meta = {}) {
     }
     results.push(recordOpen(botId, row, meta));
   }
+  // Bu turda GERÇEKTEN yeni açılan pozisyonlar (dedup/duplicate elenmiş) —
+  // bildirimciler bunu kullanır; restart-safe çünkü bot.seen kalıcıdır.
+  const openedPositions = results
+    .filter((result) => result?.ok && result.position && !result.trade)
+    .map((result) => result.position);
   return {
     ok: true,
     observed: rows.length,
-    opened: results.filter((result) => result?.ok && result.position).length,
+    opened: openedPositions.length,
     closed: results.filter((result) => result?.ok && result.trade).length,
     skipped: results.filter((result) => !result?.ok).length,
+    openedPositions,
   };
 }
 

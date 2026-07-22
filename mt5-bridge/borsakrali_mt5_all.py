@@ -69,7 +69,12 @@ DEFAULTS = {
     "max_open_per_bot": 3,
     # Lot: sabit-küçük (fixed) VEYA risk-bazlı (risk). VARSAYILAN küçük fixed —
     # çok bot aynı hesapta olduğundan tutucu başla, güven gelince artır.
-    "lot_mode": "fixed",
+    # RISK varsayılan (2026-07-21): seviyeler artık fibo-YAPISAL, yani stop genişliği
+    # swing'e göre değişken. Sabit lotta geniş stop orantısız dolar riski doğurur
+    # (ölçüldü: XAUUSD'de 0.05 lotta $571). Risk modunda lot otomatik küçülür →
+    # HER işlemin dolar riski aynı kalır. Ayrıca dar stop = büyük lot = çok komisyon
+    # olduğundan "kuruş işlem" cezası da doğal olarak sınırlanır.
+    "lot_mode": "risk",
     "fixed_lot": 0.05,
     "risk_pct": 0.25,
     "max_lot": 0.5,
