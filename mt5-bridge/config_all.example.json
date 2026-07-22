@@ -10,10 +10,10 @@
   "dry_run": false,
   "enabled": true,
 
-  "_LOT": "fixed=sabit kucuk lot (tutucu); risk=stop mesafesine gore. Cok bot -> kucuk basla.",
-  "lot_mode": "fixed",
+  "_LOT": "RISK modu ONERILIR: fibo-yapisal stoplar degisken genislikte (dar swing / genis swing) — sabit lotta genis stop orantisiz dolar riski dogurur. risk modunda lot otomatik kuculur, her islemin dolar riski AYNI kalir.",
+  "lot_mode": "risk",
   "fixed_lot": 0.02,
-  "risk_pct": 0.25,
+  "risk_pct": 0.25,   "_RISK_PCT_NOTU": "Ozsermayenin %0.25i = 24k hesapta ~60$/islem. 15 bot x 60$ = %3.75 azami — gunluk fren (%3) zaten korur.",
   "max_lot": 0.5,
 
   "_TAVANLAR": "Acik pozisyon tavani. 0 = SINIRSIZ (tum botlarin tum islemleri acilir - hangi bot ne kadar basarili net gormek icin). Dikkat: cok pozisyon = cok margin/risk; gunluk zarar freni yine korur.",
