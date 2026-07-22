@@ -29,9 +29,13 @@ function timeframeMs(tf) {
 // Aşırı düşük güvenli sinyalleri competition/gerçek yürütmeye sokma (kalite kapısı).
 // COMPETITION_MIN_CONFIDENCE=0 ile kapatılır. Güven taşımayan sinyaller etkilenmez.
 const MIN_CONFIDENCE = Number(process.env.COMPETITION_MIN_CONFIDENCE ?? 55);
-// Komisyon/spread, riskin en fazla bu oranı kadar olabilir (0.15 = %15). Aşarsa
-// kurulum "kuruş işlem" sayılır ve alınmaz. 0 ile kapatılır.
-const MAX_COST_R = Number(process.env.COMPETITION_MAX_COST_R ?? 0.15);
+// Komisyon/spread, riskin en fazla bu oranı kadar olabilir. Aşarsa kurulum
+// "kuruş işlem" sayılır ve alınmaz. 0 ile kapatılır.
+// KALİBRASYON (2026-07-21): 0.15 FAZLA SIKIYDI — EURUSD 20 pip stopta costR 0.171
+// çıkıp MAKUL işlemleri de eliyordu (canlıda forex/scanner 0 pozisyona düştü).
+// Ayrıca catalog costBps'leri gerçek FTMO maliyetinin ~2.3 katı (tutucu), yani
+// kapı zaten fazladan sıkı. 0.25 → 14 pip altı elenir (kuruş), 20 pip+ geçer.
+const MAX_COST_R = Number(process.env.COMPETITION_MAX_COST_R ?? 0.25);
 function finite(value, fallback = null) {
   if (value == null || (typeof value === 'string' && value.trim() === '')) return fallback;
   const n = Number(value);
