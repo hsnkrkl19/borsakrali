@@ -42,26 +42,29 @@ function parseChart(json) {
   return out;
 }
 
-// 1h mumlarını N saatlik bara topla (UTC N*3600 sınırına hizalı). 4h→4, 8h→8.
+// 1h mumlarını N saatlik bara topla. Her bar KENDİ zaman damgasının
+// floor(time / N*3600) buketine atanır (UTC sınırı) — dizi pozisyonuyla
+// gruplama YOK: eksik 1h bar (endeks vadelisi bakım saati → 23 barlık gün,
+// FX hafta sonu, Yahoo veri deliği) sonraki buketlerin hizasını kaydıramaz.
 function resampleHours(h1, hours) {
   if (!h1 || !h1.length) return h1 || [];
   const sec = hours * 3600;
-  let start = 0;
-  while (start < h1.length && h1[start].time % sec !== 0) start++;
-  if (start >= h1.length) start = 0;
   const out = [];
-  for (let i = start; i < h1.length; i += hours) {
-    const g = h1.slice(i, i + hours);
-    if (!g.length) break;
-    out.push({
-      time: g[0].time,
-      open: g[0].open,
-      high: Math.max(...g.map(c => c.high)),
-      low: Math.min(...g.map(c => c.low)),
-      close: g[g.length - 1].close,
-      volume: g.reduce((s, c) => s + c.volume, 0),
-    });
+  let cur = null;
+  for (const c of h1) {
+    const bucket = Math.floor(c.time / sec) * sec;
+    if (!cur || cur.time !== bucket) {
+      cur = { time: bucket, open: c.open, high: c.high, low: c.low, close: c.close, volume: c.volume };
+      out.push(cur);
+    } else {
+      if (c.high > cur.high) cur.high = c.high;
+      if (c.low < cur.low) cur.low = c.low;
+      cur.close = c.close;
+      cur.volume += c.volume;
+    }
   }
+  // Pencere buket ortasında açıldıysa ilk buketin açılış saatleri eksik → düş.
+  if (out.length > 1 && h1[0].time % sec !== 0) out.shift();
   return out;
 }
 const resample4h = (h1) => resampleHours(h1, 4); // geriye uyum
@@ -103,4 +106,4 @@ async function fetchCandles(yahooSymbol, tf, limit = 300) {
   }
 }
 
-module.exports = { fetchCandles };
+module.exports = { fetchCandles, resampleHours };
