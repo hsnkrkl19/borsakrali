@@ -29,6 +29,7 @@ const altinBacktest = require('./altin/altinBacktest');
 const ictFvgService = require('./ictFvg/ictFvgService');
 const ictSmcService = require('./ictSmc/ictSmcService');
 const mt5Bots = require('./mt5Bots');
+const mt5BotsNotifier = require('./mt5Bots/notifier');
 const customBotRunner = require('./botBuilder/customBotRunner');
 const botDailyReport = require('./botDailyReport');
 const ictFvgTracker = require('./ictFvg/ictFvgTracker');
@@ -1249,9 +1250,14 @@ async function runMt5BotsCadence() {
           // Motor donuk: yalnız fiyat besle (açık paper pozisyonlar SL/TP'de kapansın).
           raceObserve(preset.id, { prices: snap && snap.prices, signals: [] }, { source: 'mt5-bots' });
         } else {
-          raceObserve(preset.id, snap, { source: 'mt5-bots' });
+          const observed = raceObserve(preset.id, snap, { source: 'mt5-bots' });
           if (snap.signals.length) {
             logger.info(`${preset.name}: ${snap.signals.length} sinyal (long ${snap.summary.long} / short ${snap.summary.short})`);
+          }
+          // Yeni açılan pozisyonları kanala duyur (Bot N · İsim) — dedup'lu,
+          // bot başına tek toplu mesaj. Kill: MT5_BOTS_PUSH_DISABLED=1.
+          if (observed && Array.isArray(observed.openedPositions) && observed.openedPositions.length) {
+            await mt5BotsNotifier.notifyOpened(preset.id, observed.openedPositions);
           }
         }
         out.push({ id: preset.id, signals: snap.signals.length });
