@@ -828,10 +828,18 @@ function bridgeFeed() {
     for (const pos of Object.values(bot.open || {})) {
       if (!(pos && pos.symbol && (pos.side === 'long' || pos.side === 'short'))) continue;
       if (!(pos.entry > 0) || !(pos.stop > 0)) continue;
+      // ÇOK-MOTORLU BOT: bir bot birden çok bağımsız alt motor çalıştırıyorsa
+      // (örn. Bot 38 BK XAU = Scalp + Swing) her alt motorun MT5'te AYRI magic'i
+      // olmalı. Köprü dedup'ı (magic+sembol+yön) aynı magic'te ikinci pozisyonu
+      // "zaten_acik_sembol" ile reddeder → tek magic'te alt motorlardan yalnız
+      // biri gerçek emir alırdı. Kaynak MQL5 paketi de iki EA'yı ayrı magic ile
+      // ayırmıştır (26072301/26072302).
+      const magic = (entry.magicByStrategy && entry.magicByStrategy[pos.strategy])
+        || entry.magic || 0;
       positions.push({
         botId: entry.id,
         botName: entry.name,
-        magic: entry.magic || 0,
+        magic,
         code: String(pos.id || pos.fingerprint || `${entry.id}:${pos.key}`),
         symbol: String(pos.symbol),
         category: entry.category,

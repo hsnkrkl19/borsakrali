@@ -47,9 +47,24 @@ function build(nowMs = Date.now(), goldStats = null, realAgg = null) {
 
   let dTrades = 0, dTp = 0, dSl = 0, dNet = 0;
 
+  // ÇOK-MOTORLU BOT: bir botun alt motorları MT5'te ayrı magic kullanabilir
+  // (bkz. catalog magicByStrategy — Bot 38 Scalp/Swing). Gerçek sonucu tek
+  // magic'ten okumak o botun diğer bacağını rapordan DÜŞÜRÜR; hepsi toplanır.
+  function realFor(entry) {
+    const magics = entry.magicByStrategy
+      ? [...new Set(Object.values(entry.magicByStrategy))]
+      : [Number(entry.magic)];
+    const rows = magics.map((m) => realByMagic.get(Number(m))).filter((x) => x && x.trades > 0);
+    if (!rows.length) return null;
+    return rows.reduce((acc, r) => ({
+      trades: acc.trades + r.trades, tp: acc.tp + r.tp,
+      sl: acc.sl + r.sl, net: acc.net + r.net,
+    }), { trades: 0, tp: 0, sl: 0, net: 0 });
+  }
+
   if (useReal) {
     for (const e of COMPETITORS) {
-      const r = realByMagic.get(Number(e.magic));
+      const r = realFor(e);
       if (r && r.trades > 0) {
         dTrades += r.trades; dTp += r.tp; dSl += r.sl; dNet += r.net;
         lines.push(`<b>Bot ${e.no}</b> · ${esc(e.name)}`);
