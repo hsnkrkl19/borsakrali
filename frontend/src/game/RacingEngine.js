@@ -24,12 +24,17 @@ const SUBSTEPS = 8
 // AMP tek başına büyütülürse eğim (AMP/SX) diklenir ve araç takılır; birlikte
 // büyüyünce eğim AYNI kalır, her şey büyür ve krest yarıçapı bedavaya iyileşir.
 // Rölyef 22m → 53m (2.4×), maks eğim ise 47° → 30°.
-const SX = 280              // örnek nokta yatay aralığı (110 → 280)
-const AMP = 1600            // fiyat → yükseklik bandı
+// Diklik = AMP/SX oranı. SX 280→200 daraltıldı → gerçek veri ~35° dik duvarlara ulaşır
+// (pistin ~%12'si ≥28°), "geçilmeze yakın". Krest eğrilik kelepçesi (R_CREST) SX'ten
+// BAĞIMSIZ dünya-yarıçapı uyguladığı için SX küçülünce krestler keskinleşMEZ.
+const SX = 200             // örnek nokta yatay aralığı
+const AMP = 3500           // fiyat → yükseklik bandı (rölyef ~90m — uzun dik duvarlar/derin kanyon)
 const TERRAIN_POINTS = 180
 // Eğim artık AÇI olarak yazılıyor (AMP'ye bağlı kesir değil — o yüzden sessizce kayıyordu).
 // 30°: gerçek sürülebilir tavan pitch/wheelie limiti olan 38.9°'nin güvenli altında.
-const MAX_SLOPE_DEG = 30
+// 35°: pitch/wheelie tavanına (≈38.9°) yakın → başlangıç aracıyla "geçilmeze yakın".
+// climb yükseltmesi ön tekeri yerde tutup bu tavanı yükselttiği için YÜKSELTİLMİŞ araçta kolay.
+const MAX_SLOPE_DEG = 35
 const MAXSTEP = SX * Math.tan(MAX_SLOPE_DEG * Math.PI / 180)
 // EĞRİLİK KELEPÇESİ: asıl "her tepede havalanma" sebebi keskin krestti (yarıçap 52 wu,
 // dingil 78 wu → 171 wu/s'de balistik!). Kaynağında düzeltilir. Vadi yarıçapı çok daha
@@ -129,15 +134,15 @@ export class RacingEngine {
     let times = valid.map((c) => Number(c.time))
 
     if (closes.length < 8) {
-      // Yedek pist (veri yoksa): gerçek 2y/1d hisse verisinin dokusuna yakın olsun diye
-      // çok-oktavlı — ölçüm: gerçek veri 150 noktada ~19-24 tepe veriyor, eskisi yalnız 6.
-      closes = Array.from({ length: 500 }, (_, i) =>
+      // Yedek pist (veri yoksa): gerçek 2y/1d hisse verisinin DİKLİĞİNE yakın olsun diye
+      // çok-oktavlı + büyük genlik (SX=200'de ~35° dik duvarlar üretir).
+      closes = Array.from({ length: 220 }, (_, i) =>
         100 * Math.exp(
-          Math.sin(i * 0.055) * 0.42 +
-          Math.sin(i * 0.130) * 0.26 +
-          Math.sin(i * 0.310) * 0.13 +
-          Math.sin(i * 0.710) * 0.06 +
-          i * 0.0016))
+          Math.sin(i * 0.080) * 0.55 +
+          Math.sin(i * 0.190) * 0.40 +
+          Math.sin(i * 0.420) * 0.24 +
+          Math.sin(i * 0.950) * 0.11 +
+          i * 0.0020))
       times = closes.map((_, i) => 1.6e9 + i * 86400)
     }
 
@@ -454,19 +459,28 @@ export class RacingEngine {
         if (tx * rightX + ty * rightY < 0) { tx = -tx; ty = -ty }
         const vt = vpx * tx + vpy * ty
 
+        // "yokuş-yukarı" miktarı (0 düz .. 1 dik yokuş) — travel yönüne göre. Zorluk buradan.
+        const gUp = clamp((-n.x * (car.vx >= 0 ? 1 : -1)) / 0.5, 0, 1)  // 0.5 ≈ 30°
+        const climb = s.climb || 1
+        // YOKUŞ İTKİSİ climb'e bağlı: base araç dik yokuşta ×0.55 güç (thrust<gravity@35° → bogar,
+        // momentum şart = "geçilmeze yakın"); yükseltilmiş araç tam güç. DÜZ sürüş ETKİLENMEZ.
+        const climbFac = 0.55 + 0.45 * clamp((climb - 1) / 2.1, 0, 1)   // base 0.55 → maxed ~1.0
+        const upThrust = 1 - gUp * (1 - climbFac)                       // düz=1, dik-yokuş=climbFac
+
         // MOTOR: sabit kuvvet + yapay hız duvarı DEĞİL — hedef-hızlı motor + kuvvet tavanı
         // (Box2D b2WheelJoint mantığı). Son hız artık EMERGENT: taper sıfırlandığı yer.
         let drive = 0
         const dir = (fwd ? 1 : 0) - (rev ? 1 : 0)
         if (w.drive && hasFuel && dir !== 0) {
           const dw = (w.driveW ?? 1) / this.driveWSum
-          const Fmax = s.torqueTW * s.mass * GRAV * dw * (dir > 0 ? 1 : 0.55)
+          const Fmax = s.torqueTW * s.mass * GRAV * dw * (dir > 0 ? upThrust : 0.55)
           const vT = dir * s.topSpeed * (dir > 0 ? 1 : 0.45)
           const K = Fmax / (0.25 * s.topSpeed)
           drive = clamp((vT - vt) * K, -Fmax * 0.30, Fmax)
         }
 
-        const maxF = s.grip * Fn
+        // Yokuş-yukarı tutuşu da 'climb' ile artar (patinaj azalır).
+        const maxF = s.grip * Fn * (1 + gUp * (climb - 1) * 0.35)
         let Ft = drive
         if (dir === 0) {
           Ft -= 0.045 * Fn * Math.sign(vt)          // yuvarlanma direnci (gaz bırakınca savrulmadan yavaşla)
@@ -501,11 +515,17 @@ export class RacingEngine {
         const stick = Math.min(1, Math.abs(car.vx) / 900) * Math.min(1, -curv / 45) * GRAV * 0.12
         car.vy -= stick * dt
       }
-      // OTURAKLI HİS: flip tuşuna basılmadıkça aracı zemin eğimine yumuşakça hizala
-      // (araç zemine paralel kalır → daha az sebepsiz devrilme, floaty hissi azalır)
+      // OTURAKLI HİS + TIRMANMA: flip tuşuna basılmadıkça aracı zemin eğimine hizala.
+      // Dik yokuşta GAZ verirken ön teker kalkma eğilimindedir (wheelie) — bunu 'climb'
+      // ile ölçekli bastır: yükseltilmiş araç ön tekeri yerde tutar → daha dik yokuş çıkar.
       if (this._hasLanded && !this.input.flipL && !this.input.flipR) {
-        const gA = Math.atan2(car.groundN.x, car.groundN.y)   // zemin normali açısı (düz=0)
-        car.angVel += (-gA - car.angle) * 5 * dt
+        const gA = Math.atan2(car.groundN.x, car.groundN.y)   // zemin açısı (düz=0)
+        const align = (-gA - car.angle)                       // hedef(zemine paralel) − mevcut
+        const climb = s.climb || 1
+        // yokuş yukarı (gA<0 ⇒ zemin yukarı) + gaz + burun fazla yukarıda ⇒ climb ile güçlü çek
+        const wheelie = align < 0 && fwd && gA < -0.05
+        const k = wheelie ? 5 + 9 * (climb - 1) : 5           // base 5, maxed ~24
+        car.angVel += align * k * dt
       }
     }
 

@@ -269,7 +269,9 @@ export function effectiveStats(vehicleId, upgradesForVehicle = {}) {
     // v7 DENGE (araştırma referanslı): itki artık YERÇEKİMİNDEN BAĞIMSIZ "thrust-to-weight".
     // Box2D arcade referansı TW≈1.13, simülasyon≈0.46. Eskiden bizimki 1.97–6.36 idi →
     // araç sürekli sürtünme limitinde takılıydı, gaz analog davranmıyordu.
-    torqueTW:    (base.torqueTW || 1.05) * (1 + 0.055 * eng),   // max ×1.55
+    // DÜZ sürüş gücü iyi kalır (kullanıcı "sürüş çok iyi" dedi). Zorluk YOKUŞA özel:
+    // motorda 'climb' düşükken yokuş-yukarı itki ciddi düşer (bkz. RacingEngine upThrust).
+    torqueTW:    (base.torqueTW || 1.05) * 0.9 * (1 + 0.06 * eng),
     grip:        base.grip * (1 + 0.085 * tir),                 // max ×1.85
     // Hız: taban ×1.30 (takla/atlayış için yeterli momentum) + yükseltmeyle ×1.40'a kadar
     topSpeed:    base.topSpeed * 1.30 * (1 + 0.012 * eng + 0.028 * gear),
@@ -279,6 +281,9 @@ export function effectiveStats(vehicleId, upgradesForVehicle = {}) {
     airControl:  base.airControl * (1 + 0.18 * aero),
     stability:   1 + 0.06 * aero,   // max 1.60 — "bıraktığında düz in" (artık dönüşü HIZLANDIRMIYOR)
     landing:     1 + 0.045 * sus,   // max 1.45 — iniş açı toleransı (motorda KULLANILIYOR)
+    // TIRMANMA KABİLİYETİ: dik yokuşta ön tekeri yerde tutar (wheelie'yi bastırır) + yokuş
+    // tutuşunu artırır → arazi "geçilmeze yakın"ken YÜKSELTME onu geçilebilir kılar. base 1 → max 3.1.
+    climb:       1 + 0.10 * tir + 0.06 * sus + 0.05 * eng,
     // SÜSPANSİYON = ön/arka hassasiyet: yükseldikçe yay yumuşar, yol uzar, iniş sakinleşir.
     suspSoft:    1 + 0.10 * sus,    // yay yolu / yumuşaklık çarpanı (görsel + fizik)
     mass:        base.mass * (1 + 0.006 * (eng + fuel)),   // büyüdükçe biraz ağırlaşır
