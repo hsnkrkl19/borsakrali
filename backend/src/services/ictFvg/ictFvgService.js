@@ -13,8 +13,14 @@ const { getInstrument } = require('../forex/forexInstruments');
 const engine = require('./ictFvgEngine');
 
 const DEFAULT_INSTRUMENT_IDS = Object.freeze(['XAUUSD', 'NAS100', 'EURUSD', 'BTCUSD']);
-const FETCH_LIMIT = 301; // 300 closed bars plus the possibly-forming tail.
+const FETCH_LIMIT = 302; // 300 closed bars plus Yahoo's forming bar and quote row.
 const DEFAULT_MAX_STALE_MINUTES = 20;
+
+// Single source of truth for the four series: the same value is used to fetch a
+// timeframe and to tell the engine which timeframe that array was fetched with.
+// The engine's closed-bar filter is time-based, so a fetch/analyze mismatch here
+// would trim the wrong tail — they must never drift apart.
+const TIMEFRAMES = Object.freeze({ bias: '4h', structure: '1h', zone: '15m', fill: '5m' });
 
 function finite(value, fallback) {
   const number = Number(value);
@@ -31,14 +37,14 @@ function configuredInstrumentIds() {
 }
 
 function lastClosedTrigger(rawCandles) {
-  const closed = engine.prepareRawCandles(rawCandles);
+  const closed = engine.prepareRawCandles(rawCandles, TIMEFRAMES.fill);
   return closed.length ? closed[closed.length - 1] : null;
 }
 
 function staleInfo(rawCandles, nowMs = Date.now()) {
   const last = lastClosedTrigger(rawCandles);
   if (!last) return { stale: true, ageSec: null, lastClosedAtSec: null };
-  const lastClosedAtSec = Number(last.time) + engine.timeframeSeconds('5m');
+  const lastClosedAtSec = Number(last.time) + engine.timeframeSeconds(TIMEFRAMES.fill);
   const ageSec = Math.max(0, Math.floor(nowMs / 1000) - lastClosedAtSec);
   const maxMinutes = Math.max(5, finite(process.env.ICT_FVG_MAX_STALE_MIN, DEFAULT_MAX_STALE_MINUTES));
   return { stale: ageSec > maxMinutes * 60, ageSec, lastClosedAtSec };
@@ -46,10 +52,10 @@ function staleInfo(rawCandles, nowMs = Date.now()) {
 
 async function fetchInstrumentCandles(instrument) {
   const [biasCandles, structureCandles, zoneCandles, triggerCandles] = await Promise.all([
-    forexKlines.fetchCandles(instrument.yahoo, '4h', FETCH_LIMIT),
-    forexKlines.fetchCandles(instrument.yahoo, '1h', FETCH_LIMIT),
-    forexKlines.fetchCandles(instrument.yahoo, '15m', FETCH_LIMIT),
-    forexKlines.fetchCandles(instrument.yahoo, '5m', FETCH_LIMIT),
+    forexKlines.fetchCandles(instrument.yahoo, TIMEFRAMES.bias, FETCH_LIMIT),
+    forexKlines.fetchCandles(instrument.yahoo, TIMEFRAMES.structure, FETCH_LIMIT),
+    forexKlines.fetchCandles(instrument.yahoo, TIMEFRAMES.zone, FETCH_LIMIT),
+    forexKlines.fetchCandles(instrument.yahoo, TIMEFRAMES.fill, FETCH_LIMIT),
   ]);
   return { biasCandles, structureCandles, zoneCandles, triggerCandles };
 }
@@ -64,10 +70,10 @@ function enrichSignal(signal, instrument) {
     precision: instrument.precision,
     // The setup belongs to the 15m FVG strategy; fillTf keeps the 5m execution
     // chronology explicit for the tracker.
-    timeframe: '15m',
-    tf: '15m',
-    fillTf: '5m',
-    barKey: `${instrument.id}:5m:${fillClosedAtSec || signal.fillTimeSec}`,
+    timeframe: TIMEFRAMES.zone,
+    tf: TIMEFRAMES.zone,
+    fillTf: TIMEFRAMES.fill,
+    barKey: `${instrument.id}:${TIMEFRAMES.fill}:${fillClosedAtSec || signal.fillTimeSec}`,
   };
 }
 
@@ -87,6 +93,12 @@ async function analyzeInstrument(instrument, options = {}) {
   const minScore = Math.max(0, Math.min(100, finite(process.env.ICT_FVG_MIN_SCORE, 65)));
   const result = engine.analyzeRawCandles(candles, {
     symbol: instrument.id,
+    // Passed explicitly so the engine trims each raw series with the very
+    // timeframe fetchInstrumentCandles requested it with.
+    biasTf: TIMEFRAMES.bias,
+    structureTf: TIMEFRAMES.structure,
+    zoneTf: TIMEFRAMES.zone,
+    fillTf: TIMEFRAMES.fill,
     minScore,
     minRR: 2,
     target2RR: 3,
@@ -146,4 +158,5 @@ module.exports = {
   enrichSignal,
   DEFAULT_INSTRUMENT_IDS,
   FETCH_LIMIT,
+  TIMEFRAMES,
 };

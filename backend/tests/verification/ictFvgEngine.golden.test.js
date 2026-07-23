@@ -95,18 +95,48 @@ function analyze(payload, options = {}) {
   return engine.analyzeClosedCandles(payload, { symbol: 'XAUUSD', ...options });
 }
 
-function appendForming(rows, seconds, priceShift = 0) {
+function formingBar(rows, seconds, priceShift = 0) {
   const last = rows[rows.length - 1];
   const open = last.close + priceShift;
-  return rows.concat([{
+  return {
     time: last.time + seconds,
     open,
     high: open + 50,
     low: Math.max(0.01, open - 50),
     close: open + 25,
     volume: 999,
-    closed: false,
+  };
+}
+
+function appendForming(rows, seconds, priceShift = 0) {
+  return rows.concat([{ ...formingBar(rows, seconds, priceShift), closed: false }]);
+}
+
+/**
+ * The real Yahoo tail shape: an aligned bar that is still FORMING, followed by
+ * an unaligned live-quote row stamped inside it. Neither carries a `closed`
+ * flag, so only the time-based filter can tell them from real closed bars —
+ * `slice(0, -1)` drops the quote row and keeps the repainting bar.
+ */
+function appendFormingWithQuote(rows, seconds, priceShift = 0) {
+  const forming = formingBar(rows, seconds, priceShift);
+  return rows.concat([forming, {
+    time: forming.time + Math.floor(seconds / 3), // quote stamped mid-bar
+    open: forming.close,
+    high: forming.close + 1,
+    low: Math.max(0.01, forming.close - 1),
+    close: forming.close + 0.5,
+    volume: 0,
   }]);
+}
+
+function rawFeed(closed, build, shifts = {}) {
+  return {
+    biasCandles: build(closed.biasCandles, 4 * 3600, shifts.bias || 0),
+    structureCandles: build(closed.structureCandles, 3600, shifts.structure || 0),
+    zoneCandles: build(closed.zoneCandles, 900, shifts.zone || 0),
+    triggerCandles: build(closed.triggerCandles, 300, shifts.trigger || 0),
+  };
 }
 
 describe('ictFvgEngine — closed 3-candle FVG detection', () => {
@@ -248,18 +278,8 @@ describe('ictFvgEngine — chronology, identity and execution isolation', () => 
   test('raw adapter drops forming tails on all four TFs, so future mutations cannot repaint', () => {
     const closed = fixture('long');
     const expected = analyze(closed);
-    const rawA = {
-      biasCandles: appendForming(closed.biasCandles, 4 * 3600, 0),
-      structureCandles: appendForming(closed.structureCandles, 3600, 0),
-      zoneCandles: appendForming(closed.zoneCandles, 900, 0),
-      triggerCandles: appendForming(closed.triggerCandles, 300, 0),
-    };
-    const rawB = {
-      biasCandles: appendForming(closed.biasCandles, 4 * 3600, 1000),
-      structureCandles: appendForming(closed.structureCandles, 3600, -50),
-      zoneCandles: appendForming(closed.zoneCandles, 900, 500),
-      triggerCandles: appendForming(closed.triggerCandles, 300, -40),
-    };
+    const rawA = rawFeed(closed, appendForming);
+    const rawB = rawFeed(closed, appendForming, { bias: 1000, structure: -50, zone: 500, trigger: -40 });
     expect(engine.analyzeRawCandles(rawA, { symbol: 'XAUUSD' })).toEqual(expected);
     expect(engine.analyzeRawCandles(rawB, { symbol: 'XAUUSD' })).toEqual(expected);
   });
@@ -268,5 +288,98 @@ describe('ictFvgEngine — chronology, identity and execution isolation', () => 
     const source = fs.readFileSync(path.join(__dirname, '../../src/services/ictFvg/ictFvgEngine.js'), 'utf8');
     expect(source).not.toMatch(/require\([^)]*(botClient|mt5|trader|broker)/i);
     expect(source).not.toMatch(/\.(sendOrder|placeOrder|openPosition|marketOrder)\s*\(/);
+  });
+});
+
+/**
+ * The Yahoo chart response appends a live-quote row AFTER the still-forming bar,
+ * so the widespread `slice(0, -1)` tail drop removes only the quote and leaves a
+ * repainting bar behind (measured live 2026-07-23 on GC=F 5m/15m/1h, NQ=F 15m,
+ * BTC-USD 15m). The engine must decide closedness by TIME, not by position.
+ */
+describe('ictFvgEngine — time-based closed-bar filter (forming bar + quote row)', () => {
+  test('a forming bar followed by a quote row is dropped on every timeframe', () => {
+    const closed = fixture('long');
+    const expected = analyze(closed);
+    const rawA = rawFeed(closed, appendFormingWithQuote);
+    const rawB = rawFeed(closed, appendFormingWithQuote, {
+      bias: 1000, structure: -50, zone: 500, trigger: -40,
+    });
+
+    expect(expected.signals).toHaveLength(1);
+    expect(engine.analyzeRawCandles(rawA, { symbol: 'XAUUSD' })).toEqual(expected);
+    expect(engine.analyzeRawCandles(rawB, { symbol: 'XAUUSD' })).toEqual(expected);
+  });
+
+  test('the OLD slice(0, -1) tail drop keeps the forming bar and loses the signal', () => {
+    // Regression witness: this is what the engine did before the fix. If this
+    // ever starts matching the closed-feed result the fixture stopped modelling
+    // Yahoo's two-row tail and the test above proves nothing.
+    const closed = fixture('long');
+    const raw = rawFeed(closed, appendFormingWithQuote);
+    const naive = {
+      biasCandles: raw.biasCandles.slice(0, -1),
+      structureCandles: raw.structureCandles.slice(0, -1),
+      zoneCandles: raw.zoneCandles.slice(0, -1),
+      triggerCandles: raw.triggerCandles.slice(0, -1),
+    };
+    expect(analyze(closed).signals).toHaveLength(1);
+    expect(analyze(naive).signals).toEqual([]);
+  });
+
+  test('the result is always a subset of slice(0, -1): no caller sees a new bar', () => {
+    const closed = fixture('long');
+    const feeds = [
+      { rows: closed.triggerCandles, tf: '5m' },
+      { rows: appendForming(closed.triggerCandles, 300), tf: '5m' },
+      { rows: appendFormingWithQuote(closed.triggerCandles, 300), tf: '5m' },
+      { rows: appendFormingWithQuote(closed.zoneCandles, 900), tf: '15m' },
+      { rows: appendFormingWithQuote(closed.biasCandles, 4 * 3600), tf: '4h' },
+    ];
+    for (const { rows, tf } of feeds) {
+      const kept = engine.prepareRawCandles(rows, tf).map((row) => row.time);
+      const allowed = new Set(rows.slice(0, -1).map((row) => row.time));
+      for (const time of kept) expect(allowed.has(time)).toBe(true);
+      expect(kept).not.toContain(rows[rows.length - 1].time);
+    }
+  });
+
+  test('with no forming tail every bar but the newest survives (no fixed slice(0, -2))', () => {
+    const closed = fixture('long');
+    const kept = engine.prepareRawCandles(closed.triggerCandles, '5m');
+    // A closed session ends on a real bar: dropping two would discard live data.
+    expect(kept.map((row) => row.time)).toEqual(closed.triggerCandles.slice(0, -1).map((row) => row.time));
+  });
+
+  test('daily bars that are not epoch aligned are kept (1d bots must not go silent)', () => {
+    // GC=F/NQ=F stamp 1d bars at 04:00 UTC and EURUSD=X drifts with DST, so an
+    // alignment test (time % tfSec === 0) would empty these series entirely.
+    const day = 86_400;
+    const base = Date.UTC(2026, 6, 20, 4, 0) / 1000; // 04:00 UTC, mod 86400 = 14400
+    const rows = [0, 1, 2, 3, 4].map((i) => ({
+      time: base + i * day, open: 100 + i, high: 101 + i, low: 99 + i, close: 100.5 + i, volume: 10,
+    }));
+    rows.push({ time: base + 4 * day + 3600, open: 105, high: 105.2, low: 104.8, close: 105, volume: 0 });
+
+    const kept = engine.prepareRawCandles(rows, '1d');
+    expect(kept.map((row) => row.time)).toEqual([0, 1, 2, 3].map((i) => base + i * day));
+  });
+
+  test('the timeframe is required — an unresolvable one throws instead of guessing', () => {
+    const rows = fixture('long').triggerCandles;
+    expect(() => engine.prepareRawCandles(rows)).toThrow(TypeError);
+    expect(() => engine.prepareRawCandles(rows, '')).toThrow(/timeframe is required/);
+    expect(() => engine.prepareRawCandles(rows, 'weekly')).toThrow(/timeframe is required/);
+    expect(() => engine.analyzeRawCandles(fixture('long'), { symbol: 'XAUUSD', fillTf: 'nope' })).toThrow(TypeError);
+  });
+
+  test('a single forming tail keeps every real bar, and the open flag never leaks', () => {
+    // One tail row and no quote row: the newest real bar IS closed here, because
+    // the feed already moved past it. slice(0, -1) happened to agree; the point
+    // is that the time filter does not become stricter than it must be.
+    const closed = fixture('long');
+    const kept = engine.prepareRawCandles(appendForming(closed.triggerCandles, 300), '5m');
+    expect(kept.map((row) => row.time)).toEqual(closed.triggerCandles.map((row) => row.time));
+    expect(kept.every((row) => row._open === undefined)).toBe(true);
   });
 });

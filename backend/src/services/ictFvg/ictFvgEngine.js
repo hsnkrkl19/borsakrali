@@ -110,10 +110,56 @@ function normalizeCandles(input) {
   return [...byTime.values()].sort((a, b) => a.time - b.time);
 }
 
-/** Accepts a feed that includes a forming tail candle and always removes it. */
-function prepareRawCandles(input) {
+/**
+ * Time-based CLOSED-BAR filter — the pure twin of forexKlines.closedBars.
+ *
+ * The engine must stay I/O-free, so it cannot require the Yahoo data layer;
+ * the rule is deliberately identical (full rationale and the live measurements
+ * live in services/forex/forexKlines.js):
+ *
+ *   a bar is closed  <=>  the feed produced a row AFTER that bar ended
+ *                    <=>  bar.time + tfSec <= time of the last row
+ *
+ * `slice(0, -1)` is NOT enough. Yahoo appends a live-quote row *after* the
+ * still-forming bar, so dropping a single tail leaves a repainting bar behind
+ * (measured live 2026-07-23: the bar slice(0,-1) called closed changed its own
+ * close within 100s on GC=F 5m/15m/1h, NQ=F 15m and BTC-USD 15m). Here that bar
+ * would seed an FVG or fake the 5m fill confirmation.
+ *
+ * A fixed slice(0, -2) is wrong the other way: with the session closed there is
+ * no forming bar and a real closed bar would be dropped. An alignment test
+ * (time % tfSec === 0) is wrong too: Yahoo daily bars are not epoch aligned
+ * (GC=F/NQ=F are stamped 04:00 UTC, EURUSD=X drifts with DST). Wall-clock is
+ * unusable as well because the GC=F feed runs ~10 minutes behind.
+ *
+ * Input rows are already normalized (finite epoch seconds, ascending, de-duped).
+ * The last row can never satisfy the condition, so the result is always a subset
+ * of slice(0, -1): no caller starts seeing a bar it did not see before.
+ */
+function closedRowsByTime(rows, tfSec) {
+  if (!rows.length) return [];
+  const dataEndSec = rows[rows.length - 1].time;
+  let end = rows.length;
+  while (end > 0 && !(rows[end - 1].time + tfSec <= dataEndSec)) end -= 1;
+  return rows.slice(0, end);
+}
+
+/**
+ * Accepts a raw feed whose tail may be a forming bar plus a live-quote row, and
+ * keeps only the bars the feed itself has already moved past.
+ *
+ * `tf` is the timeframe the series was fetched with ('5m', '15m', '1h', '4h',
+ * ...) and is REQUIRED: without it the closed-bar decision degrades to a
+ * positional slice, which is exactly the repaint bug this filter removes. An
+ * unresolvable timeframe therefore throws instead of silently guessing.
+ */
+function prepareRawCandles(input, tf) {
+  const tfSec = timeframeSeconds(tf);
+  if (!(tfSec > 0)) {
+    throw new TypeError(`prepareRawCandles: timeframe is required, got ${JSON.stringify(tf)}`);
+  }
   const rows = normalizeCandles(input);
-  return rows.length ? rows.slice(0, -1).filter((row) => !row._open).map(stripInternal) : [];
+  return closedRowsByTime(rows, tfSec).filter((row) => !row._open).map(stripInternal);
 }
 
 /** Accepts an explicitly CLOSED-candle array; explicit open rows are ignored. */
@@ -532,15 +578,19 @@ function analyzeClosedCandles({ biasCandles, structureCandles, zoneCandles, trig
 function analyzeSetup(payload, options) { return analyzeClosedCandles(payload, options); }
 
 /**
- * Convenience adapter for Yahoo-style arrays that include one forming tail bar
- * on each timeframe. It drops both tails before invoking the pure core.
+ * Convenience adapter for Yahoo-style arrays whose tail may still be forming.
+ * Each series is filtered with the timeframe it was fetched with, so the
+ * closed-bar decision is time-based instead of positional; the timeframes come
+ * from the same config fields the analysis itself uses, so a caller that
+ * overrides e.g. `zoneTf` automatically filters that series with it.
  */
 function analyzeRawCandles({ biasCandles, structureCandles, zoneCandles, triggerCandles } = {}, options = {}) {
+  const config = { ...DEFAULTS, ...options };
   return analyzeClosedCandles({
-    biasCandles: prepareRawCandles(biasCandles),
-    structureCandles: prepareRawCandles(structureCandles),
-    zoneCandles: prepareRawCandles(zoneCandles),
-    triggerCandles: prepareRawCandles(triggerCandles),
+    biasCandles: prepareRawCandles(biasCandles, config.biasTf),
+    structureCandles: prepareRawCandles(structureCandles, config.structureTf),
+    zoneCandles: prepareRawCandles(zoneCandles, config.zoneTf),
+    triggerCandles: prepareRawCandles(triggerCandles, config.fillTf),
   }, options);
 }
 
