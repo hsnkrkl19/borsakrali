@@ -7,7 +7,10 @@ const path = require('path');
 const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ict-fvg-tracker-'));
 process.env.ICT_FVG_TRACKER_FILE = path.join(tempDir, 'positions.json');
 
-jest.mock('../../src/services/forex/forexKlines', () => ({ fetchCandles: jest.fn() }));
+jest.mock('../../src/services/forex/forexKlines', () => ({
+  ...jest.requireActual('../../src/services/forex/forexKlines'), // closedBars/TF_MS saf kalsın
+  fetchCandles: jest.fn(),
+}));
 jest.mock('../../src/services/botPersistence', () => ({ save: jest.fn() }));
 jest.mock('../../src/services/telegramService', () => ({ sendMessage: jest.fn() }));
 jest.mock('../../src/services/signalDelivery', () => ({ signalChannel: jest.fn(() => '@fallback_channel') }));

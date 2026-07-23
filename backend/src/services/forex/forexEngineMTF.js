@@ -38,8 +38,11 @@ async function evalTF(inst, tf, livePrice, equity) {
   // B1 (repaint fix, denetim 2026-07-05): OLUSAN (yarim) mumu dusur -> sinyal
   // yalniz KAPALI mumda uretilir (canli=backtest). forexKlines forming bar'i
   // dusurmuyordu; 1m canli-fiyat/bayatlik akisina DOKUNULMAZ (o evalInstrument'ta).
+  // 2026-07-23: slice(0,-1) YETMİYORDU — Yahoo forming barın ARDINA bir de
+  // "anlık kotasyon" satırı ekliyor; slice yalnız onu atıp yarım barı sinyal
+  // barı yapıyordu (canlı ölçüm + gerekçe: forexKlines.closedBars).
   const _rawCandles = await forexKlines.fetchCandles(inst.yahoo, tf, 301);
-  const candles = (_rawCandles && _rawCandles.length) ? _rawCandles.slice(0, -1) : _rawCandles;
+  const candles = forexKlines.closedBars(_rawCandles, forexKlines.TF_MS[tf]);
   if (!candles || candles.length < 60) return { tf, status: 'no_data' };
 
   const assetType = assetTypeFor(inst.class);

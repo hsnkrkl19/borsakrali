@@ -17,6 +17,7 @@ delete process.env.FOREX_RESET;
 
 let mock5m = [], mock1m = [];
 jest.mock('../../src/services/forex/forexKlines', () => ({
+  ...jest.requireActual('../../src/services/forex/forexKlines'), // closedBars/TF_MS saf kalsın
   fetchCandles: jest.fn(async (_yahoo, tf) => (tf === '1m' ? mock1m : mock5m)),
 }));
 jest.mock('../../src/services/forex/forexInstruments', () => ({

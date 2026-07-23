@@ -40,6 +40,7 @@ jest.mock('../../src/services/pushNotificationService', () => ({
 }));
 let mockCandles = [];
 jest.mock('../../src/services/forex/forexKlines', () => ({
+  ...jest.requireActual('../../src/services/forex/forexKlines'), // closedBars/TF_MS saf kalsın
   fetchCandles: async () => mockCandles,
 }));
 

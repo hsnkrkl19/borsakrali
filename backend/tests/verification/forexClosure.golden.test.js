@@ -15,7 +15,12 @@ delete process.env.SUPABASE_SECRET_KEY;
 delete process.env.FOREX_RESET;
 
 let mockCandles = [];
-jest.mock('../../src/services/forex/forexKlines', () => ({ fetchCandles: jest.fn(async () => mockCandles) }));
+// YALNIZ fetchCandles taklit edilir: closedBars/TF_MS saf yardımcılardır ve
+// tracker artık onları kullanır (stub'lansa `undefined` olup sessizce çökerdi).
+jest.mock('../../src/services/forex/forexKlines', () => ({
+  ...jest.requireActual('../../src/services/forex/forexKlines'),
+  fetchCandles: jest.fn(async () => mockCandles),
+}));
 jest.mock('../../src/services/forex/forexInstruments', () => ({
   getInstrument: () => ({ id: 'TEST', yahoo: 'TEST', precision: 2, class: 'metal' }),
 }));

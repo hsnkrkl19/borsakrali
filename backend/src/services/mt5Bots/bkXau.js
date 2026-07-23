@@ -52,41 +52,19 @@ const { ema } = require('../botBuilder/customBotEngine');
 
 const FETCH_LIMIT = 320;
 const INSTRUMENT_ID = 'XAUUSD';
-const TF_MS = { '5m': 5 * 60000, '30m': 30 * 60000, '8h': 8 * 3600000 };
+const { TF_MS, closedBars } = forexKlines;
 
 /**
- * KAPALI BAR SÜZGECİ — kritik.
+ * KAPALI BAR SÜZGECİ — kritik; artık AİLE GENELİNDE paylaşılıyor.
  *
- * Yahoo chart yanıtı, TF'ye hizalı FORMING barın ARDINA bir de hizasız "anlık
- * kotasyon" satırı ekler (meta.regularMarketTime damgalı). Bu yüzden yaygın
- * `slice(0, -1)` kalıbı yalnız o kotasyon satırını atar ve geriye HÂLÂ OLUŞAN
- * bar kalır. Canlı ölçüldü (GC=F, 2026-07-23, 75 sn arayla iki çekim):
- *   5m  "değerlendirilen" bar 15:40 → close 4054.60 ⟶ 4054.30 (DEĞİŞTİ)
- *   30m "değerlendirilen" bar 15:30 → close 4054.60 ⟶ 4054.30 (DEĞİŞTİ)
- * Kapalı bir bar değişemez; yani sinyal yarım mumdan doğuyordu ve signalId bara
- * sabitlendiği için bar içinde koşulun anlık sağlandığı İLK anda kalıcı pozisyon
- * (ve köprüde GERÇEK MT5 emri) açılıp bar çürüyerek kapansa bile geri alınmıyordu.
- * Bu, projenin TEMA34'te bir kez yaşadığı "gün-içi yarım-mum sahte sinyal"
- * hatasının aynısıdır.
- *
- * Çözüm sabit slice sayısı OLAMAZ (seans kapalıyken fazladan satır tek olur ve
- * bir bar fazla atılır). Kapalılık ZAMAN DAMGASIYLA belirlenir:
- *   bar kapalı  ⇔  bar.time + tfMs <= verinin ucu
- * Verinin ucu = hizasız kotasyon satırının zamanı (yoksa duvar saati).
+ * Bu botun ilk sürümünde yerel bir kopyası vardı ve kapalılığı "hizalı bar +
+ * hizasız kotasyon satırı" varsayımıyla çözüyordu. Süzgeç mt5Bots ailesinin
+ * tamamına taşınırken (forexKlines.closedBars) o varsayım DÜŞTÜ: Yahoo'nun 1d
+ * barları epoch'a hizalı değildir (GC=F 04:00 UTC damgalı, EURUSD=X DST ile
+ * gezer), hiza süzgeci tüm günlük botları sessizce susturabilirdi. Yeni ölçüt
+ * saf zamandır — bar.time + tfMs <= serinin son satırının zamanı. Gerekçenin
+ * tamamı ve canlı ölçümler forexKlines.closedBars başlığındadır.
  */
-function closedBars(all, tfMs) {
-  if (!Array.isArray(all) || !all.length || !(tfMs > 0)) return [];
-  const aligned = [];
-  let dataEnd = 0;
-  for (const b of all) {
-    if (b.time % tfMs === 0) aligned.push(b);
-    else dataEnd = Math.max(dataEnd, b.time); // hizasız satır = akışın en taze anı
-  }
-  // Kotasyon satırı yoksa (ör. 8h resample'da bucket'a kaynar) duvar saati.
-  if (!dataEnd) dataEnd = Date.now();
-  while (aligned.length && aligned[aligned.length - 1].time + tfMs > dataEnd) aligned.pop();
-  return aligned;
-}
 
 // ── MT5 YERLEŞİK GÖSTERGE EŞLENİKLERİ ───────────────────────────────────────
 // EA iATR/iADX kullanır ve MT5'in bu iki göstergesi KLASİK Wilder tanımı DEĞİLDİR.

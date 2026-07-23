@@ -72,6 +72,67 @@ function resampleHours(h1, hours) {
 }
 const resample4h = (h1) => resampleHours(h1, 4); // geriye uyum
 
+// TF → milisaniye (kapalı-bar süzgeci ve bar hizası için tek kaynak).
+const TF_MS = {
+  '1m': 60 * 1000, '5m': 5 * 60000, '15m': 15 * 60000, '30m': 30 * 60000,
+  '1h': 3600000, '4h': 4 * 3600000, '8h': 8 * 3600000,
+  '1d': 24 * 3600000, '1wk': 7 * 24 * 3600000,
+};
+
+/**
+ * KAPALI BAR SÜZGECİ — yarım (forming) mumu değerlendirmekten koruyan TEK yer.
+ *
+ * NEDEN `slice(0, -1)` YETMEZ (canlı ölçüldü, 2026-07-23):
+ * Yahoo chart yanıtı, TF'ye hizalı FORMING barın ARDINA bir de "anlık kotasyon"
+ * satırı ekler (meta.regularMarketTime damgalı, volume 0). Yaygın slice(0,-1)
+ * kalıbı yalnız o kotasyon satırını atar; geriye HÂLÂ OLUŞAN bar kalır:
+ *   GC=F 5m  75 sn arayla iki çekim → "değerlendirilen" 15:40 barı 4054.60 ⟶ 4054.30
+ *   GC=F 30m aynı → 15:30 barı 4054.60 ⟶ 4054.30   (kapalı bir bar DEĞİŞEMEZ)
+ * Sinyal yarım mumdan doğar; signalId bara sabitlendiği için bar içinde koşulun
+ * anlık sağlandığı İLK anda kalıcı pozisyon (ve köprüde GERÇEK MT5 emri) açılır,
+ * bar çürüyerek kapansa bile geri alınmaz. Projenin TEMA34'te bir kez yaşadığı
+ * "gün-içi yarım-mum sahte sinyal" hatasının aynısı.
+ *
+ * SABİT SLICE SAYISI ÇÖZÜM DEĞİLDİR: slice(0,-2) seans kapalıyken (kotasyon
+ * satırı yokken) GERÇEK bir kapalı barı atar.
+ *
+ * HİZA (`time % tfMs`) İLE DE ÇÖZÜLEMEZ: Yahoo günlük barları epoch'a hizalı
+ * DEĞİLDİR — ölçüldü: GC=F/NQ=F/ES=F/SI=F 1d barları 04:00 UTC damgalı
+ * (mod=14400000), EURUSD=X 1d ise DST'ye göre 23:00/00:00 arasında GEZER. Hiza
+ * süzgeci bu serileri ya tamamen boşaltır (tüm 1d botları SESSİZCE susar) ya da
+ * ortadan delik açar. Bu yüzden kapalılık YALNIZ zamanla belirlenir:
+ *
+ *   bar kapalı  ⇔  besleme barın BİTİŞİNDEN sonra bir satır üretmiş
+ *                  ⇔  bar.time + tfMs <= serinin son satırının zamanı
+ *
+ * Son satır ne olursa olsun (kotasyon satırı, forming bar, seans-sonu hayalet
+ * satırı) veri ucudur; ondan önce BİTEN her bar kapanmıştır. Hiza/faz varsayımı
+ * yok → 5m'den 1d'ye, futures/FX/kripto ve 4h/8h resample'ında aynı şekilde
+ * doğru çalışır.
+ *
+ * DUVAR SAATİ BİLEREK KULLANILMAZ: GC=F (COMEX) akışı ~10 dk gecikmelidir
+ * (ölçüldü: 10.0-10.2 dk). Date.now() ile "bitti" demek, Yahoo daha doldurmamış
+ * barı kapalı sayıp aynı repaint hatasını geri getirir.
+ *
+ * GARANTİ: sonuç HER ZAMAN slice(0,-1)'in alt kümesidir (son satır koşulsuz
+ * düşer) → hiçbir bot bu değişiklikle DAHA ÖNCE GÖRMEDİĞİ bir bar görmez;
+ * yalnız forming barlar eksilir. Seans kapalıyken (ardından satır gelmeyen) en
+ * taze kapalı bar da bir tur beklemiş olur — slice(0,-1) zaten öyle davranıyordu.
+ *
+ * time saniye veya ms olabilir (fetchCandles saniye verir); kıyas ms'te yapılır,
+ * DÖNEN satırlar orijinaldir (birim değişmez).
+ */
+function closedBars(candles, tfMs) {
+  if (!Array.isArray(candles) || !candles.length || !(tfMs > 0)) return [];
+  const ms = (t) => (Number.isFinite(t) ? (t < 1e12 ? t * 1000 : t) : NaN);
+  const out = candles.slice();
+  const dataEnd = ms(out[out.length - 1] && out[out.length - 1].time);
+  if (!Number.isFinite(dataEnd)) return [];
+  // NaN zamanlı satırlar da düşer (koşul olumsuzlanarak yazıldı — bilinçli).
+  while (out.length && !(ms(out[out.length - 1].time) + tfMs <= dataEnd)) out.pop();
+  return out;
+}
+
 async function yahooFetch(yahooSymbol, params) {
   const res = await axios.get(`${YAHOO_CHART}/${encodeURIComponent(yahooSymbol)}`, {
     params, timeout: 15000, headers: { 'User-Agent': UA },
@@ -109,4 +170,4 @@ async function fetchCandles(yahooSymbol, tf, limit = 300) {
   }
 }
 
-module.exports = { fetchCandles, resampleHours, YH_INTERVAL, YH_RANGE };
+module.exports = { fetchCandles, resampleHours, closedBars, TF_MS, YH_INTERVAL, YH_RANGE };

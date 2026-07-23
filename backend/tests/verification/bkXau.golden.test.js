@@ -9,7 +9,13 @@
  * Bot 38 · magic 5750 olduğu doğrulanır.
  */
 
-jest.mock('../../src/services/forex/forexKlines', () => ({ fetchCandles: jest.fn() }));
+// YALNIZ fetchCandles taklit edilir. Modülün tamamını stub'lamak closedBars ve
+// TF_MS'i de siler; bkXau bunları modül yüklenirken destructure ettiği için
+// motor sessizce çöker (aile geneli süzgeç forexKlines'a taşındıktan sonra).
+jest.mock('../../src/services/forex/forexKlines', () => ({
+  ...jest.requireActual('../../src/services/forex/forexKlines'),
+  fetchCandles: jest.fn(),
+}));
 
 const forexKlines = require('../../src/services/forex/forexKlines');
 const bkXau = require('../../src/services/mt5Bots/bkXau');
@@ -370,7 +376,12 @@ describe('bkXau — SWING motoru (M30 sinyal + H8 rejim)', () => {
 // arayla iki çekimde "değerlendirilen" 5m bar 15:40'ın kapanışı 4054.60→4054.30
 // değişti (kapalı bar değişemez). Sinyal yarım mumdan doğuyor, signalId bara
 // sabit olduğu için bar içinde kalıcı pozisyon + GERÇEK MT5 emri açılıyordu.
-describe('bkXau — kapalı bar süzgeci (closedBars)', () => {
+// ⚠️ Süzgeç artık AİLE GENELİNDE paylaşılıyor (forexKlines.closedBars) ve bu
+// dosya onu kapsayan TEK testtir — silme, taşırsan testi de taşı.
+// Ölçüt SAF ZAMAN: bar kapalı ⇔ bar.time + tfMs <= serinin SON satırının zamanı.
+// (Hiza `time % tfMs` ile çözülemez: Yahoo 1d barları epoch'a hizalı değildir —
+// GC=F 04:00 UTC damgalı, EURUSD=X DST ile gezer.)
+describe('bkXau — kapalı bar süzgeci (closedBars, paylaşımlı)', () => {
   const TF = 5 * 60000;
   const t0 = Date.UTC(2026, 0, 13, 15, 0);
   const mk = (t, c) => bar(t, c, c, c + 1, c - 1);
@@ -397,10 +408,28 @@ describe('bkXau — kapalı bar süzgeci (closedBars)', () => {
     expect(bkXau.closedBars(all, TF)).not.toContainEqual(all[3]);  // süzgeç atar
   });
 
-  test('kotasyon satırı yokken kapalı barlar korunur (seans kapalı)', () => {
-    // Tümü geçmişte + hizalı → hepsi kapalı sayılmalı (duvar saati ucu).
+  // GÜVENLİK GARANTİSİ: sonuç HER ZAMAN slice(0,-1)'in alt kümesidir → hiçbir bot
+  // bu süzgeçle daha önce GÖRMEDİĞİ bir bar görmez. Bedeli: kotasyon satırı
+  // yokken (seans kapalı) en taze kapalı bar bir tur bekler — slice(0,-1) zaten
+  // öyle davranıyordu, yani davranış kötüleşmiyor.
+  test('kotasyon satırı yokken son bar TUTUCU şekilde bekletilir', () => {
     const all = [mk(t0, 100), mk(t0 + TF, 101), mk(t0 + 2 * TF, 102)];
-    expect(bkXau.closedBars(all, TF)).toHaveLength(3);
+    const out = bkXau.closedBars(all, TF);
+    expect(out).toHaveLength(2);
+    expect(out[out.length - 1].time).toBe(t0 + TF);
+    // Alt-küme garantisi
+    expect(out.length).toBeLessThanOrEqual(all.slice(0, -1).length);
+  });
+
+  test('saniye cinsinden zaman damgaları da doğru süzülür (fetchCandles saniye verir)', () => {
+    const s0 = Math.floor(t0 / 1000);
+    const all = [
+      mk(s0, 100), mk(s0 + 300, 101), mk(s0 + 600, 102),
+      mk(s0 + 900, 103), mk(s0 + 900 + 104, 104), // forming + kotasyon
+    ];
+    const out = bkXau.closedBars(all, TF);
+    expect(out).toHaveLength(3);
+    expect(out[out.length - 1].time).toBe(s0 + 600); // birim DEĞİŞMEDEN döner
   });
 
   test('boş/geçersiz girdi güvenli', () => {
@@ -482,10 +511,11 @@ describe('bkXau — generate (aile snapshot şekli)', () => {
    * forming barı değerlendirirdi; closedBars ikisini de atmalı ve sinyal gerçek
    * KAPALI kurulum barında (signalTime) bulunmalı.
    */
-  function mockFeeds({ signalTime = TUE_NY_0800 } = {}) {
+  function mockFeeds({ signalTime = TUE_NY_0800, dirty5m = null } = {}) {
     const quoteAt = signalTime + MIN5 + 104000; // hizasız kotasyon (veri ucu)
 
-    const c5 = scalpSeries(signalTime);
+    let c5 = scalpSeries(signalTime);
+    if (dirty5m) c5 = dirty5m(c5);
     c5.push(bar(signalTime + MIN5, 1, 1, 1.1, 0.9)); // hizalı FORMING
     c5.push(bar(quoteAt, 1, 1, 1.1, 0.9));           // hizasız kotasyon
 
@@ -581,14 +611,8 @@ describe('bkXau — generate (aile snapshot şekli)', () => {
   // Bozuk bar koruması: high/low doğrulanmazsa ATR sessizce ya NaN'a düşer
   // (motor tamamen susar) ya da altın fiyatı kadar şişer (kapılar bozulur).
   test('bozuk high/low taşıyan barlar süzülür (sessiz bozulma yok)', async () => {
-    const c5 = scalpSeries(TUE_NY_0800);
-    const dirty = c5.map((b, idx) => (idx === 40 ? { ...b, low: undefined } : b));
-    forexKlines.fetchCandles.mockImplementation((yahoo, tf) => {
-      if (tf === '5m') return Promise.resolve(dirty);
-      if (tf === '30m') return Promise.resolve(regimeSeries(TUE_NY_0800 - MIN30, MIN30));
-      if (tf === '8h') return Promise.resolve(regimeSeries(TUE_NY_0800 - H8, H8, 60, 8.0));
-      return Promise.resolve([]);
-    });
+    // Gerçek Yahoo şekli korunur (forming + kotasyon), yalnız bir bar bozulur.
+    mockFeeds({ dirty5m: (c5) => c5.map((b, idx) => (idx === 40 ? { ...b, low: undefined } : b)) });
     const snap = await bkXau.generate(getPreset('bk-xau'));
     // Bozuk bar atıldığı için motor çalışmaya devam eder ve sinyali bulur.
     expect(snap.signals).toHaveLength(1);

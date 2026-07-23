@@ -419,7 +419,9 @@ async function detectReversal(p, inst, closed5m) {
   try {
     const m1 = await forexKlines.fetchCandles(inst.yahoo, '1m', 300);
     if (!m1 || m1.length < 60) return { hit: false, stale: true };
-    const closed = m1.slice(0, -1);
+    // Yarım 1m barı yapı-kırılımı sayıp pozisyonu erken kapatmasın (slice(0,-1)
+    // kotasyon satırını atıp forming barı bırakıyordu — forexKlines.closedBars).
+    const closed = forexKlines.closedBars(m1, forexKlines.TF_MS['1m']);
     if (closed.length < 50) return { hit: false, stale: true };
     const last = closed[closed.length - 1];
     if (nowSec() - last.time > REV.staleSec()) return { hit: false, stale: true }; // bayat mum
@@ -468,7 +470,9 @@ async function evalOne(p) {
   const candles = await forexKlines.fetchCandles(inst.yahoo, '5m', 300);
   const isLong = p.direction === 'long';
   // YALNIZ KAPANMIŞ mumlar: son mum hâlâ oluşuyor → geçici fitil hayalet TP/SL tetiklemesin.
-  const closed = (candles && candles.length) ? candles.slice(0, -1) : [];
+  // slice(0,-1) bunu SAĞLAMIYORDU (Yahoo forming barın ardına kotasyon satırı
+  // ekler) → hayalet tetikleme tam da engellenmek istenen yerden geliyordu.
+  const closed = forexKlines.closedBars(candles, forexKlines.TF_MS['5m']);
   // ARMED kararı ÖNCEKİ turun kanıtına bakar: aynı geçişte hwm güncellenip aynı barın
   // spike'ı hem pozisyonu "arm" edip hem TP1'i kaldırmasın (review kritik bulgusu —
   // aksi halde TP1'e değen tek volatil bar kârı bankalamak yerine carry'ye geçirirdi).

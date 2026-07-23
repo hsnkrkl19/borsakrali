@@ -245,7 +245,9 @@ async function evalOne(p) {
   const inst = getInstrument(p.instrumentId);
   if (!inst) return null;
   const candles = await forexKlines.fetchCandles(inst.yahoo, '5m', 300);
-  const closed = (candles && candles.length) ? candles.slice(0, -1) : [];
+  // slice(0,-1) forming barı BIRAKIYORDU (Yahoo ek kotasyon satırı) → yarım
+  // mumun geçici fitili hayalet SL/TP işaretliyordu; bkz. forexKlines.closedBars.
+  const closed = forexKlines.closedBars(candles, forexKlines.TF_MS['5m']);
   const isLong = p.direction === 'long';
   let outcome = null, exit = null, exitTimeSec = null;
   for (const b of closed) {

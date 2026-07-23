@@ -66,7 +66,10 @@ async function generate(presetId, options = {}) {
         const all = toMsCandles(raw);
         if (all.length) prices[inst.symbol || inst.id] = all[all.length - 1].close;
         // FORMING (yarım) mumu düşür — yalnız kapanmış barlarla değerlendir.
-        const candles = all.slice(0, -1);
+        // ⚠️ Eskiden `all.slice(0, -1)` idi ve YETMİYORDU: Yahoo forming barın
+        // ARDINA bir de "anlık kotasyon" satırı ekliyor, slice yalnız onu atıp
+        // yarım barı sinyal barı yapıyordu (bkz. forexKlines.closedBars).
+        const candles = forexKlines.closedBars(all, forexKlines.TF_MS[tf]);
         if (candles.length < 60) return;
 
         let sig;

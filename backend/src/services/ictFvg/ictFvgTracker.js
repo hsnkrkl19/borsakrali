@@ -292,8 +292,12 @@ async function syncSignals(signals) {
 
 function closedBars(candles, afterSec) {
   if (!Array.isArray(candles) || candles.length < 2) return [];
-  return candles
-    .slice(0, -1) // Yahoo's newest candle may still be forming: never evaluate it.
+  // Yahoo's newest candle may still be forming, and slice(0, -1) does NOT remove
+  // it: the feed appends a live-quote row *after* the forming bar, so the slice
+  // only drops the quote. Marking SL/TP on a half-formed 5m bar is exactly the
+  // ghost-exit this guard exists to prevent — see forexKlines.closedBars.
+  return forexKlines
+    .closedBars(candles, forexKlines.TF_MS['5m'])
     .filter((bar) => toSec(bar.time) > afterSec)
     .sort((a, b) => toSec(a.time) - toSec(b.time));
 }
