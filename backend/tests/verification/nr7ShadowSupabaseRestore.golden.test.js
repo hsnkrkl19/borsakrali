@@ -44,6 +44,7 @@ jest.mock('../../src/services/botCompetition/competitionManager', () => ({
   recordOpen: () => ({ ok: true }), recordClose: () => ({ ok: true }),
 }));
 jest.mock('../../src/services/forex/forexKlines', () => ({
+  ...jest.requireActual('../../src/services/forex/forexKlines'), // closedBars/TF_MS saf kalsın
   fetchCandles: async (_sym, tf) => {
     if (tf === '1d') {
       const days = [];

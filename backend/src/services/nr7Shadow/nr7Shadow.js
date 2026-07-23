@@ -133,7 +133,10 @@ async function say(key, msg) {
 /** Dünün (son KAPALI günlük bar) NR7 olup olmadığı + sınırları. */
 function nr7Setup(daily) {
   if (!daily || daily.length < 9) return null;
-  const closed = daily.slice(0, -1);              // son bar oluşuyor olabilir
+  // Son bar oluşuyor olabilir. GC=F 1d serisinde ayrı "kotasyon satırı" YOK
+  // (ölçüldü 2026-07-23) → burada closedBars ile slice(0,-1) aynı sonucu verir;
+  // yine de tek sözleşmeye bağlanıyor ki Yahoo şekli değişirse sessizce bozulmasın.
+  const closed = forexKlines.closedBars(daily, forexKlines.TF_MS['1d']);
   const last7 = closed.slice(-7);
   if (last7.length < 7) return null;
   const ranges = last7.map(b => b.high - b.low);
@@ -192,7 +195,13 @@ async function tick(now = Date.now()) {
   // NR7 dünse bugün işlem günü. (Hafta sonu/tatilde 1h bar zaten gelmez.)
   const h1 = await forexKlines.fetchCandles(YAHOO, '1h', 80);
   if (!h1 || h1.length < 3) return { setup: true, bars: 0 };
-  const closed = h1.slice(0, -1).filter(b => dayKeyOf(b.time) === today);
+  // ⚠️ slice(0,-1) BURADA YETMİYORDU: GC=F 1h serisinde Yahoo, forming barın
+  // ardına bir "anlık kotasyon" satırı ekliyor (canlı ölçüldü) → slice yalnız
+  // onu atıp YARIM 1h barı simülasyona sokuyordu. simDay o bardan fill/stop
+  // üretince competitionManager.recordOpen kalıcı pozisyon açıyor ve signalId
+  // bar saatine sabit olduğu için bar kapanışta çürüse bile geri alınmıyordu.
+  const closed = forexKlines.closedBars(h1, forexKlines.TF_MS['1h'])
+    .filter(b => dayKeyOf(b.time) === today);
   if (!closed.length) return { setup: true, bars: 0 };
   const dayOver = new Date(now).getUTCHours() >= 22; // GC=F günü ~21:00 UTC biter; 22'den sonra gün kapalı say
   const sim = simDay(closed, setup.hi, setup.lo);

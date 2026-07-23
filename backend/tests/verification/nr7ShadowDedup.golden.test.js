@@ -28,6 +28,7 @@ jest.mock('../../src/services/botCompetition/competitionManager', () => ({
 }));
 // Mum verisi: dün NR7 (en dar aralık) + bugün kırılım
 jest.mock('../../src/services/forex/forexKlines', () => ({
+  ...jest.requireActual('../../src/services/forex/forexKlines'), // closedBars/TF_MS saf kalsın
   fetchCandles: async (_sym, tf) => {
     if (tf === '1d') {
       const days = [];
