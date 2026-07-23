@@ -19,7 +19,11 @@ const DATA_DIR = process.env.BOT_BUILDER_DATA_DIR
 const STATE_FILE = path.join(DATA_DIR, 'state.json');
 const TEST_EPHEMERAL = process.env.NODE_ENV === 'test' && !process.env.BOT_BUILDER_DATA_DIR;
 
-const ALL_TF = ['1m', '5m', '15m', '1h', '4h', '1d', '1w'];
+// ⚠️ INVARYANT: catalogMeta'da bir botun ilan ettiği HER TF burada olmalı. Yoksa
+// sanitizeTfs onu sessizce atar → panelden o TF seçilemez VE tfAllowed false
+// dönüp o TF'nin pozisyonları köprü feed'inden düşer (geri açmanın yolu da yok).
+// '30m' bu yüzden eklendi (bk-xau / Bot 38 swing motoru M30 sinyal üretir).
+const ALL_TF = ['1m', '5m', '15m', '30m', '1h', '4h', '1d', '1w'];
 const MAX_CUSTOM = 40;
 
 function nowISO() { return new Date().toISOString(); }

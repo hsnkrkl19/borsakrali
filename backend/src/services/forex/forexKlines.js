@@ -1,4 +1,4 @@
-/**
+﻿/**
  * forexKlines — Forex/parite OHLC veri katmanı (Yahoo Finance chart endpoint).
  *
  * cryptoKlines ile aynı altyapı, fakat sembol Yahoo'da olduğu gibi tam verilir
@@ -17,11 +17,14 @@ const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36';
 // Doğrudan Yahoo interval'ı olan TF'ler (4h hariç — 1h'ten resample edilir)
 const YH_INTERVAL = { '1m': '1m', '5m': '5m', '15m': '15m', '30m': '30m', '1h': '1h', '1d': '1d', '1wk': '1wk' };
 // 250+ mum için yeterli range. 4h/8h için 1h'i geniş çekip resample ederiz.
-const YH_RANGE    = { '1m': '1d', '5m': '5d', '15m': '1mo', '30m': '2mo', '1h': '3mo', '4h': '6mo', '8h': '1y', '1d': '2y', '1wk': '5y' };
+// ⚠️ 30m: '2mo' Yahoo tarafından 422 ile REDDEDİLİR ("30m data ... must be within
+// the last 60 days" — 2 ay 60 günü aşıyor). Ölçüldü (2026-07-23): 2mo→422/0 bar,
+// 1mo→1202 bar. Bu yüzden 30m aralığı '1mo'. (15m zaten '1mo' ile aynı sınırda.)
+const YH_RANGE    = { '1m': '1d', '5m': '5d', '15m': '1mo', '30m': '1mo', '1h': '3mo', '4h': '6mo', '8h': '1y', '1d': '2y', '1wk': '5y' };
 
 // Cache ömrü — düşük TF sık, yüksek TF seyrek tazelenir.
 const TTL_MS = {
-  '1m': 50 * 1000, '5m': 4 * 60 * 1000, '15m': 9 * 60 * 1000,
+  '1m': 50 * 1000, '5m': 4 * 60 * 1000, '15m': 9 * 60 * 1000, '30m': 15 * 60 * 1000,
   '1h': 30 * 60 * 1000, '4h': 30 * 60 * 1000, '8h': 30 * 60 * 1000, '1d': 60 * 60 * 1000,
 };
 
@@ -106,4 +109,4 @@ async function fetchCandles(yahooSymbol, tf, limit = 300) {
   }
 }
 
-module.exports = { fetchCandles, resampleHours };
+module.exports = { fetchCandles, resampleHours, YH_INTERVAL, YH_RANGE };
