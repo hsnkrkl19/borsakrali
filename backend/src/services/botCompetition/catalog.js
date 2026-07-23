@@ -63,6 +63,26 @@ const entries = [
   // uyarısı atar VE kendisi de o yönde işlem açar (services/botConsensus).
   // Eşik: CONSENSUS_MIN (vars. 3 farklı bot).
   { id: 'consensus-radar', name: 'Konsensüs Radarı', category: 'MT5', costBps: 4, engineDisableEnv: 'CONSENSUS_DISABLED', magic: 5749 },
+  // BK XAU RUNNER (kullanıcı paketi 2026-07-23): "BorsaKrali XAU MT5 Bot Paketi
+  // v1.0" MQL5 EA çiftinin (Scalp M5 + Swing M30, XAUUSD) backend portu —
+  // services/mt5Bots/bkXau.js. Runner kâr yönetimi TP1=2R/TP2=4R'ye çevrildi;
+  // köprüye AÇIK (kullanıcı isteği: VPS'te gerçek işlem). Kill: BK_XAU_DISABLED.
+  // costBps 2 (aile varsayılanı 4 DEĞİL): FTMO XAUUSD gerçek maliyeti ~0.85bp ×
+  // 2.3 tutuculuk ≈ 2bp. CANLI ÖLÇÜM (2026-07-23, fiyat ~4050): scalp stopu
+  // 1.1×ATR(5m) olduğundan costR = ATR'ye bağlı → ATR 5.5-6.4'te 0.12-0.14
+  // (geçer), ATR 2.7'de 0.277 (MAX_COST_R 0.25 kapısına takılır). Yani ÇOK
+  // sakin piyasada scalp elenir — bu "kuruş işlem" korumasının amaçlanan
+  // davranışıdır (dar stop = büyük lot = komisyon ağır). 4bp'de scalp neredeyse
+  // her zaman elenirdi; swing (1.8×ATR(30m)) her iki değerde de rahat geçer.
+  // magicByStrategy: Scalp ve Swing MT5'te AYNI ANDA pozisyon taşıyabilsin diye
+  // ayrı magic alır (köprü dedup'ı magic+sembol+yön bazlı; tek magic'te ikinci
+  // motor "zaten_acik_sembol" ile hiç emir alamazdı). Kaynak MQL5 paketi de iki
+  // EA'yı ayrı magic ile ayırır (BK_MAGIC_SCALP/SWING).
+  {
+    id: 'bk-xau', name: 'BK XAU Runner', category: 'MT5', costBps: 2,
+    engineDisableEnv: 'MT5_BOTS_DISABLED', magic: 5750,
+    magicByStrategy: { 'bk-xau-scalp': 5750, 'bk-xau-swing': 5751 },
+  },
   { id: 'news-warning', name: 'Haber Uyarıları', category: 'Koruma', role: 'support' },
   { id: 'account-report', name: 'MT5 Kâr/Zarar Raporu', category: 'Rapor', role: 'support' },
 ];

@@ -193,10 +193,27 @@ const STRATEGY_PRESETS = [
   },
 ];
 
+/**
+ * BK XAU RUNNER (2026-07-23) — kullanıcının "BorsaKrali XAU MT5 Bot Paketi
+ * v1.0" MQL5 EA çiftinin (BK_XAU_Scalp M5 + BK_XAU_Swing M30) backend portu.
+ * Tek yarışmacı bot (Bot 38); motor services/mt5Bots/bkXau.js — kendi çoklu-TF
+ * verisini kendisi çeker (5m+30m+8h), bu yüzden kind:'bkxau' ile ayrı dispatch.
+ * Runner kâr yönetimi köprünün tek-TP modelinde TP1=2R / TP2=4R'ye çevrildi
+ * (köprü min_rr=1.5 kapısı 1.5R'yi tam sınırda reddedebiliyordu).
+ * Kill: BK_XAU_DISABLED=1 (aile kill'i MT5_BOTS_DISABLED ayrıca geçerli).
+ */
+const BKXAU_PRESETS = [
+  {
+    id: 'bk-xau', name: 'BK XAU Runner', magic: 5750, kind: 'bkxau',
+    tfs: ['5m', '30m'],
+    instruments: ['XAUUSD'],
+  },
+];
+
 // Gösterge tabanlı presetlere kind ekle (varsayılan)
 for (const p of PRESETS) p.kind = p.kind || 'indicator';
 
-const ALL_PRESETS = [...PRESETS, ...ICT_PRESETS, ...STRATEGY_PRESETS];
+const ALL_PRESETS = [...PRESETS, ...ICT_PRESETS, ...STRATEGY_PRESETS, ...BKXAU_PRESETS];
 const BY_ID = new Map(ALL_PRESETS.map((p) => [p.id, p]));
 
-module.exports = { PRESETS: ALL_PRESETS, INDICATOR_PRESETS: PRESETS, ICT_PRESETS, STRATEGY_PRESETS, BY_ID, getPreset: (id) => BY_ID.get(id) || null };
+module.exports = { PRESETS: ALL_PRESETS, INDICATOR_PRESETS: PRESETS, ICT_PRESETS, STRATEGY_PRESETS, BKXAU_PRESETS, BY_ID, getPreset: (id) => BY_ID.get(id) || null };

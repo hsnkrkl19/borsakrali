@@ -46,6 +46,10 @@ const META = {
   'mt5-tsmom': { strategies: ['60/120/252-bar oylar', 'EMA10/40 zamanlama', 'kripto long-only'], timeframes: ['1d'] },
   'mt5-holygrail': { strategies: ['PAPER başlar', 'ADX>30 yükselen', 'EMA20 pullback'], timeframes: ['1h', '4h'] },
   'mt5-evolver': { strategies: ['14 varyant walk-forward', 'hücre şampiyonu', 'PF≥1.25 kapısı'], timeframes: ['1h', '4h'] },
+  // Konsensüs Radarı: diğer botların açık pozisyonlarından türetir (kendi TF'i yok).
+  'consensus-radar': { strategies: ['≥3 bot aynı sembol+yön', 'Telegram uyarısı + kendi işlemi'], timeframes: [] },
+  // BK XAU Runner: kullanıcının MQL5 paketi portu (XAUUSD scalp 5m + swing 30m).
+  'bk-xau': { strategies: ['M30 rejim + M5 EMA pullback (NY 07:00-10:30)', 'H8 rejim + M30 momentum kırılımı (NY 02:00-09:30)', 'runner TP 2R/4R'], timeframes: ['5m', '30m'] },
 };
 
 function metaFor(id) { return META[id] || { strategies: [], timeframes: [] }; }

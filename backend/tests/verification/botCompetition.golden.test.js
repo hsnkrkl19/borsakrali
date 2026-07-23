@@ -35,11 +35,13 @@ describe('Telegram bot yarışı — izole paper yürütme', () => {
     delete process.env.BOT_COMPETITION_DATA_DIR;
   });
 
-  test('15 strateji yarışır; haber ve rapor işlem açamaz', () => {
+  test('yarışan strateji sayısı katalogla tutarlı; haber ve rapor işlem açamaz', () => {
     const status = manager.status();
-    expect(status.summary.competitors).toBe(37);
+    // 38. yarışmacı: BK XAU Runner (MQL5 EA paketi portu, 2026-07-23).
+    expect(status.summary.competitors).toBe(38);
     expect(status.bots.some((row) => row.id === 'ict-fvg')).toBe(true);
     expect(status.bots.some((row) => row.id === 'ict-smc')).toBe(true);
+    expect(status.bots.some((row) => row.id === 'bk-xau')).toBe(true);
     expect(status.support.map((row) => row.id).sort()).toEqual(['account-report', 'news-warning']);
     expect(() => manager.recordOpen('news-warning', signal('bad'))).toThrow(/işlem stratejisi değildir/i);
     expect(JSON.stringify(status)).not.toMatch(/TOKEN|CHAT_ID|TELEGRAM_BOT_TOKEN/);

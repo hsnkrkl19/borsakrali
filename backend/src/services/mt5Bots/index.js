@@ -37,6 +37,10 @@ async function generate(presetId, options = {}) {
   // SADE ICT botu: Pine motorunun (ictSmc) tek/az stratejisi MT5 evreninde.
   if (preset.kind === 'ict') return generateIct(preset, options);
 
+  // BK XAU Runner: MQL5 EA portu — kendi çoklu-TF verisini (5m+30m+8h) kendisi
+  // çeker, bu yüzden aşağıdaki tek-TF döngüsüne girmez.
+  if (preset.kind === 'bkxau') return require('./bkXau').generate(preset, options);
+
   const signals = [];
   const prices = {};
   // BİRLEŞİK botta indikatör yönü ICT kurulumuyla teyit edilir.
