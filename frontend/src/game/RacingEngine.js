@@ -12,6 +12,8 @@
 // lastik izi, hız çizgileri, egzoz dumanı, parçacıklar.
 // ============================================================================
 
+import { reqToSlopeDeg } from './gameData'
+
 // GRAV: 10 m/s² × METER(30) = 300 wu/s². Eskiden 1750 = 58.3 m/s² = 5.95 g (!) — gerçek
 // rampalar bu yerçekiminde hava üretemediği için sahte "crest fırlatması" eklenmişti.
 // Referans: Box2D testbed car.cpp ve alexzh3/hillclimbracing (SCALE=30 px/m, gravity 10).
@@ -31,11 +33,20 @@ const SX = 200             // örnek nokta yatay aralığı
 const AMP = 3500           // fiyat → yükseklik bandı (rölyef ~90m — uzun dik duvarlar/derin kanyon)
 const TERRAIN_POINTS = 180
 // Eğim artık AÇI olarak yazılıyor (AMP'ye bağlı kesir değil — o yüzden sessizce kayıyordu).
-// 30°: gerçek sürülebilir tavan pitch/wheelie limiti olan 38.9°'nin güvenli altında.
-// 35°: pitch/wheelie tavanına (≈38.9°) yakın → başlangıç aracıyla "geçilmeze yakın".
-// climb yükseltmesi ön tekeri yerde tutup bu tavanı yükselttiği için YÜKSELTİLMİŞ araçta kolay.
-const MAX_SLOPE_DEG = 35
+// v11: bu artık yalnız ŞEKİL KAYNAĞININ tavanı. Gerçek zorluk seviye pistinde
+// BÖLGE BÖLGE belirleniyor (_buildLevelTrack): her bölgenin açısı, o bölgeyi geçmek
+// için gereken kabiliyet yüzdesinden türetiliyor (gameData.reqToSlopeDeg).
+const MAX_SLOPE_DEG = 48
 const MAXSTEP = SX * Math.tan(MAX_SLOPE_DEG * Math.PI / 180)
+const DEG = Math.PI / 180
+const WALL_MAX_DEG = 42        // en dik bölge duvarı (üstü wheelie/iniş açısından sürülemez)
+// Bölge iç yapısı: |— sekme (dinlenme + rampa/takla) —|—— sürekli TIRMANIŞ ——|
+// Kapı "kısa dik duvar" değil UZUN tırmanış olmalı: kısa duvar momentumla geçilir,
+// uzun tırmanış kinetik enerjiyi tüketir → kabiliyet kapısı gerçekten çalışır.
+// ÖLÇÜM: 40m'lik duvar kapı DEĞİL (cap %0 araç bile momentumla aşıyordu). Eşiğin 12 puan
+// altındaki aracı durdurmak için ~125m sürekli tırmanış gerekiyor → bölgeler uzatıldı.
+const CLIMB_FRAC = 0.70        // bölgenin son %70'i tırmanış
+const WALL_FRAC = 0.18         // tırmanışın %82'si TAM açıda (garanti duvar)
 // EĞRİLİK KELEPÇESİ: asıl "her tepede havalanma" sebebi keskin krestti (yarıçap 52 wu,
 // dingil 78 wu → 171 wu/s'de balistik!). Kaynağında düzeltilir. Vadi yarıçapı çok daha
 // büyük: keskin krest eğlencelidir (hava), keskin vadi sadece süspansiyonu patlatır (21.9 g).
@@ -81,8 +92,11 @@ export class RacingEngine {
 
     // SEVİYE (v4): sonlu tur — bitiş çizgisi + checkpoint'ler + seviyeye özel başlangıç
     this.level = Math.max(1, Math.round(opts.level || 1))
-    this.levelDistanceM = Math.max(120, Math.round(opts.levelDistanceM || 500))
-    this.checkpointSpacingM = Math.max(60, Math.round(opts.checkpointSpacingM || 150))
+    this.levelDistanceM = Math.max(120, Math.round(opts.levelDistanceM || 700))
+    // BÖLGE KABİLİYET GEREKSİNİMLERİ (4 bölge) — zorluğun tek kaynağı
+    const sr = Array.isArray(opts.segmentReqs) && opts.segmentReqs.length === 4
+      ? opts.segmentReqs.map(Number) : [0.35, 0.60, 0.85, 0.85]
+    this.segReq = sr
     this.won = false
 
     // GÖRÜNÜM (v5): boya + takılı parçalar (spoiler/jant/egzoz/aksesuar)
@@ -98,6 +112,7 @@ export class RacingEngine {
 
     this._buildTerrain(opts.candles || [])
     this._setupLevel()
+    this._buildLevelTrack()
     this._initVehicle()
     this._loadSprites()
     this._initAudio()
@@ -120,6 +135,8 @@ export class RacingEngine {
     this._physAirTimer = 0
     this._pendingLanding = null
     this._crashTimer = 0
+    this._stuckT = 0
+    this._bestX = 0
     this._frame = 0
 
     this._resize()
@@ -209,7 +226,6 @@ export class RacingEngine {
     // ama ters inersen boynun kırılır. Grafiğin genel şekli korunur.
     this.heights = h
     this.N = h.length
-    this._buildBridges(h)
     this.dates = resDates
     this.priceMin = min   // LOG fiyat min/max (eksen için)
     this.priceMax = max
@@ -244,20 +260,19 @@ export class RacingEngine {
   }
 
   // DERİN VADİLERİ bul ve üzerlerine KÖPRÜ kur (yalnız dekor — fizik yok, çizgi ARKASINA çizilir).
-  // Vadi = iki tepe arasında yeterince derin çukur; köprü tabliyesi iki tepeyi birleştirir.
-  _buildBridges(h) {
+  // v11: artık SEVİYE PİSTİ üzerinden kuruluyor (ping-pong tekrarı yok) → köprüler
+  // gerçekten oyunun geçtiği uçurumlara oturuyor.
+  _buildBridges() {
     this.bridges = []
+    const h = this.track
+    if (!h) return
     const N = h.length
-    // 0.08: gerçek 2y/1d veriyle ölçüldü → GARAN 7, THYAO 10, ASELS 4 köprü
-    // (0.14'te ASELS gibi düzgün seyreden hisselerde hiç köprü çıkmıyordu)
-    const MIN_DEPTH = AMP * 0.08
-    const MIN_SPAN = 4, MAX_SPAN = 26 // örnek adımı cinsinden açıklık
+    const MIN_DEPTH = AMP * 0.10
+    const MIN_SPAN = 4, MAX_SPAN = 26
 
-    // 1) yerel tepeleri topla (komşularından yüksek)
     const peaks = []
     for (let i = 1; i < N - 1; i++) if (h[i] >= h[i - 1] && h[i] >= h[i + 1]) peaks.push(i)
 
-    // 2) ardışık tepe çiftleri arasında yeterince derin çukur var mı?
     for (let p = 0; p < peaks.length - 1; p++) {
       const a = peaks[p]
       for (let q = p + 1; q < peaks.length; q++) {
@@ -270,11 +285,11 @@ export class RacingEngine {
         const depth = Math.min(h[a], h[b]) - h[lowIdx]
         if (depth >= MIN_DEPTH) {
           this.bridges.push({
-            x0: a * SX, x1: b * SX,
+            x0: this.trackX0 + a * SX, x1: this.trackX0 + b * SX,
             y0: h[a], y1: h[b], low: h[lowIdx],
-            type: span >= 10 ? 'suspension' : 'truss',   // uzun açıklık = asma köprü
+            type: span >= 10 ? 'suspension' : 'truss',
           })
-          p = q - 1   // çakışmasın: bu tepeden devam et
+          p = q - 1
           break
         }
       }
@@ -290,11 +305,24 @@ export class RacingEngine {
     return this.heights[k]
   }
 
-  heightAt(x) {
+  // Ham grafik yüksekliği (ping-pong) — YALNIZ pist şekil kaynağı olarak kullanılır.
+  _chartHeightAt(x) {
     const s = x / SX
     const i = Math.floor(s)
     const f = s - i
     return catmull(this._raw(i - 1), this._raw(i), this._raw(i + 1), this._raw(i + 2), f)
+  }
+
+  // OYUNUN ZEMİNİ = seviye pisti (bölge bölge zorluk). Pist dışı düz plato.
+  heightAt(x) {
+    const T = this.track
+    if (!T) return this._chartHeightAt(x)
+    const s = (x - this.trackX0) / SX
+    const i = Math.floor(s)
+    const f = s - i
+    const M = T.length
+    const at = (k) => T[k < 0 ? 0 : k >= M ? M - 1 : k]
+    return catmull(at(i - 1), at(i), at(i + 1), at(i + 2), f)
   }
 
   normalAt(x) {
@@ -304,8 +332,13 @@ export class RacingEngine {
     return { x: -slope / len, y: 1 / len }
   }
 
+  // Kot → "fiyat": pistin kendi min/max kotu grafiğin log fiyat aralığına eşlenir.
+  // (Seviye pisti net tırmanışlı olduğu için sabit AMP eşlemesi doyuyordu.)
   _heightToPrice(h) {
-    return Math.exp(this.priceMin + (clamp(h, 0, AMP) / AMP) * (this.priceMax - this.priceMin))
+    const lo = this.trackMin ?? 0
+    const hi = this.trackMax ?? AMP
+    const f = clamp((h - lo) / ((hi - lo) || 1), 0, 1)
+    return Math.exp(this.priceMin + f * (this.priceMax - this.priceMin))
   }
 
   _dateAtX(wx) {
@@ -327,11 +360,102 @@ export class RacingEngine {
     const off = period > 1 ? (hash32(this.level * 2654435761 + 7) % Math.floor(period)) : 0
     this.startX = SX * 2 + off
     this.finishX = this.startX + this.levelDistanceM * METER
-    this.checkpoints = []
-    const sp = this.checkpointSpacingM * METER
-    for (let cx = this.startX + sp; cx < this.finishX - sp * 0.35; cx += sp) {
-      this.checkpoints.push({ x: cx, hit: false })
+
+    // BÖLGELER — 3 checkpoint (%25/%50/%75) → 4 bölge. Her bölgenin bir KABİLİYET
+    // gereksinimi var ve arazi açısı doğrudan o gereksinimden türetiliyor.
+    const span = this.finishX - this.startX
+    // Zorluk arttıkça bölge UZAR: açı 47°'de tavana vurduğunda tek ayırt edici kalan
+    // duvar uzunluğudur (uzun duvar = momentumla geçilemez).
+    const wts = this.segReq.map((r) => 0.55 + r)
+    const wSum = wts.reduce((a, b) => a + b, 0)
+    let acc = 0
+    const cuts = wts.slice(0, 3).map((w) => { acc += w / wSum; return acc })
+    this.checkpoints = cuts.map((f) => ({ x: this.startX + span * f, hit: false }))
+    this.segStart = [this.startX, ...this.checkpoints.map((c) => c.x)]
+    this.segEnd = [...this.checkpoints.map((c) => c.x), this.finishX]
+    this.segDeg = this.segReq.map((r) => Math.min(WALL_MAX_DEG, reqToSlopeDeg(r)))
+  }
+
+  // Bir dünya x'inin hangi bölgeye düştüğü (0..3), seviye dışında -1.
+  _segAt(x) {
+    if (x < this.startX || x > this.finishX) return -1
+    for (let s = 0; s < this.segEnd.length; s++) if (x <= this.segEnd[s]) return s
+    return this.segEnd.length - 1
+  }
+
+  // --------------------------------------------------------------------------
+  // SEVİYE PİSTİ — zorluk kapıları burada, ARAZİ OLARAK kuruluyor
+  // --------------------------------------------------------------------------
+  // Tasarım kuralı (ölçümle bulundu): kısa dik duvar KAPI DEĞİLDİR — araç momentumla
+  // aşar. Kapı ancak UZUN, sürekli tırmanış olursa çalışır: kinetik enerji tükenir ve
+  // araç eşiğin altındaysa yokuşta kalakalır. Bu yüzden her bölge şöyle:
+  //   |—— sekme (%38): grafiğin kendi şekli + rampa (takla/hava) ——|—— tırmanış (%62) ——|
+  // Tırmanışın son %45'i bölge açısında SABİT (garanti duvar), tepesi checkpoint platosu.
+  _buildLevelTrack() {
+    const PAD = 30
+    const x0 = this.startX - PAD * SX
+    const M = PAD * 2 + Math.ceil((this.finishX - this.startX) / SX) + 3
+    this.trackX0 = x0
+
+    const deg = this.segDeg
+    const t = new Array(M)
+    t[0] = 0
+    this._trackFree = new Set()      // eğrilik kelepçesinden MUAF (tasarlanmış rampa dudakları)
+
+    for (let j = 1; j < M; j++) {
+      const x = x0 + j * SX
+      const dRaw = this._chartHeightAt(x) - this._chartHeightAt(x - SX)
+      const s = this._segAt(x)
+      if (s < 0) {
+        // seviye dışı (kamera payı): sakin arazi — oyun burada geçmiyor
+        t[j] = t[j - 1] + clamp(dRaw * 0.5, -SX * 0.30, SX * 0.30)
+        continue
+      }
+      const lim = SX * Math.tan(deg[s] * DEG)
+      const u = clamp((x - this.segStart[s]) / (this.segEnd[s] - this.segStart[s]), 0, 1)
+
+      if (u < 1 - CLIMB_FRAC) {
+        // ---- SEKME: nefes alma + hız toplama + grafiğin gerçek şekli ----
+        const b = u / (1 - CLIMB_FRAC)                       // 0..1 sekme içi
+        // tek RAMPA dudağı (takla/hava — kullanıcı bunu seviyor), eğrilikten muaf.
+        // Boyu bölge açısından BAĞIMSIZ: dik bölgelerde dev rampaya dönüşüp kaza yaptırıyordu.
+        if (deg[s] <= 34) {
+          if (b > 0.34 && b < 0.46) { t[j] = t[j - 1] + SX * 0.34; this._trackFree.add(j); continue }
+          if (b >= 0.46 && b < 0.58) { t[j] = t[j - 1] - SX * 0.40; this._trackFree.add(j); continue }
+        }
+        t[j] = t[j - 1] + clamp(dRaw * 0.9, -lim * 0.95, lim * 0.60)
+        continue
+      }
+
+      // ---- TIRMANIŞ: ortalama eğim bölge açısına yakın, grafik ±modülasyon ----
+      const w = (u - (1 - CLIMB_FRAC)) / CLIMB_FRAC          // 0..1 tırmanış içi
+      if (w >= 0.95) { t[j] = t[j - 1]; continue }            // checkpoint platosu (düz)
+      if (w >= 0.80) { t[j] = t[j - 1] + lim * 0.5 * (1 - Math.cos(Math.PI * (1 - w) / 0.15)); continue }  // uzun/yumuşak tepe
+      if (w >= WALL_FRAC) { t[j] = t[j - 1] + lim; continue } // GARANTİ DUVAR (tam açı)
+      // modülasyon: grafik yükseliyorsa tam açı, düşüyorsa yumuşak tırmanış
+      const up = clamp(dRaw / (SX * 0.30) * 0.5 + 0.58, 0, 1)
+      t[j] = t[j - 1] + lim * (0.44 + 0.56 * up)
     }
+
+    // Yumuşatma: yalnız TASARIM DIŞI keskinlikleri al (sabit eğimli duvarın ikinci farkı
+    // zaten sıfır — dokunulmaz). Rampa dudakları muaf: fırlatma oradan gelmeli.
+    const LC = (SX * SX) / R_CREST
+    const LV = (SX * SX) / 5200          // pistte vadi biraz daha keskin olabilir
+    for (let pass = 0; pass < 4; pass++) {
+      for (let j = 1; j < M - 1; j++) {
+        if (this._trackFree.has(j) || this._trackFree.has(j + 1) || this._trackFree.has(j - 1)) continue
+        const d2 = t[j + 1] - 2 * t[j] + t[j - 1]
+        if (d2 < -LC) t[j] += (d2 + LC) / 2
+        else if (d2 > LV) t[j] += (d2 - LV) / 2
+      }
+    }
+
+    this.track = t
+    let mn = Infinity, mx = -Infinity
+    for (const v of t) { if (v < mn) mn = v; if (v > mx) mx = v }
+    this.trackMin = mn
+    this.trackMax = mx || 1
+    this._buildBridges()
   }
 
   // --------------------------------------------------------------------------
@@ -460,12 +584,13 @@ export class RacingEngine {
         const vt = vpx * tx + vpy * ty
 
         // "yokuş-yukarı" miktarı (0 düz .. 1 dik yokuş) — travel yönüne göre. Zorluk buradan.
-        const gUp = clamp((-n.x * (car.vx >= 0 ? 1 : -1)) / 0.5, 0, 1)  // 0.5 ≈ 30°
+        // sin(26°)=0.438'de doyar: bölge duvarlarında itki TAMAMEN kabiliyete bağlı olsun.
+        const gUp = clamp((-n.x * (car.vx >= 0 ? 1 : -1)) / 0.438, 0, 1)
         const climb = s.climb || 1
-        // YOKUŞ İTKİSİ climb'e bağlı: base araç dik yokuşta ×0.55 güç (thrust<gravity@35° → bogar,
-        // momentum şart = "geçilmeze yakın"); yükseltilmiş araç tam güç. DÜZ sürüş ETKİLENMEZ.
-        const climbFac = 0.55 + 0.45 * clamp((climb - 1) / 2.1, 0, 1)   // base 0.55 → maxed ~1.0
-        const upThrust = 1 - gUp * (1 - climbFac)                       // düz=1, dik-yokuş=climbFac
+        // İTKİ: düz zeminde torqueTW (motor/şanzıman — SÜRÜŞ KALİTESİ KORUNUR),
+        // dik yokuşta climbTW (kabiliyet yüzdesi — BÖLGE KAPISI). Arada yumuşak geçiş.
+        const climbTW = s.climbTW ?? s.torqueTW
+        const twEff = s.torqueTW + gUp * (climbTW - s.torqueTW)
 
         // MOTOR: sabit kuvvet + yapay hız duvarı DEĞİL — hedef-hızlı motor + kuvvet tavanı
         // (Box2D b2WheelJoint mantığı). Son hız artık EMERGENT: taper sıfırlandığı yer.
@@ -473,15 +598,18 @@ export class RacingEngine {
         const dir = (fwd ? 1 : 0) - (rev ? 1 : 0)
         if (w.drive && hasFuel && dir !== 0) {
           const dw = (w.driveW ?? 1) / this.driveWSum
-          const Fmax = s.torqueTW * s.mass * GRAV * dw * (dir > 0 ? upThrust : 0.55)
-          const vT = dir * s.topSpeed * (dir > 0 ? 1 : 0.45)
+          const Fmax = (dir > 0 ? twEff : s.torqueTW * 0.55) * s.mass * GRAV * dw
+          // Dik yokuşta hedef hız düşer (vites küçültme). Bu YALNIZ kozmetik değil:
+          // duvara 740 wu/s ile girildiğinde kinetik enerji kapıyı deliyordu (ölçüldü).
+          const vT = dir * s.topSpeed * (dir > 0 ? (1 - 0.32 * gUp) : 0.45)
           const K = Fmax / (0.25 * s.topSpeed)
           drive = clamp((vT - vt) * K, -Fmax * 0.30, Fmax)
         }
 
         // Yokuş-yukarı tutuşu da 'climb' ile artar (patinaj azalır).
-        const maxF = s.grip * Fn * (1 + gUp * (climb - 1) * 0.35)
+        const maxF = s.grip * Fn * (1 + gUp * clamp(climb - 1, 0, 2.6) * 0.35)
         let Ft = drive
+        if (dir !== 0) Ft -= 0.030 * Fn * Math.sign(vt)   // gaz verirken de yuvarlanma direnci var
         if (dir === 0) {
           Ft -= 0.045 * Fn * Math.sign(vt)          // yuvarlanma direnci (gaz bırakınca savrulmadan yavaşla)
           if (Math.abs(vt) < 40) Ft = -vt * 9       // yokuşta tutma: durunca kaymasın
@@ -524,7 +652,7 @@ export class RacingEngine {
         const climb = s.climb || 1
         // yokuş yukarı (gA<0 ⇒ zemin yukarı) + gaz + burun fazla yukarıda ⇒ climb ile güçlü çek
         const wheelie = align < 0 && fwd && gA < -0.05
-        const k = wheelie ? 5 + 9 * (climb - 1) : 5           // base 5, maxed ~24
+        const k = wheelie ? 5 + 9 * clamp(climb - 1, 0, 2.6) : 5   // base 5, dolu araç ~28
         car.angVel += align * k * dt
       }
     }
@@ -613,8 +741,9 @@ export class RacingEngine {
     const s = this.stats
 
     if (this.fuel > 0) {
-      let burn = 0.5
-      if (this.input.fwd || this.input.rev) burn = 5   // depo daha uzun sürer → checkpoint'e ulaşılır
+      let burn = 0.4
+      // v11: bölgeler uzadı (700m+ seviye / 4 bölge) → depo bölgeyi bitirmeye yetmeli
+      if (this.input.fwd || this.input.rev) burn = 2.6
       this.fuel = Math.max(0, this.fuel - burn * frameDt)
     }
 
@@ -716,6 +845,20 @@ export class RacingEngine {
       } else this._noGroundFuel = 0
     }
 
+    // DUVARDA KALDIN — bölge kapısını aşacak kabiliyet yok: geri kayıyor/duruyor.
+    // (Sonsuz debelenme yerine net bir sonuç: "bu duvar %NN kabiliyet ister".)
+    this._bestX = Math.max(this._bestX, car.x)
+    const onSlope = car.onGround && car.groundN.x < -0.30      // yokuş yukarı
+    // Tırmanışta ya duruyor ya geri kayıyor → kapı aşılamıyor. Hemen bitir:
+    // yoksa araç 2 dakika boyunca duvarda debeleniyordu (ölçüldü: 100-180s turlar).
+    const dead = onSlope && (Math.abs(car.vx) < 95 || car.x < this._bestX - 110)
+    if (this._hasLanded && dead) {
+      this._stuckT += frameDt
+      if (this._stuckT > 2.0) return this._gameOver('wall')
+    } else {
+      this._stuckT = Math.max(0, this._stuckT - frameDt * 2)
+    }
+
     this._prevX = car.x; this._prevY = car.y
 
     this.stateClock += frameDt
@@ -746,6 +889,11 @@ export class RacingEngine {
       remainM: Math.max(0, Math.round(this.levelDistanceM - dist)),
       checkpointsHit: this.run.checkpoints,
       checkpointsTotal: this.checkpoints.length,
+      // BÖLGE KAPISI HUD'u — "neden takıldım?" sorusu görünür olsun
+      segment: Math.max(0, this._segAt(clamp(car.x, this.startX, this.finishX))),
+      segmentReq: this.segReq[Math.max(0, this._segAt(clamp(car.x, this.startX, this.finishX)))],
+      cap: s.cap ?? 0,
+      stuck: this._stuckT > 1.1,
     })
   }
 
@@ -1729,6 +1877,10 @@ export class RacingEngine {
       level: this.level,
       levelDistanceM: this.levelDistanceM,
       completed: reason === 'finish',
+      // Takıldığın bölge + o bölgenin kabiliyet gereksinimi (sonuç ekranı bunu açıklıyor)
+      segment: Math.max(0, this._segAt(clamp(this._bestX || this.car.x, this.startX, this.finishX))),
+      segmentReq: this.segReq[Math.max(0, this._segAt(clamp(this._bestX || this.car.x, this.startX, this.finishX)))],
+      cap: this.stats?.cap ?? 0,
     })
   }
 

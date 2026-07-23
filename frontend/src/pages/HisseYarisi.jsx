@@ -18,6 +18,7 @@ import {
   loadSave, persistSave,
   GATE_PCT, vehicleUpgradeProgress, vehicleGate, highestOwnedIndex,
   levelConfig, currentLevel, clearedLevel, LEVELS_PER_STOCK,
+  capabilityPct, segmentReqs, reachableSegments, SEGMENT_REQ, TIER_RELIEF,
   PAINTS, ADDONS, ADDON_SLOTS, ADDON_SLOT_LABEL, resolveLook, lookFor,
   addonPrice, addonName, ownsAddon, addonKey, ADDON_TOTAL,
 } from '../game/gameData'
@@ -90,7 +91,7 @@ export default function HisseYarisi() {
       name: stockMeta(save.stock).name,
       level: lc.level,
       levelDistanceM: lc.distanceM,
-      checkpointSpacingM: lc.checkpointSpacingM,
+      segmentReqs: lc.segmentReqs,
       look: resolveLook(lookFor(save, save.vehicle)),
       onState: (s) => setHud(s),
       onEnd: (r) => finishRun(r),
@@ -251,6 +252,10 @@ export default function HisseYarisi() {
   const stockInfo = stockMeta(save.stock)
   const vehicle = VEHICLES[save.vehicle]
   const curLevel = currentLevel(save, save.stock)
+  // KABİLİYET — zorluk kapılarının tek ölçüsü (yükseltme % + araç kademesi indirimi)
+  const cap = capabilityPct(save.vehicle, vehicleUpgrades)
+  const levelSegReqs = segmentReqs(curLevel)
+  const canReach = reachableSegments(cap, curLevel)
 
   return (
     <div className="max-w-6xl mx-auto px-3 sm:px-4 py-4 sm:py-6">
@@ -292,6 +297,11 @@ export default function HisseYarisi() {
         <div className="text-xs px-2.5 py-1.5 rounded-lg flex items-center gap-1" style={{ background: 'var(--bg-subtle)', color: 'var(--text-secondary)' }}>
           🏁 Seviye <b>{curLevel}/{LEVELS_PER_STOCK}</b>
         </div>
+        <div className="text-xs px-2.5 py-1.5 rounded-lg flex items-center gap-1" title="Kabiliyet = yükseltme doluluğu + araç kademesi indirimi. Pistin her bölgesi belli bir kabiliyet ister."
+          style={{ background: 'var(--bg-subtle)', color: canReach >= 4 ? '#16a34a' : canReach === 0 ? '#dc2626' : '#d97706' }}>
+          ⛰️ Kabiliyet <b>%{Math.round(cap * 100)}</b>
+          <span className="opacity-70">· {canReach}/4 bölge</span>
+        </div>
         {save.stockBest[save.stock] ? (
           <div className="text-xs px-2.5 py-1.5 rounded-lg flex items-center gap-1" style={{ background: 'var(--bg-subtle)', color: 'var(--text-secondary)' }}>
             <Trophy className="w-3.5 h-3.5 text-amber-500" /> Rekor: <b>{save.stockBest[save.stock]}m</b>
@@ -320,6 +330,20 @@ export default function HisseYarisi() {
               <div className="w-full bg-slate-900/70 backdrop-blur rounded-lg px-2 py-1.5 ring-1 ring-white/10">
                 <div className="flex items-center justify-between text-[10px] font-semibold text-slate-300 mb-1"><span>🏁 Bitişe</span><span>{hud.remainM ?? 0}m · ⛽ {hud.checkpointsHit ?? 0}/{hud.checkpointsTotal ?? 0}</span></div>
                 <div className="h-2 rounded-full bg-slate-700/60 overflow-hidden"><div className="h-full rounded-full transition-all" style={{ width: `${(hud.progress || 0) * 100}%`, background: 'linear-gradient(90deg,#818cf8,#22c55e)' }} /></div>
+              </div>
+              {/* BÖLGE KAPISI — hangi bölgedesin, ne kadar kabiliyet ister, sende ne var */}
+              <div className="w-full bg-slate-900/70 backdrop-blur rounded-lg px-2 py-1.5 ring-1 ring-white/10">
+                <div className="flex items-center justify-between text-[10px] font-semibold mb-1">
+                  <span className="text-slate-300">⛰️ Bölge {(hud.segment ?? 0) + 1}/4</span>
+                  <span className={(hud.cap ?? 0) + 1e-9 >= (hud.segmentReq ?? 0) ? 'text-emerald-300' : 'text-rose-300'}>
+                    ister %{Math.round((hud.segmentReq ?? 0) * 100)} · sende %{Math.round((hud.cap ?? 0) * 100)}
+                  </span>
+                </div>
+                <div className="flex gap-1">
+                  {(levelSegReqs || []).map((r, i) => (
+                    <div key={i} className="h-1.5 flex-1 rounded-full" style={{ background: (hud.cap ?? 0) + 1e-9 >= r ? (i <= (hud.segment ?? 0) ? '#22c55e' : '#166534') : '#7f1d1d' }} />
+                  ))}
+                </div>
               </div>
               {/* yakıt */}
               <div className="w-full bg-slate-900/70 backdrop-blur rounded-lg px-2 py-1.5 ring-1 ring-white/10">
@@ -407,15 +431,24 @@ export default function HisseYarisi() {
         {screen === 'over' && result && (
           <div className="absolute inset-0 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm px-4">
             <div className="bg-white rounded-2xl shadow-2xl p-5 w-full max-w-sm text-center">
-              <div className="text-3xl mb-1">{result.completed ? '🏁' : result.reason === 'crash' ? '💥' : '⛽'}</div>
+              <div className="text-3xl mb-1">{result.completed ? '🏁' : result.reason === 'crash' ? '💥' : result.reason === 'wall' ? '⛰️' : '⛽'}</div>
               <h3 className="text-lg font-bold text-slate-800">
-                {result.completed ? `Seviye ${result.level} tamamlandı!` : result.reason === 'crash' ? 'Takla attın!' : 'Yakıt bitti!'}
+                {result.completed ? `Seviye ${result.level} tamamlandı!`
+                  : result.reason === 'crash' ? 'Takla attın!'
+                  : result.reason === 'wall' ? `${(result.segment ?? 0) + 1}. bölge tırmanışını çıkamadın` : 'Yakıt bitti!'}
               </h3>
               <p className="text-xs text-slate-500 mt-0.5">
                 {result.completed
                   ? (result.firstClear ? '🎉 İlk kez bitirdin — sonraki seviye açıldı!' : `Bitiş çizgisi geçildi (${result.levelDistanceM}m).`)
                   : `Bitişe ${Math.max(0, (result.levelDistanceM || 0) - result.distanceM)}m kalmıştı — tekrar dene.`}
               </p>
+              {!result.completed && (result.cap ?? 0) + 1e-9 < (result.segmentReq ?? 0) && (
+                <div className="mt-2 rounded-xl px-3 py-2 text-xs text-left" style={{ background: '#fff7ed', border: '1px solid #fed7aa' }}>
+                  <b className="text-orange-700">Bu bölge %{Math.round((result.segmentReq ?? 0) * 100)} kabiliyet istiyor</b>
+                  <span className="text-orange-600"> — sende %{Math.round((result.cap ?? 0) * 100)} var.</span>
+                  <div className="text-orange-600/80 mt-0.5">🔧 Garaj’dan yükseltme al (veya bir üst araca geç: her kademe %7 indirim) — tırmanış gücün artar.</div>
+                </div>
+              )}
               <div className="grid grid-cols-3 gap-2 my-4">
                 <ResultStat label="Mesafe" value={`${result.distanceM}m`} icon={<Gauge className="w-4 h-4" />} />
                 <ResultStat label="Checkpoint" value={result.checkpoints ?? 0} icon={<Coins className="w-4 h-4" />} />
@@ -528,6 +561,21 @@ function GarageModal({ save, stats, onClose, onBuyUpgrade, onBuyVehicle, onSelec
                   <div className="text-right">
                     <div className="text-sm font-extrabold text-emerald-700">%{Math.round(prog * 100)}</div>
                     <div className="text-[9px] text-slate-500">tamamlandı</div>
+                  </div>
+                </div>
+                {/* KABİLİYET — pistin bölge kapılarını bu sayı açar */}
+                <div className="mt-2 pt-2 border-t border-emerald-200/70 flex items-center justify-between gap-2">
+                  <div className="text-[11px] text-slate-600">
+                    ⛰️ Tırmanış kabiliyeti <b className="text-slate-800">%{Math.round(capabilityPct(save.vehicle, vUpg) * 100)}</b>
+                    <div className="text-[10px] text-slate-500">%{Math.round(prog * 100)} yükseltme + %{Math.round(Math.max(0, VEHICLE_ORDER.indexOf(save.vehicle)) * TIER_RELIEF * 100)} araç kademesi</div>
+                  </div>
+                  <div className="flex gap-1 shrink-0">
+                    {SEGMENT_REQ.map((r, i) => (
+                      <div key={i} className="w-7 text-center">
+                        <div className="h-1.5 rounded-full mb-0.5" style={{ background: capabilityPct(save.vehicle, vUpg) + 1e-9 >= r ? '#16a34a' : '#e2e8f0' }} />
+                        <div className="text-[8px] text-slate-500">%{Math.round(r * 100)}</div>
+                      </div>
+                    ))}
                   </div>
                 </div>
                 {next && (

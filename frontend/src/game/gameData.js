@@ -245,6 +245,44 @@ export const ADDON_TOTAL = UPGRADES.length +
   Object.keys(ADDONS).reduce((n, k) => n + ADDONS[k].filter((a) => !a.default).length, 0)
 
 // ----------------------------------------------------------------------------
+// KABİLİYET (capability) — oyunun TEK zorluk parametresi
+// ----------------------------------------------------------------------------
+// Pist bölge bölge "şu kadar kabiliyet ister" der; araç da bir kabiliyet üretir.
+// kabiliyet = yükseltme doluluğu (0..1) + araç kademesi indirimi.
+// Böylece kullanıcı isteği birebir ölçülebilir hale gelir:
+//   "%35 yükseltmesi olmayan 1. checkpoint'e gelemesin; 2. %60, 3./bitiş %85"
+// ve "bir üst araca geçen %5-10 daha az zorlansın" → TIER_RELIEF.
+export const TIER_RELIEF = 0.07     // her araç kademesi ≈ %7 daha az zorlanma
+export const CAP_MAX = 1.6          // tavan (10. araç + tam yükseltme ≈ 1.63)
+
+// Bir aracın kabiliyeti (0..CAP_MAX). Yükseltmeler ARACA ÖZEL tutulduğu için yeni
+// alınan araç düşük kabiliyetle başlar — ama kademe indirimi bunun bir kısmını peşin verir.
+export function capabilityPct(vehicleId, upgradesForVehicle = {}) {
+  const prog = vehicleUpgradeProgress(upgradesForVehicle)
+  const tier = Math.max(0, VEHICLE_ORDER.indexOf(vehicleId))
+  return Math.min(CAP_MAX, prog + tier * TIER_RELIEF)
+}
+
+// Yokuş-yukarı itki tavanı (thrust/weight). Fizik motoru dik yokuşta BUNU kullanır;
+// düz zeminde torqueTW geçerlidir (sürüş kalitesi korunur — kullanıcı "sürüş çok iyi" dedi).
+//   tırmanılabilir maks eğim ≈ asin(climbTW − pay)
+//   cap 0 → 16°  ·  0.35 → 27.5°  ·  0.60 → 36°  ·  0.85 → 46°  (SEGMENT_REQ ile birebir)
+// EĞİM (B) bilinçli olarak DİK: kapı ne kadar yumuşak olursa, eşiğin altındaki araç
+// momentumla duvarı geçer. B=0.60'ta eşiğin ~12-15 puan altı gerçekten takılır.
+// Kalibrasyon: gate.mjs ile gerçek motor koşturularak GEÇME SINIRI ölçüldü ve
+// hedeflerle (%35/%60/%85) çakışana kadar A/B ayarlandı. Pay 0: eşikteki araç
+// duvarı "kıl payı" çıkar (yuvarlanma direnci 0.030 zaten doğal payı sağlıyor).
+export const CLIMB_TW_A = 0.3021
+export const CLIMB_TW_B = 0.4560
+export const CLIMB_MARGIN = 0
+export function climbTWFor(cap) { return CLIMB_TW_A + CLIMB_TW_B * cap }
+// Bir bölge gereksinimini (kabiliyet) o bölgenin tırmanış açısına çevirir (derece).
+export function reqToSlopeDeg(req) {
+  const s = Math.min(0.72, climbTWFor(req) - CLIMB_MARGIN)
+  return (Math.asin(s) * 180) / Math.PI
+}
+
+// ----------------------------------------------------------------------------
 // EFEKTİF ARAÇ İSTATİSTİĞİ — temel stat × yükseltme seviyeleri
 // ----------------------------------------------------------------------------
 export function effectiveStats(vehicleId, upgradesForVehicle = {}) {
@@ -253,6 +291,7 @@ export function effectiveStats(vehicleId, upgradesForVehicle = {}) {
   const eng = lv('engine'), tir = lv('tires'), sus = lv('suspension')
   const gear = lv('gearbox'), fuel = lv('fuel'), aero = lv('aero')
   const totalLv = eng + tir + sus + gear + fuel + aero
+  const cap = capabilityPct(vehicleId, upgradesForVehicle)
 
   // YÜKSELTMELER ARACI FİZİKSEL OLARAK BÜYÜTÜR (görsel + hitbox + atalet birlikte).
   //  motor/yakıt → gövde büyür · lastik → tekerlek büyür (daha iyi tırmanır) ·
@@ -281,9 +320,15 @@ export function effectiveStats(vehicleId, upgradesForVehicle = {}) {
     airControl:  base.airControl * (1 + 0.18 * aero),
     stability:   1 + 0.06 * aero,   // max 1.60 — "bıraktığında düz in" (artık dönüşü HIZLANDIRMIYOR)
     landing:     1 + 0.045 * sus,   // max 1.45 — iniş açı toleransı (motorda KULLANILIYOR)
-    // TIRMANMA KABİLİYETİ: dik yokuşta ön tekeri yerde tutar (wheelie'yi bastırır) + yokuş
-    // tutuşunu artırır → arazi "geçilmeze yakın"ken YÜKSELTME onu geçilebilir kılar. base 1 → max 3.1.
-    climb:       1 + 0.10 * tir + 0.06 * sus + 0.05 * eng,
+    // TIRMANMA KABİLİYETİ — bölge kapılarının TEK belirleyicisi.
+    //  cap  : yükseltme doluluğu + araç kademesi indirimi (0..1.6)
+    //  climbTW : dik yokuşta itki tavanı → tırmanılabilir maks eğim
+    //  climb   : anti-wheelie servosu + yokuş tutuşu (ön teker yerde kalsın)
+    // Kasıtlı olarak TEK yükseltmeye değil TOPLAM doluluğa bağlı: kullanıcı zorluğu
+    // yüzdeyle tarif etti (%35/%60/%85), kapı da o yüzdeyle birebir ölçülebilir olmalı.
+    cap,
+    climbTW:     climbTWFor(cap),
+    climb:       1 + 2.6 * cap,
     // SÜSPANSİYON = ön/arka hassasiyet: yükseldikçe yay yumuşar, yol uzar, iniş sakinleşir.
     suspSoft:    1 + 0.10 * sus,    // yay yolu / yumuşaklık çarpanı (görsel + fizik)
     mass:        base.mass * (1 + 0.006 * (eng + fuel)),   // büyüdükçe biraz ağırlaşır
@@ -464,15 +509,26 @@ export function stockMeta(symbol) {
 //   - paralar + takla + hava bonusu ek heyecan
 // v4 — para artık ÇOK daha zor kazanılır: ana gelir SEVİYE BİTİRMEK.
 // Mesafe/para/takla küçük katkı; tur SONLU (bitiş çizgisi) → sonsuz farm YOK.
+// v11 — CHECKPOINT ARTIK "ALMAYA DEĞER": her bölge bir kabiliyet kapısıyla korunuyor,
+// dolayısıyla checkpoint geçmek başlı başına bir başarı ve ana gelir kalemi.
+// Tempo hedefi: bir kabiliyet kademesini (%35→%60→%85) ~5 turda kapatabilmek.
 export const REWARD = {
   perMeter: 0.10,       // metre başı BP (küçük)
   perCoin: 1,           // toplanan para başı BP
   perFlip: 12,          // tam takla başı BP
   perAirSec: 3,         // havada geçen saniye başı BP
-  perCheckpoint: 8,     // geçilen checkpoint başı BP
-  finishBase: 30,       // seviye bitirme ödülü (tabana)
-  finishPerLevel: 14,   // her seviye için ek bitirme ödülü
-  firstClear: 50,       // seviyeyi İLK kez bitirme bonusu (bir kez)
+  checkpointBase: 120,  // 1. checkpoint
+  checkpointStep: 55,   // sonraki her checkpoint +55 → 120/175/230 (toplam 525)
+  finishBase: 150,      // seviye bitirme ödülü
+  finishPerLevel: 26,   // her seviye için ek bitirme ödülü
+  firstClear: 180,      // seviyeyi İLK kez bitirme bonusu (bir kez)
+}
+
+// n checkpoint geçmenin toplam ödülü (artan: son checkpoint en değerli).
+export function checkpointReward(n = 0) {
+  let bp = 0
+  for (let i = 0; i < n; i++) bp += REWARD.checkpointBase + REWARD.checkpointStep * i
+  return bp
 }
 
 export function computeEarnings({
@@ -481,7 +537,7 @@ export function computeEarnings({
 }) {
   let bp = distanceM * REWARD.perMeter + coins * REWARD.perCoin +
     flips * REWARD.perFlip + airTime * REWARD.perAirSec +
-    checkpoints * REWARD.perCheckpoint
+    checkpointReward(checkpoints)
   if (completed) {
     bp += REWARD.finishBase + (level - 1) * REWARD.finishPerLevel
     if (firstClear) bp += REWARD.firstClear
@@ -496,13 +552,39 @@ export function computeEarnings({
 // seviye tamamlanır ve bir sonraki açılır. Sonsuz yakıt/sonsuz mesafe YOK.
 // ----------------------------------------------------------------------------
 export const LEVELS_PER_STOCK = 12
-export const CHECKPOINT_SPACING_M = 130   // starter aracın depo menzili içinde → checkpoint'e ulaşılır
+export const CHECKPOINTS_PER_LEVEL = 3    // sabit 3 checkpoint → 4 bölge (%25/%50/%75)
+
+// BÖLGE KAPILARI (kullanıcı hedefi): 1. checkpoint %35, 2. %60, 3. ve bitiş %85 kabiliyet.
+// Her bölgenin sonunda o açıda TASARLANMIŞ bir tırmanış duvarı var (RacingEngine._buildLevelTrack).
+export const SEGMENT_REQ = [0.35, 0.60, 0.85, 0.85]
+
+// Seviye seviye ölçek: ilk 4 seviye ısınma (oyun mantıklı başlasın), sonra kademeli sertleşir.
+//   lv1 ×0.40 → %14/%24/%34   ·   lv4 ×1.00 → %35/%60/%85 (kullanıcı hedefi)
+//   lv12 ×1.176 → %41/%71/%100 → tam dolu bir aracın (veya bir üst kademenin) işi
+export function levelReqScale(level = 1) {
+  const lv = Math.max(1, Math.min(LEVELS_PER_STOCK, Math.round(level)))
+  return lv <= 4 ? 0.40 + 0.20 * (lv - 1) : 1.0 + 0.022 * (lv - 4)
+}
+
+// Bir seviyenin bölge bölge kabiliyet gereksinimi (4 eleman).
+export function segmentReqs(level = 1) {
+  const f = levelReqScale(level)
+  return SEGMENT_REQ.map((r) => Math.min(1.45, +(r * f).toFixed(4)))
+}
+
+// Oyuncunun kabiliyetiyle kaç bölge geçilebilir (0..4) — HUD/garaj için.
+export function reachableSegments(cap, level = 1) {
+  const reqs = segmentReqs(level)
+  let n = 0
+  while (n < reqs.length && cap + 1e-9 >= reqs[n]) n++
+  return n
+}
 
 export function levelConfig(level = 1) {
   const lv = Math.max(1, Math.min(LEVELS_PER_STOCK, Math.round(level)))
-  // seviye uzunluğu kademeli artar: 500m → ~1380m
-  const distanceM = 500 + (lv - 1) * 80
-  return { level: lv, distanceM, checkpointSpacingM: CHECKPOINT_SPACING_M }
+  // Bölge başına ≥275m gerekiyor: ~125m sürekli duvar + sekme/rampa (ölçümle bulundu).
+  const distanceM = 900 + (lv - 1) * 95
+  return { level: lv, distanceM, segmentReqs: segmentReqs(lv), checkpoints: CHECKPOINTS_PER_LEVEL }
 }
 
 // bir hissede oynanacak (sıradaki) seviye — 1 tabanlı
