@@ -118,10 +118,15 @@ def main():
                                         else "KAPALI  <-- MT5'te ustteki 'Algo Trading' dugmesine BAS!"))
         else:
             print("MT5'ten okunamadi: %s" % hata)
-            if not sadece_kontrol:
+            # Hesap okunamasa bile token / terminal_path düzeltmesi YAPILABİLİR —
+            # burada erken dönersek BASLAT.bat'ın otomatik onarımı hiç çalışmaz
+            # (MT5 henüz açılmamış olabilir). Yalnız yapacak İŞ YOKSA çık.
+            if not sadece_kontrol and not token:
                 print("\n>>> Numarayi ELLE ver:   python hesap_guncelle.py <HESAPNO>")
                 print("    (veya MT5 terminalini ac + giris yap, sonra tekrar calistir)")
                 return 1
+            if not sadece_kontrol:
+                print("   -> hesap ATLANIYOR, token/terminal_path yine de duzeltilecek.")
     print("-" * 62)
 
     degisen, atlanan = 0, 0

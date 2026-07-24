@@ -106,6 +106,23 @@ if not exist ".deps_ok" (
   echo ok> .deps_ok
 )
 
+REM ---------- OTOMATIK ONARIM (2026-07-24 VPS teshisi) ----------------------
+REM VPS'te uc ariza vardi ve ucu de kopruleri HIC calistirmiyordu:
+REM   allowed_account eski hesap  -> "HESAP KILIDI" deyip cikiyordu
+REM   terminal_path olmayan yol   -> (-10003) IPC initialize failed
+REM   exec_token bos              -> feed'de 401 Unauthorized
+REM Her aciliste sessizce duzeltilir (idempotent - zaten dogruysa dokunmaz).
+REM TOKEN: gercek deger DEPOYA YAZILMAZ (git gecmisine kalici girer). VPS'e
+REM giden zip paketlenirken buraya asil deger konur. Elle doldurmak istersen:
+REM Render panel > borsakrali > Environment > FOREX_EXEC_TOKEN degerini yapistir.
+REM Icinde "BURAYA" gecen deger GECERSIZ sayilir ve yok sayilir.
+set "EXEC_TOKEN=BURAYA-FOREX_EXEC_TOKEN-DEGERI"
+>> "%BLOG%" echo [%time%] otomatik onarim (hesap + terminal_path + token)
+echo [ONARIM] Config kontrol ediliyor (hesap / terminal / token)...
+python -X utf8 "mt5-bridge\hesap_guncelle.py" --token=%EXEC_TOKEN% >> "%BLOG%" 2>&1
+python -X utf8 "mt5-bridge\hesap_guncelle.py" --kontrol
+echo.
+
 REM ---------- Watchdog pencerelerini baslat (cift baslatma korumali) ----------
 >> "%BLOG%" echo [%time%] configler hazir, _otobaslat cagriliyor
 call "%~dp0_otobaslat.bat"
