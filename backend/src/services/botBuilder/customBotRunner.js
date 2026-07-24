@@ -51,6 +51,31 @@ function load() {
   return rstate;
 }
 
+/**
+ * Sunucu açılışında, botPersistence.loadAll() diskteki runner.json'ı Supabase'ten
+ * geri yazdıktan SONRA çağrılır. Şart: köprünün 5 sn'de bir gelen feed POST'u
+ * loadAll bitmeden düşerse lazy load() BOŞ state'i cache'ler ve geri yüklenen
+ * dosya hiç okunmazdı (competitionManager.reload ile aynı desen).
+ */
+function reload() { loaded = false; return load(); }
+
+/**
+ * Silinen bir botun AÇIK kağıt pozisyonlarını düşürür. Şart: run() artık o botu
+ * gezmediği için SL/TP hiç kontrol edilmez → pozisyon feed'de sonsuza dek kalır
+ * ve köprüdeki gerçek MT5 işlemi kimsenin kapatmadığı bir yetim olurdu.
+ * Feed'den düşmesi köprüde gerçek işlemi de kapatır (close_on_backend_close).
+ */
+function purgeBot(botId) {
+  load();
+  const id = String(botId);
+  let removed = 0;
+  for (const [key, pos] of Object.entries(rstate.open)) {
+    if (pos && String(pos.botId) === id) { delete rstate.open[key]; removed++; }
+  }
+  if (removed) persist();
+  return removed;
+}
+
 function toMs(raw) {
   return (raw || [])
     .filter((c) => c && Number.isFinite(c.open) && Number.isFinite(c.close))
@@ -189,4 +214,4 @@ function dailyBreakdown(sinceMs) {
   return Object.values(by).map((b) => ({ ...b, netR: round(b.netR, 2) }));
 }
 
-module.exports = { run, feed, leaderboard, dailyBreakdown, _state: () => rstate, _dangerouslyResetForTest() { rstate = { open: {}, trades: [] }; loaded = true; } };
+module.exports = { run, feed, reload, purgeBot, leaderboard, dailyBreakdown, _state: () => rstate, _dangerouslyResetForTest() { rstate = { open: {}, trades: [] }; loaded = true; } };

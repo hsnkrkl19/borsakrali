@@ -8211,6 +8211,16 @@ server.listen(PORT, () => {
     } catch (e) {
       console.error('[BotYarisi] yarış durumu yüklenemedi:', e.message);
     }
+    // BOT BUILDER — panelden oluşturulan özel botlar + açık kağıt pozisyonları.
+    // Her ikisi de LAZY okur; köprünün feed POST'u loadAll bitmeden düşerse BOŞ
+    // state cache'lenir ve geri yüklenen dosya bir daha okunmazdı → botlar yokmuş
+    // gibi davranılır, açık işlemler feed'den düşer, köprü gerçeğini kapatırdı.
+    try {
+      require('./services/botBuilder/store').reload();
+      require('./services/botBuilder/customBotRunner').reload();
+    } catch (e) {
+      console.error('[BotBuilder] durum yüklenemedi:', e.message);
+    }
     // YENİ ROBOT — kalıcı durumu (tuned ağırlık/eşik + detaylı log + istatistik)
     // cron'lar okumadan önce geri yükle (Render ephemeral fs; Supabase'ten).
     try {

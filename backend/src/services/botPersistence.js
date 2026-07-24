@@ -38,7 +38,13 @@ const SUBDIRS = ['bot', 'crypto-bot', 'tema34-bot', 'custom-bots', 'crossover-al
 //   notified.json        → mt5TradeNotifier (açılış/kapanış ticket dedup'ı)
 //   deals.json           → realResults (gerçek MT5 sonuç deposu)
 //   consensus-alerts.json → botConsensus (günlük konsensüs uyarı dedup'ı)
-const FILES = ['portfolio.json', 'positions.json', 'trades.json', 'signal-log.json', 'runs.json', 'registry.json', 'learning.json', 'backtest.json', 'notified.json', 'deals.json', 'consensus-alerts.json'];
+// ⚠️ 2026-07-24 (2) AYNI SINIF — botBuilder: 'bot-builder' SUBDIRS'te vardı ama
+// dosya adları burada YOKTU → panelden oluşturulan özel botlar HER deploy'da
+// kayboluyordu. Üstelik açık kağıt pozisyonu feed'den düşünce köprü gerçek MT5
+// işlemini de kapatıyordu (close_on_backend_close) → deploy = zorla kapanış.
+//   state.json  → botBuilder/store (özel bot tanımları + 15 botun TF filtresi)
+//   runner.json → botBuilder/customBotRunner (açık kağıt pozisyonlar + geçmiş)
+const FILES = ['portfolio.json', 'positions.json', 'trades.json', 'signal-log.json', 'runs.json', 'registry.json', 'learning.json', 'backtest.json', 'notified.json', 'deals.json', 'consensus-alerts.json', 'state.json', 'runner.json'];
 const DEBOUNCE_MS = 2500;
 
 // Bir custom bot portföy alt-dizini mi? ('custom-<id>', registry'nin 'custom-bots'u hariç)

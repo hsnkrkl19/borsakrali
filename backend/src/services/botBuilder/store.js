@@ -156,6 +156,10 @@ function deleteCustom(id) {
   state.customBots = state.customBots.filter((b) => b.id !== String(id));
   if (state.customBots.length === before) { const e = new Error('Özel bot bulunamadı.'); e.code = 'NOT_FOUND'; throw e; }
   persist();
+  // YETİM POZİSYON TEMİZLİĞİ: botun açık kağıt pozisyonları da düşer, yoksa
+  // köprü feed'inde SL/TP'si hiç kontrol edilmeyen bir işlem kalırdı.
+  // (lazy require — customBotRunner bu modülü require ediyor, döngüyü kırar)
+  try { require('./customBotRunner').purgeBot(String(id)); } catch (_) {}
   return { ok: true };
 }
 
