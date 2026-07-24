@@ -8221,6 +8221,14 @@ server.listen(PORT, () => {
     } catch (e) {
       console.error('[BotBuilder] durum yüklenemedi:', e.message);
     }
+    // YASAKLI ENSTRÜMAN TAHLİYESİ (2026-07-24): yasaktan ÖNCE açılmış gümüş
+    // pozisyonlarını kâğıtta kapat → köprü feed'de bulamayınca gerçek MT5
+    // pozisyonunu kapatır. reload()'lardan SONRA olmalı (boş state taranmasın).
+    try {
+      require('./services/bannedPositionSweep').run();
+    } catch (e) {
+      console.error('[BanSweep] tahliye başarısız:', e.message);
+    }
     // YENİ ROBOT — kalıcı durumu (tuned ağırlık/eşik + detaylı log + istatistik)
     // cron'lar okumadan önce geri yükle (Render ephemeral fs; Supabase'ten).
     try {

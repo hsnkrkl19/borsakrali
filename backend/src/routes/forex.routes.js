@@ -15,6 +15,7 @@ const router = express.Router();
 const forexEngine = require('../services/forex/forexEngineMTF');
 const forexTracker = require('../services/forex/forexSignalTracker');
 const brokerPrices = require('../services/forex/brokerPrices');
+const instrumentBans = require('../services/instrumentBans');
 const accountReport = require('../services/forex/accountReport');
 const dailyGuard = require('../services/forex/forexDailyGuard');
 const { listInstruments } = require('../services/forex/forexInstruments');
@@ -68,7 +69,13 @@ router.get('/positions', async (req, res) => {
   if (!auth.ok) return res.status(auth.code).json({ success: false, error: auth.error });
   try {
     await forexTracker.load();
-    const positions = forexTracker.getOpen().map(p => ({
+    // YASAKLI ENSTRÜMAN (2026-07-24): gümüş pozisyonu bu feed'e girmez → köprü
+    // onu bulamayınca GERÇEK MT5 pozisyonunu kapatır. Tracker'daki kâğıt kayıt
+    // silinmez; getInstrument hâlâ çözdüğü için evalOne onu normal kapatır
+    // (yetim kalmaz, bkz. instrumentBans.js başlığı).
+    const positions = forexTracker.getOpen()
+      .filter((p) => !instrumentBans.isBanned(p.instrumentId || p.symbol))
+      .map(p => ({
       code: p.code, instrumentId: p.instrumentId, symbol: p.symbol, direction: p.direction,
       precision: p.precision, entry: p.entry, stop: p.stop, target1: p.target1, target2: p.target2,
       confidence: p.confidence, tfs: p.tfs, mt5Symbol: p.mt5Symbol || p.instrumentId,

@@ -17,6 +17,7 @@ const router = express.Router();
 const engine = require('../services/mt5Scanner/mt5Engine');
 const tracker = require('../services/mt5Scanner/mt5Tracker');
 const learning = require('../services/mt5Scanner/mt5Learning');
+const instrumentBans = require('../services/instrumentBans');
 const { listInstruments } = require('../services/mt5Scanner/mt5Instruments');
 
 // MT5 köprüsü yürütme beslemesi — forex.routes ile AYNI token (FOREX_EXEC_TOKEN).
@@ -88,7 +89,11 @@ router.get('/positions', async (req, res) => {
   if (!auth.ok) return res.status(auth.code).json({ success: false, error: auth.error });
   try {
     await tracker.load();
-    const positions = tracker.getOpen().map((p) => ({
+    // YASAKLI ENSTRÜMAN (2026-07-24): forex feed'iyle aynı gerekçe — gümüş
+    // pozisyonu köprüye gitmez, köprü gerçek MT5 emrini kapatır.
+    const positions = tracker.getOpen()
+      .filter((p) => !instrumentBans.isBanned(p.instrumentId || p.symbol))
+      .map((p) => ({
       code: p.code, instrumentId: p.instrumentId, symbol: p.symbol, tf: p.tf,
       direction: p.direction, precision: p.precision,
       entry: p.entry, stop: p.stop, target1: p.target1, target2: p.target2,

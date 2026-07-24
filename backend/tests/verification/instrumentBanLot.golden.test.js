@@ -27,6 +27,10 @@ const bans = require('../../src/services/instrumentBans');
 const lotLimits = require('../../src/services/lotLimits');
 const manager = require('../../src/services/botCompetition/competitionManager');
 const catalog = require('../../src/services/botCompetition/catalog');
+// ⚠️ botBuilder describe'ı jest.resetModules() çağırıyor ve bu, dosya toplanırken
+// (testler koşmadan ÖNCE) çalışıyor. sweep aşağıda require edilirse `manager` ile
+// AYNI modül örneğini paylaşmaz ve boş deftere bakar — o yüzden burada bağlanır.
+const sweep = require('../../src/services/bannedPositionSweep');
 
 function signal(id, symbol, side = 'long') {
   return {
@@ -182,5 +186,79 @@ describe('botBuilder — panelden gümüş seçilemez', () => {
     expect(() => store.createCustom({
       name: 'Gümüş', indicators: ['ema'], timeframes: ['1h'], pairs: ['XAGUSD'],
     })).toThrow(/parite/i);
+  });
+});
+
+describe('bannedPositionSweep — yasaktan önce açılmış gümüş pozisyonları kapanır', () => {
+  beforeEach(() => {
+    manager.resetForTest();
+    delete process.env.BANNED_SWEEP_DISABLED;
+  });
+
+  function openLegacyXag(botId, tf = '1h') {
+    // Yasak konmadan ÖNCE açılmış pozisyonu taklit et.
+    process.env.INSTRUMENT_BANS_DISABLED = '1';
+    const r = manager.recordOpen(botId, { ...signal(`legacy-${botId}-${tf}`, 'XAGUSD', 'short'), tf });
+    delete process.env.INSTRUMENT_BANS_DISABLED;
+    expect(r.ok).toBe(true);
+  }
+
+  test('⭐ açık gümüş pozisyonları kapatılır ve köprü feed\'inden düşer', () => {
+    openLegacyXag('forex-signals', '1h');
+    openLegacyXag('mt5-scanner', '1d');
+    openLegacyXag('beast-signals', '4h');
+    manager.recordOpen('forex-signals', { ...signal('keep-au', 'XAUUSD', 'long'), tf: '4h' });
+
+    expect(manager.bridgeFeed().positions.filter((p) => bans.isBanned(p.symbol))).toHaveLength(3);
+
+    const r = sweep.run();
+    expect(r.closed).toHaveLength(3);
+
+    const after = manager.bridgeFeed().positions;
+    expect(after.filter((p) => bans.isBanned(p.symbol))).toHaveLength(0);
+    // Gümüş DIŞI pozisyona dokunulmadı.
+    expect(after.filter((p) => p.symbol === 'XAUUSD')).toHaveLength(1);
+  });
+
+  test('idempotent: ikinci tur kapatacak bir şey bulmaz', () => {
+    openLegacyXag('forex-signals', '1h');
+    expect(sweep.run().closed).toHaveLength(1);
+    expect(sweep.run().closed).toHaveLength(0);
+  });
+
+  test('kapanış defter kaydı outcome=instrument-banned ile yazılır', () => {
+    openLegacyXag('mt5-scanner', '15m');
+    sweep.run();
+    const row = manager.leaderboard().find((b) => b.id === 'mt5-scanner');
+    expect(row.closed).toBe(1);
+  });
+
+  test('kill switch: BANNED_SWEEP_DISABLED=1 tahliyeyi durdurur', () => {
+    openLegacyXag('beast-signals', '4h');
+    process.env.BANNED_SWEEP_DISABLED = '1';
+    const r = sweep.run();
+    expect(r.disabled).toBe(true);
+    expect(manager.bridgeFeed().positions.filter((p) => bans.isBanned(p.symbol))).toHaveLength(1);
+    delete process.env.BANNED_SWEEP_DISABLED;
+  });
+});
+
+describe('bannedPositionSweep — köprüye kapalı botlar da tahliye edilir', () => {
+  beforeEach(() => manager.resetForTest());
+
+  test('⭐ mt5Tradeable:false bot bridgeFeed\'de görünmez ama yine de kapatılır', () => {
+    // mt5-london katalogda mt5Tradeable:false → bridgeFeed onu HİÇ yayınlamaz.
+    const closedBot = catalog.find((e) => e.competitionEligible && e.mt5Tradeable === false);
+    expect(closedBot).toBeTruthy();
+
+    process.env.INSTRUMENT_BANS_DISABLED = '1';
+    expect(manager.recordOpen(closedBot.id, signal('legacy-hidden', 'XAGUSD', 'short')).ok).toBe(true);
+    delete process.env.INSTRUMENT_BANS_DISABLED;
+
+    // İlk geçiş (bridgeFeed) onu göremez — ikinci geçiş (katalog) görmeli.
+    expect(sweep.sweepCompetition()).toHaveLength(0);
+    expect(sweep.sweepCatalog([])).toHaveLength(1);
+    // run() ikisini birleştirir → artık kapatacak bir şey kalmaz.
+    expect(sweep.run().closed).toHaveLength(0);
   });
 });
