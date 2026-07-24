@@ -5,6 +5,7 @@
 from types import SimpleNamespace
 import MetaTrader5 as mt5
 import borsakrali_mt5 as bk
+import trade_guard
 
 CFG = {"lot_min": 0.01, "lot_max": 0.03, "conf_min": 60, "conf_max": 100,
        "max_lot": 0.05, "min_rr": 0.7, "magic": 550055, "deviation_points": 30, "dry_run": False}
@@ -41,9 +42,17 @@ def t_lot():
     assert approx(bk.lot_for_confidence(CFG, 60, info), 0.01)
     assert approx(bk.lot_for_confidence(CFG, 80, info), 0.02)
     assert approx(bk.lot_for_confidence(CFG, 100, info), 0.03)
-    bad = SimpleNamespace(volume_step=0.01, volume_min=0.10, volume_max=100.0)
-    assert bk.lot_for_confidence(CFG, 100, bad) == 0.0, "vmin>max_lot→0"
-    print("OK lot_for_confidence")
+    # ⚠️ 2026-07-24: tavan uygulaması lot_for_confidence'tan trade_guard.clamp_lot'a
+    # TAŞINDI (reddetmek yerine aşağı kırpmak için). "Broker asgarisi tavanı aşarsa
+    # işlem AÇILMAZ" değişmezi korunur — artık clamp_lot'ta.
+    bad = SimpleNamespace(volume_step=0.01, volume_min=0.30, volume_max=100.0)
+    assert trade_guard.clamp_lot(bk.lot_for_confidence(CFG, 100, bad), bad, None, CFG) == 0.0, \
+        "broker vmin > lot tavani → islem yok"
+    # Tavanı aşan ham lot artık ATLANMAZ, 0.15'e kırpılır.
+    big = SimpleNamespace(volume_step=0.01, volume_min=0.01, volume_max=100.0)
+    assert trade_guard.clamp_lot(1.10, big, None, CFG) == 0.05, "cfg max_lot (0.05) daha dusukse o gecerli"
+    assert trade_guard.clamp_lot(1.10, big, None, {}) == 0.15, "cfg yoksa kod tavani 0.15"
+    print("OK lot_for_confidence + clamp_lot tavani")
 
 
 def t_open_long_absolute():

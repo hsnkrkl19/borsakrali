@@ -14,7 +14,7 @@
   "lot_mode": "risk",
   "fixed_lot": 0.02,
   "risk_pct": 0.25,   "_RISK_PCT_NOTU": "Ozsermayenin %0.25i = 24k hesapta ~60$/islem. 15 bot x 60$ = %3.75 azami — gunluk fren (%3) zaten korur.",
-  "max_lot": 0.5,
+  "max_lot": 0.15,
 
   "_TAVANLAR": "Acik pozisyon tavani. 0 = SINIRSIZ (tum botlarin tum islemleri acilir - hangi bot ne kadar basarili net gormek icin). Dikkat: cok pozisyon = cok margin/risk; gunluk zarar freni yine korur.",
   "_TAVAN_NOTU": "0=sinirsiz ama margin patlayabilir (No money). Makul tavan onerilir; dedup zaten ayni sembol+yon tekrarini engeller.",

@@ -10,7 +10,7 @@
   "magic": 550066,
   "deviation_points": 30,
   "max_open_positions": 12,
-  "max_lot": 10,
+  "max_lot": 0.15,
   "min_rr": 0.7,
   "close_on_backend_close": true,
   "push_prices": false,

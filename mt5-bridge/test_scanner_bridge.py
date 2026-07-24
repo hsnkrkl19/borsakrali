@@ -67,19 +67,25 @@ def fake_pos(ticket, comment, symbol="XAUUSD", magic=550066, ptype=0, price_curr
                            type=ptype, volume=0.05, sl=3980.0, tp=4020.0, price_current=price_current)
 
 
-# ── snap_lot: feed lotu aynen; limit aşımı KIRPMA değil RED; adım-dışı AŞAĞI ──
+# ── snap_lot: tavan aşımı artık RED değil AŞAĞI KIRPMA (2026-07-24) ──────────
+# Kullanıcı lot aralığını 0.01–0.15'e indirdi. Eski davranış (tavanı aşan feed
+# lotunu 0 döndürüp işlemi ATLAMAK) bu tavanla neredeyse HER sinyali sessizce
+# iptal ederdi. Aşağı kırpmak riski asla artırmaz → kırpma doğru davranış.
 def t_snap_lot():
     info = fake_info()
-    assert approx(bk.snap_lot(0.05, info, CFG), 0.05), "feed lotu aynen"
-    assert approx(bk.snap_lot(1.96, info, CFG), 1.96), "büyük feed lotu aynen"
-    assert approx(bk.snap_lot(6.7, info, CFG), 6.7), "SPX 5m tarzı büyük lot max_lot=10 altında geçer"
-    assert bk.snap_lot(10.01, info, CFG) == 0.0, "max_lot aşımı → 0 (kırpılmaz)"
-    assert bk.snap_lot(0.005, info, CFG) == 0.0, "vmin altı → 0"
+    assert approx(bk.snap_lot(0.05, info, CFG), 0.05), "tavan altı feed lotu aynen"
+    assert approx(bk.snap_lot(0.15, info, CFG), 0.15), "tam tavan geçer"
+    assert approx(bk.snap_lot(1.96, info, CFG), 0.15), "tavan üstü KIRPILIR (eskiden 0 dönerdi)"
+    assert approx(bk.snap_lot(6.7, info, CFG), 0.15), "büyük lot da 0.15'e kırpılır"
+    assert approx(bk.snap_lot(0.005, info, CFG), 0.01), "vmin altı TABANA çekilir"
     assert approx(bk.snap_lot(0.017, info, CFG), 0.01), "adım-dışı lot AŞAĞI tabanlanır (risk artmaz)"
     assert bk.snap_lot(None, info, CFG) == 0.0 and bk.snap_lot("x", info, CFG) == 0.0
-    big = fake_info(vmax=1.0)
-    assert bk.snap_lot(1.5, big, CFG) == 0.0, "broker vmax üstü → 0"
-    print("OK snap_lot (feed lotu birebir, limit aşımı red, aşağı tabanlama)")
+    assert bk.snap_lot(0, info, CFG) == 0.0
+    # Broker asgarisi tavanımızın ÜSTÜNDEyse işlem açılamaz (fail-closed korunur).
+    assert bk.snap_lot(1.0, fake_info(vmin=0.5), CFG) == 0.0, "broker vmin > 0.15 → işlem yok"
+    # Broker azamisi bizim tavanımızdan düşükse o geçerli.
+    assert approx(bk.snap_lot(1.0, fake_info(vmax=0.05), CFG), 0.05), "broker vmax daha düşükse o bağlar"
+    print("OK snap_lot (0.01-0.15 tavanina KIRPMA, asagi tabanlama, fail-closed vmin)")
 
 
 # ── TR saati (UTC+3 sabit) ───────────────────────────────────────────────────

@@ -35,6 +35,25 @@ jobs:
         run: npm run lint
         continue-on-error: true
 
+  bridge:
+    name: MT5 köprüsü — koruma testleri (Python)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mt5-bridge
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      # MetaTrader5 paketi Windows-only; testler MT5'i stub'lar → kurulum gerekmez.
+      - name: Sözdizimi denetimi
+        run: python -m py_compile trade_guard.py borsakrali_mt5.py borsakrali_mt5_all.py borsakrali_mt5_scanner.py
+      - name: Günlük zarar devre-kesicisi
+        run: python test_trade_guard_daily.py
+      - name: Yasaklı enstrüman + lot sınırı (0.01–0.15 · Bot 37 0.20)
+        run: python test_ban_lot.py
+
   frontend:
     name: Frontend — güvenlik + build
     runs-on: ubuntu-latest
