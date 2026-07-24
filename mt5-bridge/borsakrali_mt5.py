@@ -141,14 +141,11 @@ def lot_for_confidence(cfg, conf, info):
     cmin, cmax = float(cfg["conf_min"]), float(cfg["conf_max"])
     t = 0.0 if cmax <= cmin else max(0.0, min(1.0, (float(conf) - cmin) / (cmax - cmin)))
     lot = lo + t * (hi - lo)
-    lot = min(lot, float(cfg["max_lot"]))
     step = info.volume_step or 0.01
     lot = round(round(lot / step) * step, 2)
     lot = max(info.volume_min, min(info.volume_max, lot))
-    # max_lot tavanı broker min/max clamp'inden SONRA doğrulanır: brokerin asgari
-    # lotu tavanı aşıyorsa 0 dön (çağıran atlar) — tavanı sessizce aşma.
-    if lot > float(cfg["max_lot"]) + 1e-9:
-        return 0.0
+    # Tavan uygulaması compute_lot sonundaki trade_guard.clamp_lot'a taşındı
+    # (2026-07-24) — reddetmek yerine AŞAĞI kırpılır.
     return lot
 
 
@@ -183,12 +180,13 @@ def risk_based_lot(cfg, conf, info, equity, entry_price, stop_price):
     raw = risk_usd / per_lot
     step = info.volume_step or 0.01
     lot = round(raw / step) * step
-    lot = min(lot, float(cfg["max_lot"]), info.volume_max or 100.0)
+    lot = min(lot, info.volume_max or 100.0)
     lot = max(info.volume_min or 0.01, lot)
-    lot = round(lot, 2)
-    if lot > float(cfg["max_lot"]) + 1e-9:
-        return 0.0
-    return lot
+    # ⚠️ 2026-07-24: max_lot tavanı burada UYGULANMIYOR artık — tek yetkili
+    # compute_lot sonundaki trade_guard.clamp_lot. Eskiden tavanı aşan lot 0.0
+    # dönüp işlemi ATIYORDU; tavan 0.15'e indiği için bu, neredeyse her sinyali
+    # sessizce iptal ederdi. AŞAĞI kırpmak riski asla artırmaz.
+    return round(lot, 2)
 
 
 def compute_lot(cfg, s, info, entry_price, stop_price):
@@ -207,8 +205,13 @@ def compute_lot(cfg, s, info, entry_price, stop_price):
             log.warning("#%s %s: risk-bazli lot hesaplanamadi (equity/contract/stop yok) - "
                         "islem ATLANDI (fail-closed; guven-lotuna DUSULMEDI).",
                         s.get("code"), getattr(info, "name", "?"))
-        return lot
-    return lot_for_confidence(cfg, conf, info)
+            return 0.0
+    else:
+        lot = lot_for_confidence(cfg, conf, info)
+    # SON SÖZ: [0.01, 0.15] sert sınırı (2026-07-24). Hem risk hem güven modunu
+    # kapsar; config'teki max_lot/lot_max değerleri bunu AŞAMAZ. Bu köprü Bot 37
+    # feed'ini taşımaz (yalnız forex-signals) → konsensüs istisnası burada yok.
+    return trade_guard.clamp_lot(lot, info, None, cfg)
 
 
 def _position_open_risk_usd(cfg, pos):
@@ -758,6 +761,11 @@ def main():
                     if code in open_by_code:
                         if cfg["trail_stops"]:
                             maybe_trail(cfg, open_by_code[code], s)
+                        continue
+                    # YASAKLI ENSTRÜMAN (2026-07-24): gümüş/XAGUSD'ye YENİ işlem yok.
+                    # Bilerek `code in open_by_code` kontrolünün ALTINDA: açık gümüş
+                    # pozisyonu yukarıda trail'lenmeye/kapanmaya devam eder.
+                    if trade_guard.is_banned_symbol(inst, cfg) or trade_guard.is_banned_symbol(broker_sym, cfg):
                         continue
                     # Hafta sonu penceresi: kripto-DIŞI YENİ işlem yok (kripto sürer).
                     if weekend_closed and not trade_guard.is_crypto(inst):

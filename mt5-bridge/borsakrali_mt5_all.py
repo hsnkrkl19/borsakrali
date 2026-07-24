@@ -253,7 +253,10 @@ def min_stop_dist(info):
     return lvl * info.point
 
 
-def compute_lot(cfg, category, info, entry, stop):
+def compute_lot(cfg, s, info, entry, stop):
+    """Lot hesabı. `s` = feed satırı (botId/magic/category taşır) — konsensüs
+    botunun 0.20 istisnası için gerekli (2026-07-24)."""
+    category = s.get("category") if isinstance(s, dict) else s
     mode = str(cfg.get("lot_mode", "fixed"))
     if mode == "risk":
         try:
@@ -266,15 +269,11 @@ def compute_lot(cfg, category, info, entry, stop):
         lot = float(cfg.get("fixed_lot", 0.05))
     mult = float((cfg.get("category_lot_mult") or {}).get(category, 1.0))
     lot *= mult
-    step = info.volume_step or 0.01
-    lot = round(round(lot / step) * step, 2)
-    lot = max(info.volume_min, min(info.volume_max, lot))
-    if lot > float(cfg.get("max_lot", 0.5)) + 1e-9:
-        lot = float(cfg.get("max_lot", 0.5))
-        lot = round(round(lot / step) * step, 2)
-    if lot < info.volume_min:
-        return 0.0
-    return lot
+    # TEK SINIR NOKTASI: [0.01, 0.15] — Bot 37 konsensüs pozisyonları [0.01, 0.20].
+    # Konsensüs botu tanımı gereği yalnız ≥3 farklı bot aynı yönde anlaştığında
+    # pozisyon açar (botConsensus/index.js findConsensus), yani bu istisna
+    # doğrudan "birden çok botun ortak karar aldığı işlemler"e karşılık gelir.
+    return trade_guard.clamp_lot(lot, info, s if isinstance(s, dict) else None, cfg)
 
 
 def our_positions(cfg):
@@ -291,6 +290,12 @@ def open_from_feed(cfg, s):
     # Dönüş: neden kodu (özet için). "acildi" = MT5'te emir açıldı.
     if not account_allowed(cfg, mt5.account_info()):
         return "hesap_kilidi"
+    # YASAKLI ENSTRÜMAN (2026-07-24): gümüş/XAGUSD'ye YENİ emir açılmaz.
+    # Backend feed'i yine de gönderse (eski sürüm / elle kayıt) burada durur.
+    # Kapatma yolları (close_position, hafta sonu/haber tahliyesi) muaf → açık
+    # gümüş pozisyonu normal şekilde yönetilmeye devam eder.
+    if trade_guard.is_banned_symbol(s.get("symbol"), cfg):
+        return "yasakli_sembol"
     conf = s.get("confidence")
     if conf is not None and float(conf) < float(cfg.get("min_confidence", 0)):
         return "dusuk_guven"
@@ -326,7 +331,10 @@ def open_from_feed(cfg, s):
         if _op_magic > 0 and _op_long == is_long:
             same_side_count += 1
     max_sym_side = int(cfg.get("max_per_symbol_side", 3))
-    if max_sym_side > 0 and same_side_count >= max_sym_side:
+    # KONSENSÜS MUAFİYETİ (2026-07-24): Bot 37 TANIMI GEREĞİ ancak ≥3 farklı bot
+    # aynı sembol+yönde pozisyondayken sinyal üretir → korelasyon tavanı onu
+    # HER ZAMAN 'sembol_yogunlugu' ile reddederdi (0.20 lot hiç açılmazdı).
+    if max_sym_side > 0 and same_side_count >= max_sym_side and not trade_guard.is_consensus(s):
         return "sembol_yogunlugu"
     tick = mt5.symbol_info_tick(info.name)
     if tick is None or not (tick.ask > 0 and tick.bid > 0):
@@ -353,7 +361,7 @@ def open_from_feed(cfg, s):
     tp1 = price + reward if is_long else price - reward
     d = info.digits
     sl, tp = round(sl, d), round(tp1, d)
-    lot = compute_lot(cfg, s.get("category"), info, price, sl)
+    lot = compute_lot(cfg, s, info, price, sl)
     if lot <= 0:
         return "lot_sifir"
     label = "LONG" if is_long else "SHORT"

@@ -173,24 +173,22 @@ def save_state(state):
 
 
 def snap_lot(feed_lots, info, cfg):
-    """Feed lotunu broker adımına/limitlerine oturt. Emniyet: max_lot tavanını
-    aşan feed lotu KIRPILMAZ, 0 döner (çağıran atlar). Adım-dışı lot AŞAĞI
-    tabanlanır (risk sinyaldekinin üstüne asla çıkmaz)."""
+    """Feed lotunu broker adımına/limitlerine oturt ve [0.01, 0.15] sert sınırına
+    KIRP (2026-07-24 kullanıcı talebi).
+
+    ⚠️ Davranış değişikliği: eskiden tavanı aşan feed lotu 0 dönüp işlemi
+    ATLIYORDU ("risk sinyaldekinin üstüne çıkmasın" gerekçesiyle). Tavan 0.15'e
+    indiği için bu, backend'in ürettiği neredeyse her sinyali sessizce iptal
+    ederdi. AŞAĞI kırpmak riski asla artırmaz — o yüzden reddetmek yerine kırpıyoruz.
+    Adım-dışı lot yine AŞAĞI tabanlanır."""
     try:
         lot = float(feed_lots)
     except (TypeError, ValueError):
         return 0.0
     if not lot > 0:
         return 0.0
-    if lot > float(cfg["max_lot"]) + 1e-9:
-        return 0.0
-    step = info.volume_step or 0.01
-    snapped = round(int(lot / step + 1e-9) * step, 2)
-    if snapped <= 0:
-        return 0.0
-    if snapped < (info.volume_min or 0.01) - 1e-9 or snapped > (info.volume_max or 1e9) + 1e-9:
-        return 0.0
-    return snapped
+    # Tarayıcı köprüsü Bot 37 feed'ini taşımaz → konsensüs istisnası yok.
+    return trade_guard.clamp_lot(lot, info, None, cfg)
 
 
 def ensure_symbol(broker_sym):
@@ -719,6 +717,11 @@ def main():
                         continue
                     if code in state["done"]:
                         continue  # MT5 tarafında kapanmış kod — ASLA yeniden açma
+                    # YASAKLI ENSTRÜMAN (2026-07-24): gümüş/XAGUSD'ye YENİ işlem yok.
+                    # `code in by_code` kontrolünün ALTINDA → açık pozisyonun EOD/
+                    # yönetim akışı yukarıda bozulmadan sürer.
+                    if trade_guard.is_banned_symbol(inst, cfg) or trade_guard.is_banned_symbol(broker_sym, cfg):
+                        continue
                     if stop_kill:
                         log.warning("STOP dosyası var — #%s açılmadı.", code); continue
                     if daily_blocked:

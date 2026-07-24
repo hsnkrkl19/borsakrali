@@ -44,6 +44,122 @@ def is_crypto(instrument_id):
     return str(instrument_id or "").upper() in CRYPTO_IDS
 
 
+# ── YASAKLI ENSTRÜMANLAR (2026-07-24, kullanıcı: "gümüş işlemleri yasak") ──────
+# Backend'in instrumentBans.js'iyle AYNI kural — köprü savunma derinliğidir:
+# backend'e dokunulamadığı/eski sürümde kaldığı durumda da gümüş emri açılmaz.
+#
+# ⚠️ YALNIZ **YENİ EMİR AÇMAYI** engeller. Kapatma/trailing yolları BİLEREK muaf:
+# aksi hâlde MT5'te açık duran bir gümüş pozisyonu yönetilemez hâle gelirdi.
+# Kill switch: config'te "instrument_bans_disabled": true
+_BANNED_PREFIXES = ("XAG", "SILVER")
+_BANNED_EXACT = {"SIF"}          # Yahoo 'SI=F'
+
+
+def _norm_symbol(raw):
+    """'XAG/USD'→'XAGUSD' · 'SI=F'→'SIF' · 'XAGUSD.'→'XAGUSD' · 'OANDA:XAGUSD'→'XAGUSD'"""
+    s = str(raw or "").upper().strip()
+    if ":" in s:
+        s = s.rsplit(":", 1)[1]
+    return "".join(ch for ch in s if ch.isalnum())
+
+
+def is_banned_symbol(symbol, cfg=None):
+    """Bu sembole YENİ pozisyon açmak yasak mı? Her yazımı (feed id, broker adı,
+    Yahoo sembolü, sonek varyantları) kabul eder."""
+    if cfg and cfg.get("instrument_bans_disabled"):
+        return False
+    n = _norm_symbol(symbol)
+    if not n:
+        return False
+    if n in _BANNED_EXACT:
+        return True
+    if any(n.startswith(p) for p in _BANNED_PREFIXES):
+        return True
+    for extra in (cfg or {}).get("banned_instruments") or []:
+        e = _norm_symbol(extra)
+        if e and n.startswith(e):
+            return True
+    return False
+
+
+# ── LOT SINIRLARI (2026-07-24, kullanıcı talebi) ──────────────────────────────
+# "tüm botların lot sayısını 0.01 ile 0.15 arasına getir. sadece bot 37 konsensüs
+#  değerlendirme sonuçlarında birden çok botun ortak karar aldığı işlemlere 0.20."
+#
+# ⚠️ Sınır KODDA, config'te DEĞİL. Sebebi: üç köprünün config'i de (config.json,
+# config_all.json, config_scanner.json) .gitignore'da / yalnız VPS'te yaşıyor —
+# oraya yazılan bir tavan repoda görünmez ve bir dosya yeniden üretilirse sessizce
+# kaybolur. Config yalnız tavanı DÜŞÜREBİLİR, yükseltemez.
+LOT_HARD_MIN = 0.01
+LOT_HARD_MAX = 0.15
+# Konsensüs botu (Bot 37, magic 5749) — birden çok botun ortak kararı.
+CONSENSUS_LOT = 0.20
+CONSENSUS_BOT_ID = "consensus-radar"
+CONSENSUS_MAGIC = 5749
+
+
+def is_consensus(feed_row):
+    """Bu feed satırı Bot 37 konsensüs pozisyonu mu? (botId VEYA magic ile —
+    biri eksik/eski sürüm olsa da diğeri yakalar.)"""
+    if not isinstance(feed_row, dict):
+        return False
+    if str(feed_row.get("botId") or "") == CONSENSUS_BOT_ID:
+        return True
+    try:
+        return int(feed_row.get("magic") or 0) == CONSENSUS_MAGIC
+    except (TypeError, ValueError):
+        return False
+
+
+def lot_cap_for(feed_row=None, cfg=None):
+    """Bu işlem için izin verilen AZAMİ lot. Konsensüs dışı her şey 0.15."""
+    cap = CONSENSUS_LOT if is_consensus(feed_row) else LOT_HARD_MAX
+    # Backend feed'i per-pozisyon tavan bildiriyorsa (bridgeFeed `lotCap`) onu da
+    # dikkate al — ama YALNIZ DÜŞÜRÜCÜ yönde; feed bizden yüksek tavan isteyemez.
+    if isinstance(feed_row, dict) and feed_row.get("lotCap") is not None:
+        try:
+            feed_cap = float(feed_row["lotCap"])
+            if feed_cap > 0:
+                cap = min(cap, feed_cap)
+        except (TypeError, ValueError):
+            pass
+    # config yalnız DÜŞÜREBİLİR (güvenlik yönü tek taraflı).
+    try:
+        cfg_cap = float((cfg or {}).get("max_lot", cap))
+        if cfg_cap > 0:
+            cap = min(cap, cfg_cap)
+    except (TypeError, ValueError):
+        pass
+    return cap
+
+
+def clamp_lot(lot, info=None, feed_row=None, cfg=None):
+    """Lot'u [0.01, 0.15] (konsensüste [0.01, 0.20]) aralığına ve broker'ın
+    volume_step/volume_min/volume_max kısıtlarına oturtur.
+    Dönen 0.0 = bu broker'da geçerli lot üretilemedi (işlem açılmamalı)."""
+    try:
+        lot = float(lot)
+    except (TypeError, ValueError):
+        return 0.0
+    if not (lot > 0):
+        return 0.0
+    step = float(getattr(info, "volume_step", 0) or 0.01)
+    vmin = float(getattr(info, "volume_min", 0) or LOT_HARD_MIN)
+    vmax = float(getattr(info, "volume_max", 0) or LOT_HARD_MAX)
+    cap = lot_cap_for(feed_row, cfg)
+    floor_lot = max(LOT_HARD_MIN, vmin)
+    # Taban tavanı aşıyorsa (örn. broker volume_min 0.5 > 0.15) işlem AÇILAMAZ.
+    if floor_lot > cap + 1e-9 or floor_lot > vmax + 1e-9:
+        return 0.0
+    lot = min(lot, cap, vmax)
+    # ⚠️ Adıma AŞAĞI otur — repo değişmezi: yuvarlama riski sinyalin üstüne
+    # ASLA taşımaz (en yakına yuvarlamak 0.017→0.02 yapıp riski büyütürdü).
+    lot = round(int(lot / step + 1e-9) * step, 2)
+    if lot < floor_lot:
+        lot = round(floor_lot, 2)   # taban: kullanıcı kuralı "0.01 ile ... arasına"
+    return lot
+
+
 def inst_for_symbol(cfg, broker_sym):
     """Broker sembolünden (örn 'US100.cash') enstrüman kimliğini (örn 'NAS100')
     çöz — cfg['symbols'] instrumentId→broker eşlemesini TERS çevirerek."""
