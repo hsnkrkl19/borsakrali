@@ -25,7 +25,20 @@ const MAX_DEALS = 8000;
 const PRUNE_DAYS = 60;
 const GOLD_MAGIC = 20260707;
 
-const CATALOG_BY_MAGIC = new Map(catalog.filter((e) => e.magic).map((e) => [e.magic, e]));
+// Bir botun MT5'te birden çok magic'i olabilir:
+//  • magic              → birleşik köprünün (borsakrali_mt5_all.py) kimliği
+//  • magicByStrategy     → çok-motorlu botun alt motorları (BK XAU scalp/swing)
+//  • dedicatedBridgeMagic→ adanmış köprünün kimliği (forex 550055, tarayıcı 550066)
+// Hepsi AYNI bota işaret eder. Eşlenmezse deal "Magic 550055" diye etiketlenip
+// hem lider tablosunda kayboluyor hem Telegram kapanış mesajında öyle görünüyordu.
+const CATALOG_BY_MAGIC = new Map();
+for (const e of catalog) {
+  for (const m of [e.magic, e.dedicatedBridgeMagic, ...Object.values(e.magicByStrategy || {})]) {
+    if (Number.isFinite(Number(m)) && Number(m) > 0 && !CATALOG_BY_MAGIC.has(Number(m))) {
+      CATALOG_BY_MAGIC.set(Number(m), e);
+    }
+  }
+}
 
 function nowSec() { return Math.floor(Date.now() / 1000); }
 function round(v, d = 2) { const n = Number(v); return Number.isFinite(n) ? Math.round(n * 10 ** d) / 10 ** d : 0; }

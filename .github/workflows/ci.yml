@@ -53,6 +53,8 @@ jobs:
         run: python test_trade_guard_daily.py
       - name: Yasaklı enstrüman + lot sınırı (0.01–0.15 · Bot 37 0.20)
         run: python test_ban_lot.py
+      - name: Köprü sahipliği (yalnız kendi açtığını siteye bildirir)
+        run: python test_bridge_ownership.py
 
   frontend:
     name: Frontend — güvenlik + build

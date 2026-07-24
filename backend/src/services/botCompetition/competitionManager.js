@@ -822,12 +822,23 @@ function resetForTest(nextState = null) {
 // competition = beyin (istatistik/şampiyon), köprü = kol (MT5 yürütme). Köprü,
 // feed'de görünmeyen (competition kapatmış) kodu MT5'te kapatır (drift-senkron).
 // GÜVENLİK: yalnız state.enabled (usta anahtar) + bot.enabled + engine açık botlar.
-function bridgeFeed() {
+//
+// opts.forExecution=true → YALNIZ birleşik köprünün açmasına izin verilen
+// pozisyonlar (bridge.routes.js bunu kullanır). Adanmış köprüsü olan botlar
+// (forex-signals → borsakrali_mt5.py, mt5-scanner → borsakrali_mt5_scanner.py)
+// bu görünümden ÇIKARILIR: aksi halde aynı paper pozisyon iki köprüde birden
+// açılır (farklı magic → dedup tutmaz) ve gerçek risk 2 katına çıkar.
+// Varsayılan (opts yok) görünüm TAM kalır — Konsensüs Radarı (cronJobs.js) oy
+// sayarken bu botları görmeye devam etmelidir; onlar gerçekten işlemdeler,
+// yalnızca emri BAŞKA köprü açıyor.
+function bridgeFeed(opts = {}) {
   load();
+  const forExecution = opts.forExecution === true;
   if (!state.enabled) return { enabled: false, generatedAt: nowISO(), count: 0, positions: [] };
   const positions = [];
   for (const entry of catalog) {
     if (!entry.competitionEligible) continue;
+    if (forExecution && entry.dedicatedBridgeMagic) continue;
     // BIST botları MT5/FTMO'da bulunmayan semboller üretir (THYAO vb.) → köprüye
     // gönderme (feed'i şişirip her turda "sembol_yok" olarak boşa dönüyorlardı).
     // Sitede + Telegram BIST kanallarında çalışmaya devam ederler.
@@ -863,6 +874,9 @@ function bridgeFeed() {
         timeframe: pos.timeframe || '',
         openedAt: pos.openedAt,
         longOnly: !!entry.longOnly,
+        // Adanmış köprüsü olan bot mu? forExecution görünümünde bu satırlar zaten
+        // elenir; tam görünümde (konsensüs/teşhis) hangi köprünün açtığı görünsün.
+        dedicatedBridgeMagic: entry.dedicatedBridgeMagic || null,
         // LOT TAVANI (2026-07-24): köprü bu alanı okuyup lotu buna kırpar.
         // Konsensüs Radarı (Bot 37) 0.20, diğer TÜM botlar 0.15. Köprü kendi
         // trade_guard.clamp_lot'unda aynı sınırı bağımsız uyguladığı için bu

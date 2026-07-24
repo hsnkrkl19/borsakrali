@@ -29,7 +29,13 @@ router.get('/positions', (req, res) => {
   const auth = checkExecToken(req);
   if (!auth.ok) return res.status(auth.code).json({ success: false, error: auth.error });
   try {
-    const feed = competitionManager.bridgeFeed();
+    // forExecution: adanmış köprüsü olan botlar (forex-signals → borsakrali_mt5.py,
+    // mt5-scanner → borsakrali_mt5_scanner.py) bu feed'e GİRMEZ. 2026-07-24
+    // denetimi: giriyorlardı → aynı pozisyon iki köprüde iki ayrı magic'le
+    // açılıyordu (dedup magic+sembol+yön bazlı olduğu için ikisi de geçiyordu)
+    // → gerçek risk 2 katı. Otorite adanmış köprüdür (iz-süren SL / EOD kapatma
+    // / kapanış geri-bildirimi yalnız orada).
+    const feed = competitionManager.bridgeFeed({ forExecution: true });
     // 15 botun TF filtresi: panelde seçilen zaman dilimleri dışındaki pozisyonlar
     // köprüye gönderilmez (filtre boşsa hepsi geçer; TF bilinmiyorsa geçer).
     let positions = (feed.positions || []).filter((p) => {

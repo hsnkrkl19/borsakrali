@@ -5,12 +5,25 @@
 // magic: birleşik köprünün (borsakrali_mt5_all.py) her botu MT5'te AYRI kimlikle
 // açması için sabit sihirli numara. Böylece her bot ayrı ayrı işlem alır ve
 // istatistikleri birbirine karışmaz. Support botlarının magic'i yoktur.
+// dedicatedBridgeMagic: bu botun GERÇEK emirlerini birleşik köprü DEĞİL, kendi
+// adanmış köprüsü açar (aşağıdaki iki bot). Birleşik köprü feed'ine girmemeleri
+// ŞART: girerlerse aynı paper pozisyon iki ayrı magic'le MT5'te İKİ gerçek
+// pozisyon açar (2026-07-24 denetimi) → amaçlanan riskin 2 katı, 0.15 lot tavanı
+// fiilen 0.30 olur. Değer = adanmış köprünün config magic'i (deal→bot eşlemesi).
 const entries = [
-  { id: 'forex-signals', name: 'Forex Sinyalleri', category: 'Forex', costBps: 3, magic: 5701 },
+  // Adanmış köprü: mt5-bridge/borsakrali_mt5.py (magic 550055) — GET /api/forex/positions.
+  // Otorite ODUR: iz-süren SL (maybe_trail), hedge çakışma bastırma, portföy risk
+  // tavanı ve POST /api/forex/closed ile kapanış geri-bildirimi yalnız orada var.
+  { id: 'forex-signals', name: 'Forex Sinyalleri', category: 'Forex', costBps: 3, magic: 5701, dedicatedBridgeMagic: 550055 },
   { id: 'pro-robot', name: 'Pro Robot', category: 'Forex', costBps: 3, magic: 5702 },
   { id: 'gold-signals', name: 'Altın Sinyalleri', category: 'Emtia', costBps: 4, magic: 5703 },
   { id: 'beast-signals', name: 'Beast Trend', category: 'Deneysel', costBps: 4, magic: 5704 },
-  { id: 'mt5-scanner', name: 'MT5 Gün İçi Tarayıcı', category: 'MT5', costBps: 4, engineDisableEnv: 'MT5_SCANNER_DISABLED', magic: 5705 },
+  // Adanmış köprü: mt5-bridge/borsakrali_mt5_scanner.py (magic 550066) —
+  // GET /api/mt5-scanner/positions. Otorite ODUR: EOD 23:45 kapatma
+  // (past_deadline_positions), kapanan kodu bir daha açmama (reconcile_closures),
+  // ticket↔kod kalıcı eşlemesi ve risk bütçesi yalnız orada var. Birleşik köprü
+  // gün-içi pozisyonu GECEYE TAŞIRDI.
+  { id: 'mt5-scanner', name: 'MT5 Gün İçi Tarayıcı', category: 'MT5', costBps: 4, engineDisableEnv: 'MT5_SCANNER_DISABLED', magic: 5705, dedicatedBridgeMagic: 550066 },
   { id: 'crypto-signals', name: 'Kripto Sinyalleri', category: 'Kripto', costBps: 10, magic: 5706 },
   { id: 'mtf-confluence', name: 'MTF Konfluans', category: 'Kripto', costBps: 10, directional: true, magic: 5707 },
   // BIST botları: sitede + Telegram BIST kanallarında AYNEN çalışır, ama BIST

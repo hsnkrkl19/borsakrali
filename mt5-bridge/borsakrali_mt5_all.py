@@ -664,17 +664,25 @@ _last_state_report = 0.0
 
 
 def report_mt5_state(cfg):
-    """SİNYAL = İŞLEM (1:1). MT5'teki GERÇEK açık pozisyonları + son kapananları
-    siteye bildirir; site daha önce duyurulmamışlar için Telegram mesajı atar.
+    """SİNYAL = İŞLEM (1:1). BU KÖPRÜNÜN açtığı GERÇEK açık pozisyonları siteye
+    bildirir; site daha önce duyurulmamışlar için Telegram mesajı atar.
     Kaynak MT5'in kendisi olduğundan 'sinyal var işlem yok' durumu imkânsızdır.
-    Her turda çalışır (açılış anında duyurulsun diye)."""
+    Her turda çalışır (açılış anında duyurulsun diye).
+
+    SAHİPLİK (2026-07-24 düzeltmesi): eskiden `magic > 0` olan HER pozisyon
+    bildiriliyordu → adanmış köprülerin (forex 550055, tarayıcı 550066) ve
+    platform dışı standalone altın botunun (20260707) işlemleri de bu köprünün
+    ağzından duyuruluyor, Telegram'da "🤖 Magic 550055" başlığıyla çıkıyordu.
+    Artık ölçüt our_positions() ile AYNI: comment 'A#…' = bu köprünün açtığı.
+    (Kapanışlar farklı: report_real_results BİLEREK tüm hesabı tarar — lider
+    tablosu gerçek sonuçları magic→bot eşlemesiyle doğru sahibine yazar.)"""
     global _last_state_report
     now = time.time()
     if now - _last_state_report < 25:      # aynı turda çift göndermeyi önle
         return
     _last_state_report = now
     try:
-        positions = mt5.positions_get() or []
+        positions = our_positions(cfg)
     except Exception as exc:
         log.warning("pozisyon okunamadı (durum bildirimi): %s", exc)
         return

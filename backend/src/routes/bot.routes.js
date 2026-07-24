@@ -145,7 +145,11 @@ router.get('/diag', (req, res) => {
       return {
         no: e.no, bot: botLabel(e.id) || e.name, id: e.id, kategori: e.category,
         acik: b.open || 0, kapanan: b.closed || 0, netR: b.net_r != null ? b.net_r : null,
-        kopruye_gider: e.mt5Tradeable !== false, motor_kapali: engineOff,
+        // BİRLEŞİK köprüye (borsakrali_mt5_all.py) gider mi? Adanmış köprüsü olan
+        // bot GİTMEZ — gerçek emri kendi köprüsü açar (aksi halde çift pozisyon).
+        kopruye_gider: e.mt5Tradeable !== false && !e.dedicatedBridgeMagic,
+        adanmis_kopru_magic: e.dedicatedBridgeMagic || null,
+        motor_kapali: engineOff,
         bot_acik: b.enabled !== false, durum,
       };
     });
