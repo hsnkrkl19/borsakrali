@@ -4,6 +4,7 @@
  * SL/TP TF'ye göre ATR ile ölçeklenir (düşük TF dar, yüksek TF geniş).
  */
 const { atr } = require('./indicators');
+const { clampLot } = require('../lotLimits');
 
 // TF → ATR çarpanları (gün-içi → swing genişler)
 // R:R DÜZELTMESİ (2026-07-21): eski TP1/SL ≈ 1.33-1.56 → başabaş %39-43 isabet
@@ -78,7 +79,9 @@ function buildMt5(instrument, direction, lots, levels, tf, precision = 4) {
   const type = direction === 'long' ? 'BUY' : 'SELL';
   const fmt = (v) => v == null ? '-' : Number(v).toFixed(precision);
   const order = {
-    symbol, type, volume: lots,
+    // Gösterilen lot da [0.01, 0.15] tavanına kırpılır (2026-07-24): köprü
+    // kendi lotunu bu tavanla hesaplıyor, mesajdaki sayı onunla tutarlı kalsın.
+    symbol, type, volume: clampLot(lots) || lots,
     entry: 'MARKET',
     price: levels.entry, sl: levels.stop, tp: levels.target1, tp2: levels.target2,
     comment: `BorsaKrali ${tf}`,

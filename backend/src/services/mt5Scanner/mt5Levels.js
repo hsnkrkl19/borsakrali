@@ -13,6 +13,7 @@
  */
 
 const { MT5_SYMBOL } = require('../forex/forexLevels');
+const { LOT_HARD_MAX } = require('../lotLimits');
 
 // Gün-içi ATR çarpanları — TP1 yakın (isabet), TP2 koşturan.
 // 4h/1d yönü güçlü ama seviyeler gün-içi ölçekte: kendi ATR'lerinin küçük katı.
@@ -100,7 +101,11 @@ function snapSizingToBroker(sizing, instrument, entry, stop, { maxRiskUsd } = {}
     ? sizing.riskUsd / stopDist / cs
     : (sizing.lots || 0);
   let lots = Math.floor(rawLots / step + 1e-9) * step;
-  lots = Math.min(lots, vmax);
+  // SERT LOT TAVANI (2026-07-24, kullanıcı: "tüm botların lotu 0.01–0.15").
+  // Tarayıcı zincirinde lot OTORİTESİ backend'dir — köprü feed'deki lotu aynen
+  // kullanır (mt5Scanner.routes.js /positions → snap_lot). Tavan burada da
+  // uygulanmazsa Telegram'da yazan lot ile MT5'te açılan lot AYRIŞIR.
+  lots = Math.min(lots, vmax, LOT_HARD_MAX);
   if (lots < vmin) {
     // Hesap küçük / stop geniş: brokerin asgari lotu hedef riski aşıyor.
     // Asgari lotun riski kural tavanına sığıyorsa asgariyle işlem ver; sığmıyorsa verme.

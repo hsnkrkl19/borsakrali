@@ -194,7 +194,7 @@ describe('mt5Tracker — risk bütçesi ve kapılar', () => {
     expect(b.windowOpen).toBe(true);
   });
 
-  test('sıralı açılış: ~%1 risklerle 5 pozisyon sonra günlük bütçe biter', async () => {
+  test('sıralı açılış: günlük risk bütçesi dolunca YENİ pozisyon reddedilir', async () => {
     const t = freshTracker();
     await t.load();
     // Her enstrümana KENDİ fiyat ölçeğinde giriş/stop (lot hesabı gerçekçi kalsın)
@@ -205,17 +205,40 @@ describe('mt5Tracker — risk bütçesi ve kapılar', () => {
       { id: 'SPX500', entry: 7500, stop: 7400, target1: 7600, target2: 7680 },
       { id: 'NAS100', entry: 30000, stop: 29600, target1: 30400, target2: 30700 },
     ];
-    for (const c of cases) {
-      const sig = makeSignal({ ...c, tf: '15m' });
-      const r = await t.openPosition(sig, 10000);
-      expect(r.ok).toBe(true);
-      expect(r.position.code).toMatch(/^G[A-Z]{2}\d{2}$/);
+    // ⚠️ 2026-07-24: lot tavanı 0.15'e indi → dar stoplu kurulumlarda (EURUSD,
+    // SPX500) lot kırpıldığı için işlem başı $ risk DÜŞTÜ ve bütçe artık 5
+    // pozisyonda dolmuyor. Test sabit sayı yerine DAVRANIŞI ölçer: bütçe eninde
+    // sonunda dolar ve dolduğunda sebep 'budget-*' olur.
+    const tfs = ['15m', '1h', '4h', '1d', '5m'];
+    let blocked = null, opened = 0;
+    for (const tf of tfs) {
+      for (const c of cases) {
+        const r = await t.openPosition(makeSignal({ ...c, tf }), 10000);
+        if (r.ok) {
+          opened++;
+          expect(r.position.code).toMatch(/^G[A-Z]{2}\d{2}$/);
+          // LOT TAVANI değişmezi: hiçbir pozisyon 0.15 lotu aşamaz.
+          expect(r.position.lots).toBeLessThanOrEqual(0.15);
+        } else if (String(r.reason || '').startsWith('budget-')) {
+          blocked = r; break;
+        }
+      }
+      if (blocked) break;
     }
-    // 6. işlem: bütçe dolu (5×~$100 açık risk ≈ $500)
-    const six = makeSignal({ id: 'XAGUSD', entry: 60, stop: 59.4, target1: 60.6, target2: 61.1, tf: '15m' });
-    const r6 = await t.openPosition(six, 10000);
-    expect(r6.ok).toBe(false);
-    expect(r6.reason).toMatch(/^budget-/);
+    expect(opened).toBeGreaterThan(0);
+    expect(blocked).not.toBeNull();
+    expect(blocked.reason).toMatch(/^budget-/);
+  });
+
+  test('⭐ YASAK ENSTRÜMAN: gümüşe yeni pozisyon açılmaz (bütçe boşken bile)', async () => {
+    const t = freshTracker();
+    await t.load();
+    const sig = makeSignal({ id: 'XAGUSD', entry: 60, stop: 59.4, target1: 60.6, target2: 61.1, tf: '15m' });
+    const g = t.gate(sig, 10000);
+    expect(g.ok).toBe(false);
+    expect(g.reason).toBe('instrument-banned');
+    const r = await t.openPosition(sig, 10000);
+    expect(r.ok).toBe(false);
   });
 
   test('dedup + yön kilidi + pencere', async () => {
