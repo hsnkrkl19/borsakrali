@@ -8194,6 +8194,14 @@ server.listen(PORT, () => {
   // Önce botların kalıcı durumunu Supabase'ten geri yükle (cron'lar/ingest
   // okumadan ÖNCE), sonra cron'ları başlat. Supabase kapalıysa loadAll no-op.
   (async () => {
+    // İSTATİSTİK SIFIRLAMA (2026-07-24): BOT_STATS_RESET jetonu değiştiyse eski
+    // defterleri sil. loadAll'dan ÖNCE olmalı — sonra çalışırsa Supabase'ten
+    // geri yüklenen dosyaları siler ve bir sonraki açılışta hepsi geri gelir.
+    try {
+      await require('./services/statsReset').runIfRequested();
+    } catch (e) {
+      console.error('[StatsReset] sıfırlama hatası:', e.message);
+    }
     try {
       await botPersistence.loadAll();
     } catch (e) {
