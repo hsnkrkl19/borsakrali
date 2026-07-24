@@ -20,6 +20,21 @@
  *
  * Kalıcılık: bildirilenler diske/Supabase'e yazılır → yeniden başlatma aynı
  * işlemi TEKRAR duyurmaz (NR7 gölge spam olayının dersi).
+ *
+ * ⚠️ 2026-07-24 — AÇILIŞ DUYURUSU KAPATILDI (kullanıcı: "botlar işlem açtığına
+ * dair bildirim atmasın; zaten bildirim attığında işlem açması lazım, bir daha
+ * bildirim atarak spam yaratıyor").
+ *
+ * Neden çift mesaj vardı: aynı işlem için İKİ bağımsız duyuru yolu çalışıyordu —
+ *   (1) botun kendi sinyal bildirimi (forexPushNotifier / mt5Notifier /
+ *       mt5Bots.notifyOpened ...) paper pozisyon açılınca,
+ *   (2) burası, köprü aynı pozisyonu MT5'te GERÇEKTEN açıp POST /api/bridge/state
+ *       ile geri bildirince (~1 dk sonra).
+ * Dedup evrenleri ayrıktı (competition fingerprint ↔ MT5 ticket) → çakışma
+ * tesadüf değil GARANTİYDİ. Artık (1) tek duyurudur, (2) yalnız kayıt tutar.
+ *
+ * Ticket'lar YİNE de state.opens'a işaretlenir: MT5_TRADE_NOTIFY_OPEN=1 ile
+ * açılış duyurusu geri açılırsa geçmiş işlemler toplu duyurulmasın.
  */
 
 const fs = require('fs');
@@ -37,6 +52,13 @@ const STATE_FILE = path.join(DATA_DIR, FILE);
 const TEST_EPHEMERAL = process.env.NODE_ENV === 'test' && !process.env.MT5_NOTIFY_DATA_DIR;
 const MAX_KEEP = 4000;          // bellek/dosya sınırı
 const TTL_MS = 7 * 24 * 3600 * 1000;
+// Açılış duyurusu VARSAYILAN KAPALI (çift mesaj) — geri açmak için =1.
+const OPEN_NOTIFY_ON = () => process.env.MT5_TRADE_NOTIFY_OPEN === '1';
+// Kapanış tazelik penceresi: köprü her 5 dk'da SON 7 GÜNÜN kapanışlarını POST
+// ediyor (report_real_results). Backend restart'ı dedup sözlüğünü sıfırlarsa
+// 7 günlük geçmiş tek seferde Telegram'a boşalırdı — 2026-07-21 NR7 olayının
+// aynısı, daha büyük ölçekte. Bu pencereden ESKİ kapanışlar sessizce kaydedilir.
+const CLOSE_FRESH_MS = Number(process.env.MT5_CLOSE_FRESH_MIN || 90) * 60 * 1000;
 
 let state = { opens: {}, closes: {}, updatedAt: null };
 let loaded = false;
@@ -140,20 +162,31 @@ async function ingestState(payload = {}) {
   const closed = Array.isArray(payload.closed) ? payload.closed : [];
   let openNotified = 0, closeNotified = 0, skipped = 0;
 
+  let marked = 0;
   for (const p of open) {
     const key = String(p && p.ticket || '');
     if (!key || state.opens[key]) { skipped++; continue; }
     state.opens[key] = Date.now();      // ÖNCE işaretle (gönderim patlarsa bile tekrar deneme spam'i olmasın)
+    marked++;
+    // AÇILIŞ DUYURUSU KAPALI (2026-07-24): sinyali botun kendi bildirimi zaten
+    // attı; buradaki "MT5'te AÇILDI" mesajı aynı işlemin İKİNCİ duyurusuydu.
+    if (!OPEN_NOTIFY_ON()) continue;
     try { if (await send(openMessage(p))) openNotified++; } catch (_) { /* yut */ }
   }
+  const freshCut = Date.now() - CLOSE_FRESH_MS;
   for (const d of closed) {
     const key = String(d && d.id || '');
     if (!key || state.closes[key]) { skipped++; continue; }
     state.closes[key] = Date.now();
+    marked++;
+    // BAYAT KAPANIŞ: köprünün 7 günlük penceresinden gelen eski deal'ler
+    // duyurulmaz, yalnız işaretlenir (restart sonrası toplu boşalmayı önler).
+    const closedMs = Number(d && d.closedSec) > 0 ? Number(d.closedSec) * 1000 : null;
+    if (closedMs !== null && closedMs < freshCut) { skipped++; continue; }
     try { if (await send(closeMessage(d))) closeNotified++; } catch (_) { /* yut */ }
   }
 
-  if (openNotified || closeNotified) { prune(); persist(); }
+  if (marked) { prune(); persist(); }
   return { openNotified, closeNotified, skipped };
 }
 

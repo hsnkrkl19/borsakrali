@@ -29,7 +29,16 @@ const SUBDIRS = ['bot', 'crypto-bot', 'tema34-bot', 'custom-bots', 'crossover-al
 // kırılım bildirimcisi (state); registry.json → custom bot tanım defteri;
 // learning.json → mt5-scanner öğrenme katmanı (kombo istatistik + mod kararları).
 // Liste tüm alt-dizinlere uygulanır; olmayan dosyalar loadAll'da sessizce atlanır.
-const FILES = ['portfolio.json', 'positions.json', 'trades.json', 'signal-log.json', 'runs.json', 'registry.json', 'learning.json', 'backtest.json'];
+// ⚠️ 2026-07-24 SPAM DÜZELTMESİ: bu listede OLMAYAN bir dosya adı için save()
+// SESSİZCE no-op'tur (aşağıda `!FILES.includes(filename)`). Aşağıdaki üç dosya
+// listede yoktu → dedup sözlükleri Supabase'e HİÇ yazılmıyordu ve Render diski
+// kalıcı olmadığı için her deploy/restart dedup'ı sıfırlıyordu. Sonuç: köprünün
+// 5 dk'da bir POST ettiği 7 GÜNLÜK kapanış penceresi baştan "yeni" sayılıp
+// toplu Telegram mesajına dönüşüyordu (2026-07-21 NR7 olayının aynısı).
+//   notified.json        → mt5TradeNotifier (açılış/kapanış ticket dedup'ı)
+//   deals.json           → realResults (gerçek MT5 sonuç deposu)
+//   consensus-alerts.json → botConsensus (günlük konsensüs uyarı dedup'ı)
+const FILES = ['portfolio.json', 'positions.json', 'trades.json', 'signal-log.json', 'runs.json', 'registry.json', 'learning.json', 'backtest.json', 'notified.json', 'deals.json', 'consensus-alerts.json'];
 const DEBOUNCE_MS = 2500;
 
 // Bir custom bot portföy alt-dizini mi? ('custom-<id>', registry'nin 'custom-bots'u hariç)
