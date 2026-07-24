@@ -120,7 +120,10 @@ DEFAULTS = {
 
 
 def load_config():
-    with open(CONFIG_PATH, "r", encoding="utf-8") as f:
+    # utf-8-sig: Windows Not Defteri (ve PowerShell Set-Content) UTF-8 kaydederken
+    # başa BOM koyar; düz "utf-8" ile json.load "Unexpected UTF-8 BOM" deyip patlar
+    # ve köprü hiç açılmaz. utf-8-sig BOM'lu da BOM'suz da okur.
+    with open(CONFIG_PATH, "r", encoding="utf-8-sig") as f:
         cfg = json.load(f)
     merged = dict(DEFAULTS)
     merged.update(cfg)

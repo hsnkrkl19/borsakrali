@@ -55,6 +55,8 @@ jobs:
         run: python test_ban_lot.py
       - name: Köprü sahipliği (yalnız kendi açtığını siteye bildirir)
         run: python test_bridge_ownership.py
+      - name: Config BOM dayanıklılığı (Not Defteri ile kaydedilen config açılmalı)
+        run: python test_config_bom.py
 
   frontend:
     name: Frontend — güvenlik + build

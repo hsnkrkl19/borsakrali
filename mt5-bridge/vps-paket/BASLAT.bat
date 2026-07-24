@@ -24,7 +24,7 @@ if not exist "mt5-bridge\config_all.json" (
   echo   ^>^>^> Acilan dosyada MUTLAKA doldur:
   echo        exec_token       = borsakrali FOREX_EXEC_TOKEN degeri
   echo        allowed_account  = FTMO hesap no  ^(HESAP-KONTROL.bat ile ogren^)
-  echo        backend_url      = https://www.borsakrali.com  (www ONEMLI)
+  echo        backend_url      = https://www.borsakrali.com  ^(www ONEMLI^)
   echo        dry_run          = false ^(GERCEK islem^) / true ^(TEST^)
   echo.
   notepad "mt5-bridge\config_all.json"
@@ -35,14 +35,14 @@ if not exist "mt5-bridge\config_all.json" (
 REM ---------- FOREX koprusu config (magic 550055) ----------
 REM 2026-07-24: forex-signals botunun GERCEK emirlerini ARTIK SADECE bu kopru acar.
 REM Bu config yoksa o bot HIC islem acmaz (birlesik kopru onu bilerek atliyor).
+REM exec_token / allowed_account / terminal_path / backend_url CALISAN
+REM config_all.json'dan OTOMATIK kopyalanir - elle token aramana gerek yok
+REM (ucunun token'i AYNI: backend'deki tek FOREX_EXEC_TOKEN degeri).
 if not exist "mt5-bridge\config.json" (
   echo.
-  echo [KURULUM] config.json yok - FOREX koprusu icin ornekten olusturuluyor...
+  echo [KURULUM] config.json yok - FOREX koprusu icin olusturuluyor...
   copy "mt5-bridge\config.example.json" "mt5-bridge\config.json" >nul
-  echo   ^>^>^> exec_token + allowed_account doldur, dry_run=false yap.
-  notepad "mt5-bridge\config.json"
-  echo   Kaydedip kapatinca devam etmek icin bir tusa bas...
-  pause
+  call :DEVRAL "mt5-bridge\config.json"
 )
 
 REM ---------- GUN-ICI TARAYICI config (magic 550066) ----------
@@ -51,11 +51,37 @@ if not exist "mt5-bridge\config_scanner.json" (
   echo.
   echo [KURULUM] config_scanner.json yok - TARAYICI koprusu icin olusturuluyor...
   copy "mt5-bridge\config_scanner.example.json" "mt5-bridge\config_scanner.json" >nul
-  echo   ^>^>^> exec_token + allowed_account doldur, dry_run=false yap.
-  notepad "mt5-bridge\config_scanner.json"
+  call :DEVRAL "mt5-bridge\config_scanner.json"
+)
+
+goto :DEVAM
+
+:DEVRAL
+REM %1 = yeni olusturulan config. Ayarlari config_all.json'dan devral.
+if not exist "mt5-bridge\config_all.json" (
+  echo   [!] config_all.json yok - ayarlari ELLE doldurman gerekiyor.
+  notepad "%~1"
   echo   Kaydedip kapatinca devam etmek icin bir tusa bas...
   pause
+  goto :eof
 )
+powershell -NoProfile -ExecutionPolicy Bypass -Command ^
+  "$s=Get-Content 'mt5-bridge\config_all.json' -Raw|ConvertFrom-Json;" ^
+  "$h=Get-Content '%~1' -Raw|ConvertFrom-Json;" ^
+  "$h.exec_token=$s.exec_token; $h.allowed_account=$s.allowed_account;" ^
+  "if($s.terminal_path){$h.terminal_path=$s.terminal_path};" ^
+  "if($s.backend_url){$h.backend_url=$s.backend_url};" ^
+  "$h.dry_run=$s.dry_run;" ^
+  "[IO.File]::WriteAllText((Resolve-Path '%~1'), ($h|ConvertTo-Json -Depth 10));" ^
+  "Write-Host ('   [OK] ayarlar config_all.json' + [char]39 + 'dan devralindi -> hesap=' + $s.allowed_account + '  dry_run=' + $s.dry_run)"
+if errorlevel 1 (
+  echo   [!] Otomatik devralma basarisiz - elle doldur.
+  notepad "%~1"
+  pause
+)
+goto :eof
+
+:DEVAM
 
 REM ---------- Bagimliliklar (ilk sefer) ----------
 if not exist ".deps_ok" (
