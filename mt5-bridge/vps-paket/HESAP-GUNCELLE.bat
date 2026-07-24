@@ -1,39 +1,65 @@
 @echo off
 chcp 65001 >nul
-title BORSA KRALI - HESAP NUMARASI GUNCELLE
+title BORSA KRALI - CONFIG DUZELT (hesap + terminal + token)
 cd /d "%~dp0"
 echo ============================================================
-echo    HESAP NUMARASI GUNCELLE
+echo    CONFIG DUZELT
 echo ============================================================
-echo.
-echo Hesabin degistiyse kopruler eski numaraya kilitli kalir ve
-echo acilista "HESAP KILIDI" deyip KAPANIR - hicbir islem acmazlar.
-echo Bu arac 3 config'in de hesap numarasini duzeltir.
-echo.
-echo Once MT5'ten OTOMATIK okumayi denerim...
+echo  Uc seyi birden duzeltir:
+echo    1) allowed_account  - hesap degistiyse kopru "HESAP KILIDI" deyip kapanir
+echo    2) terminal_path    - yol yanlissa "IPC initialize failed" verir
+echo    3) exec_token       - bossa feed'de "401 Unauthorized" alir
+echo ============================================================
 echo.
 
 python -X utf8 "mt5-bridge\hesap_guncelle.py"
-if not errorlevel 1 goto :BITTI
+if errorlevel 3 goto :TOKENSOR
+if errorlevel 1 goto :HESAPSOR
+goto :BITTI
 
+:HESAPSOR
 echo.
 echo ============================================================
-echo   MT5'ten okunamadi - numarayi ELLE gir.
-echo   (MT5 terminalinde sag ust / Hesaplar bolumunde yazar)
+echo   MT5'ten hesap okunamadi - numarayi ELLE gir.
+echo   (MT5 terminali acik + giris yapilmis olmali)
 echo ============================================================
 echo.
 set "HESAP="
-set /p HESAP="Yeni hesap numarasi (yalniz rakam): "
-if "%HESAP%"=="" (
-  echo Numara girilmedi - islem iptal.
+set /p HESAP="Hesap numarasi (yalniz rakam): "
+if "%HESAP%"=="" goto :BITTI
+python -X utf8 "mt5-bridge\hesap_guncelle.py" %HESAP%
+if errorlevel 3 goto :TOKENSOR
+goto :BITTI
+
+:TOKENSOR
+echo.
+echo ============================================================
+echo   TOKEN EKSIK
+echo ------------------------------------------------------------
+echo   Token = borsakrali backend'indeki  FOREX_EXEC_TOKEN  degeri.
+echo   Nereden bulursun:
+echo     - Render panel ^> borsakrali servisi ^> Environment
+echo     - VEYA kendi bilgisayarinda:
+echo       Desktop\site\borsasanati-clone\mt5-bridge\config.json
+echo       dosyasini Not Defteri ile ac, "exec_token" satirindaki
+echo       tirnak icindeki degeri kopyala.
+echo   RDP penceresine yapistirmak: sag tik veya Ctrl+V
+echo ============================================================
+echo.
+set "TOKEN="
+set /p TOKEN="exec_token: "
+if "%TOKEN%"=="" (
+  echo Token girilmedi - config'ler token'siz kaldi, kopruler 401 alacak.
   goto :BITTI
 )
-echo.
-python -X utf8 "mt5-bridge\hesap_guncelle.py" %HESAP%
+python -X utf8 "mt5-bridge\hesap_guncelle.py" --token=%TOKEN%
 
 :BITTI
 echo.
 echo ------------------------------------------------------------
-echo Bittiyse:  DURDUR.bat  sonra  BASLAT.bat
+echo Son durum:
+python -X utf8 "mt5-bridge\hesap_guncelle.py" --kontrol
+echo ------------------------------------------------------------
+echo Her sey VAR/dogru ise:  DURDUR.bat  sonra  BASLAT.bat
 echo ------------------------------------------------------------
 pause

@@ -68,8 +68,31 @@ def yaz(path, cfg):
         f.write("\n")
 
 
+def terminal_yolu_gecerli_mi(cfg):
+    """terminal_path dolu ama dosya YOKSA köprü 'IPC initialize failed' verip
+    hiç bağlanamaz. Boş bırakılırsa MT5 ÇALIŞAN terminale bağlanır (doğrusu bu)."""
+    yol = str(cfg.get("terminal_path") or "").strip()
+    if not yol:
+        return True, None
+    if os.path.exists(yol):
+        return True, None
+    return False, yol
+
+
 def main():
-    arg = (sys.argv[1] if len(sys.argv) > 1 else "").strip()
+    argv = [a for a in sys.argv[1:] if a.strip()]
+    token = None
+    kalan = []
+    for a in argv:
+        if a.startswith("--token="):
+            token = a.split("=", 1)[1].strip()
+        elif a == "--token":
+            token = "?"          # sonraki arg
+        elif token == "?":
+            token = a.strip()
+        else:
+            kalan.append(a)
+    arg = (kalan[0] if kalan else "").strip()
     sadece_kontrol = arg in ("--kontrol", "-k", "/k")
     elle = None
     if arg and not sadece_kontrol:
@@ -102,6 +125,7 @@ def main():
     print("-" * 62)
 
     degisen, atlanan = 0, 0
+    eksik_token = []
     for dosya, aciklama in CONFIGLER:
         path = os.path.join(HERE, dosya)
         if not os.path.exists(path):
@@ -116,28 +140,52 @@ def main():
 
         eski = cfg.get("allowed_account")
         token_var = bool(str(cfg.get("exec_token") or "").strip()) and "BURAYA" not in str(cfg.get("exec_token"))
+        yol_ok, kotu_yol = terminal_yolu_gecerli_mi(cfg)
         durum = "token %s | dry_run=%s | magic=%s" % (
             "VAR" if token_var else "YOK!",
             cfg.get("dry_run"),
             cfg.get("magic", "-"),
         )
 
-        if hedef is None or sadece_kontrol:
+        if sadece_kontrol:
             print("[    ] %-20s hesap=%-12s %s" % (dosya, eski, durum))
+            if not yol_ok:
+                print("       ^ terminal_path YOK: %s" % kotu_yol)
+            if not token_var:
+                eksik_token.append(dosya)
             continue
 
-        if int(eski or 0) == int(hedef):
-            print("[ =  ] %-20s zaten %s | %s" % (dosya, hedef, durum))
-            continue
+        yapilan = []
 
-        cfg["allowed_account"] = int(hedef)
+        # 1) HESAP KİLİDİ
+        if hedef is not None and int(eski or 0) != int(hedef):
+            cfg["allowed_account"] = int(hedef)
+            yapilan.append("hesap %s -> %s" % (eski, hedef))
+
+        # 2) TERMİNAL YOLU — dolu ama dosya yoksa BOŞALT (çalışan terminale bağlan).
+        #    "IPC initialize failed, Process create failed" hatasının sebebi budur.
+        if not yol_ok:
+            cfg["terminal_path"] = ""
+            yapilan.append("terminal_path bosaltildi (yol yoktu: %s)" % kotu_yol)
+
+        # 3) TOKEN
+        if token and not token_var:
+            cfg["exec_token"] = token
+            yapilan.append("token yazildi")
+            token_var = True
+        elif not token_var:
+            eksik_token.append(dosya)
+
+        if not yapilan:
+            print("[ =  ] %-20s zaten dogru | %s" % (dosya, durum))
+            continue
         try:
             yaz(path, cfg)
         except Exception as exc:  # noqa
             print("[HATA] %-20s yazilamadi: %s" % (dosya, exc))
             atlanan += 1
             continue
-        print("[ OK ] %-20s %s -> %s | %s" % (dosya, eski, hedef, durum))
+        print("[ OK ] %-20s %s" % (dosya, " + ".join(yapilan)))
         degisen += 1
 
     print("-" * 62)
@@ -145,9 +193,18 @@ def main():
         print("Yalniz kontrol edildi, hicbir dosya degistirilmedi.")
     else:
         print("%d config guncellendi%s." % (degisen, (", %d atlandi" % atlanan) if atlanan else ""))
-        if degisen:
-            print("\n>>> Simdi DURDUR.bat sonra BASLAT.bat calistir.")
-    print("NOT: token'i olmayan config varsa BASLAT.bat onu config_all.json'dan devralir.")
+
+    if eksik_token:
+        print("")
+        print("!!! TOKEN EKSIK: %s" % ", ".join(eksik_token))
+        print("    Token'siz kopru feed'i cekemez -> log'da '401 Unauthorized' gorursun.")
+        print("    Token = Render'daki  FOREX_EXEC_TOKEN  degeri.")
+        print("    Yazmak icin:  python hesap_guncelle.py --token=DEGER")
+        print("    (hesap numarasiyla birlikte:  python hesap_guncelle.py 1514083666 --token=DEGER)")
+        return 3
+
+    if degisen and not sadece_kontrol:
+        print("\n>>> Simdi DURDUR.bat sonra BASLAT.bat calistir.")
     return 0
 
 
