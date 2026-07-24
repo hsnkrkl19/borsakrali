@@ -6,7 +6,7 @@
   "enabled": true,
   "_vps_guvenlik": "VPS'te iki MT5 terminali/hesabi acikken MUTLAKA doldur:",
   "terminal_path": "C:\\Program Files\\FTMO MetaTrader 5\\terminal64.exe",
-  "allowed_account": 1513908484,
+  "allowed_account": 1514061487,
   "magic": 550055,
   "deviation_points": 30,
   "max_open_positions": 8,
