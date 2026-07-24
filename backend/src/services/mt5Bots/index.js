@@ -11,6 +11,7 @@
 
 const forexKlines = require('../forex/forexKlines');
 const { INSTRUMENTS } = require('../forex/forexInstruments');
+const instrumentBans = require('../instrumentBans');
 const { evaluate } = require('../botBuilder/customBotEngine');
 const { PRESETS, getPreset } = require('./presets');
 
@@ -55,9 +56,14 @@ async function generate(presetId, options = {}) {
   const evolverBudget = isEvolver ? evolver.newBudget() : null;
 
   // Preset yalnız belirli enstrümanlarla sınırlandırılabilir (örn. RSI2 endeks+altın).
-  const universe = Array.isArray(preset.instruments) && preset.instruments.length
-    ? INSTRUMENTS.filter((inst) => preset.instruments.includes(inst.id))
-    : INSTRUMENTS;
+  // YASAKLI ENSTRÜMAN (2026-07-24): gümüş/XAGUSD hiçbir preset'te taranmaz —
+  // hem açık `instruments` listesi olan (mt5-squeeze) hem de listesi OLMAYIP tüm
+  // evreni tarayan presetler (mt5-tsmom, mt5-evolver) aynı süzgeçten geçer.
+  const universe = instrumentBans.filterInstruments(
+    Array.isArray(preset.instruments) && preset.instruments.length
+      ? INSTRUMENTS.filter((inst) => preset.instruments.includes(inst.id))
+      : INSTRUMENTS,
+  );
 
   for (const tf of preset.tfs) {
     await Promise.all(universe.map(async (inst) => {
@@ -143,7 +149,8 @@ async function generate(presetId, options = {}) {
  */
 async function generateIct(preset, options = {}) {
   const ictSvc = require('../ictSmc/ictSmcService');
-  const instrumentIds = INSTRUMENTS.map((i) => i.id);
+  // 8 sade ICT botu da yasaklı enstrümanı taramaz (gümüş/XAGUSD — 2026-07-24).
+  const instrumentIds = instrumentBans.filterInstruments(INSTRUMENTS).map((i) => i.id);
   const signals = [];
   const prices = {};
 

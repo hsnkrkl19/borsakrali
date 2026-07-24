@@ -11,6 +11,7 @@
 const forexKlines = require('../forex/forexKlines');
 const { getInstrument } = require('../forex/forexInstruments');
 const engine = require('./ictFvgEngine');
+const instrumentBans = require('../instrumentBans');
 
 const DEFAULT_INSTRUMENT_IDS = Object.freeze(['XAUUSD', 'NAS100', 'EURUSD', 'BTCUSD']);
 const FETCH_LIMIT = 302; // 300 closed bars plus Yahoo's forming bar and quote row.
@@ -33,7 +34,8 @@ function configuredInstrumentIds() {
     .map((value) => value.trim().toUpperCase())
     .filter(Boolean);
   const ids = configured.length ? configured : DEFAULT_INSTRUMENT_IDS;
-  return [...new Set(ids)].filter((id) => Boolean(getInstrument(id)));
+  // ICT_FVG_INSTRUMENTS env'i yasaklı enstrümanı geri getiremez (2026-07-24).
+  return instrumentBans.filterSymbols([...new Set(ids)]).filter((id) => Boolean(getInstrument(id)));
 }
 
 function lastClosedTrigger(rawCandles) {

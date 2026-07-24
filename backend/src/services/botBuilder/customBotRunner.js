@@ -16,6 +16,7 @@ const path = require('path');
 const store = require('./store');
 const engine = require('./customBotEngine');
 const botPersistence = require('../botPersistence');
+const instrumentBans = require('../instrumentBans');
 
 const DATA_DIR = process.env.BOT_BUILDER_DATA_DIR
   || path.join(process.env.BOT_DATA_DIR || path.join(__dirname, '..', '..', 'data'), 'bot-builder');
@@ -69,7 +70,13 @@ async function run(deps = {}) {
   let opened = 0, closed = 0;
 
   for (const bot of bots) {
-    for (const pair of bot.pairs) {
+    // YETİM POZİSYON KORUMASI: bot.pairs'ten düşmüş (örn. yasaklanmış) ama hâlâ
+    // AÇIK duran pozisyonların paritesi de gezilir — yoksa key hiç ziyaret
+    // edilmez, SL/TP kontrolü çalışmaz ve pozisyon feed'de sonsuza dek kalırdı.
+    const openPairs = Object.values(rstate.open)
+      .filter((p) => p && p.botId === bot.id && p.instrumentId)
+      .map((p) => p.instrumentId);
+    for (const pair of [...new Set([...bot.pairs, ...openPairs])]) {
       const inst = getInstrument(pair);
       const yahoo = inst ? inst.yahoo : pair;
       const symbol = inst ? inst.symbol : pair;
@@ -102,6 +109,10 @@ async function run(deps = {}) {
           }
           continue; // pozisyon açıkken yeni açma
         }
+
+        // YASAKLI ENSTRÜMAN (2026-07-24): gümüş/XAGUSD'ye YENİ pozisyon açılmaz.
+        // Yukarıdaki SL/TP bloğu bilerek bu kapının ÜSTÜNDE — açık pozisyon kapanır.
+        if (instrumentBans.isBanned(pair)) continue;
 
         // Yeni sinyal
         let ictSignals = null;

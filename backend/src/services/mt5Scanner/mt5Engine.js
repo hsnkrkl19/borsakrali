@@ -34,6 +34,11 @@ const levelsLib = require('./mt5Levels');
 const tracker = require('./mt5Tracker');
 const learning = require('./mt5Learning');
 const { INSTRUMENTS, getInstrument } = require('./mt5Instruments');
+const instrumentBans = require('../instrumentBans');
+// Yasaklı enstrümanlar taranmaz (gümüş/XAGUSD — 2026-07-24). IDS/INSTRUMENTS
+// DOKUNULMADAN kalır: mt5Tracker.evalOne() açık pozisyonun çıkışını
+// getInstrument() ile çözüyor, null dönerse pozisyon hiç kapanmaz.
+const SCAN_INSTRUMENTS = instrumentBans.filterInstruments(INSTRUMENTS);
 
 const TFS = ['5m', '15m', '1h', '4h', '1d'];  // kullanıcı isteği: 5 TF, hepsi ayrı sinyal
 const STALE_MINUTES = 15;
@@ -171,7 +176,7 @@ async function evalInstrument(inst, equity) {
 async function generate(equityOverride) {
   await tracker.load();
   const equity = equityOverride > 0 ? equityOverride : tracker.getEquity();
-  const insts = await Promise.all(INSTRUMENTS.map((i) => evalInstrument(i, equity)));
+  const insts = await Promise.all(SCAN_INSTRUMENTS.map((i) => evalInstrument(i, equity)));
   const signals = [];
   for (const it of insts) {
     if (it.status !== 'open') continue;
@@ -201,7 +206,7 @@ async function generate(equityOverride) {
     budget: tracker.budget(equity),
     tfs: TFS,
     counts: {
-      scanned: INSTRUMENTS.length,
+      scanned: SCAN_INSTRUMENTS.length,
       open: insts.filter((i) => i.status === 'open').length,
       signal: signals.length,
       long: signals.filter((s) => s.direction === 'long').length,
@@ -245,6 +250,8 @@ function rescale(equity) {
 }
 
 async function analyzeOne(id, equityOverride) {
+  // GET /api/mt5-scanner/signal/:id — cron'dan bağımsız ikinci giriş kapısı.
+  if (instrumentBans.isBanned(id)) return null;
   const inst = getInstrument(id);
   if (!inst) return null;
   await tracker.load();

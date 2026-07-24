@@ -13,6 +13,7 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const botPersistence = require('../botPersistence');
+const instrumentBans = require('../instrumentBans');
 
 const DATA_DIR = process.env.BOT_BUILDER_DATA_DIR
   || path.join(process.env.BOT_DATA_DIR || path.join(__dirname, '..', '..', 'data'), 'bot-builder');
@@ -41,7 +42,12 @@ function mergeState(raw) {
       base.botSettings[String(id)] = { timeframes: sanitizeTfs(s.timeframes) };
     }
   }
-  if (Array.isArray(raw.customBots)) base.customBots = raw.customBots.filter(Boolean).slice(0, MAX_CUSTOM);
+  // Diskten/Supabase'ten geri yüklenen botlar normalizeCustom'dan GEÇMEZ → yasak
+  // enstrüman eski bir kayıtla geri sızabilirdi. pairs burada da süzülür (2026-07-24).
+  if (Array.isArray(raw.customBots)) {
+    base.customBots = raw.customBots.filter(Boolean).slice(0, MAX_CUSTOM)
+      .map((b) => (Array.isArray(b.pairs) ? { ...b, pairs: instrumentBans.filterSymbols(b.pairs) } : b));
+  }
   base.updatedAt = raw.updatedAt || base.updatedAt;
   return base;
 }
@@ -99,8 +105,10 @@ function normalizeCustom(input) {
   const indicators = [...new Set((Array.isArray(input.indicators) ? input.indicators : [])
     .map((x) => String(x)).filter((x) => INDICATOR_IDS.includes(x)))];
   const timeframes = sanitizeTfs(input.timeframes);
-  const pairs = [...new Set((Array.isArray(input.pairs) ? input.pairs : [])
-    .map((x) => String(x).trim().toUpperCase()).filter(Boolean))].slice(0, 12);
+  // YASAKLI ENSTRÜMAN (2026-07-24): kullanıcı panelden gümüş/XAGUSD seçse veya
+  // PATCH ile sonradan eklemeye çalışsa da parite listesine giremez.
+  const pairs = instrumentBans.filterSymbols([...new Set((Array.isArray(input.pairs) ? input.pairs : [])
+    .map((x) => String(x).trim().toUpperCase()).filter(Boolean))].slice(0, 12));
   const logic = input.logic === 'majority' ? 'majority' : 'all';
   const ictStrategy = input.ictStrategy ? String(input.ictStrategy) : null;
   return {

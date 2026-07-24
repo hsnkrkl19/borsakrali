@@ -2705,12 +2705,12 @@ app.get('/api/snr/scanner/bist30', async (req, res) => {
   }
 });
 
-// Emtia (gold/silver) SNR tarayıcı — tüm para birimlerinde altın+gümüş
+// Emtia SNR tarayıcı — AL/SAT kurulumu (giriş/stop/hedef) ürettiği için gümüş
+// 2026-07-24'te ÇIKARILDI (kullanıcı: gümüş işlemleri yasak). Gümüş FİYAT/grafik
+// uçları (COMMODITY_YAHOO_MAP, /api/commodities) dokunulmadı — yalnız sinyal yok.
 const COMMODITY_SCAN_UNIVERSE = [
   { symbol: 'XAUUSD',     name: 'Altın (Ons)',  unit: 'USD/oz' },
-  { symbol: 'XAGUSD',     name: 'Gümüş (Ons)',  unit: 'USD/oz' },
   { symbol: 'XAUTRY',     name: 'Gram Altın',    unit: 'TL/gr' },
-  { symbol: 'XAGTRY',     name: 'Gram Gümüş',    unit: 'TL/gr' },
 ];
 
 async function runCommoditySnrScan() {
@@ -3876,11 +3876,10 @@ const CRYPTO_SCAN_UNIVERSE = [
   { symbol: 'ATOM', name: 'Cosmos' }, { symbol: 'OP', name: 'Optimism' },
 ];
 
+// Gümüş 2026-07-24'te çıkarıldı (tarama sonucu AL/SAT kurulumu olarak sunuluyor).
 const COMMODITY_SCAN_LIST = [
   { symbol: 'XAUUSD', name: 'Altın (Ons)', unit: 'USD/oz' },
-  { symbol: 'XAGUSD', name: 'Gümüş (Ons)', unit: 'USD/oz' },
   { symbol: 'XAUTRY', name: 'Gram Altın',   unit: 'TL/gr' },
-  { symbol: 'XAGTRY', name: 'Gram Gümüş',   unit: 'TL/gr' },
 ];
 
 app.get('/api/market/scans/:type', async (req, res) => {

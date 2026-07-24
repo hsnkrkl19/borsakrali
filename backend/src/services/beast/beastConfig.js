@@ -11,6 +11,8 @@
  * 1h'te partial (gürültü) / 4h-1d'de runner (trend koşar).
  */
 
+const instrumentBans = require('../instrumentBans');
+
 'use strict';
 
 // Per-TF zero-lag uzunluğu (kısa TF → kısa length).
@@ -66,7 +68,12 @@ function resolveConfig(inst, tf) {
   });
 }
 
-function isEnabled(id, tf) { return (ENABLED[id] || []).includes(tf); }
+// YASAKLI ENSTRÜMAN (2026-07-24): gümüş/XAGUSD hücreleri kapalı sayılır.
+// ENABLED/EDGE tabloları backtest kaydı olarak DOKUNULMADAN bırakıldı; kapı burada.
+function isEnabled(id, tf) {
+  if (instrumentBans.isBanned(id)) return false;
+  return (ENABLED[id] || []).includes(tf);
+}
 function edgeFor(id, tf) { return EDGE[`${id}:${tf}`] || null; }
 
 module.exports = { TF_ZL, MODE_BY_TF, TUNED, ENABLED, EDGE, resolveConfig, isEnabled, edgeFor };

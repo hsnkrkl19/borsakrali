@@ -12,6 +12,7 @@
 
 const { runEngine } = require('./ictSmcEngine');
 const { STRATS } = require('./ictSmcStrategies');
+const instrumentBans = require('../instrumentBans');
 
 const SUPPORTED_STRATEGIES = Object.keys(STRATS);
 // Canlıda öntanımlı çalışan yüksek-değerli alt küme (hepsi panelden açılabilir).
@@ -153,7 +154,8 @@ function configuredInstrumentIds(getInstrument) {
   const configured = String(process.env.ICT_SMC_INSTRUMENTS || '')
     .split(',').map((v) => v.trim().toUpperCase()).filter(Boolean);
   const ids = configured.length ? configured : DEFAULT_INSTRUMENT_IDS;
-  return [...new Set(ids)].filter((id) => Boolean(getInstrument(id)));
+  // ICT_SMC_INSTRUMENTS env'i yasaklı enstrümanı geri getiremez (2026-07-24).
+  return instrumentBans.filterSymbols([...new Set(ids)]).filter((id) => Boolean(getInstrument(id)));
 }
 
 function configuredStrategies() {

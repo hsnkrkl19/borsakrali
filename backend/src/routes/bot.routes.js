@@ -26,6 +26,7 @@ const customBotRunner = require('../services/botBuilder/customBotRunner');
 const { metaFor } = require('../services/botBuilder/catalogMeta');
 const ictSmc = require('../services/ictSmc/ictSmcService');
 const { listInstruments } = require('../services/forex/forexInstruments');
+const instrumentBans = require('../services/instrumentBans');
 
 async function requireAdmin(req, res, next) {
   try {
@@ -243,7 +244,9 @@ router.get('/builder', (req, res) => {
       catalog, customBots,
       indicators: customBotEngine.INDICATORS,
       ictStrategies: Object.entries(ictSmc.STRATS).map(([id, name]) => ({ id, name })),
-      pairs: listInstruments().map((i) => ({ id: i.id, name: i.name, symbol: i.symbol, class: i.class })),
+      // Yasaklı enstrümanlar panelde hiç gösterilmez (gümüş/XAGUSD — 2026-07-24).
+      pairs: instrumentBans.filterInstruments(listInstruments())
+        .map((i) => ({ id: i.id, name: i.name, symbol: i.symbol, class: i.class })),
       allTimeframes: builderStore.ALL_TF,
       customLeaderboard: lb,
       realResults: require('../services/realResults/store').aggregate(0),

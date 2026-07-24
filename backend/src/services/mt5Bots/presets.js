@@ -155,7 +155,8 @@ const STRATEGY_PRESETS = [
     tfs: ['4h', '1d'], strategyId: 'squeeze', params: { minBars: 6 },
     // John Carter TTM: ≥6 bar BB⊂KC sıkışması, momentum yönünde+yükselirken
     // release, SMA50 taraf filtresi. FX düşük öncelik → evren dışı.
-    instruments: ['BTCUSD', 'ETHUSD', 'XRPUSD', 'SOLUSD', 'NAS100', 'SPX500', 'XAUUSD', 'XAGUSD'],
+    // XAGUSD 2026-07-24'te kullanıcı talebiyle ÇIKARILDI (gümüş işlemleri yasak).
+    instruments: ['BTCUSD', 'ETHUSD', 'XRPUSD', 'SOLUSD', 'NAS100', 'SPX500', 'XAUUSD'],
   },
   {
     id: 'mt5-rsi2', name: 'RSI-2 Geri Dönüşü', magic: 5742, kind: 'strategy',

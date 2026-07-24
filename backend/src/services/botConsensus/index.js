@@ -25,6 +25,7 @@
 const fs = require('fs');
 const path = require('path');
 const botPersistence = require('../botPersistence');
+const instrumentBans = require('../instrumentBans');
 
 const BOT_ID = 'consensus-radar';
 const MIN_AGREE = () => Math.max(2, Number(process.env.CONSENSUS_MIN || 3));
@@ -84,6 +85,9 @@ function findConsensus(positions, minAgree = MIN_AGREE()) {
   for (const p of positions || []) {
     if (!p || p.botId === BOT_ID) continue;               // kendi pozisyonlarını sayma
     if (!(p.symbol && (p.direction === 'long' || p.direction === 'short'))) continue;
+    // YASAKLI ENSTRÜMAN (2026-07-24): gümüşte konsensüs oluşsa bile ne uyarı ne
+    // pozisyon üretilir (feed'de eski XAGUSD pozisyonları duruyor olabilir).
+    if (instrumentBans.isBanned(p.symbol)) continue;
     const key = `${p.symbol}|${p.direction}`;
     if (!groups.has(key)) groups.set(key, new Map());
     const byBot = groups.get(key);

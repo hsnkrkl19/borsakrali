@@ -14,6 +14,7 @@ const fs = require('fs');
 const path = require('path');
 const forexKlines = require('./forexKlines');
 const { getInstrument } = require('./forexInstruments');
+const instrumentBans = require('../instrumentBans');
 const learning = require('./forexLearning');
 const dailyGuard = require('./forexDailyGuard');
 const statsStore = require('./forexStatsStore');
@@ -317,6 +318,9 @@ async function syncPositions(eligible) {
 
     if (!existing) {
       // ── Flip-flop frenleri (yalnız YENİ pozisyon; mevcutların izi sürer) ──
+      // -1) YASAKLI ENSTRÜMAN (2026-07-24): gümüş/XAGUSD'ye yeni pozisyon açılmaz.
+      //     Gölge dahil hiç açılmaz; mevcut açık pozisyonların izi aşağıda sürer.
+      if (instrumentBans.isBanned(id)) continue;
       // 0) GÜNLÜK ZARAR FRENİ: bugünkü gerçekleşen zarar eşiği aştıysa GERÇEK yeni
       //    pozisyon yok (gölge muaf — öğrenme sürsün; mevcutlar yönetilmeye devam).
       if (!shadow && dayBlocked) continue;

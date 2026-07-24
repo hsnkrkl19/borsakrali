@@ -5,6 +5,8 @@ const fs = require('fs');
 const path = require('path');
 const catalog = require('./catalog');
 const botPersistence = require('../botPersistence');
+const instrumentBans = require('../instrumentBans');
+const lotLimits = require('../lotLimits');
 
 const STARTING_EQUITY = 10_000;
 const RISK_PCT = 1;
@@ -477,6 +479,14 @@ function recordOpen(botId, raw = {}, meta = {}) {
     return { ok: false, skipped: 'engine-disabled' };
   }
   if (bot.seen.includes(signal.fingerprint)) return { ok: false, skipped: 'duplicate' };
+  // YASAKLI ENSTRÜMAN (2026-07-24): gümüş/XAGUSD'ye yeni pozisyon açılmaz. Bu kapı
+  // TÜM katalog botlarının ortak hunisidir (MT5 ailesi + ICT + forex-signals +
+  // mt5-scanner + beast + consensus + evolver) — burada durdurulan sinyal paper
+  // pozisyona hiç dönüşmediği için bridgeFeed() de onu göremez, yani gerçek MT5
+  // emri kesilir. recordClose() BİLEREK muaf: açık pozisyonlar SL/TP ile kapanabilsin.
+  if (instrumentBans.isBanned(signal.symbol)) {
+    return { ok: false, skipped: instrumentBans.BAN_REASON };
+  }
   // KALİTE KAPISI: düşük güvenli sinyaller (motor tabanı 40 junk) hem paper hem
   // GERÇEK MT5'e gidiyordu → zarar. Güven eşiği altındakini alma (0 = kapalı).
   if (MIN_CONFIDENCE > 0 && signal.confidence != null && signal.confidence < MIN_CONFIDENCE) {
@@ -853,6 +863,11 @@ function bridgeFeed() {
         timeframe: pos.timeframe || '',
         openedAt: pos.openedAt,
         longOnly: !!entry.longOnly,
+        // LOT TAVANI (2026-07-24): köprü bu alanı okuyup lotu buna kırpar.
+        // Konsensüs Radarı (Bot 37) 0.20, diğer TÜM botlar 0.15. Köprü kendi
+        // trade_guard.clamp_lot'unda aynı sınırı bağımsız uyguladığı için bu
+        // alan kaybolsa/eski köprü okumasa bile tavan yine geçerlidir.
+        lotCap: lotLimits.lotCapFor(entry.id),
       });
     }
   }

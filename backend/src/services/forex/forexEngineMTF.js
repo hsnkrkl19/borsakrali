@@ -23,6 +23,12 @@ const { computeSizing } = require('./riskSizing');
 const forexBacktest = require('./forexBacktest');
 const brokerPrices = require('./brokerPrices');
 const { INSTRUMENTS, getInstrument } = require('./forexInstruments');
+const instrumentBans = require('../instrumentBans');
+// Yasaklı enstrümanlar taranmaz (gümüş/XAGUSD — 2026-07-24). Evren DİZİSİ burada
+// süzülür; forexInstruments.INSTRUMENTS'in kendisi DOKUNULMADAN kalır, çünkü
+// getInstrument() açık pozisyonların çıkış değerlendirmesinde (forexSignalTracker
+// evalOne) hâlâ gerekli — null dönerse pozisyon yetim kalır ve asla kapanmaz.
+const SCAN_INSTRUMENTS = instrumentBans.filterInstruments(INSTRUMENTS);
 
 const TFS = ['15m', '1h', '4h', '1d']; // 5m KALDIRILDI (kullanıcı: az sinyal/düzeltme, az yanlış)
 const STALE_MINUTES = 15;
@@ -169,7 +175,7 @@ async function evalInstrument(inst, equity) {
 
 // ── Tüm evren ──────────────────────────────────────────────────────────────
 async function generate(equity = DEFAULT_EQUITY) {
-  const insts = await Promise.all(INSTRUMENTS.map(i => evalInstrument(i, equity)));
+  const insts = await Promise.all(SCAN_INSTRUMENTS.map(i => evalInstrument(i, equity)));
   const signals = [];
   for (const it of insts) {
     if (it.status !== 'open') continue;
@@ -188,7 +194,7 @@ async function generate(equity = DEFAULT_EQUITY) {
     portfolio: { equity, leverage: 100, dailyMaxLossPct: 5, totalMaxLossPct: 10 },
     tfs: TFS,
     counts: {
-      scanned: INSTRUMENTS.length,
+      scanned: SCAN_INSTRUMENTS.length,
       open: insts.filter(i => i.status === 'open').length,
       signal: signals.length,
       long: signals.filter(s => s.direction === 'long').length,
@@ -228,6 +234,9 @@ function rescale(equity) {
 
 // ── Tek enstrüman canlı analiz ─────────────────────────────────────────────
 async function analyzeOne(id, equity = DEFAULT_EQUITY) {
+  // GET /api/forex/signal/:id evren döngüsünden BAĞIMSIZ ikinci giriş kapısı —
+  // yasaklı enstrüman buradan da analiz edilmez.
+  if (instrumentBans.isBanned(id)) return null;
   const inst = getInstrument(id);
   if (!inst) return null;
   return evalInstrument(inst, equity);

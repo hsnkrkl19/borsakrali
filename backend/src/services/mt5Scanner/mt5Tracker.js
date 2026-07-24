@@ -25,6 +25,7 @@ const fs = require('fs');
 const path = require('path');
 const forexKlines = require('../forex/forexKlines');
 const { getInstrument } = require('./mt5Instruments');
+const instrumentBans = require('../instrumentBans');
 const learning = require('./mt5Learning');
 
 let botPersistence = null;
@@ -169,6 +170,10 @@ function gate(signal, equity = getEquity(), opts = {}) {
   // Cooldown anahtarı EVRENE ayrık: gölge (sanal) kapanış, gerçek evrenin
   // yeniden-açılışını bloklamaz (ve tersi).
   const key = `${wantShadow ? 'shadow:' : ''}${id}:${tf}`;
+  // YASAKLI ENSTRÜMAN (2026-07-24): gümüş/XAGUSD'ye yeni pozisyon açılmaz.
+  // Yalnız GİRİŞ kapısı — evalOne()/checkClosures() dokunulmadı, açık pozisyon
+  // TP/SL/EOD ile normal kapanır.
+  if (instrumentBans.isBanned(id)) return { ok: false, reason: instrumentBans.BAN_REASON };
   if (!tradeWindowOpen()) return { ok: false, reason: 'window-closed' };
   // (enstrüman,TF) tek kayıt — tür fark etmez (kombo ya gerçek ya gölge)
   const dup = openList().find((p) => p.instrumentId === id && p.tf === tf);

@@ -233,7 +233,15 @@ describe('beastConfig', () => {
     // Metal: 1h kapalı (zarar), 8h açık
     expect(cfgMod.isEnabled('XAUUSD', '1h')).toBe(false);
     expect(cfgMod.isEnabled('XAUUSD', '8h')).toBe(true);
-    expect(cfgMod.isEnabled('XAGUSD', '8h')).toBe(true);
+  });
+
+  test('⭐ YASAK ENSTRÜMAN: gümüş hücreleri ENABLED tablosunda dursa da kapalı', () => {
+    // 2026-07-24: kullanıcı gümüş işlemlerini yasakladı. ENABLED['XAGUSD'] backtest
+    // kaydı olarak duruyor ama isEnabled her TF'de false dönmeli.
+    expect(cfgMod.ENABLED.XAGUSD).toEqual(['4h', '8h', '1d']);
+    for (const tf of ['1h', '4h', '8h', '1d']) {
+      expect(cfgMod.isEnabled('XAGUSD', tf)).toBe(false);
+    }
   });
 
   test('resolveConfig per-TF zlLength + runner mode (8h dahil)', () => {
