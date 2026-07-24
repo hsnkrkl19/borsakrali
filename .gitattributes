@@ -1,0 +1,6 @@
+# Windows .bat/.cmd dosyalari CRLF ile checkout edilmeli.
+# LF ile de calisirlar ama Not Defteri tek satir gosterir ve duzenleyip
+# kaydedince bozulabilirler. VPS paketine giden dosyalar bunlar.
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.ps1 text eol=crlf

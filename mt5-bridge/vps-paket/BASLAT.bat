@@ -2,19 +2,33 @@
 chcp 65001 >nul
 title BORSA KRALI - VPS BASLATICI
 cd /d "%~dp0"
+
+REM ---------- KAYIT (pencere aninda kapanirsa sebebi burada kalir) ----------
+REM "acilir acilmaz kapaniyor" sikayetinde bu dosyaya bak: hangi adimda durdugu
+REM son satirdan bellidir. Her calistirmada sifirdan yazilir.
+set "BLOG=%~dp0baslat.log"
+> "%BLOG%" echo [%date% %time%] BASLAT basladi
+>> "%BLOG%" echo   klasor: %~dp0
+
 echo ============================================================
 echo    BORSA KRALI - TUM BOTLAR VPS BASLATICI (oto-restart)
 echo ============================================================
 echo.
 
 REM ---------- Python kontrol ----------
+>> "%BLOG%" echo [%time%] python araniyor...
 where python >nul 2>nul
 if errorlevel 1 (
+  >> "%BLOG%" echo [HATA] python PATH'te YOK
   echo [HATA] Python bulunamadi. Once Python 3.10+ kur: https://www.python.org/downloads/
   echo        Kurarken "Add Python to PATH" isaretle.
+  echo.
+  echo Bu pencere kapanmayacak - okuyup kapat.
   pause
   exit /b 1
 )
+for /f "delims=" %%P in ('where python 2^>nul') do >> "%BLOG%" echo   python: %%P
+python -V >> "%BLOG%" 2>&1
 
 REM ---------- Birlesik kopru config (ilk sefer) ----------
 if not exist "mt5-bridge\config_all.json" (
@@ -93,7 +107,9 @@ if not exist ".deps_ok" (
 )
 
 REM ---------- Watchdog pencerelerini baslat (cift baslatma korumali) ----------
+>> "%BLOG%" echo [%time%] configler hazir, _otobaslat cagriliyor
 call "%~dp0_otobaslat.bat"
+>> "%BLOG%" echo [%time%] _otobaslat dondu (pencereler acilmis olmali)
 
 echo.
 echo ============================================================
@@ -118,4 +134,5 @@ echo   3) Durdurmak: DURDUR.bat
 echo ============================================================
 echo.
 echo Bu pencereyi kapatabilirsin; botlar kendi pencerelerinde calisir.
+>> "%BLOG%" echo [%time%] BASLAT sorunsuz bitti
 pause
