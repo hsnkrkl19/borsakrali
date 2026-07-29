@@ -7,6 +7,7 @@
   "account_server": "",
   "enabled": true,
   "dry_run": true,
+  "race_mode": false,
   "poll_seconds": 1,
   "central_brain_enabled": true,
   "brain_required": true,

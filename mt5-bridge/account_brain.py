@@ -59,6 +59,11 @@ class BrainConfig:
 
     risk_profile: str = "balanced"
     aggressive_opt_in: bool = False
+    # YARIŞ MODU (kullanıcı, 2026-07-30): giriş kısıtı YOK — aynı underlying'de
+    # çoklu pozisyon ve hedge serbest, sembol/bot/portföy tavanları atlanır.
+    # Kalanlar: işlem-başı boyutlama, $15 tabanları, 3R hedef politikası ve
+    # hesap frenleri (günlük/toplam zarar + kâr hedefi) = tutarlılık + kâr kontrolü.
+    race_mode: bool = False
     trade_risk_pct: float | None = None
     max_portfolio_risk_pct: float = 1.5
     max_open_risk_pct: float = 1.5
@@ -434,11 +439,14 @@ def evaluate_pretrade(snapshot: AccountSnapshot | None,
                 or not 0 <= position.signal_strength <= 1):
             return _reject("fail_closed:invalid_open_position_risk", tier)
 
-    same_asset = [p for p in positions if p.asset == request.asset]
-    same_side = [p for p in same_asset if p.direction == request.direction]
+    if config.race_mode:
+        same_asset, same_side, opposite = [], [], []
+    else:
+        same_asset = [p for p in positions if p.asset == request.asset]
+        same_side = [p for p in same_asset if p.direction == request.direction]
+        opposite = [p for p in same_asset if p.direction != request.direction]
     if same_side:
         return _reject("same_underlying_already_open_across_timeframes", tier)
-    opposite = [p for p in same_asset if p.direction != request.direction]
     if opposite:
         strongest_old = max(p.signal_strength for p in opposite)
         if request.signal_strength < config.reversal_confirmation_min:
@@ -458,14 +466,18 @@ def evaluate_pretrade(snapshot: AccountSnapshot | None,
                          if p.asset == request.asset and p.direction == request.direction)
     current_bot = sum(p.risk_usd for p in retained if p.bot_id == request.bot_id)
     current_account = sum(p.risk_usd for p in retained)
-    limits_usd = {
-        "trade": equity * float(config.trade_risk_pct) / 100.0,
-        "symbol_side": equity * config.max_symbol_side_risk_pct / 100.0 - current_symbol,
-        "bot": equity * config.max_bot_risk_pct / 100.0 - current_bot,
-        "portfolio": equity * config.max_portfolio_risk_pct / 100.0 - current_account,
-        "account": equity * config.max_open_risk_pct / 100.0 - current_account,
-        "hard_account": equity * config.hard_max_open_risk_pct / 100.0 - current_account,
-    }
+    if config.race_mode:
+        # Yarış: yalnız işlem-başı boyutlama; havuz/sembol/bot tavanı yok.
+        limits_usd = {"trade": equity * float(config.trade_risk_pct) / 100.0}
+    else:
+        limits_usd = {
+            "trade": equity * float(config.trade_risk_pct) / 100.0,
+            "symbol_side": equity * config.max_symbol_side_risk_pct / 100.0 - current_symbol,
+            "bot": equity * config.max_bot_risk_pct / 100.0 - current_bot,
+            "portfolio": equity * config.max_portfolio_risk_pct / 100.0 - current_account,
+            "account": equity * config.max_open_risk_pct / 100.0 - current_account,
+            "hard_account": equity * config.hard_max_open_risk_pct / 100.0 - current_account,
+        }
     risk_budget = min(limits_usd.values())
     if not _finite_positive(risk_budget):
         return _reject("no_remaining_risk_budget", tier)
@@ -492,14 +504,15 @@ def evaluate_pretrade(snapshot: AccountSnapshot | None,
         "account_open_risk_pct": projected_account / equity * 100.0,
     }
     violations = []
-    if projected["symbol_side_risk_pct"] > config.max_symbol_side_risk_pct + 1e-9:
-        violations.append("symbol_side_hard_cap")
-    if projected["bot_risk_pct"] > config.max_bot_risk_pct + 1e-9:
-        violations.append("bot_hard_cap")
-    if projected["account_open_risk_pct"] > min(
-            config.max_portfolio_risk_pct, config.max_open_risk_pct,
-            config.hard_max_open_risk_pct) + 1e-9:
-        violations.append("account_open_risk_cap")
+    if not config.race_mode:
+        if projected["symbol_side_risk_pct"] > config.max_symbol_side_risk_pct + 1e-9:
+            violations.append("symbol_side_hard_cap")
+        if projected["bot_risk_pct"] > config.max_bot_risk_pct + 1e-9:
+            violations.append("bot_hard_cap")
+        if projected["account_open_risk_pct"] > min(
+                config.max_portfolio_risk_pct, config.max_open_risk_pct,
+                config.hard_max_open_risk_pct) + 1e-9:
+            violations.append("account_open_risk_cap")
     if violations:
         return PreTradeDecision(False, DecisionAction.REJECT, tuple(violations), tier=tier,
                                 lot=lot, risk_usd=risk_usd, reward_usd=reward_usd,
@@ -753,7 +766,8 @@ class AccountBrain:
             # every same-underlying execution until the first bridge commits or
             # releases its lease; this removes the open-A / reverse-B / open-A
             # race across independent bridge processes.
-            if any(p.asset == request.asset for p in reserved):
+            if (not self.config.race_mode
+                    and any(p.asset == request.asset for p in reserved)):
                 state["reservations"] = live
                 return state, _reject("same_underlying_execution_in_flight")
             reversals = state.get("last_reversal_at", {})
@@ -766,7 +780,7 @@ class AccountBrain:
             # Two separate polls/processes must confirm an ordinary reversal. A
             # consensus signal may arrive with confirmations>=2 and pass at once.
             effective_request = request
-            opposite_exists = any(
+            opposite_exists = (not self.config.race_mode) and any(
                 p.asset == request.asset and p.direction != request.direction
                 for p in all_positions
             )

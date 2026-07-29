@@ -56,6 +56,8 @@ if (Test-Path $localCfgPath) {
     $all.backend_url = "https://www.borsakrali.com"
     $all.terminal_path = ""
     $all.dry_run = $true
+    # YARIS MODU (2026-07-30): tum botlar islem alir, giris tavani yok.
+    $all.race_mode = $true
     $enc = New-Object System.Text.UTF8Encoding($false)
     [System.IO.File]::WriteAllText((Join-Path "$DST\mt5-bridge" "config_all.json"),
       ($all | ConvertTo-Json -Depth 100) + [Environment]::NewLine, $enc)

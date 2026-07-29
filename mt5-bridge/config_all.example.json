@@ -13,6 +13,7 @@
 
   "_GUVENLIK": "Ilk kurulum ve her degisiklikten sonra dry_run=true ile dogrula. Canli emir yalniz kullanici dry_run=false yaptiginda acilir.",
   "dry_run": true,
+  "race_mode": false,
   "enabled": true,
   "central_brain_enabled": true,
   "brain_required": true,

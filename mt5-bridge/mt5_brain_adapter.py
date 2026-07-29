@@ -118,6 +118,7 @@ def build_config(cfg):
     return account_brain.BrainConfig(
         risk_profile=profile,
         aggressive_opt_in=opt_in,
+        race_mode=(cfg.get("race_mode") is True),
         trade_risk_pct=trade_risk,
         max_portfolio_risk_pct=_bounded(
             _value(cfg, "max_portfolio_risk_pct", default=1.5), 1.5, 0.01, 2.0),

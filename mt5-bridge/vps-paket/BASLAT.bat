@@ -155,6 +155,19 @@ if not exist ".deps_ok" (
   echo ok> .deps_ok
 )
 
+REM ---------- YARIS MODU DEVRI (her calistirmada) ----------
+REM config_all.json'daki race_mode TUM configlere islenir; yeni ZIP config_all'i
+REM guncelledigi icin mevcut VPS configleri de otomatik ayni moda gecer.
+powershell -NoProfile -ExecutionPolicy Bypass -Command ^
+  "$s=Get-Content 'mt5-bridge\config_all.json' -Raw|ConvertFrom-Json;" ^
+  "if($null -ne $s.PSObject.Properties['race_mode']){" ^
+  "foreach($n in 'config.json','config_scanner.json','config_brain.json'){" ^
+  "$p=Join-Path 'mt5-bridge' $n; if(Test-Path $p){" ^
+  "$h=Get-Content $p -Raw|ConvertFrom-Json;" ^
+  "if($null -eq $h.PSObject.Properties['race_mode']){$h|Add-Member -NotePropertyName race_mode -NotePropertyValue $s.race_mode}else{$h.race_mode=$s.race_mode};" ^
+  "[IO.File]::WriteAllText((Resolve-Path $p),($h|ConvertTo-Json -Depth 100));" ^
+  "}}; Write-Host ('   [OK] race_mode='+$s.race_mode+' tum configlere islendi') }"
+
 REM ---------- GUVENLI TOKEN AKTARIMI + SALT-OKUNUR CONFIG KONTROLU ----------
 REM Token BAT/ZIP icine gomulmez ve komut satirinda tasinmaz. Kullanici-seviyesi
 REM BK_EXEC_TOKEN (veya FOREX_EXEC_TOKEN) env varsa yalniz git-disindaki config'lere

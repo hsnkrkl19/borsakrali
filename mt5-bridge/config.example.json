@@ -15,7 +15,7 @@
   "account_server": "",
   "magic": 550055,
   "deviation_points": 30,
-  "max_open_positions": 4,
+  "max_open_positions": 40,
   "max_lot": 1.0,
   "account_tier_max_lot": 1.0,
   "lot_min": 0.01,

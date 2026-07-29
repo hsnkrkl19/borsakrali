@@ -105,6 +105,32 @@ class PureDecisionTests(unittest.TestCase):
         self.assertAlmostEqual(sell.target, 97.0)
         self.assertAlmostEqual(sell.rr, 3.0)
 
+    def test_race_mode_lifts_entry_caps_but_keeps_account_brakes(self):
+        cfg = BrainConfig(race_mode=True)
+        opened = (OpenRisk("1", "bot-a", "EURUSD", "buy", "M15", 40, 0.5),
+                  OpenRisk("2", "bot-b", "EURUSD", "buy", "H1", 40, 0.5))
+        # Ayni underlying'de UCUNCU ayni-yon pozisyon + bot-a tavani asilirken
+        # bile giris serbest (yaris: her bot islem alir).
+        third = evaluate_pretrade(snapshot(), opened, request(), SPEC, cfg)
+        self.assertTrue(third.allowed, third.reasons)
+        self.assertEqual(third.action, DecisionAction.ALLOW)
+        self.assertEqual(third.close_tickets, ())
+        # Hedge de serbest: ters yon kapat-ve-dondur istemez.
+        hedge = evaluate_pretrade(
+            snapshot(), opened,
+            request(direction="sell", entry=100, stop=101, target=98,
+                    signal_strength=0.5),
+            SPEC, cfg)
+        self.assertTrue(hedge.allowed, hedge.reasons)
+        self.assertEqual(hedge.action, DecisionAction.ALLOW)
+        # Kar kontrolu KALIR: gunluk fren yaristayken de yeni girisi keser.
+        brake = evaluate_pretrade(snapshot(equity=9_850), (), request(), SPEC, cfg)
+        self.assertFalse(brake.allowed)
+        self.assertIn("daily_entry_brake_block_new", brake.reasons)
+        # $15 tabani ve 3R hedef politikasi da yarista aynen gecerli.
+        self.assertGreaterEqual(third.risk_usd, 15.0)
+        self.assertGreaterEqual(third.rr, 3.0)
+
     def test_degenerate_feed_target_is_rejected_not_fabricated(self):
         # Price already ran / signal engine sees <1.5R of room: do not invent
         # a 3R target the analysis never predicted.

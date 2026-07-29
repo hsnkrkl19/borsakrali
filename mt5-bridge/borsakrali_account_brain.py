@@ -67,6 +67,9 @@ DEFAULTS = {
     "deviation_points": 30,
     "risk_fail_closed": True,
     "manage_magic_zero": False,
+    # YARIŞ MODU: sembol/bot/havuz tavan flatten'ları devre dışı; günlük/toplam
+    # zarar frenleri, +%10 kâr hedefi ve SL'siz pozisyon freni AYNEN kalır.
+    "race_mode": False,
     "daily_entry_brake_pct": 1.50,
     "max_open_risk_pct": 1.50,
     "hard_max_open_risk_pct": 2.00,
@@ -123,7 +126,7 @@ def load_config():
         raise ValueError("config_brain dry_run JSON boolean (true/false) olmali")
     if not isinstance(merged.get("enabled"), bool):
         raise ValueError("config_brain enabled JSON boolean (true/false) olmali")
-    for key in ("risk_fail_closed", "manage_magic_zero"):
+    for key in ("risk_fail_closed", "manage_magic_zero", "race_mode"):
         if not isinstance(merged.get(key), bool):
             raise ValueError("config_brain %s JSON boolean olmali" % key)
     if "aggressive_opt_in" in merged and not isinstance(
@@ -659,6 +662,7 @@ def _snapshot(cfg, ai, positions, deals, state, telemetry_ok=True,
         "timeSec": int(time.time()),
         "ok": bool(telemetry_ok),
         "dryRun": bool(cfg.get("dry_run", True)),
+        "raceMode": cfg.get("race_mode") is True,
         "login": login,
         "server": server,
         "balance": round(balance, 2),
@@ -713,12 +717,13 @@ def _global_exit_reason(cfg, snap):
         cfg, ("max_bot_risk_pct",), 0.5)))
     if snap.get("unboundedTickets"):
         return "unbounded-open-risk"
-    if snap.get("openRiskPct", 0) > open_hard + 1e-9:
-        return "open-risk-hard-%s" % open_hard
-    if snap.get("maxSymbolSideRiskPct", 0) > symbol_hard + 1e-9:
-        return "symbol-side-risk-hard-%s" % symbol_hard
-    if snap.get("maxBotRiskPct", 0) > bot_hard + 1e-9:
-        return "bot-risk-hard-%s" % bot_hard
+    if cfg.get("race_mode") is not True:
+        if snap.get("openRiskPct", 0) > open_hard + 1e-9:
+            return "open-risk-hard-%s" % open_hard
+        if snap.get("maxSymbolSideRiskPct", 0) > symbol_hard + 1e-9:
+            return "symbol-side-risk-hard-%s" % symbol_hard
+        if snap.get("maxBotRiskPct", 0) > bot_hard + 1e-9:
+            return "bot-risk-hard-%s" % bot_hard
     if snap["profitPct"] >= profit_stop:
         return "profit-target-%s" % profit_stop
     if snap["dailyLossPct"] >= daily_flatten:

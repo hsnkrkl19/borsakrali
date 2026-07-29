@@ -46,7 +46,15 @@ def t_global_buffers():
     assert brain._global_exit_reason(widened, snap(dailyLossPct=4.25))
     assert brain._global_exit_reason(widened, snap(totalDrawdownPct=9.25))
     assert brain._global_exit_reason(widened, snap(openRiskPct=2.001))
-    print("OK account global buffer/profit-stop thresholds")
+    # YARIS MODU: sembol/bot/havuz flatten'lari kapali; hesap frenleri aynen.
+    race = dict(cfg, race_mode=True)
+    assert brain._global_exit_reason(race, snap(maxSymbolSideRiskPct=5)) is None
+    assert brain._global_exit_reason(race, snap(maxBotRiskPct=5)) is None
+    assert brain._global_exit_reason(race, snap(openRiskPct=6)) is None
+    assert brain._global_exit_reason(race, snap(dailyLossPct=4.25)).startswith("daily-loss")
+    assert brain._global_exit_reason(race, snap(profitPct=10.0)).startswith("profit-target")
+    assert brain._global_exit_reason(race, snap(unboundedTickets=["9"])) == "unbounded-open-risk"
+    print("OK account global buffer/profit-stop thresholds (+race mode)")
 
 
 def t_equity_baselines_ignore_balance_offset():
