@@ -59,9 +59,22 @@ backtest-service/.pytest_cache/
 # MT5 köprüsü — yerel gizli config (exec token) + runtime dosyaları (asla commit'leme)
 mt5-bridge/config.json
 mt5-bridge/config_scanner.json
+mt5-bridge/config_all.json
+mt5-bridge/config_brain.json
 mt5-bridge/__pycache__/
+**/__pycache__/
+*.py[cod]
+mt5-bridge/STOP_MASTER
+mt5-bridge/STOP_ALL
 mt5-bridge/STOP
 mt5-bridge/STOP_SCANNER
+mt5-bridge/STOP_PNL
+mt5-bridge/account_brain_runtime.json
+mt5-bridge/account_brain_heartbeat.json
+mt5-bridge/account_brain_pretrade_state.json
+mt5-bridge/account_brain_pretrade_state.json.lock
+mt5-bridge/account_brain_event_outbox.json
+mt5-bridge/account_brain_event_outbox.json.lock
 mt5-bridge/scanner_state.json
 mt5-bridge/scanner_bridge.log
 mt5-bridge/bridge.log
@@ -70,6 +83,13 @@ mt5-bridge/pnl_ledger.jsonl
 mt5-bridge/pnl_rapor.log
 mt5-bridge/watchdog_scanner.log
 mt5-bridge/watchdog_forex.log
+mt5-bridge/watchdog_all.log
+mt5-bridge/watchdog_brain.log
+mt5-bridge/watchdog_gold.log
+mt5-bridge/MT5
 mt5-bridge/MT5/
 mt5-bridge/vps-kit/tani_*.txt
 mt5-bridge/vps-kit/detected_terminal.txt
+
+# jest gecici calisma alani + pdf artiklari
+tmp/
