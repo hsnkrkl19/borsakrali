@@ -905,6 +905,19 @@ async function runMt5DailyReport() {
   }
 }
 
+// ── GÜNLÜK YARIŞ RAPORU — gerçek MT5 sonuçlarından lider tablosu (23:55 TR) ──
+async function runRaceDailyReport() {
+  try {
+    const raceReport = require('./realResults/raceReport');
+    const r = await raceReport.pushDaily();
+    logger.info(`🏁 Yarış raporu turu — TG ${r?.telegram || 0}`);
+    return r;
+  } catch (e) {
+    logger.error(`Yarış raporu hata: ${e.message}`, e.stack);
+    return null;
+  }
+}
+
 // ── Forex backtest — geçmiş başarı oranı (günde 1, ağır) ──────────────────
 let _forexBacktestRunning = false;
 async function runForexBacktest() {
@@ -1585,6 +1598,13 @@ class CronJobsService {
       { scheduled: false, ...TR_TZ }
     );
 
+    // 14b-4. GÜNLÜK YARIŞ RAPORU — gerçek MT5 sonuçları lider tablosu, 23:55 TR.
+    const raceReportJob = cron.schedule(
+      '55 23 * * *',
+      () => runRaceDailyReport(),
+      { scheduled: false, ...TR_TZ }
+    );
+
     // 14c. Forex backtest — geçmiş başarı oranı, günde 1 kez 03:35 TR (ağır).
     //      Açılıştan ~90 sn sonra bir kez de tetiklenir (ilk veri dolsun).
     const forexBacktestJob = cron.schedule(
@@ -1981,6 +2001,7 @@ class CronJobsService {
       forexSignalJob,
       mt5ScannerJob,
       mt5ReportJob,
+      raceReportJob,
       forexBacktestJob,
       bistBacktestJob,
       forexStatsJob,
