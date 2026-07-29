@@ -375,6 +375,110 @@ def t_trailing_stop_after_3r():
     print("OK 3R sonrasi iz suren stop (long/short, tek yon, churn yok, dry-run, backoff)")
 
 
+def t_herd_reversal_cuts_losers_keeps_winners():
+    cfg = dict(brain.DEFAULTS)
+    now = time.time()
+
+    def longpos(ticket, pnl):
+        p = pos(pnl, ticket=ticket)
+        p.type = 0
+        return p
+
+    # 8 long: 6'si zararda (>%70 degil ama ceil(0.7*8)=6 -> tam esik), toplam R duser.
+    positions = [longpos(i, -50.0) for i in range(1, 7)]        # 6 zararda (-0.5R)
+    positions += [longpos(7, 120.0), longpos(8, 80.0)]           # 2 kazancli
+    tickets = {str(p.identifier): {"initialRiskUsd": 100.0} for p in positions}
+    # Tepe: pencere icinde toplam R once yuksekti.
+    tickets["_herd"] = {"long": {"peakR": 3.0, "peakSec": now - 10}}
+
+    cuts, cooled, reason = brain.herd_reversal_cuts(cfg, positions, tickets, now)
+    kesilen = sorted(int(p.ticket) for p, _ in cuts)
+    assert kesilen == [1, 2, 3, 4, 5, 6], kesilen          # yalniz zarardakiler
+    assert all(t not in kesilen for t in (7, 8)), "kazananlar korunmali"
+    assert reason and reason.startswith("herd-reversal-long"), reason
+    assert cooled and all(side == "long" for _, side in cooled)
+
+    # Ayni tablo ama toplam R tepesi dusukse (ani donus YOK) -> kesme yok.
+    tickets2 = {str(p.identifier): {"initialRiskUsd": 100.0} for p in positions}
+    tickets2["_herd"] = {"long": {"peakR": -1.0, "peakSec": now - 10}}
+    cuts2, _, reason2 = brain.herd_reversal_cuts(cfg, positions, tickets2, now)
+    assert cuts2 == [] and reason2 is None, "yavas zarar suru kesmesi tetiklememeli"
+
+    # Az pozisyon (esigin altinda) -> hicbir sey yapilmaz.
+    few = positions[:3]
+    cuts3, _, _ = brain.herd_reversal_cuts(cfg, few, dict(tickets), now)
+    assert cuts3 == [], "min pozisyon esigi altinda kesme olmamali"
+
+    # Cogunluk kazancliyken (saglikli trend) kesme yok.
+    healthy = [longpos(i, 90.0) for i in range(1, 8)] + [longpos(8, -40.0)]
+    t4 = {str(p.identifier): {"initialRiskUsd": 100.0} for p in healthy}
+    t4["_herd"] = {"long": {"peakR": 9.0, "peakSec": now - 10}}
+    cuts4, _, _ = brain.herd_reversal_cuts(cfg, healthy, t4, now)
+    assert cuts4 == [], "kazanan surude kesme olmamali"
+    print("OK suru ters-donus: zarardaki yon kesilir, kazananlar korunur")
+
+
+def t_runner_extends_tp_only_outward():
+    info = SimpleNamespace(point=0.01, digits=2, trade_stops_level=0, spread=10)
+    sent = []
+
+    def order_send(req):
+        sent.append(dict(req))
+        return SimpleNamespace(retcode=10009)
+
+    cfg = dict(brain.DEFAULTS, dry_run=False)
+    # LONG entry 4000, SL 3990 (1R=10), tepe 3R -> TP 4000+10*10 = 4100.
+    p = pos(300.0)
+    meta = {"initialSlPrice": 3990.0, "peakR": 3.0, "initialRiskUsd": 100.0}
+    with patch.object(brain.mt5, "symbol_info", return_value=info), \
+            patch.object(brain.mt5, "order_send", side_effect=order_send):
+        brain._maybe_extend_runner(cfg, p, meta)
+    assert len(sent) == 1, sent
+    assert abs(sent[0]["tp"] - 4100.0) < 1e-9, sent
+    assert sent[0]["sl"] == 3990.0, "SL'e dokunulmamali"
+    assert meta.get("runnerArmed") is True
+
+    # Tepe esigin altinda -> TP'ye dokunma.
+    sent.clear()
+    with patch.object(brain.mt5, "symbol_info", return_value=info), \
+            patch.object(brain.mt5, "order_send", side_effect=order_send):
+        brain._maybe_extend_runner(cfg, pos(150.0),
+                                   {"initialSlPrice": 3990.0, "peakR": 1.5,
+                                    "initialRiskUsd": 100.0})
+    assert sent == [], "arm esigi altinda tasima olmamali"
+
+    # peakR hic yazilmamis olsa bile ANLIK R esigi asiyorsa runner tetiklenir
+    # (runner trail'den once kosar; bir tur gecikme olmasin).
+    sent.clear()
+    with patch.object(brain.mt5, "symbol_info", return_value=info),             patch.object(brain.mt5, "order_send", side_effect=order_send):
+        brain._maybe_extend_runner(cfg, pos(300.0),
+                                   {"initialSlPrice": 3990.0, "initialRiskUsd": 100.0})
+    assert len(sent) == 1 and abs(sent[0]["tp"] - 4100.0) < 1e-9, sent
+
+    # TP zaten daha uzaktaysa geri cekilmez.
+    sent.clear()
+    far = pos(300.0)
+    far.tp = 4300.0
+    with patch.object(brain.mt5, "symbol_info", return_value=info), \
+            patch.object(brain.mt5, "order_send", side_effect=order_send):
+        brain._maybe_extend_runner(cfg, far, {"initialSlPrice": 3990.0, "peakR": 3.0,
+                                              "initialRiskUsd": 100.0})
+    assert sent == [], "TP asla yaklastirilmamali"
+
+    # TRAIL, runner'in uzattigi TP'yi GERI ALMAMALI: SLTP yaziminda TP taze okunur.
+    sent.clear()
+    trailed = pos(320.0)
+    trailed.tp = 4040.0                     # bayat okuma
+    fresh = pos(320.0)
+    fresh.tp = 4100.0                       # runner az once uzatti
+    with patch.object(brain.mt5, "symbol_info", return_value=info),             patch.object(brain.mt5, "symbol_info_tick",
+                         return_value=SimpleNamespace(bid=4032.0, ask=4032.3)),             patch.object(brain.mt5, "positions_get", return_value=[fresh]),             patch.object(brain.mt5, "order_send", side_effect=order_send):
+        brain._maybe_trail_stop(cfg, trailed, {"initialSlPrice": 3990.0})
+    assert len(sent) == 1, sent
+    assert abs(sent[0]["tp"] - 4100.0) < 1e-9, "trail runner TP'sini korumali: %s" % sent
+    print("OK runner TP: kazanan kosar, TP yalniz uzaga tasinir")
+
+
 def t_history_and_disk_failures_do_not_skip_global_flatten():
     manual = pos(-50.0, ticket=11)
     manual.magic = 0
@@ -420,5 +524,7 @@ if __name__ == "__main__":
     t_order_calc_profit_measures_loss_and_trailing_stop_zero_risk()
     t_discretionary_close_records_reentry_cooldown()
     t_trailing_stop_after_3r()
+    t_herd_reversal_cuts_losers_keeps_winners()
+    t_runner_extends_tp_only_outward()
     t_history_and_disk_failures_do_not_skip_global_flatten()
     print("\nTUM MERKEZI DAEMON TESTLERI GECTI - OK")
