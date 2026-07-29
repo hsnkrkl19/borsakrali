@@ -31,12 +31,14 @@ if not "%GATE_PREP%"=="0" (
   echo [HATA] Merkez beyin config/startup kapisi gecersiz; entry servisleri acilmadi.
   exit /b 6
 )
+REM 180 sn: Render soguk acilis + Supabase geri-yukleme 45 sn'yi asabiliyor
+REM (2026-07-29 VPS'te kod=7 tam bu yuzden olustu; backend hazir olunca geciyor).
 if "%CLOSE_ONLY%"=="1" (
-  powershell -NoProfile -ExecutionPolicy Bypass -File "mt5-bridge\brain-start-gate.ps1" -Mode Wait -CloseOnly -TimeoutSeconds 45
+  powershell -NoProfile -ExecutionPolicy Bypass -File "mt5-bridge\brain-start-gate.ps1" -Mode Wait -CloseOnly -TimeoutSeconds 180
   if errorlevel 1 exit /b 7
   exit /b 0
 )
-powershell -NoProfile -ExecutionPolicy Bypass -File "mt5-bridge\brain-start-gate.ps1" -Mode Wait -TimeoutSeconds 45
+powershell -NoProfile -ExecutionPolicy Bypass -File "mt5-bridge\brain-start-gate.ps1" -Mode Wait -TimeoutSeconds 180
 if errorlevel 1 (
   echo [HATA] Merkez beyin yeni ve saglikli heartbeat uretmedi; entry servisleri acilmadi.
   exit /b 7

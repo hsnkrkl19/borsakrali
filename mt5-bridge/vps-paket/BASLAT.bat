@@ -194,6 +194,49 @@ if errorlevel 1 (
 )
 >> "%BLOG%" echo [%time%] _otobaslat dondu (pencereler acilmis olmali)
 
+REM ---------- OTOMATIK CANLIYA GECIS ----------
+REM Kullanici istegi (2026-07-29): gozlem + canliya gecis TEK BASLAT icinde.
+REM Kapi gecildi (beyin saglikli); beyin hesap taban cizgisini yazinca
+REM dry_run=false'a cevrilir ve motorlar canli configle yeniden baslatilir.
+powershell -NoProfile -Command "$c=Get-Content 'mt5-bridge\config_all.json' -Raw|ConvertFrom-Json; if($c.dry_run -eq $true){exit 0}else{exit 1}" >nul 2>nul
+if errorlevel 1 goto :CANLI_TAMAM
+echo.
+echo [CANLI] Gozlem modu saglikli. 15 sn icinde OTOMATIK canliya gecilecek.
+choice /c EH /t 15 /d E /m "Canliya gecilsin mi (E=Evet, H=gozlemde kal)"
+if errorlevel 2 (
+  echo [CANLI] Gozlem modunda birakildi. Istedigin zaman CANLIYA-GEC.bat calistir.
+  goto :CANLI_TAMAM
+)
+>> "%BLOG%" echo [%time%] otomatik canliya gecis: beyin taban cizgisi bekleniyor
+set /a CANLI_BEKLE=0
+:CANLI_BASELINE
+if exist "mt5-bridge\account_brain_runtime.json" goto :CANLI_GEC
+set /a CANLI_BEKLE+=1
+if %CANLI_BEKLE% GTR 24 (
+  echo [!] Beyin taban cizgisi 2 dakikada olusmadi; gozlemde kaldi.
+  echo     Birkac dakika sonra CANLIYA-GEC.bat ile gecebilirsin.
+  >> "%BLOG%" echo [%time%] taban cizgisi zaman asimi - gozlemde kaldi
+  goto :CANLI_TAMAM
+)
+timeout /t 5 /nobreak >nul
+goto :CANLI_BASELINE
+:CANLI_GEC
+powershell -NoProfile -ExecutionPolicy Bypass -Command "$enc=New-Object System.Text.UTF8Encoding($false); foreach($n in 'config_all.json','config.json','config_scanner.json','config_brain.json'){ $p=Join-Path 'mt5-bridge' $n; if(Test-Path $p){ $c=Get-Content $p -Raw -Encoding UTF8 | ConvertFrom-Json; if($null -eq $c.PSObject.Properties['dry_run']){ $c | Add-Member -NotePropertyName dry_run -NotePropertyValue $false } else { $c.dry_run=$false }; [System.IO.File]::WriteAllText($p,($c|ConvertTo-Json -Depth 100)+[System.Environment]::NewLine,$enc) } }"
+>> "%BLOG%" echo [%time%] dry_run=false yazildi, motorlar canli configle yeniden baslatiliyor
+echo [CANLI] Configler canliya cevrildi; motorlar yeniden baslatiliyor...
+taskkill /f /im python.exe >nul 2>&1
+powershell -NoProfile -ExecutionPolicy Bypass -File "mt5-bridge\brain-start-gate.ps1" -Mode Invalidate >nul 2>nul
+powershell -NoProfile -ExecutionPolicy Bypass -File "mt5-bridge\brain-start-gate.ps1" -Mode Wait -TimeoutSeconds 180
+if errorlevel 1 (
+  echo [!] Canli heartbeat henuz saglikli degil; motorlar guvenli beklemede.
+  echo     Genelde birkac dakikada kendiliginden duzelir. Izlemek icin: TESHIS.bat
+  >> "%BLOG%" echo [%time%] canli kapi zaman asimi - motorlar fail-closed beklemede
+) else (
+  echo [CANLI] GERCEK EMIR MODU AKTIF.
+  >> "%BLOG%" echo [%time%] canli mod dogrulandi
+)
+:CANLI_TAMAM
+
 echo.
 echo ============================================================
 echo  BASLATILDI - pencereler acildi (oto-restart AKTIF):
