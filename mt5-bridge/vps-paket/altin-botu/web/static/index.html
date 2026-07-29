@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <title>Altın Botu R5 • BorsaKrali.com MT5 Demo</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="/static/panel.css?v=4.0.0">
+</head>
+<body>
+
+  <div id="login-overlay" class="login-overlay hidden">
+    <div class="login-card">
+      <div class="brand-mark login-mark">AU</div>
+      <p class="eyebrow">GÜVENLİ PANEL GİRİŞİ</p>
+      <h2>Altın Botu</h2>
+      <p class="muted">VPS klasöründeki <strong>PANEL-GIRIS.txt</strong> parolasını kullanın.</p>
+      <label class="sr-only" for="login-password">Panel şifresi</label>
+      <input type="password" id="login-password" placeholder="Panel şifresi" autocomplete="current-password">
+      <button id="login-btn" class="btn btn-primary btn-block" type="button">Panele Gir</button>
+      <div id="login-error" class="login-error" role="alert"></div>
+    </div>
+  </div>
+
+  <header class="topbar">
+    <a class="brand" href="#overview" aria-label="Genel bakışa git">
+      <span class="brand-mark">AU</span>
+      <span>
+        <strong>Altın Botu</strong>
+        <small>MT5 Demo Kontrol Merkezi</small>
+      </span>
+    </a>
+
+    <nav class="topnav" aria-label="Panel bölümleri">
+      <a href="#overview">Genel Bakış</a>
+      <a href="#card-positions">İşlemler</a>
+      <a href="#card-research">Araştırma</a>
+      <a href="#card-settings">Ayarlar</a>
+      <a href="#card-events">Kayıtlar</a>
+    </nav>
+
+    <div class="command-bar">
+      <div class="connection-pill">
+        <span id="conn-dot" class="dot red"></span>
+        <span id="conn-text">MT5 bekleniyor</span>
+      </div>
+      <button id="engine-toggle" class="engine-toggle off" type="button" aria-pressed="false">
+        BOTU BAŞLAT
+      </button>
+    </div>
+  </header>
+
+  <main class="dashboard">
+    <section id="overview" class="overview-section">
+      <div class="page-heading">
+        <div>
+          <p class="eyebrow">OPERASYON MERKEZİ</p>
+          <h1>Demo hesabınızın kontrolü tek ekranda.</h1>
+          <p class="muted">Sistem yalnızca kilitli MT5 demo hesabına emir gönderir. Araştırma sonuçları insan onayı olmadan stratejiyi değiştirmez.</p>
+        </div>
+        <div class="last-update">
+          <span>Son güncelleme</span>
+          <strong id="last-status-time" class="num">—</strong>
+        </div>
+      </div>
+
+      <div id="readiness-card" class="readiness-card waiting">
+        <span id="readiness-dot" class="readiness-icon"></span>
+        <div class="readiness-content">
+          <p class="eyebrow">İŞLEM HAZIRLIĞI</p>
+          <h2 id="readiness-title">Sistem durumu alınıyor</h2>
+          <p id="readiness-copy" class="muted">MT5, demo hesap ve strateji kontrolleri bekleniyor.</p>
+          <ul id="readiness-list" class="readiness-list"></ul>
+        </div>
+      </div>
+
+      <div class="kpi-grid">
+        <article class="kpi-card">
+          <div class="kpi-label">HESAP</div>
+          <div id="acc-login" class="kpi-value num">—</div>
+          <div class="kpi-subline">
+            <span>Bakiye <strong id="acc-balance" class="num">—</strong></span>
+            <span>Varlık <strong id="acc-equity" class="num">—</strong></span>
+          </div>
+          <div id="acc-warning" class="account-warning hidden">Hesap güvenlik kontrolü bekleniyor</div>
+        </article>
+
+        <article class="kpi-card">
+          <div class="kpi-label">GÜNLÜK K/Z</div>
+          <div id="daily-pnl" class="kpi-value kpi-large num pnl-pos">+0.00</div>
+          <div id="limit-info" class="kpi-caption muted">Risk limiti alınıyor…</div>
+        </article>
+
+        <article class="kpi-card">
+          <div class="kpi-label">EMİR MODU</div>
+          <div id="exec-mode" class="kpi-value">MT5 DEMO</div>
+          <div class="kpi-caption muted">Broker emri • demo bakiye • gerçek hesap engelli</div>
+        </article>
+
+        <article class="kpi-card">
+          <div class="kpi-label">MOTOR DURUMU</div>
+          <div id="engine-state-label" class="kpi-value">Bekleniyor</div>
+          <div id="engine-message" class="kpi-caption muted" role="status">Panel motorla bağlantı kuruyor.</div>
+        </article>
+      </div>
+    </section>
+
+    <div class="primary-grid">
+      <section class="card positions-card" id="card-positions">
+        <div class="card-head">
+          <div>
+            <p class="eyebrow">PORTFÖY</p>
+            <h2>Açık İşlemler</h2>
+          </div>
+          <div class="card-actions">
+            <span id="positions-msg" class="inline-msg" role="status"></span>
+            <button id="close-all-btn" class="btn btn-danger btn-sm" type="button" disabled>Tümünü Kapat</button>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Ticket</th><th>Sembol</th><th>Yön</th><th>Lot</th>
+                <th>Açılış</th><th>SL</th><th>TP</th><th>K/Z</th><th>Zaman</th><th></th>
+              </tr>
+            </thead>
+            <tbody id="positions-body"></tbody>
+          </table>
+        </div>
+        <div id="positions-empty" class="empty-state">
+          <strong>Açık işlem yok</strong>
+          <span>Yeni sinyal oluştuğunda işlemler burada görünecek.</span>
+        </div>
+      </section>
+
+      <section class="card manual-card" id="card-manual">
+        <div class="card-head">
+          <div>
+            <p class="eyebrow">KONTROLLÜ EMİR</p>
+            <h2>Manuel Demo İşlem</h2>
+          </div>
+        </div>
+        <p class="section-note">Emir yine demo hesap, risk, spread, SL ve <code>order_check</code> kapılarından geçer.</p>
+        <div class="manual-grid">
+          <label>Sembol
+            <select id="mt-symbol">
+              <option value="gold">Altın / XAUUSD</option>
+              <option value="btc">Bitcoin / BTCUSD</option>
+            </select>
+          </label>
+          <label>Lot <span class="label-note">boş = otomatik</span>
+            <input id="mt-lot" type="number" step="0.01" min="0" placeholder="Otomatik">
+          </label>
+          <label>SL fiyatı <span class="label-note">boş = varsayılan</span>
+            <input id="mt-sl" type="number" step="any" placeholder="Varsayılan">
+          </label>
+          <label>TP fiyatı <span class="label-note">boş = varsayılan</span>
+            <input id="mt-tp" type="number" step="any" placeholder="Varsayılan">
+          </label>
+          <div class="mt-buttons">
+            <button id="mt-buy" class="btn btn-buy" type="button">ALIŞ</button>
+            <button id="mt-sell" class="btn btn-sell" type="button">SATIŞ</button>
+          </div>
+        </div>
+        <div id="mt-result" class="result-msg" role="status"></div>
+      </section>
+    </div>
+
+    <section class="card" id="card-research">
+      <div class="card-head">
+        <div>
+          <p class="eyebrow">STRATEJİ LABORATUVARI</p>
+          <h2>Walk-Forward Araştırma</h2>
+          <p class="section-note">Out-of-sample, final holdout ve iki kat spread testleri. Geçen aday ayrıca insan onayı ister.</p>
+        </div>
+        <button id="research-run-btn" class="btn btn-primary btn-sm" type="button">Araştırmayı Başlat</button>
+      </div>
+      <div id="research-status" class="research-status">Araştırma durumu bekleniyor…</div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Sembol</th><th>Strateji</th><th>Fold</th><th>OOS işlem</th><th>Holdout PF</th><th>Holdout getiri</th><th>2× spread</th><th>Karar</th><th>İşlem</th></tr></thead>
+          <tbody id="research-body"></tbody>
+        </table>
+      </div>
+      <div id="research-empty" class="empty-state">
+        <strong>Henüz araştırma sonucu yok</strong>
+        <span>İlk sonuç, MT5 geçmiş verileri tamamlandıktan sonra burada görünür.</span>
+      </div>
+    </section>
+
+    <details class="card settings-card" id="card-settings">
+      <summary>
+        <span>
+          <span class="eyebrow">YAPILANDIRMA</span>
+          <strong>Risk, sembol ve strateji ayarları</strong>
+          <small>Gelişmiş ayarları görüntülemek için açın</small>
+        </span>
+        <span class="summary-action">Ayarları Aç</span>
+      </summary>
+      <div class="settings-content">
+        <div class="settings-grid">
+          <div class="set-group">
+            <h3>Lot ve Risk</h3>
+            <div class="field">
+              <span class="field-label">Lot Modu</span>
+              <label class="radio"><input type="radio" name="lot-mode" value="auto" checked> Otomatik risk hesabı</label>
+              <label class="radio"><input type="radio" name="lot-mode" value="manual"> Sabit manuel lot</label>
+            </div>
+            <label>Manuel Lot
+              <input id="set-manual-lot" type="number" step="0.01" min="0">
+            </label>
+            <label>Hesap Büyüklüğü <span class="label-note">0 = demo bakiyesi</span>
+              <input id="set-size-override" type="number" step="any" min="0">
+            </label>
+            <label>İşlem Başına Risk %
+              <input id="set-risk-percent" type="number" step="0.01" min="0">
+            </label>
+          </div>
+
+          <div class="set-group">
+            <h3>Emir Varsayılanları</h3>
+            <label>Varsayılan SL <span class="label-note">puan</span>
+              <input id="set-sl-points" type="number" step="1" min="0">
+            </label>
+            <label>Varsayılan TP <span class="label-note">puan</span>
+              <input id="set-tp-points" type="number" step="1" min="0">
+            </label>
+            <label>Maksimum Açık İşlem
+              <input id="set-max-open" type="number" step="1" min="1">
+            </label>
+            <label>Sembol Başına Maksimum
+              <input id="set-max-per-symbol" type="number" step="1" min="1">
+            </label>
+          </div>
+
+          <div class="set-group">
+            <h3>Günlük Koruma</h3>
+            <label class="check locked-control"><input id="set-dl-enabled" type="checkbox" checked disabled> Zarar limiti zorunlu</label>
+            <label>Maksimum Zarar
+              <input id="set-dl-maxloss" type="number" step="any" min="1">
+            </label>
+            <label>Maksimum Kâr <span class="label-note">0 = kapalı</span>
+              <input id="set-dl-maxprofit" type="number" step="any" min="0">
+            </label>
+            <label>Limit Davranışı
+              <select id="set-dl-action" disabled>
+                <option value="close_all_stop">Hepsini kapat ve motoru durdur</option>
+              </select>
+            </label>
+          </div>
+
+          <div class="set-group">
+            <h3>İzlenecek Piyasalar</h3>
+            <label class="check"><input id="set-sym-gold" type="checkbox"> Altın aktif</label>
+            <label class="check"><input id="set-sym-btc" type="checkbox"> Bitcoin aktif</label>
+            <p class="section-note">Broker son ekleri otomatik algılanır.</p>
+          </div>
+
+          <div class="set-group">
+            <h3>Demo Hesap Kilidi</h3>
+            <p class="section-note">Hesap numarası elle yazılmaz. Panel, MT5'te açık olan hesabın gerçekten demo olduğunu doğrular ve hesapla sunucuyu birlikte kilitler.</p>
+            <div class="account-bind-box">
+              <div class="account-bind-row">
+                <span class="kpi-label">KİLİTLİ HESAP</span>
+                <strong id="locked-demo-account" class="current-account num">—</strong>
+              </div>
+              <div class="account-bind-row">
+                <span class="kpi-label">MT5'TE AÇIK HESAP</span>
+                <strong id="current-demo-account" class="current-account num">Hesap bekleniyor…</strong>
+              </div>
+              <button id="bind-current-demo" class="btn btn-secondary btn-block" type="button" disabled>Bağlı Demo Hesabına Kilitle</button>
+              <div id="account-bind-msg" class="account-bind-msg" role="status"></div>
+            </div>
+          </div>
+
+          <div class="set-group">
+            <h3>Çalışma Modu</h3>
+            <label>Yürütme Modu
+              <input value="MT5 DEMO • sabit güvenlik modu" disabled>
+              <input id="set-exec-mode" type="hidden" value="mt5">
+            </label>
+            <input id="set-paper-balance" type="hidden" value="10000">
+            <input id="set-require-demo" type="checkbox" checked hidden>
+            <p class="section-note">Yerel paper işlem yoktur. Emir brokerın demo hesabına gider.</p>
+          </div>
+
+          <div class="set-group set-group-wide">
+            <h3>Doğrulanmış Stratejiler</h3>
+            <div class="field">
+              <span class="field-label">Altında çalışacak stratejiler</span>
+              <div id="strategy-options" class="strategy-options"></div>
+            </div>
+            <input id="set-allow-unverified" type="checkbox" hidden disabled>
+            <label>Parametreleri görüntülenecek strateji
+              <select id="set-strategy"></select>
+            </label>
+            <p id="strategy-desc" class="section-note"></p>
+            <div id="strategy-params" class="params-grid"></div>
+          </div>
+        </div>
+        <div class="save-row">
+          <button id="settings-save" class="btn btn-primary" type="button">Ayarları Kaydet</button>
+          <span id="settings-msg" class="save-msg" role="status"></span>
+        </div>
+      </div>
+    </details>
+
+    <section class="card" id="card-history">
+      <div class="card-head">
+        <div>
+          <p class="eyebrow">PERFORMANS</p>
+          <h2>İşlem Geçmişi</h2>
+        </div>
+        <div class="stats-line">
+          <span>İşlem <strong id="stat-total" class="num">—</strong></span>
+          <span>Kazanma <strong id="stat-winrate" class="num">—</strong></span>
+          <span>PF <strong id="stat-pf" class="num">—</strong></span>
+          <span>Net K/Z <strong id="stat-profit" class="num">—</strong></span>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Pozisyon</th><th>Sembol</th><th>Yön</th><th>Lot</th><th>Açılış</th>
+              <th>Açılış fiyatı</th><th>Kapanış</th><th>Kapanış fiyatı</th><th>K/Z</th><th>Strateji</th><th>Durum</th>
+            </tr>
+          </thead>
+          <tbody id="trades-body"></tbody>
+        </table>
+      </div>
+      <div id="trades-empty" class="empty-state"><strong>Henüz işlem geçmişi yok</strong></div>
+    </section>
+
+    <div class="secondary-grid">
+      <section class="card" id="card-learn">
+        <div class="card-head">
+          <div>
+            <p class="eyebrow">GERİ BİLDİRİM</p>
+            <h2>Analiz ve Öneriler</h2>
+          </div>
+          <button id="learn-btn" class="btn btn-secondary btn-sm" type="button">Analizi Çalıştır</button>
+        </div>
+        <div id="learn-results" class="learn-results">
+          <div class="empty-state"><strong>Analiz bekleniyor</strong><span>Yeterli kapanmış işlemden sonra anlamlı öneriler oluşur.</span></div>
+        </div>
+      </section>
+
+      <section class="card" id="card-events">
+        <div class="card-head">
+          <div>
+            <p class="eyebrow">SİSTEM KAYDI</p>
+            <h2>Olay Günlüğü</h2>
+          </div>
+        </div>
+        <div id="events-list" class="events-list">
+          <div class="empty-state"><strong>Henüz olay yok</strong></div>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <footer class="footer">
+    <strong>Altın Botu</strong>
+    <span>MT5 demo hesap • yerel VPS paneli • güvenli araştırma ve onay akışı</span>
+  </footer>
+
+  <script src="/static/panel.js?v=4.0.0"></script>
+</body>
+</html>

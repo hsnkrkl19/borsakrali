@@ -1,8 +1,29 @@
 # 🖥️ VPS Kurulum Rehberi — Borsa Kralı Botları (7/24)
 
-Üç bot, VPS'te **yalnız FTMO hesabı `1513908484`** üzerinde 7/24 işlem yapar,
-veri toplar, kendini ayarlar ve log çıkarır. Bu logları `vps_tani.py` ile tek
-dosyaya toplayıp bize getirirsin; biz manuel iyileştirmeleri yaparız.
+> **Güncel güvenlik kuralı:** `STOP_MASTER` kalıcı ana kill-switch'tir. Hiçbir
+> startup/watchdog `STOP*` dosyası silmez. `vps-durdur.ps1` manuel durdurur;
+> yalnız `vps-devam.ps1`, kullanıcının `DEVAM` onayından sonra STOP dosyalarını
+> kaldırır. Manuel STOP reboot'ta hiçbir şeyi açmaz. Risk beyninin JSON close-only
+> STOP'u varsa Zamanlanmış Görev yalnız merkez beyni açar; entry botları kapalı kalır
+> ve artık pozisyonlar broker sıfır diyene dek kapatma yeniden denenir.
+
+> **Güvenli varsayılan:** tüm örnek configler dry-run/paper + balanced profildir.
+> Agresif profil ancak ayrı yerel configte `risk_profile=aggressive` ve
+> `aggressive_opt_in=true` birlikte verilirse seçilebilir; hesap hard-limitleri
+> yükselmez. Girişte beklenen kâr ve ilk güvenli risk en az `$15` olmalıdır; güvenli
+> lot daha düşük risk üretiyorsa lot büyütülmez, sinyal reddedilir. Acil/ters/
+> kâr-koruma çıkışları bu eşiğe tabi değildir. Merkez `borsakrali_account_brain.py`
+> yoksa başlatıcı fail-closed çıkar. `max_lot/account_tier_max_lot=1.0` gerçek işlem
+> lotu değil, yalnız mutlak tier tavanıdır; gerçek lot merkez yüzde-risk hesabıdır.
+
+> **Token:** gerçek değer BAT, ZIP veya git içine gömülmez. Kullanıcı-seviyesi
+> `BK_EXEC_TOKEN` env'i tercih edilir; `configure-secrets.ps1` bunu değeri
+> göstermeden yerel/ignore edilen configlere aktarır.
+
+Her VPS kurulumu `allowed_account` ve terminal yolu ile tek bir bağlı MT5 hesabına
+kilitlenir. 10k/25k/50k/100k/200k hesap kademesi merkez beyin tarafından bakiyeden
+seçilir; gerçek lot, seçilen kademe etiketiyle değil SL mesafesi ve yüzde-risk bütçesiyle
+hesaplanır. Loglar `vps_tani.py` ile tek dosyada toplanabilir.
 
 > ⚠️ **VPS'te İKİ MT5 hesabı/terminali açık.** Botlar **asla** yanlış hesaba
 > işlem açmaz — üç bota da **hesap kilidi + terminal-yolu sabitleme** eklendi.
@@ -25,9 +46,9 @@ botları başlatır ve doğrular.
    ```
 4. Bitince açılan pencerelerde **`login=1513908484` + `Hesap kilidi AKTİF`** gör.
 
-> `config.json` yoksa `vps-kur.ps1` örnekten oluşturur ama **`exec_token`'ı elle
-> doldurman gerekir** (Render'daki `FOREX_EXEC_TOKEN` ile aynı). Klasörü olduğu
-> gibi kopyaladıysan config.json zaten token'lı gelir — dokunmana gerek yok.
+> Configler yoksa `vps-kur.ps1` güvenli örneklerden oluşturur. Token için
+> `BK_EXEC_TOKEN` kullanıcı ortam değişkenini ayarla veya yalnız git-dışındaki yerel
+> configleri doldur. Tokenlı config ya da tokenlı BAT/ZIP dağıtma.
 
 Kurulum bitti. Aşağıdaki bölümler **manuel/ayrıntı** referansıdır (sorun çıkarsa).
 
@@ -154,39 +175,32 @@ botu yeniden başlatırsın. Kusursuz bot çıkana kadar bu döngü döner.
 > Botların kendi otomatik öğrenmesi (devre-kesici + gölge + selftune) zaten
 > çalışıyor; `vps_tani.py` **kod-seviyesi** iyileştirmeler için gözümüz.
 
-## 6.5 💰 Gerçek kâr/zarar → Telegram + haftalık defter
+## 6.5 💰 Gerçek kâr/zarar → Telegram
 
-`vps-basla.ps1` **4. bir pencere** daha açar: `run_pnl.bat` (gerçek P/L raporlayıcı,
-yalnız-okur, emir açmaz). Bu:
-- FTMO hesabının MT5 **deal geçmişinden GERÇEK** (broker) kapanan işlem P/L'ini okur,
-- her açılış/kapanışı `pnl_ledger.jsonl`'a yazar → **hafta boyunca inceleyeceğimiz kayıt**,
-- yeni gerçek kapanışları **Telegram'a** basar (backend üzerinden),
-- gün sonu (23:55 TR) günlük özet: net / isabet / en iyi-en kötü / bakiye.
-
-Telegram kanalı: Render env `TELEGRAM_PNL_CHANNEL` (yoksa mevcut sinyal kanalı).
-Kapatma: `PNL_REPORT_DISABLED=1` (Render env) veya `STOP_PNL` dosyası (VPS).
-İlk açılışta geçmiş işlemleri **deftere alır ama Telegram'a basmaz** (spam olmasın);
-bundan sonraki kapanışlar raporlanır.
-
-> Not: Bu, sanal/backend muhasebesi değil — **hesapta gerçekten kazanılan/kaybedilen
-> para**. Haftalık `pnl_ledger.jsonl` + `vps_tani.py` raporlarını bize getir; hata
-> tespiti → düzeltme → tekrar test döngüsüyle oranı yükseltiriz.
+Gerçek lifecycle'ın tek sahibi merkez `borsakrali_account_brain.py` ve broker-fill
+outbox'ıdır. Açılış yalnız broker dolumu sonrası; kapanış yalnız pozisyon tamamen bittikten
+sonra bildirilir. Kapanış neti giriş+çıkış komisyonu, fee ve swap toplamıdır. Ticket,
+`POSITION_IDENTIFIER`, hesap login'i ve broker server'ı birlikte eşleştirilir. İlk
+bootstrap geçmişi spam üretmez; kalıcı cursor oluştuktan sonraki kapanışlar uzun bir
+backend kesintisinden sonra bile `notificationRequired` ile tekrar bildirilir.
 
 ## 7. Durdurma / acil durum
 
 | Ne | Nasıl |
 |---|---|
 | Tek bot, yeni emir dursun | O klasöre `STOP` (köprüde `STOP_SCANNER`) dosyası koy |
-| Hepsini durdur | `powershell -ExecutionPolicy Bypass -File vps-kit\vps-durdur.ps1` |
-| Kalıcı durdur | Görev Zamanlayıcı görevini de kapat/sil |
+| Hepsini kalıcı durdur | `powershell -ExecutionPolicy Bypass -File vps-kit\vps-durdur.ps1` |
+| Açık onayla devam et | `powershell -ExecutionPolicy Bypass -File vps-kit\vps-devam.ps1` |
+| Reboot sonrası durum | Manuel STOP hiçbir şeyi açmaz; risk JSON STOP yalnız close-only beyni açar |
 | Öğrenmeyi kapat (davranış eskiye) | Render env: `MT5_LEARNING_DISABLED=1`, `FOREX_LEARNING_DISABLED=1` |
 
-Durdurma açık pozisyonları **kapatmaz** — SL/TP broker tarafında durduğundan
-yönetimsiz zarar riski yok.
+Durdurma açık pozisyonları **kapatmaz**. Broker tarafındaki SL/TP emirleri kalır,
+ancak trailing stop ve uygulama çıkışları artık yönetilemeyebilir. Durdurduktan sonra
+MT5'te tüm açık pozisyonları ve SL/TP seviyelerini elle kontrol et.
 
 ---
 
-### Magic numaraları (hesap tek: 1513908484, çakışma yok)
+### Magic numaraları
 - **660066** gold trend · **660067** gold scalp · **550055** forex köprü · **550066** gün-içi köprü
 
 ### Sık sorun

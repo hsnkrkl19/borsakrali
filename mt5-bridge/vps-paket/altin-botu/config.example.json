@@ -1,0 +1,123 @@
+{
+  "_aciklama": "Altin botu guvenli ornek config. Canli MT5'e gecis ayri ve acik kullanici onayi gerektirir.",
+  "dry_run": true,
+  "poll_seconds": 10,
+  "central_brain_enabled": true,
+  "brain_required": true,
+  "risk_fail_closed": true,
+  "max_lot": 1.0,
+  "account_tier_max_lot": 1.0,
+  "risk_profile": "balanced",
+  "aggressive_opt_in": false,
+  "account": {
+    "size_override": 0
+  },
+  "execution": {
+    "mode": "paper",
+    "require_demo_account": true,
+    "paper": {
+      "balance": 10000,
+      "currency": "USD",
+      "auto_close_sl_tp": true
+    }
+  },
+  "risk": {
+    "lot_mode": "auto",
+    "manual_lot": 0.01,
+    "risk_percent": 0.25,
+    "max_open_positions": 1,
+    "max_positions_per_symbol": 1,
+    "max_portfolio_risk_percent": 0.5,
+    "daily_limit": {
+      "enabled": true,
+      "max_loss": 150.0,
+      "max_profit": 0,
+      "action": "close_all_stop"
+    }
+  },
+  "account_limits": {
+    "daily_loss_warning_percent": 4.0,
+    "daily_loss_flatten_percent": 4.25,
+    "daily_loss_hard_percent": 4.5,
+    "total_drawdown_warning_percent": 9.0,
+    "total_drawdown_flatten_percent": 9.25,
+    "total_drawdown_hard_percent": 9.5,
+    "profit_target_percent": 10.0,
+    "open_risk_target_percent": 1.5,
+    "open_risk_hard_percent": 2.0,
+    "symbol_side_risk_hard_percent": 0.5,
+    "bot_risk_hard_percent": 0.5,
+    "min_expected_profit_usd": 15.0,
+    "min_initial_risk_usd": 15.0,
+    "default_min_rr": 2.0
+  },
+  "trade": {
+    "default_sl_points": 3000,
+    "default_tp_points": 6000,
+    "min_rr": 2.0,
+    "deviation": 30
+  },
+  "symbols": {
+    "auto_detect": true,
+    "gold": "XAUUSD",
+    "btc": "BTCUSD",
+    "enabled": {
+      "gold": true,
+      "btc": false
+    }
+  },
+  "strategy": {
+    "active": "gold_trend",
+    "assignments": {
+      "gold": ["gold_trend"]
+    },
+    "allow_unverified": false,
+    "verified_assignments": {
+      "gold": ["gold_trend"]
+    },
+    "candidate_assignments": {
+      "gold": ["gold_scalp", "donchian_atr_breakout", "rsi_bollinger_reversion"],
+      "btc": ["trend_momentum", "donchian_atr_breakout", "rsi_bollinger_reversion"]
+    }
+  },
+  "engine": {
+    "enabled": false,
+    "poll_seconds": 10
+  },
+  "mt5": {
+    "login": 0,
+    "server": "",
+    "path": ""
+  },
+  "safety": {
+    "demo_only": true,
+    "max_risk_percent": 0.5,
+    "max_manual_lot": 0.1,
+    "account_tier_max_lot": 1.0,
+    "max_open_positions": 1,
+    "max_positions_per_symbol": 1,
+    "max_tick_age_seconds": 30,
+    "max_spread_bps": 20.0,
+    "min_margin_level_percent": 200.0
+  },
+  "research": {
+    "enabled": true,
+    "run_on_start": false,
+    "universe": ["gold"],
+    "interval_hours": 24,
+    "years": 3,
+    "final_holdout_fraction": 0.2,
+    "folds": 3,
+    "gap_bars": 24,
+    "minimum_oos_trades": 50,
+    "min_profitable_fold_fraction": 0.67,
+    "min_holdout_profit_factor": 1.2,
+    "max_holdout_drawdown_pct": 9.0,
+    "double_spread_must_profit": true
+  },
+  "web": {
+    "host": "127.0.0.1",
+    "port": 8350,
+    "password": ""
+  }
+}

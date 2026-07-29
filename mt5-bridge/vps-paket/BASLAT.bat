@@ -10,6 +10,26 @@ set "BLOG=%~dp0baslat.log"
 > "%BLOG%" echo [%date% %time%] BASLAT basladi
 >> "%BLOG%" echo   klasor: %~dp0
 
+REM ---------- KALICI ANA DURDURMA ANAHTARI ----------
+REM BASLAT ve otomatik acilis STOP dosyalarini ASLA silmez. Yalniz DEVAM.bat,
+REM kullanicinin acik eylemiyle STOP_MASTER ve alt STOP dosyalarini kaldirir.
+if exist "mt5-bridge\STOP_MASTER" (
+  powershell -NoProfile -Command "try{$s=Get-Content -LiteralPath 'mt5-bridge\STOP_MASTER' -Raw|ConvertFrom-Json;if($s -is [pscustomobject] -and $s.closeOnly -is [bool] -and $s.closeOnly -eq $true -and $s.emergencyFlatten -is [bool] -and $s.emergencyFlatten -eq $true){exit 0}}catch{};exit 1" >nul 2>nul
+  if errorlevel 1 (
+    >> "%BLOG%" echo [%time%] Manuel STOP_MASTER mevcut - baslatma reddedildi
+    echo [DURDU] Kalici manuel mt5-bridge\STOP_MASTER mevcut.
+    echo         Botlar baslatilmadi. Devam etmek icin DEVAM.bat calistir.
+    pause
+    exit /b 2
+  )
+  >> "%BLOG%" echo [%time%] Risk STOP mevcut - yalniz close-only beyin baslatiliyor
+  echo [ACIL] Risk STOP mevcut. Entry botlari acilmadan merkez kapatma beyni baslatiliyor.
+  call "%~dp0_otobaslat.bat"
+  set "CLOSE_EXIT=%errorlevel%"
+  pause
+  exit /b %CLOSE_EXIT%
+)
+
 echo ============================================================
 echo    BORSA KRALI - TUM BOTLAR VPS BASLATICI (oto-restart)
 echo ============================================================
@@ -36,10 +56,10 @@ if not exist "mt5-bridge\config_all.json" (
   copy "mt5-bridge\config_all.example.json" "mt5-bridge\config_all.json" >nul
   echo.
   echo   ^>^>^> Acilan dosyada MUTLAKA doldur:
-  echo        exec_token       = borsakrali FOREX_EXEC_TOKEN degeri
+  echo        exec_token       = yalniz yerel config; tercihen BK_EXEC_TOKEN env kullan
   echo        allowed_account  = FTMO hesap no  ^(HESAP-KONTROL.bat ile ogren^)
   echo        backend_url      = https://www.borsakrali.com  ^(www ONEMLI^)
-  echo        dry_run          = false ^(GERCEK islem^) / true ^(TEST^)
+  echo        dry_run          = true kalsin; canli gecis ayri ve bilincli bir adimdir
   echo.
   notepad "mt5-bridge\config_all.json"
   echo   Kaydedip kapatinca devam etmek icin bir tusa bas...
@@ -68,6 +88,18 @@ if not exist "mt5-bridge\config_scanner.json" (
   call :DEVRAL "mt5-bridge\config_scanner.json"
 )
 
+REM ---------- MERKEZ HESAP BEYNI config ----------
+if not exist "mt5-bridge\config_brain.json" (
+  if not exist "mt5-bridge\config_brain.example.json" (
+    echo [HATA] config_brain.example.json yok; merkez risk beyni olmadan baslatilmaz.
+    pause
+    exit /b 5
+  )
+  echo [KURULUM] config_brain.json guvenli ornekten olusturuluyor...
+  copy "mt5-bridge\config_brain.example.json" "mt5-bridge\config_brain.json" >nul
+  call :DEVRAL "mt5-bridge\config_brain.json"
+)
+
 goto :DEVAM
 
 :DEVRAL
@@ -82,7 +114,7 @@ if not exist "mt5-bridge\config_all.json" (
 powershell -NoProfile -ExecutionPolicy Bypass -Command ^
   "$s=Get-Content 'mt5-bridge\config_all.json' -Raw|ConvertFrom-Json;" ^
   "$h=Get-Content '%~1' -Raw|ConvertFrom-Json;" ^
-  "$h.exec_token=$s.exec_token; $h.allowed_account=$s.allowed_account;" ^
+  "$h.exec_token=$s.exec_token; $h.allowed_account=$s.allowed_account; $h.account_server=$s.account_server;" ^
   "if($s.terminal_path){$h.terminal_path=$s.terminal_path};" ^
   "if($s.backend_url){$h.backend_url=$s.backend_url};" ^
   "$h.dry_run=$s.dry_run;" ^
@@ -100,32 +132,66 @@ goto :eof
 REM ---------- Bagimliliklar (ilk sefer) ----------
 if not exist ".deps_ok" (
   echo [KURULUM] Python paketleri kuruluyor ^(ilk sefer, biraz surebilir^)...
-  python -m pip install --quiet --upgrade pip >nul 2>nul
-  python -m pip install --quiet MetaTrader5 requests pandas numpy fastapi uvicorn httpx >nul 2>nul
-  if exist "altin-botu\requirements.txt" python -m pip install --quiet -r "altin-botu\requirements.txt" >nul 2>nul
+  python -m pip install --quiet --upgrade pip >> "%BLOG%" 2>&1
+  if errorlevel 1 (
+    echo [HATA] pip guncellenemedi; .deps_ok yazilmadi. Ayrinti: baslat.log
+    pause
+    exit /b 6
+  )
+  python -m pip install --quiet MetaTrader5 requests pandas numpy fastapi uvicorn httpx >> "%BLOG%" 2>&1
+  if errorlevel 1 (
+    echo [HATA] Ana Python bagimliliklari kurulamadi; .deps_ok yazilmadi. Ayrinti: baslat.log
+    pause
+    exit /b 6
+  )
+  if exist "altin-botu\requirements.txt" (
+    python -m pip install --quiet -r "altin-botu\requirements.txt" >> "%BLOG%" 2>&1
+    if errorlevel 1 (
+      echo [HATA] Altin botu bagimliliklari kurulamadi; .deps_ok yazilmadi. Ayrinti: baslat.log
+      pause
+      exit /b 6
+    )
+  )
   echo ok> .deps_ok
 )
 
-REM ---------- OTOMATIK ONARIM (2026-07-24 VPS teshisi) ----------------------
-REM VPS'te uc ariza vardi ve ucu de kopruleri HIC calistirmiyordu:
-REM   allowed_account eski hesap  -> "HESAP KILIDI" deyip cikiyordu
-REM   terminal_path olmayan yol   -> (-10003) IPC initialize failed
-REM   exec_token bos              -> feed'de 401 Unauthorized
-REM Her aciliste sessizce duzeltilir (idempotent - zaten dogruysa dokunmaz).
-REM TOKEN: gercek deger DEPOYA YAZILMAZ (git gecmisine kalici girer). VPS'e
-REM giden zip paketlenirken buraya asil deger konur. Elle doldurmak istersen:
-REM Render panel > borsakrali > Environment > FOREX_EXEC_TOKEN degerini yapistir.
-REM Icinde "BURAYA" gecen deger GECERSIZ sayilir ve yok sayilir.
-set "EXEC_TOKEN=BURAYA-FOREX_EXEC_TOKEN-DEGERI"
->> "%BLOG%" echo [%time%] otomatik onarim (hesap + terminal_path + token)
-echo [ONARIM] Config kontrol ediliyor (hesap / terminal / token)...
-python -X utf8 "mt5-bridge\hesap_guncelle.py" --token=%EXEC_TOKEN% >> "%BLOG%" 2>&1
+REM ---------- GUVENLI TOKEN AKTARIMI + SALT-OKUNUR CONFIG KONTROLU ----------
+REM Token BAT/ZIP icine gomulmez ve komut satirinda tasinmaz. Kullanici-seviyesi
+REM BK_EXEC_TOKEN (veya FOREX_EXEC_TOKEN) env varsa yalniz git-disindaki config'lere
+REM aktarilir. Env yoksa mevcut yerel config tokeni kullanilir; degeri loglanmaz.
+>> "%BLOG%" echo [%time%] guvenli token ve config kontrolu
+echo [KONTROL] Yerel config / token kontrol ediliyor...
+powershell -NoProfile -ExecutionPolicy Bypass -File "mt5-bridge\configure-secrets.ps1" -BridgeDir "mt5-bridge" -RequireToken >> "%BLOG%" 2>&1
+if errorlevel 1 (
+  echo [HATA] Token hazir degil. Gercek deger hicbir BAT veya ZIP dosyasina yazilmadi.
+  echo        BK_EXEC_TOKEN kullanici env'ini ayarla ya da yerel config'i doldur.
+  echo        Ayrinti: baslat.log
+  pause
+  exit /b 3
+)
+python -X utf8 "mt5-bridge\hesap_guncelle.py"
+if errorlevel 1 (
+  echo [HATA] MT5 hesap+server kilidi guncellenemedi; botlar baslatilmadi.
+  pause
+  exit /b 4
+)
 python -X utf8 "mt5-bridge\hesap_guncelle.py" --kontrol
+if errorlevel 1 (
+  echo [HATA] Config kontrolu basarisiz; botlar baslatilmadi.
+  pause
+  exit /b 4
+)
 echo.
 
 REM ---------- Watchdog pencerelerini baslat (cift baslatma korumali) ----------
 >> "%BLOG%" echo [%time%] configler hazir, _otobaslat cagriliyor
 call "%~dp0_otobaslat.bat"
+if errorlevel 1 (
+  >> "%BLOG%" echo [%time%] _otobaslat HATA kod=%errorlevel%
+  echo [HATA] Servisler guvenli sekilde baslatilamadi. Ayrinti: baslat.log
+  pause
+  exit /b 5
+)
 >> "%BLOG%" echo [%time%] _otobaslat dondu (pencereler acilmis olmali)
 
 echo.
@@ -135,6 +201,7 @@ echo    - BIRLESIK KOPRU        (37 bot, magic 57xx)
 echo    - FOREX KOPRUSU 550055  (forex-signals - iz-suren SL)
 echo    - GUN-ICI TARAYICI 550066 (mt5-scanner - EOD 23:45 kapatma)
 echo    - ALTIN BOTU
+echo    - MERKEZ HESAP BEYNI     (hesap-geneli risk / STOP_MASTER)
 echo    - Render uyanik tut (keep-alive)
 echo  Bir bot cokerse 15 sn icinde KENDILIGINDEN yeniden baslar.
 echo.
@@ -147,7 +214,8 @@ echo  ONEMLI:
 echo   1) MT5 terminali ACIK + hesap GIRISI + "Algo Trading" YESIL
 echo   2) VPS yeniden baslasa bile otomatik gelsin istiyorsan bir kez:
 echo        OTOBASLAT-KUR.bat  calistir  (Yonetici olarak)
-echo   3) Durdurmak: DURDUR.bat
+echo   3) Kalici durdurmak: DURDUR.bat
+echo   4) Yeniden devam etmek: DEVAM.bat ^(STOP'lari sadece bu siler^)
 echo ============================================================
 echo.
 echo Bu pencereyi kapatabilirsin; botlar kendi pencerelerinde calisir.

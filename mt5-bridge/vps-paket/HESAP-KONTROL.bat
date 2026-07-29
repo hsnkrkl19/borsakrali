@@ -15,10 +15,11 @@ python -X utf8 -c "import MetaTrader5 as m; ok=m.initialize(); ai=m.account_info
 
 echo.
 echo ------------------------------------------------------------
-echo Yukaridaki HESAP NO'yu su 3 dosyadaki allowed_account ile karsilastir:
+echo Yukaridaki HESAP NO'yu config dosyalarindaki allowed_account ile karsilastir:
 echo    mt5-bridge\config.json           (forex koprusu   550055)
 echo    mt5-bridge\config_scanner.json   (gun-ici tarayici 550066)
 echo    mt5-bridge\config_all.json       (birlesik kopru)
+echo    mt5-bridge\config_brain.json     (merkez hesap beyni)
 echo Farkliysa dosyalari Not Defteri ile ac ve numarayi duzelt.
 echo ------------------------------------------------------------
 pause

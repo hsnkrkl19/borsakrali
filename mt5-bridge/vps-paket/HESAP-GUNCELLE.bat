@@ -36,30 +36,30 @@ echo.
 echo ============================================================
 echo   TOKEN EKSIK
 echo ------------------------------------------------------------
-echo   Token = borsakrali backend'indeki  FOREX_EXEC_TOKEN  degeri.
-echo   Nereden bulursun:
-echo     - Render panel ^> borsakrali servisi ^> Environment
-echo     - VEYA kendi bilgisayarinda:
-echo       Desktop\site\borsasanati-clone\mt5-bridge\config.json
-echo       dosyasini Not Defteri ile ac, "exec_token" satirindaki
-echo       tirnak icindeki degeri kopyala.
-echo   RDP penceresine yapistirmak: sag tik veya Ctrl+V
+echo   Gercek token BAT/ZIP/komut satirina yazilmaz.
+echo   BK_EXEC_TOKEN kullanici ortam degiskenini ayarla, yeni pencere ac,
+echo   sonra bu araci yeniden calistir. Alternatif: yalniz git-disindaki
+echo   mt5-bridge\config*.json dosyalarina elle yaz.
 echo ============================================================
 echo.
-set "TOKEN="
-set /p TOKEN="exec_token: "
-if "%TOKEN%"=="" (
-  echo Token girilmedi - config'ler token'siz kaldi, kopruler 401 alacak.
-  goto :BITTI
-)
-python -X utf8 "mt5-bridge\hesap_guncelle.py" --token=%TOKEN%
+powershell -NoProfile -ExecutionPolicy Bypass -File "mt5-bridge\configure-secrets.ps1" -BridgeDir "mt5-bridge" -RequireToken
+if errorlevel 1 echo Token hazir degil; guvenli sekilde fail-closed kaldi.
 
 :BITTI
+echo.
+REM hesap_guncelle.py kopru configlerini gunceller; merkez beyin kilidini de
+REM config_all.json'dan senkronla (token ve risk alanlarina dokunma).
+powershell -NoProfile -ExecutionPolicy Bypass -Command ^
+  "$sp='mt5-bridge\config_all.json';$tp='mt5-bridge\config_brain.json';" ^
+  "if((Test-Path -LiteralPath $sp) -and (Test-Path -LiteralPath $tp)){" ^
+  "$s=Get-Content -LiteralPath $sp -Raw|ConvertFrom-Json;$t=Get-Content -LiteralPath $tp -Raw|ConvertFrom-Json;" ^
+  "foreach($p in @('allowed_account','terminal_path','backend_url')){if($t.PSObject.Properties[$p]){$t.$p=$s.$p}else{$t|Add-Member -NotePropertyName $p -NotePropertyValue $s.$p}};" ^
+  "[IO.File]::WriteAllText((Resolve-Path $tp),(($t|ConvertTo-Json -Depth 100)+[Environment]::NewLine),(New-Object Text.UTF8Encoding($false))) }"
 echo.
 echo ------------------------------------------------------------
 echo Son durum:
 python -X utf8 "mt5-bridge\hesap_guncelle.py" --kontrol
 echo ------------------------------------------------------------
-echo Her sey VAR/dogru ise:  DURDUR.bat  sonra  BASLAT.bat
+echo Her sey VAR/dogru ise: DURDUR.bat, ardindan explicit DEVAM.bat
 echo ------------------------------------------------------------
 pause
