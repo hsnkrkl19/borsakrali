@@ -1099,8 +1099,10 @@ def _report_state(cfg, positions, deals, state, snap, live_positions=None,
             json=payload,
             headers={"Authorization": "Bearer " + token},
             # 1sn'lik risk/trail dongusu ayni thread'de: uzun POST beklemesi
-            # trail/erken-cikis degerlendirmesini geciktirir, kisa tut.
-            timeout=8,
+            # trail/erken-cikis degerlendirmesini geciktirir, kisa tut. 12sn:
+            # backend toplu Telegram teslimatinda ~10sn cevap verebiliyor
+            # (2026-07-30 VPS'te 8sn sahte 'Read timed out' uretti).
+            timeout=12,
             allow_redirects=False,
         )
         if response.status_code != 200:
