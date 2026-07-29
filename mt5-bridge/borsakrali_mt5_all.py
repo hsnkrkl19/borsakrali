@@ -388,7 +388,10 @@ def open_from_feed(cfg, s):
     # KONSENSÜS MUAFİYETİ (2026-07-24): Bot 37 TANIMI GEREĞİ ancak ≥3 farklı bot
     # aynı sembol+yönde pozisyondayken sinyal üretir → korelasyon tavanı onu
     # HER ZAMAN 'sembol_yogunlugu' ile reddederdi (0.20 lot hiç açılmazdı).
-    if max_sym_side > 0 and same_side_count >= max_sym_side and not trade_guard.is_consensus(s):
+    # YARIS MODU: korelasyon tavani da kalkar — 7 bot ayni yonde acabilir
+    # (kullanici karari 2026-07-30; ayni botun ayni sembol+yon cifti yine tekil).
+    if (cfg.get("race_mode") is not True and max_sym_side > 0
+            and same_side_count >= max_sym_side and not trade_guard.is_consensus(s)):
         return "sembol_yogunlugu"
     tick = mt5.symbol_info_tick(info.name)
     if tick is None or not (tick.ask > 0 and tick.bid > 0):
