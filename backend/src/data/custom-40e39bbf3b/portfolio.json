@@ -1,0 +1,64 @@
+{
+  "currency": "TRY",
+  "capital": 100000,
+  "cash": 77064.12,
+  "equity": 98144,
+  "totalRealizedPnL": -1139.54,
+  "totalRealizedPnLPct": -1.14,
+  "openCount": 4,
+  "winCount": 1,
+  "lossCount": 5,
+  "winRate": 16.7,
+  "tradingEnabled": true,
+  "haltReason": null,
+  "startedAt": "2026-06-15T09:35:49.087Z",
+  "resetAt": null,
+  "equityHistory": [
+    {
+      "date": "2026-06-15",
+      "equity": 99902.71
+    },
+    {
+      "date": "2026-06-16",
+      "equity": 100017.82
+    },
+    {
+      "date": "2026-06-17",
+      "equity": 99434.7
+    },
+    {
+      "date": "2026-06-18",
+      "equity": 100674.08
+    },
+    {
+      "date": "2026-06-19",
+      "equity": 100195.26
+    },
+    {
+      "date": "2026-06-22",
+      "equity": 99930.08
+    },
+    {
+      "date": "2026-06-23",
+      "equity": 99002.29
+    },
+    {
+      "date": "2026-06-24",
+      "equity": 98896.01
+    },
+    {
+      "date": "2026-06-25",
+      "equity": 98250.01
+    },
+    {
+      "date": "2026-06-26",
+      "equity": 98525.7
+    },
+    {
+      "date": "2026-06-29",
+      "equity": 98144
+    }
+  ],
+  "lastCandleDate": "2026-06-24",
+  "lastRunAt": "2026-06-24T15:41:14.155Z"
+}

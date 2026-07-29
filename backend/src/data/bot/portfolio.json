@@ -1,15 +1,77 @@
 {
   "currency": "TRY",
   "capital": 100000,
-  "cash": 100000,
-  "equity": 100000,
-  "totalRealizedPnL": 0,
-  "totalRealizedPnLPct": 0,
-  "openCount": 0,
-  "winCount": 0,
-  "lossCount": 0,
-  "winRate": 0,
+  "cash": 55822.69,
+  "equity": 58560.36,
+  "totalRealizedPnL": -3297.06,
+  "totalRealizedPnLPct": -3.3,
+  "openCount": 15,
+  "winCount": 31,
+  "lossCount": 77,
+  "winRate": 28.7,
   "startedAt": "2026-06-07T18:51:17.361Z",
   "resetAt": "2026-06-07T18:51:17.361Z",
-  "equityHistory": []
+  "equityHistory": [
+    {
+      "date": "2026-06-09",
+      "equity": 99336.93
+    },
+    {
+      "date": "2026-06-10",
+      "equity": 97465.92
+    },
+    {
+      "date": "2026-06-11",
+      "equity": 97169
+    },
+    {
+      "date": "2026-06-12",
+      "equity": 95508.7
+    },
+    {
+      "date": "2026-06-15",
+      "equity": 97238.84
+    },
+    {
+      "date": "2026-06-16",
+      "equity": 97024.22
+    },
+    {
+      "date": "2026-06-17",
+      "equity": 96797.67
+    },
+    {
+      "date": "2026-06-18",
+      "equity": 97368.83
+    },
+    {
+      "date": "2026-06-19",
+      "equity": 97109.06
+    },
+    {
+      "date": "2026-06-22",
+      "equity": 97121.11
+    },
+    {
+      "date": "2026-06-23",
+      "equity": 96472.3
+    },
+    {
+      "date": "2026-06-24",
+      "equity": 96592.59
+    },
+    {
+      "date": "2026-06-25",
+      "equity": 57889.17
+    },
+    {
+      "date": "2026-06-26",
+      "equity": 58581.21
+    },
+    {
+      "date": "2026-06-29",
+      "equity": 58560.36
+    }
+  ],
+  "tradingEnabled": true
 }

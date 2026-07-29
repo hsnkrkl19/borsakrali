@@ -1,0 +1,91 @@
+{
+  "version": 1,
+  "updatedAt": "2026-07-29T11:36:06.544Z",
+  "weights": {
+    "genel": 3.0300000000000002,
+    "smc": 2.5,
+    "snr": 2,
+    "ema34": 1.5,
+    "tema34": 1.5,
+    "elliott": 1.5,
+    "harmonic": 1.2,
+    "ta4j": 1.5,
+    "candlestick": 1,
+    "divergence": 1.2,
+    "momentum": 1
+  },
+  "pushThreshold": 58,
+  "perTechnique": {
+    "genel": {
+      "n": 18,
+      "winRate": 1
+    },
+    "smc": {
+      "n": 0,
+      "winRate": 0
+    },
+    "snr": {
+      "n": 0,
+      "winRate": 0
+    },
+    "ema34": {
+      "n": 0,
+      "winRate": 0
+    },
+    "tema34": {
+      "n": 0,
+      "winRate": 0
+    },
+    "elliott": {
+      "n": 0,
+      "winRate": 0
+    },
+    "harmonic": {
+      "n": 0,
+      "winRate": 0
+    },
+    "ta4j": {
+      "n": 0,
+      "winRate": 0
+    },
+    "candlestick": {
+      "n": 0,
+      "winRate": 0
+    },
+    "divergence": {
+      "n": 0,
+      "winRate": 0
+    },
+    "momentum": {
+      "n": 0,
+      "winRate": 0
+    }
+  },
+  "overall": {
+    "n": 24,
+    "winRate": 0.75
+  },
+  "history": [
+    {
+      "ts": "2026-07-29T11:36:06.544Z",
+      "overallWinRate": 0.75,
+      "n": 24,
+      "changes": [
+        {
+          "type": "weight",
+          "key": "genel",
+          "before": 3,
+          "after": 3.0300000000000002,
+          "reason": "techWR 100% vs 75% (n=18)"
+        },
+        {
+          "type": "threshold",
+          "key": "pushThreshold",
+          "before": 60,
+          "after": 58,
+          "reason": "overall WR 75% (n=24) → bar düşür"
+        }
+      ]
+    }
+  ]
+}

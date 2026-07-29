@@ -1,0 +1,97 @@
+[
+  {
+    "id": "af5c750e35",
+    "botId": "40e39bbf3b",
+    "botName": "Örnek: BIST30 EMA Avcısı",
+    "strategyId": "ema_cross",
+    "strategyLabel": "EMA Kesişimi",
+    "mode": "single",
+    "symbols": [
+      "AKBNK"
+    ],
+    "range": "1y",
+    "period": "1 yıl",
+    "createdAt": "2026-06-20T10:23:09.449Z",
+    "totalReturnPct": 0.64,
+    "maxDrawdownPct": 0.81,
+    "winRate": 25,
+    "totalTrades": 4
+  },
+  {
+    "id": "2b0e71c4ac",
+    "botId": "40e39bbf3b",
+    "botName": "Örnek: BIST30 EMA Avcısı",
+    "strategyId": "ema_cross",
+    "strategyLabel": "EMA Kesişimi",
+    "mode": "single",
+    "symbols": [
+      "GARAN"
+    ],
+    "range": "1y",
+    "period": "1 yıl",
+    "createdAt": "2026-06-20T10:16:28.421Z",
+    "totalReturnPct": -0.74,
+    "maxDrawdownPct": 1.23,
+    "winRate": 25,
+    "totalTrades": 4
+  },
+  {
+    "id": "c64977ffd3",
+    "botId": "40e39bbf3b",
+    "botName": "Örnek: BIST30 EMA Avcısı",
+    "strategyId": "ema_cross",
+    "strategyLabel": "EMA Kesişimi",
+    "mode": "single",
+    "symbols": [
+      "AKBNK"
+    ],
+    "range": "1y",
+    "period": "1 yıl",
+    "createdAt": "2026-06-20T10:16:15.637Z",
+    "totalReturnPct": 0.64,
+    "maxDrawdownPct": 0.81,
+    "winRate": 25,
+    "totalTrades": 4
+  },
+  {
+    "id": "70b0869e7b",
+    "botId": null,
+    "botName": "Smoke Uni",
+    "strategyId": "supertrend",
+    "strategyLabel": "Supertrend",
+    "mode": "universe",
+    "symbols": [
+      "THYAO",
+      "ASELS",
+      "GARAN",
+      "AKBNK",
+      "SISE",
+      "EREGL"
+    ],
+    "range": "1y",
+    "period": "1 yıl",
+    "createdAt": "2026-06-20T10:11:17.194Z",
+    "totalReturnPct": 6.95,
+    "maxDrawdownPct": 3.38,
+    "winRate": 45,
+    "totalTrades": 20
+  },
+  {
+    "id": "ccc114737c",
+    "botId": null,
+    "botName": "Smoke EMA",
+    "strategyId": "ema_cross",
+    "strategyLabel": "EMA Kesişimi",
+    "mode": "single",
+    "symbols": [
+      "THYAO"
+    ],
+    "range": "1y",
+    "period": "1 yıl",
+    "createdAt": "2026-06-20T10:11:05.074Z",
+    "totalReturnPct": -1.8,
+    "maxDrawdownPct": 2.1,
+    "winRate": 0,
+    "totalTrades": 4
+  }
+]

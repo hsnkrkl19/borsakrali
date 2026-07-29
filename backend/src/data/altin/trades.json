@@ -1,0 +1,37 @@
+{
+  "trades": [
+    {
+      "code": "AU-4H-001",
+      "tf": "4h",
+      "symbol": "XAU/USD",
+      "label": "4s Supertrend",
+      "direction": "long",
+      "entry": 4150,
+      "exit": 4120,
+      "pnlPct": -0.723,
+      "pnlUsd": -0.72,
+      "R": -1,
+      "outcome": "SL",
+      "win": false,
+      "openedAt": "2026-06-26T17:28:39.543Z",
+      "closedAt": "2026-06-26T20:55:27.085Z"
+    },
+    {
+      "code": "AU-1M-001",
+      "tf": "1m",
+      "symbol": "XAU/USD",
+      "type": "supertrend",
+      "label": "1d Supertrend (scalp)",
+      "direction": "long",
+      "entry": 4086.6,
+      "exit": 4087.88,
+      "pnlPct": 0.031,
+      "pnlUsd": 0.03,
+      "R": 0.334,
+      "outcome": "TP",
+      "win": true,
+      "openedAt": "2026-06-26T20:55:27.082Z",
+      "closedAt": "2026-06-26T21:00:17.043Z"
+    }
+  ]
+}

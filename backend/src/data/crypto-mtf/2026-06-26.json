@@ -1,0 +1,35 @@
+{
+  "date": "2026-06-26",
+  "timeframes": {
+    "1m": {
+      "generatedAt": "2026-06-26T20:59:56.149Z",
+      "scanner": {
+        "timeframe": "1m",
+        "higherTimeframe": "5m",
+        "tierLimit": 10,
+        "universeSize": 100,
+        "tradableCount": 10,
+        "analyzedCount": 8,
+        "long": {
+          "signals": [],
+          "allSignals": []
+        },
+        "short": {
+          "signals": [],
+          "allSignals": []
+        }
+      }
+    }
+  },
+  "confluence": {
+    "generatedAt": "2026-06-26T20:59:57.015Z",
+    "totalCoins": 0,
+    "strongLong": 0,
+    "long": 0,
+    "strongShort": 0,
+    "short": 0,
+    "neutral": 0,
+    "top": [],
+    "all": []
+  }
+}

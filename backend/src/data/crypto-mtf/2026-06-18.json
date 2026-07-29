@@ -1,0 +1,2584 @@
+{
+  "date": "2026-06-18",
+  "timeframes": {
+    "15m": {
+      "generatedAt": "2026-06-18T17:15:00.914Z",
+      "scanner": {
+        "timeframe": "15m",
+        "higherTimeframe": "1h",
+        "tierLimit": 10,
+        "universeSize": 100,
+        "tradableCount": 10,
+        "analyzedCount": 8,
+        "long": {
+          "signals": [],
+          "allSignals": []
+        },
+        "short": {
+          "signals": [],
+          "allSignals": []
+        }
+      }
+    },
+    "5m": {
+      "generatedAt": "2026-06-18T17:25:00.749Z",
+      "scanner": {
+        "timeframe": "5m",
+        "higherTimeframe": "15m",
+        "tierLimit": 10,
+        "universeSize": 100,
+        "tradableCount": 10,
+        "analyzedCount": 8,
+        "long": {
+          "signals": [],
+          "allSignals": []
+        },
+        "short": {
+          "signals": [],
+          "allSignals": []
+        }
+      }
+    },
+    "1m": {
+      "generatedAt": "2026-06-18T17:25:19.219Z",
+      "scanner": {
+        "timeframe": "1m",
+        "higherTimeframe": "5m",
+        "tierLimit": 10,
+        "universeSize": 100,
+        "tradableCount": 10,
+        "analyzedCount": 8,
+        "long": {
+          "signals": [
+            {
+              "strategy": "long",
+              "direction": "long",
+              "timeframe": "1m",
+              "higherTimeframe": "5m",
+              "totalScore": 5,
+              "applicableMax": 12,
+              "ratio": 0.42,
+              "grade": "ORTA",
+              "conditions": [
+                {
+                  "id": "current_uptrend",
+                  "label": "1m EMA20 > EMA50",
+                  "group": "trend",
+                  "why": "Entry zaman diliminde kısa vadeli yapı yukarı yönlü.",
+                  "met": true,
+                  "applicable": true,
+                  "required": true
+                },
+                {
+                  "id": "current_above_ema200",
+                  "label": "1m fiyat EMA200 üstü",
+                  "group": "trend",
+                  "why": "Entry TF'de uzun vadeli ana trend boğa.",
+                  "met": false,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "current_rsi_healthy",
+                  "label": "1m RSI 45-72",
+                  "group": "ind",
+                  "why": "Aşırı satımdan çıkmış, aşırı alıma girmemiş — sağlıklı momentum.",
+                  "met": true,
+                  "applicable": true,
+                  "required": true
+                },
+                {
+                  "id": "current_macd_bullish",
+                  "label": "1m MACD pozitif + büyüyor",
+                  "group": "ind",
+                  "why": "MACD histogramı pozitif ve son barda büyüyor — momentum güçleniyor.",
+                  "met": false,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "current_volume_above_avg",
+                  "label": "1m hacim 20-bar SMA üstü",
+                  "group": "ind",
+                  "why": "Son mum hacmi ortalama üstünde — alıcı katılımı var.",
+                  "met": false,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "higher_uptrend",
+                  "label": "5m EMA20 > EMA50 (macro)",
+                  "group": "macro",
+                  "why": "Üst zaman diliminde de yapı yukarı — kontra-trend değil.",
+                  "met": false,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "higher_above_ema50",
+                  "label": "5m fiyat EMA50 üstü",
+                  "group": "macro",
+                  "why": "Üst TF orta vadeli ortalama üstünde — sağlam zemin.",
+                  "met": false,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "higher_rsi_not_overbought",
+                  "label": "5m RSI < 75",
+                  "group": "macro",
+                  "why": "Üst TF aşırı alımda değil — yukarı alanı var.",
+                  "met": true,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "higher_macd_aligned",
+                  "label": "5m MACD ≥ 0",
+                  "group": "macro",
+                  "why": "Üst TF momentumu da long lehine.",
+                  "met": true,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "bullish_divergence",
+                  "label": "Bullish RSI divergence",
+                  "group": "math",
+                  "why": "Fiyat lower-low, RSI higher-low — trend dönüşü olası.",
+                  "met": false,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "bullish_candlestick",
+                  "label": "Boğa candlestick formasyonu",
+                  "group": "pattern",
+                  "why": "Bullish engulfing / hammer / bullish harami son barda var.",
+                  "met": false,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "volatility_supportive",
+                  "label": "Volatilite trade için uygun",
+                  "group": "math",
+                  "why": "ATR rejimi normal/low — yüksek volatilitede kontra-trend giriş riskli.",
+                  "met": true,
+                  "applicable": true,
+                  "required": false
+                }
+              ],
+              "entry": 0.31869,
+              "stop": 0.31867,
+              "target1": 0.31871,
+              "target2": 0.31872,
+              "leverage_suggest": 2,
+              "winProbability": {
+                "probability": 0.39,
+                "confidence": 0,
+                "samples": 0,
+                "bucket": 0.4,
+                "prior": 0.392,
+                "posteriorAlpha": 0.78,
+                "posteriorBeta": 1.22
+              },
+              "indicators": {
+                "current_rsi": 60.47,
+                "current_macdHist": 0,
+                "higher_rsi": 50.49,
+                "higher_macdHist": 0.0001
+              },
+              "patterns": {
+                "engulfing": null,
+                "pinBar": null,
+                "doji": null,
+                "harami": null
+              },
+              "divergence": null,
+              "volatility": {
+                "regime": "low",
+                "atrPct": 0.01,
+                "meanAtrPct": 0.016,
+                "stdAtrPct": 0.004,
+                "zScore": -1.84
+              },
+              "momentum": null,
+              "lastClose": 0.31868934631347656,
+              "atr": 0.00001956735338483538,
+              "updatedAt": "2026-06-18T17:25:20.631Z",
+              "symbol": "TRX",
+              "name": "TRON",
+              "image": "https://coin-images.coingecko.com/coins/images/1094/large/photo_2026-04-13_09-59-16.png?1776048311",
+              "coinId": "tron"
+            }
+          ],
+          "allSignals": [
+            {
+              "strategy": "long",
+              "direction": "long",
+              "timeframe": "1m",
+              "higherTimeframe": "5m",
+              "totalScore": 5,
+              "applicableMax": 12,
+              "ratio": 0.42,
+              "grade": "ORTA",
+              "conditions": [
+                {
+                  "id": "current_uptrend",
+                  "label": "1m EMA20 > EMA50",
+                  "group": "trend",
+                  "why": "Entry zaman diliminde kısa vadeli yapı yukarı yönlü.",
+                  "met": true,
+                  "applicable": true,
+                  "required": true
+                },
+                {
+                  "id": "current_above_ema200",
+                  "label": "1m fiyat EMA200 üstü",
+                  "group": "trend",
+                  "why": "Entry TF'de uzun vadeli ana trend boğa.",
+                  "met": false,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "current_rsi_healthy",
+                  "label": "1m RSI 45-72",
+                  "group": "ind",
+                  "why": "Aşırı satımdan çıkmış, aşırı alıma girmemiş — sağlıklı momentum.",
+                  "met": true,
+                  "applicable": true,
+                  "required": true
+                },
+                {
+                  "id": "current_macd_bullish",
+                  "label": "1m MACD pozitif + büyüyor",
+                  "group": "ind",
+                  "why": "MACD histogramı pozitif ve son barda büyüyor — momentum güçleniyor.",
+                  "met": false,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "current_volume_above_avg",
+                  "label": "1m hacim 20-bar SMA üstü",
+                  "group": "ind",
+                  "why": "Son mum hacmi ortalama üstünde — alıcı katılımı var.",
+                  "met": false,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "higher_uptrend",
+                  "label": "5m EMA20 > EMA50 (macro)",
+                  "group": "macro",
+                  "why": "Üst zaman diliminde de yapı yukarı — kontra-trend değil.",
+                  "met": false,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "higher_above_ema50",
+                  "label": "5m fiyat EMA50 üstü",
+                  "group": "macro",
+                  "why": "Üst TF orta vadeli ortalama üstünde — sağlam zemin.",
+                  "met": false,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "higher_rsi_not_overbought",
+                  "label": "5m RSI < 75",
+                  "group": "macro",
+                  "why": "Üst TF aşırı alımda değil — yukarı alanı var.",
+                  "met": true,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "higher_macd_aligned",
+                  "label": "5m MACD ≥ 0",
+                  "group": "macro",
+                  "why": "Üst TF momentumu da long lehine.",
+                  "met": true,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "bullish_divergence",
+                  "label": "Bullish RSI divergence",
+                  "group": "math",
+                  "why": "Fiyat lower-low, RSI higher-low — trend dönüşü olası.",
+                  "met": false,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "bullish_candlestick",
+                  "label": "Boğa candlestick formasyonu",
+                  "group": "pattern",
+                  "why": "Bullish engulfing / hammer / bullish harami son barda var.",
+                  "met": false,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "volatility_supportive",
+                  "label": "Volatilite trade için uygun",
+                  "group": "math",
+                  "why": "ATR rejimi normal/low — yüksek volatilitede kontra-trend giriş riskli.",
+                  "met": true,
+                  "applicable": true,
+                  "required": false
+                }
+              ],
+              "entry": 0.31869,
+              "stop": 0.31867,
+              "target1": 0.31871,
+              "target2": 0.31872,
+              "leverage_suggest": 2,
+              "winProbability": {
+                "probability": 0.39,
+                "confidence": 0,
+                "samples": 0,
+                "bucket": 0.4,
+                "prior": 0.392,
+                "posteriorAlpha": 0.78,
+                "posteriorBeta": 1.22
+              },
+              "indicators": {
+                "current_rsi": 60.47,
+                "current_macdHist": 0,
+                "higher_rsi": 50.49,
+                "higher_macdHist": 0.0001
+              },
+              "patterns": {
+                "engulfing": null,
+                "pinBar": null,
+                "doji": null,
+                "harami": null
+              },
+              "divergence": null,
+              "volatility": {
+                "regime": "low",
+                "atrPct": 0.01,
+                "meanAtrPct": 0.016,
+                "stdAtrPct": 0.004,
+                "zScore": -1.84
+              },
+              "momentum": null,
+              "lastClose": 0.31868934631347656,
+              "atr": 0.00001956735338483538,
+              "updatedAt": "2026-06-18T17:25:20.631Z",
+              "symbol": "TRX",
+              "name": "TRON",
+              "image": "https://coin-images.coingecko.com/coins/images/1094/large/photo_2026-04-13_09-59-16.png?1776048311",
+              "coinId": "tron"
+            }
+          ]
+        },
+        "short": {
+          "signals": [],
+          "allSignals": []
+        }
+      }
+    },
+    "1h": {
+      "generatedAt": "2026-06-18T17:05:00.776Z",
+      "scanner": {
+        "timeframe": "1h",
+        "higherTimeframe": "4h",
+        "tierLimit": 20,
+        "universeSize": 100,
+        "tradableCount": 20,
+        "analyzedCount": 17,
+        "long": {
+          "signals": [
+            {
+              "strategy": "long",
+              "direction": "long",
+              "timeframe": "1h",
+              "higherTimeframe": "4h",
+              "totalScore": 9,
+              "applicableMax": 12,
+              "ratio": 0.75,
+              "grade": "MUKEMMEL",
+              "conditions": [
+                {
+                  "id": "current_uptrend",
+                  "label": "1h EMA20 > EMA50",
+                  "group": "trend",
+                  "why": "Entry zaman diliminde kısa vadeli yapı yukarı yönlü.",
+                  "met": true,
+                  "applicable": true,
+                  "required": true
+                },
+                {
+                  "id": "current_above_ema200",
+                  "label": "1h fiyat EMA200 üstü",
+                  "group": "trend",
+                  "why": "Entry TF'de uzun vadeli ana trend boğa.",
+                  "met": true,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "current_rsi_healthy",
+                  "label": "1h RSI 45-72",
+                  "group": "ind",
+                  "why": "Aşırı satımdan çıkmış, aşırı alıma girmemiş — sağlıklı momentum.",
+                  "met": true,
+                  "applicable": true,
+                  "required": true
+                },
+                {
+                  "id": "current_macd_bullish",
+                  "label": "1h MACD pozitif + büyüyor",
+                  "group": "ind",
+                  "why": "MACD histogramı pozitif ve son barda büyüyor — momentum güçleniyor.",
+                  "met": false,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "current_volume_above_avg",
+                  "label": "1h hacim 20-bar SMA üstü",
+                  "group": "ind",
+                  "why": "Son mum hacmi ortalama üstünde — alıcı katılımı var.",
+                  "met": false,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "higher_uptrend",
+                  "label": "4h EMA20 > EMA50 (macro)",
+                  "group": "macro",
+                  "why": "Üst zaman diliminde de yapı yukarı — kontra-trend değil.",
+                  "met": true,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "higher_above_ema50",
+                  "label": "4h fiyat EMA50 üstü",
+                  "group": "macro",
+                  "why": "Üst TF orta vadeli ortalama üstünde — sağlam zemin.",
+                  "met": true,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "higher_rsi_not_overbought",
+                  "label": "4h RSI < 75",
+                  "group": "macro",
+                  "why": "Üst TF aşırı alımda değil — yukarı alanı var.",
+                  "met": true,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "higher_macd_aligned",
+                  "label": "4h MACD ≥ 0",
+                  "group": "macro",
+                  "why": "Üst TF momentumu da long lehine.",
+                  "met": true,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "bullish_divergence",
+                  "label": "Bullish RSI divergence",
+                  "group": "math",
+                  "why": "Fiyat lower-low, RSI higher-low — trend dönüşü olası.",
+                  "met": true,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "bullish_candlestick",
+                  "label": "Boğa candlestick formasyonu",
+                  "group": "pattern",
+                  "why": "Bullish engulfing / hammer / bullish harami son barda var.",
+                  "met": false,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "volatility_supportive",
+                  "label": "Volatilite trade için uygun",
+                  "group": "math",
+                  "why": "ATR rejimi normal/low — yüksek volatilitede kontra-trend giriş riskli.",
+                  "met": true,
+                  "applicable": true,
+                  "required": false
+                }
+              ],
+              "entry": 0.24143,
+              "stop": 0.23378,
+              "target1": 0.2529,
+              "target2": 0.26055,
+              "leverage_suggest": 3,
+              "winProbability": {
+                "probability": 0.553,
+                "confidence": 0.69,
+                "samples": 37,
+                "bucket": 0.8,
+                "prior": 0.789,
+                "posteriorAlpha": 21.58,
+                "posteriorBeta": 17.42
+              },
+              "indicators": {
+                "current_rsi": 57.04,
+                "current_macdHist": -0.0001,
+                "higher_rsi": 68.51,
+                "higher_macdHist": 0.0013
+              },
+              "patterns": {
+                "engulfing": null,
+                "pinBar": null,
+                "doji": null,
+                "harami": null
+              },
+              "divergence": {
+                "type": "hidden_bullish"
+              },
+              "volatility": {
+                "regime": "normal",
+                "atrPct": 2.585,
+                "meanAtrPct": 2.497,
+                "stdAtrPct": 0.189,
+                "zScore": 0.47
+              },
+              "momentum": null,
+              "lastClose": 0.24142800271511078,
+              "atr": 0.006373930190290723,
+              "updatedAt": "2026-06-18T17:05:02.450Z",
+              "symbol": "XLM",
+              "name": "Stellar",
+              "image": "https://coin-images.coingecko.com/coins/images/100/large/fmpFRHHQ_400x400.jpg?1735231350",
+              "coinId": "stellar"
+            }
+          ],
+          "allSignals": [
+            {
+              "strategy": "long",
+              "direction": "long",
+              "timeframe": "1h",
+              "higherTimeframe": "4h",
+              "totalScore": 9,
+              "applicableMax": 12,
+              "ratio": 0.75,
+              "grade": "MUKEMMEL",
+              "conditions": [
+                {
+                  "id": "current_uptrend",
+                  "label": "1h EMA20 > EMA50",
+                  "group": "trend",
+                  "why": "Entry zaman diliminde kısa vadeli yapı yukarı yönlü.",
+                  "met": true,
+                  "applicable": true,
+                  "required": true
+                },
+                {
+                  "id": "current_above_ema200",
+                  "label": "1h fiyat EMA200 üstü",
+                  "group": "trend",
+                  "why": "Entry TF'de uzun vadeli ana trend boğa.",
+                  "met": true,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "current_rsi_healthy",
+                  "label": "1h RSI 45-72",
+                  "group": "ind",
+                  "why": "Aşırı satımdan çıkmış, aşırı alıma girmemiş — sağlıklı momentum.",
+                  "met": true,
+                  "applicable": true,
+                  "required": true
+                },
+                {
+                  "id": "current_macd_bullish",
+                  "label": "1h MACD pozitif + büyüyor",
+                  "group": "ind",
+                  "why": "MACD histogramı pozitif ve son barda büyüyor — momentum güçleniyor.",
+                  "met": false,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "current_volume_above_avg",
+                  "label": "1h hacim 20-bar SMA üstü",
+                  "group": "ind",
+                  "why": "Son mum hacmi ortalama üstünde — alıcı katılımı var.",
+                  "met": false,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "higher_uptrend",
+                  "label": "4h EMA20 > EMA50 (macro)",
+                  "group": "macro",
+                  "why": "Üst zaman diliminde de yapı yukarı — kontra-trend değil.",
+                  "met": true,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "higher_above_ema50",
+                  "label": "4h fiyat EMA50 üstü",
+                  "group": "macro",
+                  "why": "Üst TF orta vadeli ortalama üstünde — sağlam zemin.",
+                  "met": true,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "higher_rsi_not_overbought",
+                  "label": "4h RSI < 75",
+                  "group": "macro",
+                  "why": "Üst TF aşırı alımda değil — yukarı alanı var.",
+                  "met": true,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "higher_macd_aligned",
+                  "label": "4h MACD ≥ 0",
+                  "group": "macro",
+                  "why": "Üst TF momentumu da long lehine.",
+                  "met": true,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "bullish_divergence",
+                  "label": "Bullish RSI divergence",
+                  "group": "math",
+                  "why": "Fiyat lower-low, RSI higher-low — trend dönüşü olası.",
+                  "met": true,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "bullish_candlestick",
+                  "label": "Boğa candlestick formasyonu",
+                  "group": "pattern",
+                  "why": "Bullish engulfing / hammer / bullish harami son barda var.",
+                  "met": false,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "volatility_supportive",
+                  "label": "Volatilite trade için uygun",
+                  "group": "math",
+                  "why": "ATR rejimi normal/low — yüksek volatilitede kontra-trend giriş riskli.",
+                  "met": true,
+                  "applicable": true,
+                  "required": false
+                }
+              ],
+              "entry": 0.24143,
+              "stop": 0.23378,
+              "target1": 0.2529,
+              "target2": 0.26055,
+              "leverage_suggest": 3,
+              "winProbability": {
+                "probability": 0.553,
+                "confidence": 0.69,
+                "samples": 37,
+                "bucket": 0.8,
+                "prior": 0.789,
+                "posteriorAlpha": 21.58,
+                "posteriorBeta": 17.42
+              },
+              "indicators": {
+                "current_rsi": 57.04,
+                "current_macdHist": -0.0001,
+                "higher_rsi": 68.51,
+                "higher_macdHist": 0.0013
+              },
+              "patterns": {
+                "engulfing": null,
+                "pinBar": null,
+                "doji": null,
+                "harami": null
+              },
+              "divergence": {
+                "type": "hidden_bullish"
+              },
+              "volatility": {
+                "regime": "normal",
+                "atrPct": 2.585,
+                "meanAtrPct": 2.497,
+                "stdAtrPct": 0.189,
+                "zScore": 0.47
+              },
+              "momentum": null,
+              "lastClose": 0.24142800271511078,
+              "atr": 0.006373930190290723,
+              "updatedAt": "2026-06-18T17:05:02.450Z",
+              "symbol": "XLM",
+              "name": "Stellar",
+              "image": "https://coin-images.coingecko.com/coins/images/100/large/fmpFRHHQ_400x400.jpg?1735231350",
+              "coinId": "stellar"
+            }
+          ]
+        },
+        "short": {
+          "signals": [],
+          "allSignals": []
+        }
+      }
+    },
+    "4h": {
+      "generatedAt": "2026-06-18T17:10:00.242Z",
+      "scanner": {
+        "timeframe": "4h",
+        "higherTimeframe": "1d",
+        "tierLimit": 20,
+        "universeSize": 100,
+        "tradableCount": 20,
+        "analyzedCount": 17,
+        "long": {
+          "signals": [
+            {
+              "strategy": "long",
+              "direction": "long",
+              "timeframe": "4h",
+              "higherTimeframe": "1d",
+              "totalScore": 8,
+              "applicableMax": 12,
+              "ratio": 0.67,
+              "grade": "GUCLU",
+              "conditions": [
+                {
+                  "id": "current_uptrend",
+                  "label": "4h EMA20 > EMA50",
+                  "group": "trend",
+                  "why": "Entry zaman diliminde kısa vadeli yapı yukarı yönlü.",
+                  "met": true,
+                  "applicable": true,
+                  "required": true
+                },
+                {
+                  "id": "current_above_ema200",
+                  "label": "4h fiyat EMA200 üstü",
+                  "group": "trend",
+                  "why": "Entry TF'de uzun vadeli ana trend boğa.",
+                  "met": true,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "current_rsi_healthy",
+                  "label": "4h RSI 45-72",
+                  "group": "ind",
+                  "why": "Aşırı satımdan çıkmış, aşırı alıma girmemiş — sağlıklı momentum.",
+                  "met": true,
+                  "applicable": true,
+                  "required": true
+                },
+                {
+                  "id": "current_macd_bullish",
+                  "label": "4h MACD pozitif + büyüyor",
+                  "group": "ind",
+                  "why": "MACD histogramı pozitif ve son barda büyüyor — momentum güçleniyor.",
+                  "met": false,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "current_volume_above_avg",
+                  "label": "4h hacim 20-bar SMA üstü",
+                  "group": "ind",
+                  "why": "Son mum hacmi ortalama üstünde — alıcı katılımı var.",
+                  "met": false,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "higher_uptrend",
+                  "label": "1d EMA20 > EMA50 (macro)",
+                  "group": "macro",
+                  "why": "Üst zaman diliminde de yapı yukarı — kontra-trend değil.",
+                  "met": true,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "higher_above_ema50",
+                  "label": "1d fiyat EMA50 üstü",
+                  "group": "macro",
+                  "why": "Üst TF orta vadeli ortalama üstünde — sağlam zemin.",
+                  "met": true,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "higher_rsi_not_overbought",
+                  "label": "1d RSI < 75",
+                  "group": "macro",
+                  "why": "Üst TF aşırı alımda değil — yukarı alanı var.",
+                  "met": true,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "higher_macd_aligned",
+                  "label": "1d MACD ≥ 0",
+                  "group": "macro",
+                  "why": "Üst TF momentumu da long lehine.",
+                  "met": true,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "bullish_divergence",
+                  "label": "Bullish RSI divergence",
+                  "group": "math",
+                  "why": "Fiyat lower-low, RSI higher-low — trend dönüşü olası.",
+                  "met": false,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "bullish_candlestick",
+                  "label": "Boğa candlestick formasyonu",
+                  "group": "pattern",
+                  "why": "Bullish engulfing / hammer / bullish harami son barda var.",
+                  "met": false,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "volatility_supportive",
+                  "label": "Volatilite trade için uygun",
+                  "group": "math",
+                  "why": "ATR rejimi normal/low — yüksek volatilitede kontra-trend giriş riskli.",
+                  "met": true,
+                  "applicable": true,
+                  "required": false
+                }
+              ],
+              "entry": 0.24143,
+              "stop": 0.22564,
+              "target1": 0.26774,
+              "target2": 0.28352,
+              "leverage_suggest": 5,
+              "winProbability": {
+                "probability": 0.864,
+                "confidence": 0.69,
+                "samples": 17,
+                "bucket": 0.7,
+                "prior": 0.707,
+                "posteriorAlpha": 16.41,
+                "posteriorBeta": 2.59
+              },
+              "indicators": {
+                "current_rsi": 68.51,
+                "current_macdHist": 0.0013,
+                "higher_rsi": 66.13,
+                "higher_macdHist": 0.0022
+              },
+              "patterns": {
+                "engulfing": null,
+                "pinBar": null,
+                "doji": null,
+                "harami": null
+              },
+              "divergence": null,
+              "volatility": {
+                "regime": "normal",
+                "atrPct": 4.141,
+                "meanAtrPct": 3.642,
+                "stdAtrPct": 0.629,
+                "zScore": 0.79
+              },
+              "momentum": {
+                "type": "bullish_decay",
+                "accel": -0.0002
+              },
+              "lastClose": 0.24142800271511078,
+              "atr": 0.010523212807519096,
+              "updatedAt": "2026-06-18T17:10:01.865Z",
+              "symbol": "XLM",
+              "name": "Stellar",
+              "image": "https://coin-images.coingecko.com/coins/images/100/large/fmpFRHHQ_400x400.jpg?1735231350",
+              "coinId": "stellar"
+            },
+            {
+              "strategy": "long",
+              "direction": "long",
+              "timeframe": "4h",
+              "higherTimeframe": "1d",
+              "totalScore": 5,
+              "applicableMax": 12,
+              "ratio": 0.42,
+              "grade": "ORTA",
+              "conditions": [
+                {
+                  "id": "current_uptrend",
+                  "label": "4h EMA20 > EMA50",
+                  "group": "trend",
+                  "why": "Entry zaman diliminde kısa vadeli yapı yukarı yönlü.",
+                  "met": true,
+                  "applicable": true,
+                  "required": true
+                },
+                {
+                  "id": "current_above_ema200",
+                  "label": "4h fiyat EMA200 üstü",
+                  "group": "trend",
+                  "why": "Entry TF'de uzun vadeli ana trend boğa.",
+                  "met": false,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "current_rsi_healthy",
+                  "label": "4h RSI 45-72",
+                  "group": "ind",
+                  "why": "Aşırı satımdan çıkmış, aşırı alıma girmemiş — sağlıklı momentum.",
+                  "met": true,
+                  "applicable": true,
+                  "required": true
+                },
+                {
+                  "id": "current_macd_bullish",
+                  "label": "4h MACD pozitif + büyüyor",
+                  "group": "ind",
+                  "why": "MACD histogramı pozitif ve son barda büyüyor — momentum güçleniyor.",
+                  "met": false,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "current_volume_above_avg",
+                  "label": "4h hacim 20-bar SMA üstü",
+                  "group": "ind",
+                  "why": "Son mum hacmi ortalama üstünde — alıcı katılımı var.",
+                  "met": false,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "higher_uptrend",
+                  "label": "1d EMA20 > EMA50 (macro)",
+                  "group": "macro",
+                  "why": "Üst zaman diliminde de yapı yukarı — kontra-trend değil.",
+                  "met": false,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "higher_above_ema50",
+                  "label": "1d fiyat EMA50 üstü",
+                  "group": "macro",
+                  "why": "Üst TF orta vadeli ortalama üstünde — sağlam zemin.",
+                  "met": false,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "higher_rsi_not_overbought",
+                  "label": "1d RSI < 75",
+                  "group": "macro",
+                  "why": "Üst TF aşırı alımda değil — yukarı alanı var.",
+                  "met": true,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "higher_macd_aligned",
+                  "label": "1d MACD ≥ 0",
+                  "group": "macro",
+                  "why": "Üst TF momentumu da long lehine.",
+                  "met": true,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "bullish_divergence",
+                  "label": "Bullish RSI divergence",
+                  "group": "math",
+                  "why": "Fiyat lower-low, RSI higher-low — trend dönüşü olası.",
+                  "met": false,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "bullish_candlestick",
+                  "label": "Boğa candlestick formasyonu",
+                  "group": "pattern",
+                  "why": "Bullish engulfing / hammer / bullish harami son barda var.",
+                  "met": false,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "volatility_supportive",
+                  "label": "Volatilite trade için uygun",
+                  "group": "math",
+                  "why": "ATR rejimi normal/low — yüksek volatilitede kontra-trend giriş riskli.",
+                  "met": true,
+                  "applicable": true,
+                  "required": false
+                }
+              ],
+              "entry": 51.69,
+              "stop": 50.862,
+              "target1": 53.071,
+              "target2": 53.9,
+              "leverage_suggest": 2,
+              "winProbability": {
+                "probability": 0.593,
+                "confidence": 0.02,
+                "samples": 1,
+                "bucket": 0.4,
+                "prior": 0.392,
+                "posteriorAlpha": 1.78,
+                "posteriorBeta": 1.22
+              },
+              "indicators": {
+                "current_rsi": 49.49,
+                "current_macdHist": -0.2738,
+                "higher_rsi": 48.23,
+                "higher_macdHist": 0.7279
+              },
+              "patterns": {
+                "engulfing": null,
+                "pinBar": null,
+                "doji": null,
+                "harami": null
+              },
+              "divergence": null,
+              "volatility": {
+                "regime": "low",
+                "atrPct": 1.2,
+                "meanAtrPct": 1.778,
+                "stdAtrPct": 0.432,
+                "zScore": -1.34
+              },
+              "momentum": null,
+              "lastClose": 51.69013595581055,
+              "atr": 0.5523433685302734,
+              "updatedAt": "2026-06-18T17:10:01.865Z",
+              "symbol": "WBT",
+              "name": "WhiteBIT Coin",
+              "image": "https://coin-images.coingecko.com/coins/images/27045/large/wbt_token.png?1696526096",
+              "coinId": "whitebit"
+            }
+          ],
+          "allSignals": [
+            {
+              "strategy": "long",
+              "direction": "long",
+              "timeframe": "4h",
+              "higherTimeframe": "1d",
+              "totalScore": 8,
+              "applicableMax": 12,
+              "ratio": 0.67,
+              "grade": "GUCLU",
+              "conditions": [
+                {
+                  "id": "current_uptrend",
+                  "label": "4h EMA20 > EMA50",
+                  "group": "trend",
+                  "why": "Entry zaman diliminde kısa vadeli yapı yukarı yönlü.",
+                  "met": true,
+                  "applicable": true,
+                  "required": true
+                },
+                {
+                  "id": "current_above_ema200",
+                  "label": "4h fiyat EMA200 üstü",
+                  "group": "trend",
+                  "why": "Entry TF'de uzun vadeli ana trend boğa.",
+                  "met": true,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "current_rsi_healthy",
+                  "label": "4h RSI 45-72",
+                  "group": "ind",
+                  "why": "Aşırı satımdan çıkmış, aşırı alıma girmemiş — sağlıklı momentum.",
+                  "met": true,
+                  "applicable": true,
+                  "required": true
+                },
+                {
+                  "id": "current_macd_bullish",
+                  "label": "4h MACD pozitif + büyüyor",
+                  "group": "ind",
+                  "why": "MACD histogramı pozitif ve son barda büyüyor — momentum güçleniyor.",
+                  "met": false,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "current_volume_above_avg",
+                  "label": "4h hacim 20-bar SMA üstü",
+                  "group": "ind",
+                  "why": "Son mum hacmi ortalama üstünde — alıcı katılımı var.",
+                  "met": false,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "higher_uptrend",
+                  "label": "1d EMA20 > EMA50 (macro)",
+                  "group": "macro",
+                  "why": "Üst zaman diliminde de yapı yukarı — kontra-trend değil.",
+                  "met": true,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "higher_above_ema50",
+                  "label": "1d fiyat EMA50 üstü",
+                  "group": "macro",
+                  "why": "Üst TF orta vadeli ortalama üstünde — sağlam zemin.",
+                  "met": true,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "higher_rsi_not_overbought",
+                  "label": "1d RSI < 75",
+                  "group": "macro",
+                  "why": "Üst TF aşırı alımda değil — yukarı alanı var.",
+                  "met": true,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "higher_macd_aligned",
+                  "label": "1d MACD ≥ 0",
+                  "group": "macro",
+                  "why": "Üst TF momentumu da long lehine.",
+                  "met": true,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "bullish_divergence",
+                  "label": "Bullish RSI divergence",
+                  "group": "math",
+                  "why": "Fiyat lower-low, RSI higher-low — trend dönüşü olası.",
+                  "met": false,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "bullish_candlestick",
+                  "label": "Boğa candlestick formasyonu",
+                  "group": "pattern",
+                  "why": "Bullish engulfing / hammer / bullish harami son barda var.",
+                  "met": false,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "volatility_supportive",
+                  "label": "Volatilite trade için uygun",
+                  "group": "math",
+                  "why": "ATR rejimi normal/low — yüksek volatilitede kontra-trend giriş riskli.",
+                  "met": true,
+                  "applicable": true,
+                  "required": false
+                }
+              ],
+              "entry": 0.24143,
+              "stop": 0.22564,
+              "target1": 0.26774,
+              "target2": 0.28352,
+              "leverage_suggest": 5,
+              "winProbability": {
+                "probability": 0.864,
+                "confidence": 0.69,
+                "samples": 17,
+                "bucket": 0.7,
+                "prior": 0.707,
+                "posteriorAlpha": 16.41,
+                "posteriorBeta": 2.59
+              },
+              "indicators": {
+                "current_rsi": 68.51,
+                "current_macdHist": 0.0013,
+                "higher_rsi": 66.13,
+                "higher_macdHist": 0.0022
+              },
+              "patterns": {
+                "engulfing": null,
+                "pinBar": null,
+                "doji": null,
+                "harami": null
+              },
+              "divergence": null,
+              "volatility": {
+                "regime": "normal",
+                "atrPct": 4.141,
+                "meanAtrPct": 3.642,
+                "stdAtrPct": 0.629,
+                "zScore": 0.79
+              },
+              "momentum": {
+                "type": "bullish_decay",
+                "accel": -0.0002
+              },
+              "lastClose": 0.24142800271511078,
+              "atr": 0.010523212807519096,
+              "updatedAt": "2026-06-18T17:10:01.865Z",
+              "symbol": "XLM",
+              "name": "Stellar",
+              "image": "https://coin-images.coingecko.com/coins/images/100/large/fmpFRHHQ_400x400.jpg?1735231350",
+              "coinId": "stellar"
+            },
+            {
+              "strategy": "long",
+              "direction": "long",
+              "timeframe": "4h",
+              "higherTimeframe": "1d",
+              "totalScore": 5,
+              "applicableMax": 12,
+              "ratio": 0.42,
+              "grade": "ORTA",
+              "conditions": [
+                {
+                  "id": "current_uptrend",
+                  "label": "4h EMA20 > EMA50",
+                  "group": "trend",
+                  "why": "Entry zaman diliminde kısa vadeli yapı yukarı yönlü.",
+                  "met": true,
+                  "applicable": true,
+                  "required": true
+                },
+                {
+                  "id": "current_above_ema200",
+                  "label": "4h fiyat EMA200 üstü",
+                  "group": "trend",
+                  "why": "Entry TF'de uzun vadeli ana trend boğa.",
+                  "met": false,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "current_rsi_healthy",
+                  "label": "4h RSI 45-72",
+                  "group": "ind",
+                  "why": "Aşırı satımdan çıkmış, aşırı alıma girmemiş — sağlıklı momentum.",
+                  "met": true,
+                  "applicable": true,
+                  "required": true
+                },
+                {
+                  "id": "current_macd_bullish",
+                  "label": "4h MACD pozitif + büyüyor",
+                  "group": "ind",
+                  "why": "MACD histogramı pozitif ve son barda büyüyor — momentum güçleniyor.",
+                  "met": false,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "current_volume_above_avg",
+                  "label": "4h hacim 20-bar SMA üstü",
+                  "group": "ind",
+                  "why": "Son mum hacmi ortalama üstünde — alıcı katılımı var.",
+                  "met": false,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "higher_uptrend",
+                  "label": "1d EMA20 > EMA50 (macro)",
+                  "group": "macro",
+                  "why": "Üst zaman diliminde de yapı yukarı — kontra-trend değil.",
+                  "met": false,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "higher_above_ema50",
+                  "label": "1d fiyat EMA50 üstü",
+                  "group": "macro",
+                  "why": "Üst TF orta vadeli ortalama üstünde — sağlam zemin.",
+                  "met": false,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "higher_rsi_not_overbought",
+                  "label": "1d RSI < 75",
+                  "group": "macro",
+                  "why": "Üst TF aşırı alımda değil — yukarı alanı var.",
+                  "met": true,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "higher_macd_aligned",
+                  "label": "1d MACD ≥ 0",
+                  "group": "macro",
+                  "why": "Üst TF momentumu da long lehine.",
+                  "met": true,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "bullish_divergence",
+                  "label": "Bullish RSI divergence",
+                  "group": "math",
+                  "why": "Fiyat lower-low, RSI higher-low — trend dönüşü olası.",
+                  "met": false,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "bullish_candlestick",
+                  "label": "Boğa candlestick formasyonu",
+                  "group": "pattern",
+                  "why": "Bullish engulfing / hammer / bullish harami son barda var.",
+                  "met": false,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "volatility_supportive",
+                  "label": "Volatilite trade için uygun",
+                  "group": "math",
+                  "why": "ATR rejimi normal/low — yüksek volatilitede kontra-trend giriş riskli.",
+                  "met": true,
+                  "applicable": true,
+                  "required": false
+                }
+              ],
+              "entry": 51.69,
+              "stop": 50.862,
+              "target1": 53.071,
+              "target2": 53.9,
+              "leverage_suggest": 2,
+              "winProbability": {
+                "probability": 0.593,
+                "confidence": 0.02,
+                "samples": 1,
+                "bucket": 0.4,
+                "prior": 0.392,
+                "posteriorAlpha": 1.78,
+                "posteriorBeta": 1.22
+              },
+              "indicators": {
+                "current_rsi": 49.49,
+                "current_macdHist": -0.2738,
+                "higher_rsi": 48.23,
+                "higher_macdHist": 0.7279
+              },
+              "patterns": {
+                "engulfing": null,
+                "pinBar": null,
+                "doji": null,
+                "harami": null
+              },
+              "divergence": null,
+              "volatility": {
+                "regime": "low",
+                "atrPct": 1.2,
+                "meanAtrPct": 1.778,
+                "stdAtrPct": 0.432,
+                "zScore": -1.34
+              },
+              "momentum": null,
+              "lastClose": 51.69013595581055,
+              "atr": 0.5523433685302734,
+              "updatedAt": "2026-06-18T17:10:01.865Z",
+              "symbol": "WBT",
+              "name": "WhiteBIT Coin",
+              "image": "https://coin-images.coingecko.com/coins/images/27045/large/wbt_token.png?1696526096",
+              "coinId": "whitebit"
+            }
+          ]
+        },
+        "short": {
+          "signals": [],
+          "allSignals": []
+        }
+      }
+    },
+    "1d": {
+      "generatedAt": "2026-06-17T21:30:00.428Z",
+      "scanner": {
+        "timeframe": "1d",
+        "higherTimeframe": "1w",
+        "tierLimit": 30,
+        "universeSize": 100,
+        "tradableCount": 30,
+        "analyzedCount": 27,
+        "long": {
+          "signals": [
+            {
+              "strategy": "long",
+              "direction": "long",
+              "timeframe": "1d",
+              "higherTimeframe": "1w",
+              "totalScore": 9,
+              "applicableMax": 12,
+              "ratio": 0.75,
+              "grade": "MUKEMMEL",
+              "conditions": [
+                {
+                  "id": "current_uptrend",
+                  "label": "1d EMA20 > EMA50",
+                  "group": "trend",
+                  "why": "Entry zaman diliminde kısa vadeli yapı yukarı yönlü.",
+                  "met": true,
+                  "applicable": true,
+                  "required": true
+                },
+                {
+                  "id": "current_above_ema200",
+                  "label": "1d fiyat EMA200 üstü",
+                  "group": "trend",
+                  "why": "Entry TF'de uzun vadeli ana trend boğa.",
+                  "met": true,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "current_rsi_healthy",
+                  "label": "1d RSI 45-72",
+                  "group": "ind",
+                  "why": "Aşırı satımdan çıkmış, aşırı alıma girmemiş — sağlıklı momentum.",
+                  "met": true,
+                  "applicable": true,
+                  "required": true
+                },
+                {
+                  "id": "current_macd_bullish",
+                  "label": "1d MACD pozitif + büyüyor",
+                  "group": "ind",
+                  "why": "MACD histogramı pozitif ve son barda büyüyor — momentum güçleniyor.",
+                  "met": true,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "current_volume_above_avg",
+                  "label": "1d hacim 20-bar SMA üstü",
+                  "group": "ind",
+                  "why": "Son mum hacmi ortalama üstünde — alıcı katılımı var.",
+                  "met": false,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "higher_uptrend",
+                  "label": "1w EMA20 > EMA50 (macro)",
+                  "group": "macro",
+                  "why": "Üst zaman diliminde de yapı yukarı — kontra-trend değil.",
+                  "met": true,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "higher_above_ema50",
+                  "label": "1w fiyat EMA50 üstü",
+                  "group": "macro",
+                  "why": "Üst TF orta vadeli ortalama üstünde — sağlam zemin.",
+                  "met": true,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "higher_rsi_not_overbought",
+                  "label": "1w RSI < 75",
+                  "group": "macro",
+                  "why": "Üst TF aşırı alımda değil — yukarı alanı var.",
+                  "met": true,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "higher_macd_aligned",
+                  "label": "1w MACD ≥ 0",
+                  "group": "macro",
+                  "why": "Üst TF momentumu da long lehine.",
+                  "met": true,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "bullish_divergence",
+                  "label": "Bullish RSI divergence",
+                  "group": "math",
+                  "why": "Fiyat lower-low, RSI higher-low — trend dönüşü olası.",
+                  "met": false,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "bullish_candlestick",
+                  "label": "Boğa candlestick formasyonu",
+                  "group": "pattern",
+                  "why": "Bullish engulfing / hammer / bullish harami son barda var.",
+                  "met": false,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "volatility_supportive",
+                  "label": "Volatilite trade için uygun",
+                  "group": "math",
+                  "why": "ATR rejimi normal/low — yüksek volatilitede kontra-trend giriş riskli.",
+                  "met": true,
+                  "applicable": true,
+                  "required": false
+                }
+              ],
+              "entry": 484.96,
+              "stop": 344.732,
+              "target1": 730.359,
+              "target2": 905.644,
+              "leverage_suggest": 3,
+              "winProbability": {
+                "probability": 0.79,
+                "confidence": 0.06,
+                "samples": 0,
+                "bucket": 0.8,
+                "prior": 0.789,
+                "posteriorAlpha": 1.58,
+                "posteriorBeta": 0.42
+              },
+              "indicators": {
+                "current_rsi": 49.78,
+                "current_macdHist": 5.4318,
+                "higher_rsi": 55.32,
+                "higher_macdHist": 7.5833
+              },
+              "patterns": {
+                "engulfing": null,
+                "pinBar": null,
+                "doji": null,
+                "harami": null
+              },
+              "divergence": null,
+              "volatility": {
+                "regime": "normal",
+                "atrPct": 12.036,
+                "meanAtrPct": 9.398,
+                "stdAtrPct": 3.471,
+                "zScore": 0.76
+              },
+              "momentum": null,
+              "lastClose": 484.9599914550781,
+              "atr": 70.11394936697823,
+              "updatedAt": "2026-06-17T21:30:02.212Z",
+              "symbol": "ZEC",
+              "name": "Zcash",
+              "image": "https://coin-images.coingecko.com/coins/images/486/large/circle-zcash-color.png?1696501740",
+              "coinId": "zcash"
+            },
+            {
+              "strategy": "long",
+              "direction": "long",
+              "timeframe": "1d",
+              "higherTimeframe": "1w",
+              "totalScore": 7,
+              "applicableMax": 12,
+              "ratio": 0.58,
+              "grade": "GUCLU",
+              "conditions": [
+                {
+                  "id": "current_uptrend",
+                  "label": "1d EMA20 > EMA50",
+                  "group": "trend",
+                  "why": "Entry zaman diliminde kısa vadeli yapı yukarı yönlü.",
+                  "met": true,
+                  "applicable": true,
+                  "required": true
+                },
+                {
+                  "id": "current_above_ema200",
+                  "label": "1d fiyat EMA200 üstü",
+                  "group": "trend",
+                  "why": "Entry TF'de uzun vadeli ana trend boğa.",
+                  "met": true,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "current_rsi_healthy",
+                  "label": "1d RSI 45-72",
+                  "group": "ind",
+                  "why": "Aşırı satımdan çıkmış, aşırı alıma girmemiş — sağlıklı momentum.",
+                  "met": true,
+                  "applicable": true,
+                  "required": true
+                },
+                {
+                  "id": "current_macd_bullish",
+                  "label": "1d MACD pozitif + büyüyor",
+                  "group": "ind",
+                  "why": "MACD histogramı pozitif ve son barda büyüyor — momentum güçleniyor.",
+                  "met": true,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "current_volume_above_avg",
+                  "label": "1d hacim 20-bar SMA üstü",
+                  "group": "ind",
+                  "why": "Son mum hacmi ortalama üstünde — alıcı katılımı var.",
+                  "met": false,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "higher_uptrend",
+                  "label": "1w EMA20 > EMA50 (macro)",
+                  "group": "macro",
+                  "why": "Üst zaman diliminde de yapı yukarı — kontra-trend değil.",
+                  "met": false,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "higher_above_ema50",
+                  "label": "1w fiyat EMA50 üstü",
+                  "group": "macro",
+                  "why": "Üst TF orta vadeli ortalama üstünde — sağlam zemin.",
+                  "met": true,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "higher_rsi_not_overbought",
+                  "label": "1w RSI < 75",
+                  "group": "macro",
+                  "why": "Üst TF aşırı alımda değil — yukarı alanı var.",
+                  "met": true,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "higher_macd_aligned",
+                  "label": "1w MACD ≥ 0",
+                  "group": "macro",
+                  "why": "Üst TF momentumu da long lehine.",
+                  "met": true,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "bullish_divergence",
+                  "label": "Bullish RSI divergence",
+                  "group": "math",
+                  "why": "Fiyat lower-low, RSI higher-low — trend dönüşü olası.",
+                  "met": false,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "bullish_candlestick",
+                  "label": "Boğa candlestick formasyonu",
+                  "group": "pattern",
+                  "why": "Bullish engulfing / hammer / bullish harami son barda var.",
+                  "met": false,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "volatility_supportive",
+                  "label": "Volatilite trade için uygun",
+                  "group": "math",
+                  "why": "ATR rejimi normal/low — yüksek volatilitede kontra-trend giriş riskli.",
+                  "met": false,
+                  "applicable": true,
+                  "required": false
+                }
+              ],
+              "entry": 0.22517,
+              "stop": 0.18832,
+              "target1": 0.28964,
+              "target2": 0.3357,
+              "leverage_suggest": 2,
+              "winProbability": {
+                "probability": 0.61,
+                "confidence": 0,
+                "samples": 0,
+                "bucket": 0.6,
+                "prior": 0.608,
+                "posteriorAlpha": 1.22,
+                "posteriorBeta": 0.78
+              },
+              "indicators": {
+                "current_rsi": 61.48,
+                "current_macdHist": 0.0003,
+                "higher_rsi": 53.98,
+                "higher_macdHist": 0.0119
+              },
+              "patterns": {
+                "engulfing": null,
+                "pinBar": null,
+                "doji": null,
+                "harami": null
+              },
+              "divergence": null,
+              "volatility": {
+                "regime": "high",
+                "atrPct": 8.944,
+                "meanAtrPct": 5.82,
+                "stdAtrPct": 2.69,
+                "zScore": 1.16
+              },
+              "momentum": {
+                "type": "bullish_acceleration",
+                "accel": 0.0001
+              },
+              "lastClose": 0.22516700625419617,
+              "atr": 0.01842153923852103,
+              "updatedAt": "2026-06-17T21:30:02.212Z",
+              "symbol": "XLM",
+              "name": "Stellar",
+              "image": "https://coin-images.coingecko.com/coins/images/100/large/fmpFRHHQ_400x400.jpg?1735231350",
+              "coinId": "stellar"
+            },
+            {
+              "strategy": "long",
+              "direction": "long",
+              "timeframe": "1d",
+              "higherTimeframe": "1w",
+              "totalScore": 6,
+              "applicableMax": 12,
+              "ratio": 0.5,
+              "grade": "ORTA",
+              "conditions": [
+                {
+                  "id": "current_uptrend",
+                  "label": "1d EMA20 > EMA50",
+                  "group": "trend",
+                  "why": "Entry zaman diliminde kısa vadeli yapı yukarı yönlü.",
+                  "met": true,
+                  "applicable": true,
+                  "required": true
+                },
+                {
+                  "id": "current_above_ema200",
+                  "label": "1d fiyat EMA200 üstü",
+                  "group": "trend",
+                  "why": "Entry TF'de uzun vadeli ana trend boğa.",
+                  "met": true,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "current_rsi_healthy",
+                  "label": "1d RSI 45-72",
+                  "group": "ind",
+                  "why": "Aşırı satımdan çıkmış, aşırı alıma girmemiş — sağlıklı momentum.",
+                  "met": true,
+                  "applicable": true,
+                  "required": true
+                },
+                {
+                  "id": "current_macd_bullish",
+                  "label": "1d MACD pozitif + büyüyor",
+                  "group": "ind",
+                  "why": "MACD histogramı pozitif ve son barda büyüyor — momentum güçleniyor.",
+                  "met": false,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "current_volume_above_avg",
+                  "label": "1d hacim 20-bar SMA üstü",
+                  "group": "ind",
+                  "why": "Son mum hacmi ortalama üstünde — alıcı katılımı var.",
+                  "met": false,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "higher_uptrend",
+                  "label": "1w EMA20 > EMA50 (macro)",
+                  "group": "macro",
+                  "why": "Üst zaman diliminde de yapı yukarı — kontra-trend değil.",
+                  "met": false,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "higher_above_ema50",
+                  "label": "1w fiyat EMA50 üstü",
+                  "group": "macro",
+                  "why": "Üst TF orta vadeli ortalama üstünde — sağlam zemin.",
+                  "met": true,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "higher_rsi_not_overbought",
+                  "label": "1w RSI < 75",
+                  "group": "macro",
+                  "why": "Üst TF aşırı alımda değil — yukarı alanı var.",
+                  "met": true,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "higher_macd_aligned",
+                  "label": "1w MACD ≥ 0",
+                  "group": "macro",
+                  "why": "Üst TF momentumu da long lehine.",
+                  "met": true,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "bullish_divergence",
+                  "label": "Bullish RSI divergence",
+                  "group": "math",
+                  "why": "Fiyat lower-low, RSI higher-low — trend dönüşü olası.",
+                  "met": false,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "bullish_candlestick",
+                  "label": "Boğa candlestick formasyonu",
+                  "group": "pattern",
+                  "why": "Bullish engulfing / hammer / bullish harami son barda var.",
+                  "met": false,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "volatility_supportive",
+                  "label": "Volatilite trade için uygun",
+                  "group": "math",
+                  "why": "ATR rejimi normal/low — yüksek volatilitede kontra-trend giriş riskli.",
+                  "met": false,
+                  "applicable": true,
+                  "required": false
+                }
+              ],
+              "entry": 2.251,
+              "stop": 1.7402,
+              "target1": 3.145,
+              "target2": 3.7835,
+              "leverage_suggest": 2,
+              "winProbability": {
+                "probability": 0.5,
+                "confidence": 0,
+                "samples": 0,
+                "bucket": 0.5,
+                "prior": 0.5,
+                "posteriorAlpha": 1,
+                "posteriorBeta": 1
+              },
+              "indicators": {
+                "current_rsi": 53.39,
+                "current_macdHist": -0.0097,
+                "higher_rsi": 59.7,
+                "higher_macdHist": 0.1413
+              },
+              "patterns": {
+                "engulfing": null,
+                "pinBar": null,
+                "doji": null,
+                "harami": null
+              },
+              "divergence": null,
+              "volatility": {
+                "regime": "high",
+                "atrPct": 10.418,
+                "meanAtrPct": 7.045,
+                "stdAtrPct": 3.142,
+                "zScore": 1.07
+              },
+              "momentum": {
+                "type": "bearish_decay",
+                "accel": -0.0071
+              },
+              "lastClose": 2.250999927520752,
+              "atr": 0.25542040382112774,
+              "updatedAt": "2026-06-17T21:30:03.602Z",
+              "symbol": "NEAR",
+              "name": "NEAR Protocol",
+              "image": "https://coin-images.coingecko.com/coins/images/10365/large/near.jpg?1696510367",
+              "coinId": "near"
+            }
+          ],
+          "allSignals": [
+            {
+              "strategy": "long",
+              "direction": "long",
+              "timeframe": "1d",
+              "higherTimeframe": "1w",
+              "totalScore": 9,
+              "applicableMax": 12,
+              "ratio": 0.75,
+              "grade": "MUKEMMEL",
+              "conditions": [
+                {
+                  "id": "current_uptrend",
+                  "label": "1d EMA20 > EMA50",
+                  "group": "trend",
+                  "why": "Entry zaman diliminde kısa vadeli yapı yukarı yönlü.",
+                  "met": true,
+                  "applicable": true,
+                  "required": true
+                },
+                {
+                  "id": "current_above_ema200",
+                  "label": "1d fiyat EMA200 üstü",
+                  "group": "trend",
+                  "why": "Entry TF'de uzun vadeli ana trend boğa.",
+                  "met": true,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "current_rsi_healthy",
+                  "label": "1d RSI 45-72",
+                  "group": "ind",
+                  "why": "Aşırı satımdan çıkmış, aşırı alıma girmemiş — sağlıklı momentum.",
+                  "met": true,
+                  "applicable": true,
+                  "required": true
+                },
+                {
+                  "id": "current_macd_bullish",
+                  "label": "1d MACD pozitif + büyüyor",
+                  "group": "ind",
+                  "why": "MACD histogramı pozitif ve son barda büyüyor — momentum güçleniyor.",
+                  "met": true,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "current_volume_above_avg",
+                  "label": "1d hacim 20-bar SMA üstü",
+                  "group": "ind",
+                  "why": "Son mum hacmi ortalama üstünde — alıcı katılımı var.",
+                  "met": false,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "higher_uptrend",
+                  "label": "1w EMA20 > EMA50 (macro)",
+                  "group": "macro",
+                  "why": "Üst zaman diliminde de yapı yukarı — kontra-trend değil.",
+                  "met": true,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "higher_above_ema50",
+                  "label": "1w fiyat EMA50 üstü",
+                  "group": "macro",
+                  "why": "Üst TF orta vadeli ortalama üstünde — sağlam zemin.",
+                  "met": true,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "higher_rsi_not_overbought",
+                  "label": "1w RSI < 75",
+                  "group": "macro",
+                  "why": "Üst TF aşırı alımda değil — yukarı alanı var.",
+                  "met": true,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "higher_macd_aligned",
+                  "label": "1w MACD ≥ 0",
+                  "group": "macro",
+                  "why": "Üst TF momentumu da long lehine.",
+                  "met": true,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "bullish_divergence",
+                  "label": "Bullish RSI divergence",
+                  "group": "math",
+                  "why": "Fiyat lower-low, RSI higher-low — trend dönüşü olası.",
+                  "met": false,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "bullish_candlestick",
+                  "label": "Boğa candlestick formasyonu",
+                  "group": "pattern",
+                  "why": "Bullish engulfing / hammer / bullish harami son barda var.",
+                  "met": false,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "volatility_supportive",
+                  "label": "Volatilite trade için uygun",
+                  "group": "math",
+                  "why": "ATR rejimi normal/low — yüksek volatilitede kontra-trend giriş riskli.",
+                  "met": true,
+                  "applicable": true,
+                  "required": false
+                }
+              ],
+              "entry": 484.96,
+              "stop": 344.732,
+              "target1": 730.359,
+              "target2": 905.644,
+              "leverage_suggest": 3,
+              "winProbability": {
+                "probability": 0.79,
+                "confidence": 0.06,
+                "samples": 0,
+                "bucket": 0.8,
+                "prior": 0.789,
+                "posteriorAlpha": 1.58,
+                "posteriorBeta": 0.42
+              },
+              "indicators": {
+                "current_rsi": 49.78,
+                "current_macdHist": 5.4318,
+                "higher_rsi": 55.32,
+                "higher_macdHist": 7.5833
+              },
+              "patterns": {
+                "engulfing": null,
+                "pinBar": null,
+                "doji": null,
+                "harami": null
+              },
+              "divergence": null,
+              "volatility": {
+                "regime": "normal",
+                "atrPct": 12.036,
+                "meanAtrPct": 9.398,
+                "stdAtrPct": 3.471,
+                "zScore": 0.76
+              },
+              "momentum": null,
+              "lastClose": 484.9599914550781,
+              "atr": 70.11394936697823,
+              "updatedAt": "2026-06-17T21:30:02.212Z",
+              "symbol": "ZEC",
+              "name": "Zcash",
+              "image": "https://coin-images.coingecko.com/coins/images/486/large/circle-zcash-color.png?1696501740",
+              "coinId": "zcash"
+            },
+            {
+              "strategy": "long",
+              "direction": "long",
+              "timeframe": "1d",
+              "higherTimeframe": "1w",
+              "totalScore": 7,
+              "applicableMax": 12,
+              "ratio": 0.58,
+              "grade": "GUCLU",
+              "conditions": [
+                {
+                  "id": "current_uptrend",
+                  "label": "1d EMA20 > EMA50",
+                  "group": "trend",
+                  "why": "Entry zaman diliminde kısa vadeli yapı yukarı yönlü.",
+                  "met": true,
+                  "applicable": true,
+                  "required": true
+                },
+                {
+                  "id": "current_above_ema200",
+                  "label": "1d fiyat EMA200 üstü",
+                  "group": "trend",
+                  "why": "Entry TF'de uzun vadeli ana trend boğa.",
+                  "met": true,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "current_rsi_healthy",
+                  "label": "1d RSI 45-72",
+                  "group": "ind",
+                  "why": "Aşırı satımdan çıkmış, aşırı alıma girmemiş — sağlıklı momentum.",
+                  "met": true,
+                  "applicable": true,
+                  "required": true
+                },
+                {
+                  "id": "current_macd_bullish",
+                  "label": "1d MACD pozitif + büyüyor",
+                  "group": "ind",
+                  "why": "MACD histogramı pozitif ve son barda büyüyor — momentum güçleniyor.",
+                  "met": true,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "current_volume_above_avg",
+                  "label": "1d hacim 20-bar SMA üstü",
+                  "group": "ind",
+                  "why": "Son mum hacmi ortalama üstünde — alıcı katılımı var.",
+                  "met": false,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "higher_uptrend",
+                  "label": "1w EMA20 > EMA50 (macro)",
+                  "group": "macro",
+                  "why": "Üst zaman diliminde de yapı yukarı — kontra-trend değil.",
+                  "met": false,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "higher_above_ema50",
+                  "label": "1w fiyat EMA50 üstü",
+                  "group": "macro",
+                  "why": "Üst TF orta vadeli ortalama üstünde — sağlam zemin.",
+                  "met": true,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "higher_rsi_not_overbought",
+                  "label": "1w RSI < 75",
+                  "group": "macro",
+                  "why": "Üst TF aşırı alımda değil — yukarı alanı var.",
+                  "met": true,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "higher_macd_aligned",
+                  "label": "1w MACD ≥ 0",
+                  "group": "macro",
+                  "why": "Üst TF momentumu da long lehine.",
+                  "met": true,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "bullish_divergence",
+                  "label": "Bullish RSI divergence",
+                  "group": "math",
+                  "why": "Fiyat lower-low, RSI higher-low — trend dönüşü olası.",
+                  "met": false,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "bullish_candlestick",
+                  "label": "Boğa candlestick formasyonu",
+                  "group": "pattern",
+                  "why": "Bullish engulfing / hammer / bullish harami son barda var.",
+                  "met": false,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "volatility_supportive",
+                  "label": "Volatilite trade için uygun",
+                  "group": "math",
+                  "why": "ATR rejimi normal/low — yüksek volatilitede kontra-trend giriş riskli.",
+                  "met": false,
+                  "applicable": true,
+                  "required": false
+                }
+              ],
+              "entry": 0.22517,
+              "stop": 0.18832,
+              "target1": 0.28964,
+              "target2": 0.3357,
+              "leverage_suggest": 2,
+              "winProbability": {
+                "probability": 0.61,
+                "confidence": 0,
+                "samples": 0,
+                "bucket": 0.6,
+                "prior": 0.608,
+                "posteriorAlpha": 1.22,
+                "posteriorBeta": 0.78
+              },
+              "indicators": {
+                "current_rsi": 61.48,
+                "current_macdHist": 0.0003,
+                "higher_rsi": 53.98,
+                "higher_macdHist": 0.0119
+              },
+              "patterns": {
+                "engulfing": null,
+                "pinBar": null,
+                "doji": null,
+                "harami": null
+              },
+              "divergence": null,
+              "volatility": {
+                "regime": "high",
+                "atrPct": 8.944,
+                "meanAtrPct": 5.82,
+                "stdAtrPct": 2.69,
+                "zScore": 1.16
+              },
+              "momentum": {
+                "type": "bullish_acceleration",
+                "accel": 0.0001
+              },
+              "lastClose": 0.22516700625419617,
+              "atr": 0.01842153923852103,
+              "updatedAt": "2026-06-17T21:30:02.212Z",
+              "symbol": "XLM",
+              "name": "Stellar",
+              "image": "https://coin-images.coingecko.com/coins/images/100/large/fmpFRHHQ_400x400.jpg?1735231350",
+              "coinId": "stellar"
+            },
+            {
+              "strategy": "long",
+              "direction": "long",
+              "timeframe": "1d",
+              "higherTimeframe": "1w",
+              "totalScore": 6,
+              "applicableMax": 12,
+              "ratio": 0.5,
+              "grade": "ORTA",
+              "conditions": [
+                {
+                  "id": "current_uptrend",
+                  "label": "1d EMA20 > EMA50",
+                  "group": "trend",
+                  "why": "Entry zaman diliminde kısa vadeli yapı yukarı yönlü.",
+                  "met": true,
+                  "applicable": true,
+                  "required": true
+                },
+                {
+                  "id": "current_above_ema200",
+                  "label": "1d fiyat EMA200 üstü",
+                  "group": "trend",
+                  "why": "Entry TF'de uzun vadeli ana trend boğa.",
+                  "met": true,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "current_rsi_healthy",
+                  "label": "1d RSI 45-72",
+                  "group": "ind",
+                  "why": "Aşırı satımdan çıkmış, aşırı alıma girmemiş — sağlıklı momentum.",
+                  "met": true,
+                  "applicable": true,
+                  "required": true
+                },
+                {
+                  "id": "current_macd_bullish",
+                  "label": "1d MACD pozitif + büyüyor",
+                  "group": "ind",
+                  "why": "MACD histogramı pozitif ve son barda büyüyor — momentum güçleniyor.",
+                  "met": false,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "current_volume_above_avg",
+                  "label": "1d hacim 20-bar SMA üstü",
+                  "group": "ind",
+                  "why": "Son mum hacmi ortalama üstünde — alıcı katılımı var.",
+                  "met": false,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "higher_uptrend",
+                  "label": "1w EMA20 > EMA50 (macro)",
+                  "group": "macro",
+                  "why": "Üst zaman diliminde de yapı yukarı — kontra-trend değil.",
+                  "met": false,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "higher_above_ema50",
+                  "label": "1w fiyat EMA50 üstü",
+                  "group": "macro",
+                  "why": "Üst TF orta vadeli ortalama üstünde — sağlam zemin.",
+                  "met": true,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "higher_rsi_not_overbought",
+                  "label": "1w RSI < 75",
+                  "group": "macro",
+                  "why": "Üst TF aşırı alımda değil — yukarı alanı var.",
+                  "met": true,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "higher_macd_aligned",
+                  "label": "1w MACD ≥ 0",
+                  "group": "macro",
+                  "why": "Üst TF momentumu da long lehine.",
+                  "met": true,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "bullish_divergence",
+                  "label": "Bullish RSI divergence",
+                  "group": "math",
+                  "why": "Fiyat lower-low, RSI higher-low — trend dönüşü olası.",
+                  "met": false,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "bullish_candlestick",
+                  "label": "Boğa candlestick formasyonu",
+                  "group": "pattern",
+                  "why": "Bullish engulfing / hammer / bullish harami son barda var.",
+                  "met": false,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "volatility_supportive",
+                  "label": "Volatilite trade için uygun",
+                  "group": "math",
+                  "why": "ATR rejimi normal/low — yüksek volatilitede kontra-trend giriş riskli.",
+                  "met": false,
+                  "applicable": true,
+                  "required": false
+                }
+              ],
+              "entry": 2.251,
+              "stop": 1.7402,
+              "target1": 3.145,
+              "target2": 3.7835,
+              "leverage_suggest": 2,
+              "winProbability": {
+                "probability": 0.5,
+                "confidence": 0,
+                "samples": 0,
+                "bucket": 0.5,
+                "prior": 0.5,
+                "posteriorAlpha": 1,
+                "posteriorBeta": 1
+              },
+              "indicators": {
+                "current_rsi": 53.39,
+                "current_macdHist": -0.0097,
+                "higher_rsi": 59.7,
+                "higher_macdHist": 0.1413
+              },
+              "patterns": {
+                "engulfing": null,
+                "pinBar": null,
+                "doji": null,
+                "harami": null
+              },
+              "divergence": null,
+              "volatility": {
+                "regime": "high",
+                "atrPct": 10.418,
+                "meanAtrPct": 7.045,
+                "stdAtrPct": 3.142,
+                "zScore": 1.07
+              },
+              "momentum": {
+                "type": "bearish_decay",
+                "accel": -0.0071
+              },
+              "lastClose": 2.250999927520752,
+              "atr": 0.25542040382112774,
+              "updatedAt": "2026-06-17T21:30:03.602Z",
+              "symbol": "NEAR",
+              "name": "NEAR Protocol",
+              "image": "https://coin-images.coingecko.com/coins/images/10365/large/near.jpg?1696510367",
+              "coinId": "near"
+            }
+          ]
+        },
+        "short": {
+          "signals": [],
+          "allSignals": []
+        }
+      }
+    }
+  },
+  "confluence": {
+    "generatedAt": "2026-06-18T17:25:20.634Z",
+    "totalCoins": 5,
+    "strongLong": 2,
+    "long": 3,
+    "strongShort": 0,
+    "short": 0,
+    "neutral": 0,
+    "top": [
+      {
+        "symbol": "ZEC",
+        "name": "Zcash",
+        "verdict": "STRONG_LONG",
+        "net": 9,
+        "weightedLong": 9,
+        "weightedShort": 0,
+        "alignedLong": 1,
+        "alignedShort": 0,
+        "confidence": 0.49,
+        "tfDirections": {
+          "1d": "long"
+        },
+        "image": "https://coin-images.coingecko.com/coins/images/486/large/circle-zcash-color.png?1696501740"
+      },
+      {
+        "symbol": "XLM",
+        "name": "Stellar",
+        "verdict": "STRONG_LONG",
+        "net": 7.83,
+        "weightedLong": 7.83,
+        "weightedShort": 0,
+        "alignedLong": 3,
+        "alignedShort": 0,
+        "confidence": 0.66,
+        "tfDirections": {
+          "1h": "long",
+          "4h": "long",
+          "1d": "long"
+        },
+        "image": "https://coin-images.coingecko.com/coins/images/100/large/fmpFRHHQ_400x400.jpg?1735231350"
+      },
+      {
+        "symbol": "NEAR",
+        "name": "NEAR Protocol",
+        "verdict": "LONG",
+        "net": 6,
+        "weightedLong": 6,
+        "weightedShort": 0,
+        "alignedLong": 1,
+        "alignedShort": 0,
+        "confidence": 0.49,
+        "tfDirections": {
+          "1d": "long"
+        },
+        "image": "https://coin-images.coingecko.com/coins/images/10365/large/near.jpg?1696510367"
+      },
+      {
+        "symbol": "TRX",
+        "name": "TRON",
+        "verdict": "LONG",
+        "net": 5,
+        "weightedLong": 5,
+        "weightedShort": 0,
+        "alignedLong": 1,
+        "alignedShort": 0,
+        "confidence": 0.42,
+        "tfDirections": {
+          "1m": "long"
+        },
+        "image": "https://coin-images.coingecko.com/coins/images/1094/large/photo_2026-04-13_09-59-16.png?1776048311"
+      },
+      {
+        "symbol": "WBT",
+        "name": "WhiteBIT Coin",
+        "verdict": "LONG",
+        "net": 5,
+        "weightedLong": 5,
+        "weightedShort": 0,
+        "alignedLong": 1,
+        "alignedShort": 0,
+        "confidence": 0.42,
+        "tfDirections": {
+          "4h": "long"
+        },
+        "image": "https://coin-images.coingecko.com/coins/images/27045/large/wbt_token.png?1696526096"
+      }
+    ],
+    "all": [
+      {
+        "symbol": "ZEC",
+        "name": "Zcash",
+        "verdict": "STRONG_LONG",
+        "net": 9,
+        "weightedLong": 9,
+        "weightedShort": 0,
+        "alignedLong": 1,
+        "alignedShort": 0,
+        "confidence": 0.49,
+        "tfDirections": {
+          "1d": "long"
+        },
+        "image": "https://coin-images.coingecko.com/coins/images/486/large/circle-zcash-color.png?1696501740"
+      },
+      {
+        "symbol": "XLM",
+        "name": "Stellar",
+        "verdict": "STRONG_LONG",
+        "net": 7.83,
+        "weightedLong": 7.83,
+        "weightedShort": 0,
+        "alignedLong": 3,
+        "alignedShort": 0,
+        "confidence": 0.66,
+        "tfDirections": {
+          "1h": "long",
+          "4h": "long",
+          "1d": "long"
+        },
+        "image": "https://coin-images.coingecko.com/coins/images/100/large/fmpFRHHQ_400x400.jpg?1735231350"
+      },
+      {
+        "symbol": "NEAR",
+        "name": "NEAR Protocol",
+        "verdict": "LONG",
+        "net": 6,
+        "weightedLong": 6,
+        "weightedShort": 0,
+        "alignedLong": 1,
+        "alignedShort": 0,
+        "confidence": 0.49,
+        "tfDirections": {
+          "1d": "long"
+        },
+        "image": "https://coin-images.coingecko.com/coins/images/10365/large/near.jpg?1696510367"
+      },
+      {
+        "symbol": "TRX",
+        "name": "TRON",
+        "verdict": "LONG",
+        "net": 5,
+        "weightedLong": 5,
+        "weightedShort": 0,
+        "alignedLong": 1,
+        "alignedShort": 0,
+        "confidence": 0.42,
+        "tfDirections": {
+          "1m": "long"
+        },
+        "image": "https://coin-images.coingecko.com/coins/images/1094/large/photo_2026-04-13_09-59-16.png?1776048311"
+      },
+      {
+        "symbol": "WBT",
+        "name": "WhiteBIT Coin",
+        "verdict": "LONG",
+        "net": 5,
+        "weightedLong": 5,
+        "weightedShort": 0,
+        "alignedLong": 1,
+        "alignedShort": 0,
+        "confidence": 0.42,
+        "tfDirections": {
+          "4h": "long"
+        },
+        "image": "https://coin-images.coingecko.com/coins/images/27045/large/wbt_token.png?1696526096"
+      }
+    ]
+  }
+}

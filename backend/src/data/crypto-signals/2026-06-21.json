@@ -1,0 +1,796 @@
+{
+  "date": "2026-06-21",
+  "intraday": [
+    {
+      "phase": "intraday",
+      "generatedAt": "2026-06-21T19:57:13.046Z",
+      "universeSize": 100,
+      "tradableCount": 100,
+      "analyzedCount": 66,
+      "spot_long": {
+        "signals": [
+          {
+            "strategy": "spot_long",
+            "direction": "long",
+            "totalScore": 7,
+            "applicableMax": 10,
+            "ratio": 0.7,
+            "grade": "GUCLU",
+            "score10": 7,
+            "conditions": [
+              {
+                "id": "daily_uptrend",
+                "label": "1D yukarı trend",
+                "group": "trend",
+                "why": "1D zaman diliminde EMA20 > EMA50 — ana trend yukarı.",
+                "met": true,
+                "applicable": true,
+                "required": true
+              },
+              {
+                "id": "daily_ema_stack",
+                "label": "1D EMA dizilimi (20>50>200)",
+                "group": "trend",
+                "why": "Uzun vadeli yükseliş yapısı sağlam.",
+                "met": true,
+                "applicable": true,
+                "required": false
+              },
+              {
+                "id": "price_above_ema200",
+                "label": "Fiyat 1D EMA200 üstü",
+                "group": "trend",
+                "why": "1D EMA200 boğa-ayı ayrımı — üstünde olmak güvenli alan.",
+                "met": true,
+                "applicable": true,
+                "required": false
+              },
+              {
+                "id": "rsi_healthy",
+                "label": "RSI sağlıklı bantta (35-70)",
+                "group": "ind",
+                "why": "Aşırı satım bölgesinden çıkmış, aşırı alım bölgesine girmemiş.",
+                "met": true,
+                "applicable": true,
+                "required": true
+              },
+              {
+                "id": "macd_bullish",
+                "label": "1D MACD pozitif + büyüyor",
+                "group": "ind",
+                "why": "MACD histogramı pozitif ve son barda büyüyor — momentum güçleniyor.",
+                "met": false,
+                "applicable": true,
+                "required": false
+              },
+              {
+                "id": "volume_above_avg",
+                "label": "Hacim ortalama üstü",
+                "group": "ind",
+                "why": "Son 1D mum hacmi 20-bar SMA üstünde — katılım var.",
+                "met": false,
+                "applicable": true,
+                "required": false
+              },
+              {
+                "id": "adx_trending",
+                "label": "ADX trend modunda (≥20)",
+                "group": "ind",
+                "why": "1D ADX ≥ 20 — fiyat yatay değil yönlü hareket ediyor.",
+                "met": true,
+                "applicable": true,
+                "required": false
+              },
+              {
+                "id": "4h_uptrend",
+                "label": "4H trend uyumlu",
+                "group": "trend",
+                "why": "4H EMA20 > EMA50 — kısa vadeli yapı da yukarı.",
+                "met": true,
+                "applicable": true,
+                "required": false
+              },
+              {
+                "id": "4h_higher_high",
+                "label": "4H higher-high",
+                "group": "pa",
+                "why": "Son 4H mum, son 20 4H mumun en yüksek kapanışı — momentum başlangıcı.",
+                "met": true,
+                "applicable": true,
+                "required": false
+              },
+              {
+                "id": "4h_volume_breakout",
+                "label": "4H hacim patlaması",
+                "group": "ind",
+                "why": "Son 4H mum hacmi 20-bar ortalamasının 1.5 katı — alıcı katılımı yüksek.",
+                "met": false,
+                "applicable": true,
+                "required": false
+              }
+            ],
+            "entry": 0.37474,
+            "stop": 0.19605,
+            "target1": 0.58917,
+            "target2": 0.73212,
+            "riskReward": 1.2,
+            "leverage_suggest": 1,
+            "indicators": {
+              "rsi_1d": 56.49,
+              "rsi_4h": 58.14,
+              "adx_1d": 30.3,
+              "macdHist_1d": 0.0127,
+              "macdHist_4h": -0.0009
+            },
+            "funding": null,
+            "lastClose": 0.3747425675392151,
+            "atr": 0.07147562716688428,
+            "updatedAt": "2026-06-21T19:57:13.046Z",
+            "symbol": "SKYAI",
+            "name": "SkyAI",
+            "image": "https://coin-images.coingecko.com/coins/images/55294/large/1.png?1745517593",
+            "coinId": "skyai",
+            "marketCapRank": 122,
+            "change24h": 5.08591,
+            "historicalWinRate": null,
+            "confidence": "unknown",
+            "confidenceLabel": "Yeterli Veri Yok",
+            "sampleSize": 0
+          },
+          {
+            "strategy": "spot_long",
+            "direction": "long",
+            "totalScore": 6,
+            "applicableMax": 10,
+            "ratio": 0.6,
+            "grade": "GUCLU",
+            "score10": 6,
+            "conditions": [
+              {
+                "id": "daily_uptrend",
+                "label": "1D yukarı trend",
+                "group": "trend",
+                "why": "1D zaman diliminde EMA20 > EMA50 — ana trend yukarı.",
+                "met": true,
+                "applicable": true,
+                "required": true
+              },
+              {
+                "id": "daily_ema_stack",
+                "label": "1D EMA dizilimi (20>50>200)",
+                "group": "trend",
+                "why": "Uzun vadeli yükseliş yapısı sağlam.",
+                "met": false,
+                "applicable": true,
+                "required": false
+              },
+              {
+                "id": "price_above_ema200",
+                "label": "Fiyat 1D EMA200 üstü",
+                "group": "trend",
+                "why": "1D EMA200 boğa-ayı ayrımı — üstünde olmak güvenli alan.",
+                "met": true,
+                "applicable": true,
+                "required": false
+              },
+              {
+                "id": "rsi_healthy",
+                "label": "RSI sağlıklı bantta (35-70)",
+                "group": "ind",
+                "why": "Aşırı satım bölgesinden çıkmış, aşırı alım bölgesine girmemiş.",
+                "met": true,
+                "applicable": true,
+                "required": true
+              },
+              {
+                "id": "macd_bullish",
+                "label": "1D MACD pozitif + büyüyor",
+                "group": "ind",
+                "why": "MACD histogramı pozitif ve son barda büyüyor — momentum güçleniyor.",
+                "met": false,
+                "applicable": true,
+                "required": false
+              },
+              {
+                "id": "volume_above_avg",
+                "label": "Hacim ortalama üstü",
+                "group": "ind",
+                "why": "Son 1D mum hacmi 20-bar SMA üstünde — katılım var.",
+                "met": false,
+                "applicable": true,
+                "required": false
+              },
+              {
+                "id": "adx_trending",
+                "label": "ADX trend modunda (≥20)",
+                "group": "ind",
+                "why": "1D ADX ≥ 20 — fiyat yatay değil yönlü hareket ediyor.",
+                "met": true,
+                "applicable": true,
+                "required": false
+              },
+              {
+                "id": "4h_uptrend",
+                "label": "4H trend uyumlu",
+                "group": "trend",
+                "why": "4H EMA20 > EMA50 — kısa vadeli yapı da yukarı.",
+                "met": true,
+                "applicable": true,
+                "required": false
+              },
+              {
+                "id": "4h_higher_high",
+                "label": "4H higher-high",
+                "group": "pa",
+                "why": "Son 4H mum, son 20 4H mumun en yüksek kapanışı — momentum başlangıcı.",
+                "met": false,
+                "applicable": true,
+                "required": false
+              },
+              {
+                "id": "4h_volume_breakout",
+                "label": "4H hacim patlaması",
+                "group": "ind",
+                "why": "Son 4H mum hacmi 20-bar ortalamasının 1.5 katı — alıcı katılımı yüksek.",
+                "met": true,
+                "applicable": true,
+                "required": false
+              }
+            ],
+            "entry": 0.6424,
+            "stop": 0.46246,
+            "target1": 0.85833,
+            "target2": 1.00229,
+            "riskReward": 1.2,
+            "leverage_suggest": 1,
+            "indicators": {
+              "rsi_1d": 64.95,
+              "rsi_4h": 58.48,
+              "adx_1d": 45.9,
+              "macdHist_1d": 0.0056,
+              "macdHist_4h": 0.0005
+            },
+            "funding": null,
+            "lastClose": 0.6424000263214111,
+            "atr": 0.07197722579751696,
+            "updatedAt": "2026-06-21T19:57:05.610Z",
+            "symbol": "WLD",
+            "name": "Worldcoin",
+            "image": "https://coin-images.coingecko.com/coins/images/31069/large/worldcoin.jpeg?1696529903",
+            "coinId": "worldcoin-wld",
+            "marketCapRank": 42,
+            "change24h": 6.35192,
+            "historicalWinRate": null,
+            "confidence": "unknown",
+            "confidenceLabel": "Yeterli Veri Yok",
+            "sampleSize": 0
+          }
+        ],
+        "allSignals": [
+          {
+            "strategy": "spot_long",
+            "direction": "long",
+            "totalScore": 7,
+            "applicableMax": 10,
+            "ratio": 0.7,
+            "grade": "GUCLU",
+            "score10": 7,
+            "conditions": [
+              {
+                "id": "daily_uptrend",
+                "label": "1D yukarı trend",
+                "group": "trend",
+                "why": "1D zaman diliminde EMA20 > EMA50 — ana trend yukarı.",
+                "met": true,
+                "applicable": true,
+                "required": true
+              },
+              {
+                "id": "daily_ema_stack",
+                "label": "1D EMA dizilimi (20>50>200)",
+                "group": "trend",
+                "why": "Uzun vadeli yükseliş yapısı sağlam.",
+                "met": true,
+                "applicable": true,
+                "required": false
+              },
+              {
+                "id": "price_above_ema200",
+                "label": "Fiyat 1D EMA200 üstü",
+                "group": "trend",
+                "why": "1D EMA200 boğa-ayı ayrımı — üstünde olmak güvenli alan.",
+                "met": true,
+                "applicable": true,
+                "required": false
+              },
+              {
+                "id": "rsi_healthy",
+                "label": "RSI sağlıklı bantta (35-70)",
+                "group": "ind",
+                "why": "Aşırı satım bölgesinden çıkmış, aşırı alım bölgesine girmemiş.",
+                "met": true,
+                "applicable": true,
+                "required": true
+              },
+              {
+                "id": "macd_bullish",
+                "label": "1D MACD pozitif + büyüyor",
+                "group": "ind",
+                "why": "MACD histogramı pozitif ve son barda büyüyor — momentum güçleniyor.",
+                "met": false,
+                "applicable": true,
+                "required": false
+              },
+              {
+                "id": "volume_above_avg",
+                "label": "Hacim ortalama üstü",
+                "group": "ind",
+                "why": "Son 1D mum hacmi 20-bar SMA üstünde — katılım var.",
+                "met": false,
+                "applicable": true,
+                "required": false
+              },
+              {
+                "id": "adx_trending",
+                "label": "ADX trend modunda (≥20)",
+                "group": "ind",
+                "why": "1D ADX ≥ 20 — fiyat yatay değil yönlü hareket ediyor.",
+                "met": true,
+                "applicable": true,
+                "required": false
+              },
+              {
+                "id": "4h_uptrend",
+                "label": "4H trend uyumlu",
+                "group": "trend",
+                "why": "4H EMA20 > EMA50 — kısa vadeli yapı da yukarı.",
+                "met": true,
+                "applicable": true,
+                "required": false
+              },
+              {
+                "id": "4h_higher_high",
+                "label": "4H higher-high",
+                "group": "pa",
+                "why": "Son 4H mum, son 20 4H mumun en yüksek kapanışı — momentum başlangıcı.",
+                "met": true,
+                "applicable": true,
+                "required": false
+              },
+              {
+                "id": "4h_volume_breakout",
+                "label": "4H hacim patlaması",
+                "group": "ind",
+                "why": "Son 4H mum hacmi 20-bar ortalamasının 1.5 katı — alıcı katılımı yüksek.",
+                "met": false,
+                "applicable": true,
+                "required": false
+              }
+            ],
+            "entry": 0.37474,
+            "stop": 0.19605,
+            "target1": 0.58917,
+            "target2": 0.73212,
+            "riskReward": 1.2,
+            "leverage_suggest": 1,
+            "indicators": {
+              "rsi_1d": 56.49,
+              "rsi_4h": 58.14,
+              "adx_1d": 30.3,
+              "macdHist_1d": 0.0127,
+              "macdHist_4h": -0.0009
+            },
+            "funding": null,
+            "lastClose": 0.3747425675392151,
+            "atr": 0.07147562716688428,
+            "updatedAt": "2026-06-21T19:57:13.046Z",
+            "symbol": "SKYAI",
+            "name": "SkyAI",
+            "image": "https://coin-images.coingecko.com/coins/images/55294/large/1.png?1745517593",
+            "coinId": "skyai",
+            "marketCapRank": 122,
+            "change24h": 5.08591,
+            "historicalWinRate": null,
+            "confidence": "unknown",
+            "confidenceLabel": "Yeterli Veri Yok",
+            "sampleSize": 0
+          },
+          {
+            "strategy": "spot_long",
+            "direction": "long",
+            "totalScore": 6,
+            "applicableMax": 10,
+            "ratio": 0.6,
+            "grade": "GUCLU",
+            "score10": 6,
+            "conditions": [
+              {
+                "id": "daily_uptrend",
+                "label": "1D yukarı trend",
+                "group": "trend",
+                "why": "1D zaman diliminde EMA20 > EMA50 — ana trend yukarı.",
+                "met": true,
+                "applicable": true,
+                "required": true
+              },
+              {
+                "id": "daily_ema_stack",
+                "label": "1D EMA dizilimi (20>50>200)",
+                "group": "trend",
+                "why": "Uzun vadeli yükseliş yapısı sağlam.",
+                "met": false,
+                "applicable": true,
+                "required": false
+              },
+              {
+                "id": "price_above_ema200",
+                "label": "Fiyat 1D EMA200 üstü",
+                "group": "trend",
+                "why": "1D EMA200 boğa-ayı ayrımı — üstünde olmak güvenli alan.",
+                "met": true,
+                "applicable": true,
+                "required": false
+              },
+              {
+                "id": "rsi_healthy",
+                "label": "RSI sağlıklı bantta (35-70)",
+                "group": "ind",
+                "why": "Aşırı satım bölgesinden çıkmış, aşırı alım bölgesine girmemiş.",
+                "met": true,
+                "applicable": true,
+                "required": true
+              },
+              {
+                "id": "macd_bullish",
+                "label": "1D MACD pozitif + büyüyor",
+                "group": "ind",
+                "why": "MACD histogramı pozitif ve son barda büyüyor — momentum güçleniyor.",
+                "met": false,
+                "applicable": true,
+                "required": false
+              },
+              {
+                "id": "volume_above_avg",
+                "label": "Hacim ortalama üstü",
+                "group": "ind",
+                "why": "Son 1D mum hacmi 20-bar SMA üstünde — katılım var.",
+                "met": false,
+                "applicable": true,
+                "required": false
+              },
+              {
+                "id": "adx_trending",
+                "label": "ADX trend modunda (≥20)",
+                "group": "ind",
+                "why": "1D ADX ≥ 20 — fiyat yatay değil yönlü hareket ediyor.",
+                "met": true,
+                "applicable": true,
+                "required": false
+              },
+              {
+                "id": "4h_uptrend",
+                "label": "4H trend uyumlu",
+                "group": "trend",
+                "why": "4H EMA20 > EMA50 — kısa vadeli yapı da yukarı.",
+                "met": true,
+                "applicable": true,
+                "required": false
+              },
+              {
+                "id": "4h_higher_high",
+                "label": "4H higher-high",
+                "group": "pa",
+                "why": "Son 4H mum, son 20 4H mumun en yüksek kapanışı — momentum başlangıcı.",
+                "met": false,
+                "applicable": true,
+                "required": false
+              },
+              {
+                "id": "4h_volume_breakout",
+                "label": "4H hacim patlaması",
+                "group": "ind",
+                "why": "Son 4H mum hacmi 20-bar ortalamasının 1.5 katı — alıcı katılımı yüksek.",
+                "met": true,
+                "applicable": true,
+                "required": false
+              }
+            ],
+            "entry": 0.6424,
+            "stop": 0.46246,
+            "target1": 0.85833,
+            "target2": 1.00229,
+            "riskReward": 1.2,
+            "leverage_suggest": 1,
+            "indicators": {
+              "rsi_1d": 64.95,
+              "rsi_4h": 58.48,
+              "adx_1d": 45.9,
+              "macdHist_1d": 0.0056,
+              "macdHist_4h": 0.0005
+            },
+            "funding": null,
+            "lastClose": 0.6424000263214111,
+            "atr": 0.07197722579751696,
+            "updatedAt": "2026-06-21T19:57:05.610Z",
+            "symbol": "WLD",
+            "name": "Worldcoin",
+            "image": "https://coin-images.coingecko.com/coins/images/31069/large/worldcoin.jpeg?1696529903",
+            "coinId": "worldcoin-wld",
+            "marketCapRank": 42,
+            "change24h": 6.35192,
+            "historicalWinRate": null,
+            "confidence": "unknown",
+            "confidenceLabel": "Yeterli Veri Yok",
+            "sampleSize": 0
+          }
+        ]
+      },
+      "futures_long": {
+        "signals": [
+          {
+            "strategy": "futures_long",
+            "direction": "long",
+            "totalScore": 6,
+            "applicableMax": 10,
+            "ratio": 0.6,
+            "grade": "GUCLU",
+            "score10": 6,
+            "conditions": [
+              {
+                "id": "4h_breakout",
+                "label": "4H 20-bar yüksek kırıldı",
+                "group": "pa",
+                "why": "4H kapanış son 20 4H mum yüksek seviyesinin üstünde — kırılım gerçekleşti.",
+                "met": true,
+                "applicable": true,
+                "required": true
+              },
+              {
+                "id": "4h_uptrend",
+                "label": "4H yukarı trend",
+                "group": "trend",
+                "why": "4H EMA20 > EMA50 — kısa vadeli yapı yukarı yönlü.",
+                "met": true,
+                "applicable": true,
+                "required": true
+              },
+              {
+                "id": "daily_uptrend",
+                "label": "1D yukarı trend uyumu",
+                "group": "trend",
+                "why": "1D EMA20 > EMA50 — kırılım ana trende uygun (kontra-trend değil).",
+                "met": false,
+                "applicable": true,
+                "required": false
+              },
+              {
+                "id": "rsi_strong",
+                "label": "4H RSI 50-75",
+                "group": "ind",
+                "why": "RSI 50 üstü — alıcı kontrolde ama henüz aşırı alım değil.",
+                "met": true,
+                "applicable": true,
+                "required": false
+              },
+              {
+                "id": "macd_bullish_4h",
+                "label": "4H MACD pozitif + büyüyor",
+                "group": "ind",
+                "why": "Momentum hızlanıyor — 4H MACD histogramı yukarı.",
+                "met": true,
+                "applicable": true,
+                "required": false
+              },
+              {
+                "id": "volume_explosion",
+                "label": "4H hacim patlaması (2x+)",
+                "group": "ind",
+                "why": "Kırılım hacimle teyit edildi — sürdürülebilir momentum.",
+                "met": false,
+                "applicable": true,
+                "required": false
+              },
+              {
+                "id": "funding_favorable",
+                "label": "Funding rate avantajlı (≤0.05%)",
+                "group": "fund",
+                "why": "Funding rate düşük/negatif — long pozisyon ucuz, short squeeze potansiyeli.",
+                "met": false,
+                "applicable": true,
+                "required": false
+              },
+              {
+                "id": "price_above_ema200_4h",
+                "label": "4H fiyat EMA200 üstü",
+                "group": "trend",
+                "why": "4H EMA200 üstünde olmak — ana 4H trend boğa.",
+                "met": false,
+                "applicable": true,
+                "required": false
+              },
+              {
+                "id": "recent_4h_breakout",
+                "label": "Son 5 4H mumda kırılım",
+                "group": "pa",
+                "why": "Kırılım taze (son ~20 saat) — momentum henüz tükenmedi.",
+                "met": true,
+                "applicable": true,
+                "required": false
+              },
+              {
+                "id": "daily_macd_aligned",
+                "label": "1D MACD pozitif",
+                "group": "ind",
+                "why": "1D MACD histogramı pozitif — büyük resim long için uygun.",
+                "met": true,
+                "applicable": true,
+                "required": false
+              }
+            ],
+            "entry": 76.712,
+            "stop": 72.66,
+            "target1": 82.115,
+            "target2": 86.167,
+            "riskReward": 1.33,
+            "leverage_suggest": 3,
+            "indicators": {
+              "rsi_1d": 49.21,
+              "rsi_4h": 62.77,
+              "adx_1d": 14.3,
+              "macdHist_1d": 0.6361,
+              "macdHist_4h": 0.0878
+            },
+            "funding": null,
+            "lastClose": 76.71179962158203,
+            "atr": 2.7014312744140625,
+            "updatedAt": "2026-06-21T19:57:06.169Z",
+            "symbol": "OKB",
+            "name": "OKB",
+            "image": "https://coin-images.coingecko.com/coins/images/4463/large/WeChat_Image_20220118095654.png?1696505053",
+            "coinId": "okb",
+            "marketCapRank": 52,
+            "change24h": 2.21116,
+            "historicalWinRate": null,
+            "confidence": "unknown",
+            "confidenceLabel": "Yeterli Veri Yok",
+            "sampleSize": 0
+          }
+        ],
+        "allSignals": [
+          {
+            "strategy": "futures_long",
+            "direction": "long",
+            "totalScore": 6,
+            "applicableMax": 10,
+            "ratio": 0.6,
+            "grade": "GUCLU",
+            "score10": 6,
+            "conditions": [
+              {
+                "id": "4h_breakout",
+                "label": "4H 20-bar yüksek kırıldı",
+                "group": "pa",
+                "why": "4H kapanış son 20 4H mum yüksek seviyesinin üstünde — kırılım gerçekleşti.",
+                "met": true,
+                "applicable": true,
+                "required": true
+              },
+              {
+                "id": "4h_uptrend",
+                "label": "4H yukarı trend",
+                "group": "trend",
+                "why": "4H EMA20 > EMA50 — kısa vadeli yapı yukarı yönlü.",
+                "met": true,
+                "applicable": true,
+                "required": true
+              },
+              {
+                "id": "daily_uptrend",
+                "label": "1D yukarı trend uyumu",
+                "group": "trend",
+                "why": "1D EMA20 > EMA50 — kırılım ana trende uygun (kontra-trend değil).",
+                "met": false,
+                "applicable": true,
+                "required": false
+              },
+              {
+                "id": "rsi_strong",
+                "label": "4H RSI 50-75",
+                "group": "ind",
+                "why": "RSI 50 üstü — alıcı kontrolde ama henüz aşırı alım değil.",
+                "met": true,
+                "applicable": true,
+                "required": false
+              },
+              {
+                "id": "macd_bullish_4h",
+                "label": "4H MACD pozitif + büyüyor",
+                "group": "ind",
+                "why": "Momentum hızlanıyor — 4H MACD histogramı yukarı.",
+                "met": true,
+                "applicable": true,
+                "required": false
+              },
+              {
+                "id": "volume_explosion",
+                "label": "4H hacim patlaması (2x+)",
+                "group": "ind",
+                "why": "Kırılım hacimle teyit edildi — sürdürülebilir momentum.",
+                "met": false,
+                "applicable": true,
+                "required": false
+              },
+              {
+                "id": "funding_favorable",
+                "label": "Funding rate avantajlı (≤0.05%)",
+                "group": "fund",
+                "why": "Funding rate düşük/negatif — long pozisyon ucuz, short squeeze potansiyeli.",
+                "met": false,
+                "applicable": true,
+                "required": false
+              },
+              {
+                "id": "price_above_ema200_4h",
+                "label": "4H fiyat EMA200 üstü",
+                "group": "trend",
+                "why": "4H EMA200 üstünde olmak — ana 4H trend boğa.",
+                "met": false,
+                "applicable": true,
+                "required": false
+              },
+              {
+                "id": "recent_4h_breakout",
+                "label": "Son 5 4H mumda kırılım",
+                "group": "pa",
+                "why": "Kırılım taze (son ~20 saat) — momentum henüz tükenmedi.",
+                "met": true,
+                "applicable": true,
+                "required": false
+              },
+              {
+                "id": "daily_macd_aligned",
+                "label": "1D MACD pozitif",
+                "group": "ind",
+                "why": "1D MACD histogramı pozitif — büyük resim long için uygun.",
+                "met": true,
+                "applicable": true,
+                "required": false
+              }
+            ],
+            "entry": 76.712,
+            "stop": 72.66,
+            "target1": 82.115,
+            "target2": 86.167,
+            "riskReward": 1.33,
+            "leverage_suggest": 3,
+            "indicators": {
+              "rsi_1d": 49.21,
+              "rsi_4h": 62.77,
+              "adx_1d": 14.3,
+              "macdHist_1d": 0.6361,
+              "macdHist_4h": 0.0878
+            },
+            "funding": null,
+            "lastClose": 76.71179962158203,
+            "atr": 2.7014312744140625,
+            "updatedAt": "2026-06-21T19:57:06.169Z",
+            "symbol": "OKB",
+            "name": "OKB",
+            "image": "https://coin-images.coingecko.com/coins/images/4463/large/WeChat_Image_20220118095654.png?1696505053",
+            "coinId": "okb",
+            "marketCapRank": 52,
+            "change24h": 2.21116,
+            "historicalWinRate": null,
+            "confidence": "unknown",
+            "confidenceLabel": "Yeterli Veri Yok",
+            "sampleSize": 0
+          }
+        ]
+      },
+      "futures_short": {
+        "signals": [],
+        "allSignals": []
+      }
+    }
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "botSettings": {
+    "bk-xau": {
+      "timeframes": [
+        "5m"
+      ]
+    }
+  },
+  "customBots": [],
+  "updatedAt": "2026-07-23T15:39:55.510Z"
+}

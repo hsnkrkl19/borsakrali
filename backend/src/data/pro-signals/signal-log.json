@@ -1,0 +1,626 @@
+[
+  {
+    "code": "YB0",
+    "ts": "2026-07-29T11:36:06.537Z",
+    "instrumentId": "BTCUSD",
+    "symbol": "BTC/USD",
+    "direction": "long",
+    "tfs": [
+      "4h"
+    ],
+    "confidence": 70,
+    "votes": [
+      {
+        "technique": "genel",
+        "vote": "long",
+        "score": 70
+      }
+    ],
+    "conditions": [],
+    "levels": null,
+    "backtest": null,
+    "gate": null,
+    "outcome": {
+      "result": "TP1",
+      "pnlPct": 5
+    }
+  },
+  {
+    "code": "YB1",
+    "ts": "2026-07-29T11:36:06.537Z",
+    "instrumentId": "BTCUSD",
+    "symbol": "BTC/USD",
+    "direction": "long",
+    "tfs": [
+      "4h"
+    ],
+    "confidence": 70,
+    "votes": [
+      {
+        "technique": "genel",
+        "vote": "long",
+        "score": 70
+      }
+    ],
+    "conditions": [],
+    "levels": null,
+    "backtest": null,
+    "gate": null,
+    "outcome": {
+      "result": "TP1",
+      "pnlPct": 5
+    }
+  },
+  {
+    "code": "YB2",
+    "ts": "2026-07-29T11:36:06.538Z",
+    "instrumentId": "BTCUSD",
+    "symbol": "BTC/USD",
+    "direction": "long",
+    "tfs": [
+      "4h"
+    ],
+    "confidence": 70,
+    "votes": [
+      {
+        "technique": "genel",
+        "vote": "long",
+        "score": 70
+      }
+    ],
+    "conditions": [],
+    "levels": null,
+    "backtest": null,
+    "gate": null,
+    "outcome": {
+      "result": "TP1",
+      "pnlPct": 5
+    }
+  },
+  {
+    "code": "YB3",
+    "ts": "2026-07-29T11:36:06.538Z",
+    "instrumentId": "BTCUSD",
+    "symbol": "BTC/USD",
+    "direction": "long",
+    "tfs": [
+      "4h"
+    ],
+    "confidence": 70,
+    "votes": [
+      {
+        "technique": "genel",
+        "vote": "long",
+        "score": 70
+      }
+    ],
+    "conditions": [],
+    "levels": null,
+    "backtest": null,
+    "gate": null,
+    "outcome": {
+      "result": "TP1",
+      "pnlPct": 5
+    }
+  },
+  {
+    "code": "YB4",
+    "ts": "2026-07-29T11:36:06.538Z",
+    "instrumentId": "BTCUSD",
+    "symbol": "BTC/USD",
+    "direction": "long",
+    "tfs": [
+      "4h"
+    ],
+    "confidence": 70,
+    "votes": [
+      {
+        "technique": "genel",
+        "vote": "long",
+        "score": 70
+      }
+    ],
+    "conditions": [],
+    "levels": null,
+    "backtest": null,
+    "gate": null,
+    "outcome": {
+      "result": "TP1",
+      "pnlPct": 5
+    }
+  },
+  {
+    "code": "YB5",
+    "ts": "2026-07-29T11:36:06.539Z",
+    "instrumentId": "BTCUSD",
+    "symbol": "BTC/USD",
+    "direction": "long",
+    "tfs": [
+      "4h"
+    ],
+    "confidence": 70,
+    "votes": [
+      {
+        "technique": "genel",
+        "vote": "long",
+        "score": 70
+      }
+    ],
+    "conditions": [],
+    "levels": null,
+    "backtest": null,
+    "gate": null,
+    "outcome": {
+      "result": "TP1",
+      "pnlPct": 5
+    }
+  },
+  {
+    "code": "YB6",
+    "ts": "2026-07-29T11:36:06.539Z",
+    "instrumentId": "BTCUSD",
+    "symbol": "BTC/USD",
+    "direction": "long",
+    "tfs": [
+      "4h"
+    ],
+    "confidence": 70,
+    "votes": [
+      {
+        "technique": "genel",
+        "vote": "long",
+        "score": 70
+      }
+    ],
+    "conditions": [],
+    "levels": null,
+    "backtest": null,
+    "gate": null,
+    "outcome": {
+      "result": "TP1",
+      "pnlPct": 5
+    }
+  },
+  {
+    "code": "YB7",
+    "ts": "2026-07-29T11:36:06.539Z",
+    "instrumentId": "BTCUSD",
+    "symbol": "BTC/USD",
+    "direction": "long",
+    "tfs": [
+      "4h"
+    ],
+    "confidence": 70,
+    "votes": [
+      {
+        "technique": "genel",
+        "vote": "long",
+        "score": 70
+      }
+    ],
+    "conditions": [],
+    "levels": null,
+    "backtest": null,
+    "gate": null,
+    "outcome": {
+      "result": "TP1",
+      "pnlPct": 5
+    }
+  },
+  {
+    "code": "YB8",
+    "ts": "2026-07-29T11:36:06.540Z",
+    "instrumentId": "BTCUSD",
+    "symbol": "BTC/USD",
+    "direction": "long",
+    "tfs": [
+      "4h"
+    ],
+    "confidence": 70,
+    "votes": [
+      {
+        "technique": "genel",
+        "vote": "long",
+        "score": 70
+      }
+    ],
+    "conditions": [],
+    "levels": null,
+    "backtest": null,
+    "gate": null,
+    "outcome": {
+      "result": "TP1",
+      "pnlPct": 5
+    }
+  },
+  {
+    "code": "YB9",
+    "ts": "2026-07-29T11:36:06.540Z",
+    "instrumentId": "BTCUSD",
+    "symbol": "BTC/USD",
+    "direction": "long",
+    "tfs": [
+      "4h"
+    ],
+    "confidence": 70,
+    "votes": [
+      {
+        "technique": "genel",
+        "vote": "long",
+        "score": 70
+      }
+    ],
+    "conditions": [],
+    "levels": null,
+    "backtest": null,
+    "gate": null,
+    "outcome": {
+      "result": "TP1",
+      "pnlPct": 5
+    }
+  },
+  {
+    "code": "YB10",
+    "ts": "2026-07-29T11:36:06.540Z",
+    "instrumentId": "BTCUSD",
+    "symbol": "BTC/USD",
+    "direction": "long",
+    "tfs": [
+      "4h"
+    ],
+    "confidence": 70,
+    "votes": [
+      {
+        "technique": "genel",
+        "vote": "long",
+        "score": 70
+      }
+    ],
+    "conditions": [],
+    "levels": null,
+    "backtest": null,
+    "gate": null,
+    "outcome": {
+      "result": "TP1",
+      "pnlPct": 5
+    }
+  },
+  {
+    "code": "YB11",
+    "ts": "2026-07-29T11:36:06.540Z",
+    "instrumentId": "BTCUSD",
+    "symbol": "BTC/USD",
+    "direction": "long",
+    "tfs": [
+      "4h"
+    ],
+    "confidence": 70,
+    "votes": [
+      {
+        "technique": "genel",
+        "vote": "long",
+        "score": 70
+      }
+    ],
+    "conditions": [],
+    "levels": null,
+    "backtest": null,
+    "gate": null,
+    "outcome": {
+      "result": "TP1",
+      "pnlPct": 5
+    }
+  },
+  {
+    "code": "YB12",
+    "ts": "2026-07-29T11:36:06.541Z",
+    "instrumentId": "BTCUSD",
+    "symbol": "BTC/USD",
+    "direction": "long",
+    "tfs": [
+      "4h"
+    ],
+    "confidence": 70,
+    "votes": [
+      {
+        "technique": "genel",
+        "vote": "long",
+        "score": 70
+      }
+    ],
+    "conditions": [],
+    "levels": null,
+    "backtest": null,
+    "gate": null,
+    "outcome": {
+      "result": "TP1",
+      "pnlPct": 5
+    }
+  },
+  {
+    "code": "YB13",
+    "ts": "2026-07-29T11:36:06.541Z",
+    "instrumentId": "BTCUSD",
+    "symbol": "BTC/USD",
+    "direction": "long",
+    "tfs": [
+      "4h"
+    ],
+    "confidence": 70,
+    "votes": [
+      {
+        "technique": "genel",
+        "vote": "long",
+        "score": 70
+      }
+    ],
+    "conditions": [],
+    "levels": null,
+    "backtest": null,
+    "gate": null,
+    "outcome": {
+      "result": "TP1",
+      "pnlPct": 5
+    }
+  },
+  {
+    "code": "YB14",
+    "ts": "2026-07-29T11:36:06.541Z",
+    "instrumentId": "BTCUSD",
+    "symbol": "BTC/USD",
+    "direction": "long",
+    "tfs": [
+      "4h"
+    ],
+    "confidence": 70,
+    "votes": [
+      {
+        "technique": "genel",
+        "vote": "long",
+        "score": 70
+      }
+    ],
+    "conditions": [],
+    "levels": null,
+    "backtest": null,
+    "gate": null,
+    "outcome": {
+      "result": "TP1",
+      "pnlPct": 5
+    }
+  },
+  {
+    "code": "YB15",
+    "ts": "2026-07-29T11:36:06.541Z",
+    "instrumentId": "BTCUSD",
+    "symbol": "BTC/USD",
+    "direction": "long",
+    "tfs": [
+      "4h"
+    ],
+    "confidence": 70,
+    "votes": [
+      {
+        "technique": "genel",
+        "vote": "long",
+        "score": 70
+      }
+    ],
+    "conditions": [],
+    "levels": null,
+    "backtest": null,
+    "gate": null,
+    "outcome": {
+      "result": "TP1",
+      "pnlPct": 5
+    }
+  },
+  {
+    "code": "YB16",
+    "ts": "2026-07-29T11:36:06.542Z",
+    "instrumentId": "BTCUSD",
+    "symbol": "BTC/USD",
+    "direction": "long",
+    "tfs": [
+      "4h"
+    ],
+    "confidence": 70,
+    "votes": [
+      {
+        "technique": "genel",
+        "vote": "long",
+        "score": 70
+      }
+    ],
+    "conditions": [],
+    "levels": null,
+    "backtest": null,
+    "gate": null,
+    "outcome": {
+      "result": "TP1",
+      "pnlPct": 5
+    }
+  },
+  {
+    "code": "YB17",
+    "ts": "2026-07-29T11:36:06.542Z",
+    "instrumentId": "BTCUSD",
+    "symbol": "BTC/USD",
+    "direction": "long",
+    "tfs": [
+      "4h"
+    ],
+    "confidence": 70,
+    "votes": [
+      {
+        "technique": "genel",
+        "vote": "long",
+        "score": 70
+      }
+    ],
+    "conditions": [],
+    "levels": null,
+    "backtest": null,
+    "gate": null,
+    "outcome": {
+      "result": "TP1",
+      "pnlPct": 5
+    }
+  },
+  {
+    "code": "YB18",
+    "ts": "2026-07-29T11:36:06.542Z",
+    "instrumentId": "BTCUSD",
+    "symbol": "BTC/USD",
+    "direction": "long",
+    "tfs": [
+      "4h"
+    ],
+    "confidence": 70,
+    "votes": [
+      {
+        "technique": "genel",
+        "vote": "short",
+        "score": 30
+      }
+    ],
+    "conditions": [],
+    "levels": null,
+    "backtest": null,
+    "gate": null,
+    "outcome": {
+      "result": "SL",
+      "pnlPct": -3
+    }
+  },
+  {
+    "code": "YB19",
+    "ts": "2026-07-29T11:36:06.542Z",
+    "instrumentId": "BTCUSD",
+    "symbol": "BTC/USD",
+    "direction": "long",
+    "tfs": [
+      "4h"
+    ],
+    "confidence": 70,
+    "votes": [
+      {
+        "technique": "genel",
+        "vote": "short",
+        "score": 30
+      }
+    ],
+    "conditions": [],
+    "levels": null,
+    "backtest": null,
+    "gate": null,
+    "outcome": {
+      "result": "SL",
+      "pnlPct": -3
+    }
+  },
+  {
+    "code": "YB20",
+    "ts": "2026-07-29T11:36:06.543Z",
+    "instrumentId": "BTCUSD",
+    "symbol": "BTC/USD",
+    "direction": "long",
+    "tfs": [
+      "4h"
+    ],
+    "confidence": 70,
+    "votes": [
+      {
+        "technique": "genel",
+        "vote": "short",
+        "score": 30
+      }
+    ],
+    "conditions": [],
+    "levels": null,
+    "backtest": null,
+    "gate": null,
+    "outcome": {
+      "result": "SL",
+      "pnlPct": -3
+    }
+  },
+  {
+    "code": "YB21",
+    "ts": "2026-07-29T11:36:06.543Z",
+    "instrumentId": "BTCUSD",
+    "symbol": "BTC/USD",
+    "direction": "long",
+    "tfs": [
+      "4h"
+    ],
+    "confidence": 70,
+    "votes": [
+      {
+        "technique": "genel",
+        "vote": "short",
+        "score": 30
+      }
+    ],
+    "conditions": [],
+    "levels": null,
+    "backtest": null,
+    "gate": null,
+    "outcome": {
+      "result": "SL",
+      "pnlPct": -3
+    }
+  },
+  {
+    "code": "YB22",
+    "ts": "2026-07-29T11:36:06.543Z",
+    "instrumentId": "BTCUSD",
+    "symbol": "BTC/USD",
+    "direction": "long",
+    "tfs": [
+      "4h"
+    ],
+    "confidence": 70,
+    "votes": [
+      {
+        "technique": "genel",
+        "vote": "short",
+        "score": 30
+      }
+    ],
+    "conditions": [],
+    "levels": null,
+    "backtest": null,
+    "gate": null,
+    "outcome": {
+      "result": "SL",
+      "pnlPct": -3
+    }
+  },
+  {
+    "code": "YB23",
+    "ts": "2026-07-29T11:36:06.544Z",
+    "instrumentId": "BTCUSD",
+    "symbol": "BTC/USD",
+    "direction": "long",
+    "tfs": [
+      "4h"
+    ],
+    "confidence": 70,
+    "votes": [
+      {
+        "technique": "genel",
+        "vote": "short",
+        "score": 30
+      }
+    ],
+    "conditions": [],
+    "levels": null,
+    "backtest": null,
+    "gate": null,
+    "outcome": {
+      "result": "SL",
+      "pnlPct": -3
+    }
+  }
+]

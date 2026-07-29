@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "combos": {
+    "1h": {
+      "mode": "real",
+      "riskMult": 1,
+      "real": [
+        {
+          "r": 0.5,
+          "usd": 0.74,
+          "outcome": "TP",
+          "t": 1783040400
+        }
+      ],
+      "shadow": []
+    }
+  },
+  "decisions": []
+}

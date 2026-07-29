@@ -1,0 +1,234 @@
+{
+  "generatedAt": "2026-07-05T19:26:05.572Z",
+  "perTf": {
+    "1d": {
+      "tf": "1d",
+      "strategies": [
+        {
+          "type": "pullback35",
+          "label": "Günlük RSI35 geri çekilme (premium)",
+          "wrEst": 91,
+          "scalp": false,
+          "tp": 1.5,
+          "sl": 3,
+          "trail": false,
+          "trades": 44,
+          "winRate": 84.1,
+          "profitFactor": 3.476,
+          "expectancyPct": 1.259,
+          "totalReturnPct": 55.4,
+          "maxDDpct": 6.91,
+          "maxConsecLoss": 2,
+          "oosWinRate": 75
+        },
+        {
+          "type": "breakout20",
+          "label": "Günlük Donchian-20 kırılımı",
+          "wrEst": 77,
+          "scalp": false,
+          "tp": 1.5,
+          "sl": 3,
+          "trail": false,
+          "trades": 289,
+          "winRate": 75.1,
+          "profitFactor": 1.401,
+          "expectancyPct": 0.358,
+          "totalReturnPct": 103.34,
+          "maxDDpct": 17.84,
+          "maxConsecLoss": 3,
+          "oosWinRate": 75.3
+        }
+      ],
+      "bestWinRate": 84.1
+    },
+    "8h": {
+      "tf": "8h",
+      "strategies": [
+        {
+          "type": "supertrend",
+          "label": "8s Supertrend dönüşü",
+          "wrEst": 84,
+          "scalp": false,
+          "tp": 1,
+          "sl": 4,
+          "trail": true,
+          "trades": 19,
+          "winRate": 84.2,
+          "profitFactor": 2.318,
+          "expectancyPct": 0.56,
+          "totalReturnPct": 10.65,
+          "maxDDpct": 5.34,
+          "maxConsecLoss": 2,
+          "oosWinRate": 100
+        },
+        {
+          "type": "breakout20",
+          "label": "8s Donchian-20 kırılımı",
+          "wrEst": 77,
+          "scalp": false,
+          "tp": 1.5,
+          "sl": 3,
+          "trail": false,
+          "trades": 68,
+          "winRate": 76.5,
+          "profitFactor": 1.614,
+          "expectancyPct": 0.435,
+          "totalReturnPct": 29.58,
+          "maxDDpct": 8.28,
+          "maxConsecLoss": 2,
+          "oosWinRate": 72.2
+        }
+      ],
+      "bestWinRate": 84.2
+    },
+    "4h": {
+      "tf": "4h",
+      "strategies": [
+        {
+          "type": "supertrend",
+          "label": "4s Supertrend dönüşü",
+          "wrEst": 94,
+          "scalp": false,
+          "tp": 1,
+          "sl": 4,
+          "trail": true,
+          "trades": 33,
+          "winRate": 90.9,
+          "profitFactor": 4.319,
+          "expectancyPct": 0.481,
+          "totalReturnPct": 15.87,
+          "maxDDpct": 2.2,
+          "maxConsecLoss": 1,
+          "oosWinRate": 100
+        },
+        {
+          "type": "breakout20",
+          "label": "4s Donchian-20 kırılımı",
+          "wrEst": 77,
+          "scalp": false,
+          "tp": 1.5,
+          "sl": 3,
+          "trail": false,
+          "trades": 109,
+          "winRate": 72.5,
+          "profitFactor": 1.549,
+          "expectancyPct": 0.299,
+          "totalReturnPct": 32.58,
+          "maxDDpct": 10.87,
+          "maxConsecLoss": 3,
+          "oosWinRate": 80.6
+        }
+      ],
+      "bestWinRate": 90.9
+    },
+    "1h": {
+      "tf": "1h",
+      "strategies": [
+        {
+          "type": "emacross",
+          "label": "1s EMA50/100 kesişimi",
+          "wrEst": 83,
+          "scalp": false,
+          "tp": 1.5,
+          "sl": 3,
+          "trail": false,
+          "trades": 46,
+          "winRate": 82.6,
+          "profitFactor": 3.432,
+          "expectancyPct": 0.41,
+          "totalReturnPct": 18.87,
+          "maxDDpct": 1.52,
+          "maxConsecLoss": 1,
+          "oosWinRate": 91.7
+        },
+        {
+          "type": "breakout20",
+          "label": "1s Donchian-20 kırılımı",
+          "wrEst": 74,
+          "scalp": false,
+          "tp": 1.5,
+          "sl": 3,
+          "trail": false,
+          "trades": 353,
+          "winRate": 71.7,
+          "profitFactor": 1.341,
+          "expectancyPct": 0.11,
+          "totalReturnPct": 38.85,
+          "maxDDpct": 7.44,
+          "maxConsecLoss": 4,
+          "oosWinRate": 71
+        }
+      ],
+      "bestWinRate": 82.6
+    },
+    "15m": {
+      "tf": "15m",
+      "strategies": [
+        {
+          "type": "supertrend",
+          "label": "15d Supertrend (scalp)",
+          "wrEst": 64,
+          "scalp": true,
+          "tp": 1,
+          "sl": 4,
+          "trail": true,
+          "trades": 51,
+          "winRate": 64.7,
+          "profitFactor": 0.524,
+          "expectancyPct": -0.135,
+          "totalReturnPct": -6.9,
+          "maxDDpct": 8.39,
+          "maxConsecLoss": 4,
+          "oosWinRate": 70.6
+        }
+      ],
+      "bestWinRate": 64.7
+    },
+    "5m": {
+      "tf": "5m",
+      "strategies": [
+        {
+          "type": "supertrend",
+          "label": "5d Supertrend (scalp)",
+          "wrEst": 60,
+          "scalp": true,
+          "tp": 1,
+          "sl": 3,
+          "trail": true,
+          "trades": 164,
+          "winRate": 65.9,
+          "profitFactor": 0.916,
+          "expectancyPct": -0.008,
+          "totalReturnPct": -1.38,
+          "maxDDpct": 4.86,
+          "maxConsecLoss": 3,
+          "oosWinRate": 74.5
+        }
+      ],
+      "bestWinRate": 65.9
+    },
+    "1m": {
+      "tf": "1m",
+      "strategies": [
+        {
+          "type": "supertrend",
+          "label": "1d Supertrend (scalp)",
+          "wrEst": 55,
+          "scalp": true,
+          "tp": 1,
+          "sl": 3,
+          "trail": true,
+          "trades": 98,
+          "winRate": 64.3,
+          "profitFactor": 0.672,
+          "expectancyPct": -0.016,
+          "totalReturnPct": -1.58,
+          "maxDDpct": 1.76,
+          "maxConsecLoss": 3,
+          "oosWinRate": 64.3
+        }
+      ],
+      "bestWinRate": 64.3
+    }
+  }
+}

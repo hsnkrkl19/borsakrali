@@ -1,0 +1,313 @@
+{
+  "byPair": {
+    "BTCUSD": {
+      "long": {
+        "win": 0,
+        "loss": 1,
+        "sumPnl": -1.007,
+        "n": 1
+      },
+      "short": {
+        "win": 1,
+        "loss": 3,
+        "sumPnl": -4.114,
+        "n": 4
+      }
+    },
+    "EURUSD": {
+      "long": {
+        "win": 0,
+        "loss": 1,
+        "sumPnl": -0.151,
+        "n": 1
+      },
+      "short": {
+        "win": 2,
+        "loss": 0,
+        "sumPnl": 0.42000000000000004,
+        "n": 2
+      }
+    },
+    "XAUUSD": {
+      "long": {
+        "win": 0,
+        "loss": 0,
+        "sumPnl": 0,
+        "n": 0
+      },
+      "short": {
+        "win": 0,
+        "loss": 1,
+        "sumPnl": -1.541,
+        "n": 1
+      }
+    }
+  },
+  "history": [
+    {
+      "at": "2026-06-21T10:39:07.389Z",
+      "event": "open",
+      "code": "YB01",
+      "id": "BTCUSD",
+      "symbol": "BTC/USD",
+      "direction": "long",
+      "tfs": [
+        "1h"
+      ],
+      "entry": 64284.02
+    },
+    {
+      "at": "2026-06-21T20:54:08.111Z",
+      "event": "close",
+      "code": "YB01",
+      "id": "BTCUSD",
+      "symbol": "BTC/USD",
+      "direction": "long",
+      "outcome": "SL",
+      "pnlPct": -1.007
+    },
+    {
+      "at": "2026-06-21T21:25:02.100Z",
+      "event": "open",
+      "code": "YB02",
+      "id": "BTCUSD",
+      "symbol": "BTC/USD",
+      "direction": "short",
+      "tfs": [
+        "1h"
+      ],
+      "entry": 63661.08
+    },
+    {
+      "at": "2026-06-22T01:00:16.227Z",
+      "event": "open",
+      "code": "YA01",
+      "id": "XAUUSD",
+      "symbol": "XAU/USD",
+      "direction": "short",
+      "tfs": [
+        "1d"
+      ],
+      "entry": 4200.4
+    },
+    {
+      "at": "2026-06-22T01:33:11.252Z",
+      "event": "close",
+      "code": "YB02",
+      "id": "BTCUSD",
+      "symbol": "BTC/USD",
+      "direction": "short",
+      "outcome": "SL",
+      "pnlPct": -0.97
+    },
+    {
+      "at": "2026-06-22T04:33:18.323Z",
+      "event": "open",
+      "code": "YA01",
+      "id": "XAUUSD",
+      "symbol": "XAU/USD",
+      "direction": "short",
+      "tfs": [
+        "1d"
+      ],
+      "entry": 4196.3
+    },
+    {
+      "at": "2026-06-23T11:57:17.739Z",
+      "event": "open",
+      "code": "YB01",
+      "id": "BTCUSD",
+      "symbol": "BTC/USD",
+      "direction": "short",
+      "tfs": [
+        "15m"
+      ],
+      "entry": 62437.28
+    },
+    {
+      "at": "2026-06-23T12:24:22.863Z",
+      "event": "open",
+      "code": "YE01",
+      "id": "EURUSD",
+      "symbol": "EUR/USD",
+      "direction": "short",
+      "tfs": [
+        "1h"
+      ],
+      "entry": 1.13882
+    },
+    {
+      "at": "2026-06-23T13:36:00.811Z",
+      "event": "open",
+      "code": "YA01",
+      "id": "XAUUSD",
+      "symbol": "XAU/USD",
+      "direction": "short",
+      "tfs": [
+        "1d"
+      ],
+      "entry": 4127.9
+    },
+    {
+      "at": "2026-06-24T21:42:29.283Z",
+      "event": "open",
+      "code": "YB01",
+      "id": "BTCUSD",
+      "symbol": "BTC/USD",
+      "direction": "short",
+      "tfs": [
+        "1h"
+      ],
+      "entry": 60978.97
+    },
+    {
+      "at": "2026-06-25T12:27:00.183Z",
+      "event": "close",
+      "code": "YE01",
+      "id": "EURUSD",
+      "symbol": "EUR/USD",
+      "direction": "short",
+      "outcome": "EXPIRE",
+      "pnlPct": 0.397
+    },
+    {
+      "at": "2026-06-25T14:42:06.669Z",
+      "event": "close",
+      "code": "YB01",
+      "id": "BTCUSD",
+      "symbol": "BTC/USD",
+      "direction": "short",
+      "outcome": "TRAIL",
+      "pnlPct": 1.087
+    },
+    {
+      "at": "2026-06-25T15:24:09.599Z",
+      "event": "open",
+      "code": "YB02",
+      "id": "BTCUSD",
+      "symbol": "BTC/USD",
+      "direction": "short",
+      "tfs": [
+        "15m",
+        "1h"
+      ],
+      "entry": 59214.06
+    },
+    {
+      "at": "2026-06-25T19:01:25.003Z",
+      "event": "open",
+      "code": "YB01",
+      "id": "BTCUSD",
+      "symbol": "BTC/USD",
+      "direction": "short",
+      "tfs": [
+        "1h"
+      ],
+      "entry": 59396.92
+    },
+    {
+      "at": "2026-06-26T01:03:15.363Z",
+      "event": "open",
+      "code": "YA01",
+      "id": "XAUUSD",
+      "symbol": "XAU/USD",
+      "direction": "short",
+      "tfs": [
+        "1d"
+      ],
+      "entry": 4035.1
+    },
+    {
+      "at": "2026-06-26T19:54:10.404Z",
+      "event": "open",
+      "code": "YE01",
+      "id": "EURUSD",
+      "symbol": "EUR/USD",
+      "direction": "short",
+      "tfs": [
+        "15m"
+      ],
+      "entry": 1.13921
+    },
+    {
+      "at": "2026-06-27T02:12:08.273Z",
+      "event": "close",
+      "code": "YE01",
+      "id": "EURUSD",
+      "symbol": "EUR/USD",
+      "direction": "short",
+      "outcome": "EXPIRE",
+      "pnlPct": 0.023
+    },
+    {
+      "at": "2026-06-27T19:21:08.544Z",
+      "event": "close",
+      "code": "YB01",
+      "id": "BTCUSD",
+      "symbol": "BTC/USD",
+      "direction": "short",
+      "outcome": "EXPIRE",
+      "pnlPct": -1.594
+    },
+    {
+      "at": "2026-06-28T06:18:06.868Z",
+      "event": "open",
+      "code": "YB02",
+      "id": "BTCUSD",
+      "symbol": "BTC/USD",
+      "direction": "short",
+      "tfs": [
+        "1d"
+      ],
+      "entry": 59769.41
+    },
+    {
+      "at": "2026-06-29T11:57:12.060Z",
+      "event": "open",
+      "code": "YE02",
+      "id": "EURUSD",
+      "symbol": "EUR/USD",
+      "direction": "long",
+      "tfs": [
+        "15m",
+        "1h",
+        "4h"
+      ],
+      "entry": 1.14129
+    },
+    {
+      "at": "2026-06-30T10:48:02.991Z",
+      "event": "close",
+      "code": "YA01",
+      "id": "XAUUSD",
+      "symbol": "XAU/USD",
+      "direction": "short",
+      "outcome": "EXPIRE",
+      "pnlPct": -1.541
+    },
+    {
+      "at": "2026-06-30T10:48:02.991Z",
+      "event": "close",
+      "code": "YE02",
+      "id": "EURUSD",
+      "symbol": "EUR/USD",
+      "direction": "long",
+      "outcome": "SL",
+      "pnlPct": -0.151
+    },
+    {
+      "at": "2026-07-02T12:48:03.529Z",
+      "event": "close",
+      "code": "YB02",
+      "id": "BTCUSD",
+      "symbol": "BTC/USD",
+      "direction": "short",
+      "outcome": "EXPIRE",
+      "pnlPct": -2.637
+    }
+  ],
+  "totalOpened": 14,
+  "totalClosed": 9,
+  "since": "2026-06-21T10:39:07.389Z",
+  "resetTag": null
+}

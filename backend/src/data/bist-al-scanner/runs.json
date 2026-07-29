@@ -1,0 +1,594 @@
+{
+  "tradingDate": "2026-07-02",
+  "sentSymbols": [
+    "OTKAR",
+    "ERBOS",
+    "TBORG",
+    "BAKAB",
+    "METRO",
+    "AKYHO",
+    "PSDTC",
+    "ENERY",
+    "RTALB"
+  ],
+  "lastResult": {
+    "runAt": "2026-07-02T12:30:58.247Z",
+    "tradingDate": "2026-07-02",
+    "scanned": 510,
+    "candidates": 73,
+    "qualified": 5,
+    "freshCount": 1,
+    "notified": true,
+    "skippedReason": null,
+    "forced": false,
+    "telegramSent": 1,
+    "signals": [
+      {
+        "symbol": "METRO",
+        "avgScore": 96,
+        "confidence": 71,
+        "entry": 9.16,
+        "stop": 8.07,
+        "target1": 10.84,
+        "target2": 12.37,
+        "fresh": false
+      },
+      {
+        "symbol": "AKYHO",
+        "avgScore": 88,
+        "confidence": 56,
+        "entry": 2.64,
+        "stop": 2.49,
+        "target1": 2.87,
+        "target2": 3.09,
+        "fresh": false
+      },
+      {
+        "symbol": "RTALB",
+        "avgScore": 88,
+        "confidence": 56,
+        "entry": 3.64,
+        "stop": 3.24,
+        "target1": 4.26,
+        "target2": 4.82,
+        "fresh": true
+      },
+      {
+        "symbol": "ENERY",
+        "avgScore": 86,
+        "confidence": 62,
+        "entry": 10.31,
+        "stop": 8.97,
+        "target1": 12.38,
+        "target2": 14.27,
+        "fresh": false
+      },
+      {
+        "symbol": "BAKAB",
+        "avgScore": 85,
+        "confidence": 69,
+        "entry": 55.4,
+        "stop": 46.69,
+        "target1": 68.85,
+        "target2": 81.12,
+        "fresh": false
+      }
+    ]
+  },
+  "history": [
+    {
+      "runAt": "2026-06-30T07:30:42.050Z",
+      "tradingDate": "2026-06-30",
+      "scanned": 510,
+      "candidates": 0,
+      "qualified": 0,
+      "freshCount": 0,
+      "notified": false,
+      "skippedReason": "no-signals",
+      "forced": false,
+      "telegramSent": 0,
+      "signals": []
+    },
+    {
+      "runAt": "2026-06-30T08:30:43.435Z",
+      "tradingDate": "2026-06-30",
+      "scanned": 510,
+      "candidates": 0,
+      "qualified": 0,
+      "freshCount": 0,
+      "notified": false,
+      "skippedReason": "no-signals",
+      "forced": false,
+      "telegramSent": 0,
+      "signals": []
+    },
+    {
+      "runAt": "2026-06-30T09:30:58.523Z",
+      "tradingDate": "2026-06-30",
+      "scanned": 510,
+      "candidates": 0,
+      "qualified": 0,
+      "freshCount": 0,
+      "notified": false,
+      "skippedReason": "no-signals",
+      "forced": false,
+      "telegramSent": 0,
+      "signals": []
+    },
+    {
+      "runAt": "2026-06-30T10:30:47.638Z",
+      "tradingDate": "2026-06-30",
+      "scanned": 510,
+      "candidates": 0,
+      "qualified": 0,
+      "freshCount": 0,
+      "notified": false,
+      "skippedReason": "no-signals",
+      "forced": false,
+      "telegramSent": 0,
+      "signals": []
+    },
+    {
+      "runAt": "2026-06-30T11:30:42.375Z",
+      "tradingDate": "2026-06-30",
+      "scanned": 510,
+      "candidates": 0,
+      "qualified": 0,
+      "freshCount": 0,
+      "notified": false,
+      "skippedReason": "no-signals",
+      "forced": false,
+      "telegramSent": 0,
+      "signals": []
+    },
+    {
+      "runAt": "2026-06-30T12:30:48.964Z",
+      "tradingDate": "2026-06-30",
+      "scanned": 510,
+      "candidates": 0,
+      "qualified": 0,
+      "freshCount": 0,
+      "notified": false,
+      "skippedReason": "no-signals",
+      "forced": false,
+      "telegramSent": 0,
+      "signals": []
+    },
+    {
+      "runAt": "2026-06-30T13:30:41.369Z",
+      "tradingDate": "2026-06-30",
+      "scanned": 510,
+      "candidates": 0,
+      "qualified": 0,
+      "freshCount": 0,
+      "notified": false,
+      "skippedReason": "no-signals",
+      "forced": false,
+      "telegramSent": 0,
+      "signals": []
+    },
+    {
+      "runAt": "2026-06-30T14:30:40.309Z",
+      "tradingDate": "2026-06-30",
+      "scanned": 510,
+      "candidates": 0,
+      "qualified": 0,
+      "freshCount": 0,
+      "notified": false,
+      "skippedReason": "no-signals",
+      "forced": false,
+      "telegramSent": 0,
+      "signals": []
+    },
+    {
+      "runAt": "2026-06-30T15:31:03.714Z",
+      "tradingDate": "2026-06-30",
+      "scanned": 510,
+      "candidates": 0,
+      "qualified": 0,
+      "freshCount": 0,
+      "notified": false,
+      "skippedReason": "no-signals",
+      "forced": false,
+      "telegramSent": 0,
+      "signals": []
+    },
+    {
+      "runAt": "2026-07-01T07:30:51.529Z",
+      "tradingDate": "2026-07-01",
+      "scanned": 510,
+      "candidates": 0,
+      "qualified": 0,
+      "freshCount": 0,
+      "notified": false,
+      "skippedReason": "no-signals",
+      "forced": false,
+      "telegramSent": 0,
+      "signals": []
+    },
+    {
+      "runAt": "2026-07-01T08:30:43.911Z",
+      "tradingDate": "2026-07-01",
+      "scanned": 510,
+      "candidates": 0,
+      "qualified": 0,
+      "freshCount": 0,
+      "notified": false,
+      "skippedReason": "no-signals",
+      "forced": false,
+      "telegramSent": 0,
+      "signals": []
+    },
+    {
+      "runAt": "2026-07-01T09:30:45.521Z",
+      "tradingDate": "2026-07-01",
+      "scanned": 510,
+      "candidates": 0,
+      "qualified": 0,
+      "freshCount": 0,
+      "notified": false,
+      "skippedReason": "no-signals",
+      "forced": false,
+      "telegramSent": 0,
+      "signals": []
+    },
+    {
+      "runAt": "2026-07-01T10:30:43.700Z",
+      "tradingDate": "2026-07-01",
+      "scanned": 510,
+      "candidates": 0,
+      "qualified": 0,
+      "freshCount": 0,
+      "notified": false,
+      "skippedReason": "no-signals",
+      "forced": false,
+      "telegramSent": 0,
+      "signals": []
+    },
+    {
+      "runAt": "2026-07-01T11:30:52.917Z",
+      "tradingDate": "2026-07-01",
+      "scanned": 510,
+      "candidates": 0,
+      "qualified": 0,
+      "freshCount": 0,
+      "notified": false,
+      "skippedReason": "no-signals",
+      "forced": false,
+      "telegramSent": 0,
+      "signals": []
+    },
+    {
+      "runAt": "2026-07-01T12:31:55.890Z",
+      "tradingDate": "2026-07-01",
+      "scanned": 510,
+      "candidates": 0,
+      "qualified": 0,
+      "freshCount": 0,
+      "notified": false,
+      "skippedReason": "no-signals",
+      "forced": false,
+      "telegramSent": 0,
+      "signals": []
+    },
+    {
+      "runAt": "2026-07-01T13:30:55.538Z",
+      "tradingDate": "2026-07-01",
+      "scanned": 510,
+      "candidates": 0,
+      "qualified": 0,
+      "freshCount": 0,
+      "notified": false,
+      "skippedReason": "no-signals",
+      "forced": false,
+      "telegramSent": 0,
+      "signals": []
+    },
+    {
+      "runAt": "2026-07-01T14:30:58.747Z",
+      "tradingDate": "2026-07-01",
+      "scanned": 510,
+      "candidates": 0,
+      "qualified": 0,
+      "freshCount": 0,
+      "notified": false,
+      "skippedReason": "no-signals",
+      "forced": false,
+      "telegramSent": 0,
+      "signals": []
+    },
+    {
+      "runAt": "2026-07-01T15:30:54.915Z",
+      "tradingDate": "2026-07-01",
+      "scanned": 510,
+      "candidates": 0,
+      "qualified": 0,
+      "freshCount": 0,
+      "notified": false,
+      "skippedReason": "no-signals",
+      "forced": false,
+      "telegramSent": 0,
+      "signals": []
+    },
+    {
+      "runAt": "2026-07-02T08:31:07.973Z",
+      "tradingDate": "2026-07-02",
+      "scanned": 510,
+      "candidates": 75,
+      "qualified": 2,
+      "freshCount": 2,
+      "notified": true,
+      "skippedReason": null,
+      "forced": false,
+      "telegramSent": 1,
+      "signals": [
+        {
+          "symbol": "OTKAR",
+          "avgScore": 78,
+          "confidence": 42,
+          "entry": 373.25,
+          "stop": 355.18,
+          "target1": 401.18,
+          "target2": 426.64,
+          "fresh": true
+        },
+        {
+          "symbol": "ERBOS",
+          "avgScore": 77,
+          "confidence": 47,
+          "entry": 188.7,
+          "stop": 175.77,
+          "target1": 208.69,
+          "target2": 226.91,
+          "fresh": true
+        }
+      ]
+    },
+    {
+      "runAt": "2026-07-02T09:30:53.625Z",
+      "tradingDate": "2026-07-02",
+      "scanned": 510,
+      "candidates": 73,
+      "qualified": 4,
+      "freshCount": 2,
+      "notified": true,
+      "skippedReason": null,
+      "forced": false,
+      "telegramSent": 1,
+      "signals": [
+        {
+          "symbol": "TBORG",
+          "avgScore": 85,
+          "confidence": 54,
+          "entry": 137.4,
+          "stop": 130.82,
+          "target1": 147.58,
+          "target2": 156.85,
+          "fresh": true
+        },
+        {
+          "symbol": "BAKAB",
+          "avgScore": 83,
+          "confidence": 67,
+          "entry": 55.15,
+          "stop": 46.44,
+          "target1": 68.6,
+          "target2": 80.87,
+          "fresh": true
+        },
+        {
+          "symbol": "ERBOS",
+          "avgScore": 77,
+          "confidence": 47,
+          "entry": 188.7,
+          "stop": 175.77,
+          "target1": 208.69,
+          "target2": 226.91,
+          "fresh": false
+        },
+        {
+          "symbol": "OTKAR",
+          "avgScore": 77,
+          "confidence": 41,
+          "entry": 375.5,
+          "stop": 357.43,
+          "target1": 403.43,
+          "target2": 428.89,
+          "fresh": false
+        }
+      ]
+    },
+    {
+      "runAt": "2026-07-02T10:30:48.604Z",
+      "tradingDate": "2026-07-02",
+      "scanned": 510,
+      "candidates": 71,
+      "qualified": 5,
+      "freshCount": 3,
+      "notified": true,
+      "skippedReason": null,
+      "forced": false,
+      "telegramSent": 1,
+      "signals": [
+        {
+          "symbol": "METRO",
+          "avgScore": 94,
+          "confidence": 68,
+          "entry": 9.14,
+          "stop": 8.05,
+          "target1": 10.82,
+          "target2": 12.35,
+          "fresh": true
+        },
+        {
+          "symbol": "AKYHO",
+          "avgScore": 88,
+          "confidence": 54,
+          "entry": 2.63,
+          "stop": 2.48,
+          "target1": 2.86,
+          "target2": 3.08,
+          "fresh": true
+        },
+        {
+          "symbol": "TBORG",
+          "avgScore": 85,
+          "confidence": 54,
+          "entry": 138,
+          "stop": 131.04,
+          "target1": 148.76,
+          "target2": 158.57,
+          "fresh": false
+        },
+        {
+          "symbol": "BAKAB",
+          "avgScore": 83,
+          "confidence": 67,
+          "entry": 55.1,
+          "stop": 46.39,
+          "target1": 68.55,
+          "target2": 80.82,
+          "fresh": false
+        },
+        {
+          "symbol": "PSDTC",
+          "avgScore": 82,
+          "confidence": 59,
+          "entry": 160.8,
+          "stop": 143,
+          "target1": 188.32,
+          "target2": 213.4,
+          "fresh": true
+        }
+      ]
+    },
+    {
+      "runAt": "2026-07-02T11:30:53.238Z",
+      "tradingDate": "2026-07-02",
+      "scanned": 510,
+      "candidates": 69,
+      "qualified": 5,
+      "freshCount": 1,
+      "notified": true,
+      "skippedReason": null,
+      "forced": false,
+      "telegramSent": 1,
+      "signals": [
+        {
+          "symbol": "AKYHO",
+          "avgScore": 92,
+          "confidence": 59,
+          "entry": 2.69,
+          "stop": 2.54,
+          "target1": 2.92,
+          "target2": 3.14,
+          "fresh": false
+        },
+        {
+          "symbol": "METRO",
+          "avgScore": 86,
+          "confidence": 71,
+          "entry": 9.08,
+          "stop": 7.99,
+          "target1": 10.76,
+          "target2": 12.29,
+          "fresh": false
+        },
+        {
+          "symbol": "ENERY",
+          "avgScore": 86,
+          "confidence": 62,
+          "entry": 10.43,
+          "stop": 9.1,
+          "target1": 12.48,
+          "target2": 14.36,
+          "fresh": true
+        },
+        {
+          "symbol": "BAKAB",
+          "avgScore": 85,
+          "confidence": 69,
+          "entry": 55.65,
+          "stop": 46.94,
+          "target1": 69.1,
+          "target2": 81.37,
+          "fresh": false
+        },
+        {
+          "symbol": "TBORG",
+          "avgScore": 85,
+          "confidence": 54,
+          "entry": 136.8,
+          "stop": 129.84,
+          "target1": 147.56,
+          "target2": 157.37,
+          "fresh": false
+        }
+      ]
+    },
+    {
+      "runAt": "2026-07-02T12:30:58.247Z",
+      "tradingDate": "2026-07-02",
+      "scanned": 510,
+      "candidates": 73,
+      "qualified": 5,
+      "freshCount": 1,
+      "notified": true,
+      "skippedReason": null,
+      "forced": false,
+      "telegramSent": 1,
+      "signals": [
+        {
+          "symbol": "METRO",
+          "avgScore": 96,
+          "confidence": 71,
+          "entry": 9.16,
+          "stop": 8.07,
+          "target1": 10.84,
+          "target2": 12.37,
+          "fresh": false
+        },
+        {
+          "symbol": "AKYHO",
+          "avgScore": 88,
+          "confidence": 56,
+          "entry": 2.64,
+          "stop": 2.49,
+          "target1": 2.87,
+          "target2": 3.09,
+          "fresh": false
+        },
+        {
+          "symbol": "RTALB",
+          "avgScore": 88,
+          "confidence": 56,
+          "entry": 3.64,
+          "stop": 3.24,
+          "target1": 4.26,
+          "target2": 4.82,
+          "fresh": true
+        },
+        {
+          "symbol": "ENERY",
+          "avgScore": 86,
+          "confidence": 62,
+          "entry": 10.31,
+          "stop": 8.97,
+          "target1": 12.38,
+          "target2": 14.27,
+          "fresh": false
+        },
+        {
+          "symbol": "BAKAB",
+          "avgScore": 85,
+          "confidence": 69,
+          "entry": 55.4,
+          "stop": 46.69,
+          "target1": 68.85,
+          "target2": 81.12,
+          "fresh": false
+        }
+      ]
+    }
+  ]
+}

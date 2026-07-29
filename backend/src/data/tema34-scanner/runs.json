@@ -1,0 +1,2048 @@
+{
+  "lastBar": {
+    "4h": "2026-07-02T08:00:00.000Z",
+    "1d": "2026-07-02"
+  },
+  "lastResult": {
+    "runAt": "2026-07-02T12:02:04.801Z",
+    "forced": false,
+    "notified": false,
+    "timeframes": {
+      "4h": {
+        "tf": "4h",
+        "ok": true,
+        "barKey": "2026-07-02T08:00:00.000Z",
+        "scanned": 504,
+        "fetchErrors": 6,
+        "counts": {
+          "up": 15,
+          "down": 61
+        },
+        "total": 76,
+        "notified": false,
+        "skippedReason": "already-notified",
+        "telegramSent": 0,
+        "preview": {
+          "up": [
+            "TMSN",
+            "GIPTA",
+            "AVTUR",
+            "GRSEL",
+            "TKNSA",
+            "OTKAR",
+            "OZSUB",
+            "YONGA",
+            "DURDO",
+            "ANGEN"
+          ],
+          "down": [
+            "AHGAZ",
+            "ENERY",
+            "KAPLM",
+            "VERTU",
+            "SODSN",
+            "AKSEN",
+            "BURCE",
+            "AKSA",
+            "INDES",
+            "TURSG"
+          ]
+        }
+      },
+      "1d": {
+        "tf": "1d",
+        "ok": true,
+        "barKey": "2026-07-02",
+        "scanned": 504,
+        "fetchErrors": 6,
+        "counts": {
+          "up": 48,
+          "down": 23
+        },
+        "total": 71,
+        "notified": false,
+        "skippedReason": "already-notified",
+        "telegramSent": 0,
+        "preview": {
+          "up": [
+            "ARCLK",
+            "SELEC",
+            "DERHL",
+            "GSRAY",
+            "EUREN",
+            "ISBIR",
+            "VAKFN",
+            "GENIL",
+            "LOGO",
+            "GUBRF"
+          ],
+          "down": [
+            "DMSAS",
+            "VERUS",
+            "INVES",
+            "SMART",
+            "AHGAZ",
+            "PAPIL",
+            "CRFSA",
+            "SKTAS",
+            "TRGYO",
+            "CONSE"
+          ]
+        }
+      }
+    }
+  },
+  "history": [
+    {
+      "runAt": "2026-06-30T10:01:43.318Z",
+      "forced": false,
+      "notified": true,
+      "timeframes": {
+        "4h": {
+          "tf": "4h",
+          "ok": true,
+          "barKey": "2026-06-30T08:00:00.000Z",
+          "scanned": 504,
+          "fetchErrors": 6,
+          "counts": {
+            "up": 36,
+            "down": 19
+          },
+          "total": 55,
+          "notified": true,
+          "skippedReason": null,
+          "telegramSent": 1,
+          "preview": {
+            "up": [
+              "ARENA",
+              "BFREN",
+              "KUTPO",
+              "LMKDC",
+              "POLHO",
+              "CEMTS",
+              "BSOKE",
+              "TGSAS",
+              "AKGRT",
+              "LINK"
+            ],
+            "down": [
+              "SUMAS",
+              "GLCVY",
+              "OZRDN",
+              "ISDMR",
+              "DOHOL",
+              "TUKAS",
+              "INVEO",
+              "OYLUM",
+              "MAKIM",
+              "GSRAY"
+            ]
+          }
+        },
+        "1d": {
+          "tf": "1d",
+          "ok": true,
+          "barKey": "2026-06-30",
+          "scanned": 504,
+          "fetchErrors": 6,
+          "counts": {
+            "up": 46,
+            "down": 21
+          },
+          "total": 67,
+          "notified": true,
+          "skippedReason": null,
+          "telegramSent": 1,
+          "preview": {
+            "up": [
+              "ARSAN",
+              "BOBET",
+              "ATAGY",
+              "ALKIM",
+              "LRSHO",
+              "EUREN",
+              "KLKIM",
+              "KONKA",
+              "ATAKP",
+              "TURSG"
+            ],
+            "down": [
+              "SEKUR",
+              "GEDIK",
+              "BORLS",
+              "OZSUB",
+              "IDGYO",
+              "ZOREN",
+              "KRSTL",
+              "TTKOM",
+              "DOGUB",
+              "ONRYT"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "runAt": "2026-06-30T11:01:33.545Z",
+      "forced": false,
+      "notified": false,
+      "timeframes": {
+        "4h": {
+          "tf": "4h",
+          "ok": true,
+          "barKey": "2026-06-30T08:00:00.000Z",
+          "scanned": 504,
+          "fetchErrors": 6,
+          "counts": {
+            "up": 45,
+            "down": 29
+          },
+          "total": 74,
+          "notified": false,
+          "skippedReason": "already-notified",
+          "telegramSent": 0,
+          "preview": {
+            "up": [
+              "BEGYO",
+              "KUTPO",
+              "BUCIM",
+              "AKGRT",
+              "SRVGY",
+              "TURSG",
+              "LMKDC",
+              "BFREN",
+              "GRSEL",
+              "BIENY"
+            ],
+            "down": [
+              "DOHOL",
+              "OZRDN",
+              "VESBE",
+              "YESIL",
+              "TSPOR",
+              "ISDMR",
+              "BAYRK",
+              "INVEO",
+              "PRKME",
+              "GLCVY"
+            ]
+          }
+        },
+        "1d": {
+          "tf": "1d",
+          "ok": true,
+          "barKey": "2026-06-30",
+          "scanned": 504,
+          "fetchErrors": 6,
+          "counts": {
+            "up": 47,
+            "down": 23
+          },
+          "total": 70,
+          "notified": false,
+          "skippedReason": "already-notified",
+          "telegramSent": 0,
+          "preview": {
+            "up": [
+              "CASA",
+              "INDES",
+              "DERHL",
+              "KLKIM",
+              "BEYAZ",
+              "TDGYO",
+              "SAYAS",
+              "ANGEN",
+              "TURSG",
+              "EUREN"
+            ],
+            "down": [
+              "SEKUR",
+              "GEDIK",
+              "OZSUB",
+              "SOKE",
+              "BORLS",
+              "ZOREN",
+              "KRSTL",
+              "DOGUB",
+              "TTKOM",
+              "MERCN"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "runAt": "2026-06-30T12:01:02.466Z",
+      "forced": false,
+      "notified": false,
+      "timeframes": {
+        "4h": {
+          "tf": "4h",
+          "ok": true,
+          "barKey": "2026-06-30T08:00:00.000Z",
+          "scanned": 504,
+          "fetchErrors": 6,
+          "counts": {
+            "up": 40,
+            "down": 38
+          },
+          "total": 78,
+          "notified": false,
+          "skippedReason": "already-notified",
+          "telegramSent": 0,
+          "preview": {
+            "up": [
+              "BIENY",
+              "KONKA",
+              "TGSAS",
+              "SRVGY",
+              "LMKDC",
+              "BFREN",
+              "QUAGR",
+              "KFEIN",
+              "BALAT",
+              "ULKER"
+            ],
+            "down": [
+              "INVEO",
+              "OZRDN",
+              "VESBE",
+              "VESTL",
+              "DOAS",
+              "DOHOL",
+              "CVKMD",
+              "ISDMR",
+              "HURGZ",
+              "PRKME"
+            ]
+          }
+        },
+        "1d": {
+          "tf": "1d",
+          "ok": true,
+          "barKey": "2026-06-30",
+          "scanned": 504,
+          "fetchErrors": 6,
+          "counts": {
+            "up": 47,
+            "down": 27
+          },
+          "total": 74,
+          "notified": false,
+          "skippedReason": "already-notified",
+          "telegramSent": 0,
+          "preview": {
+            "up": [
+              "EMKEL",
+              "YATAS",
+              "AKFGY",
+              "NTGAZ",
+              "RTALB",
+              "EUREN",
+              "TRENJ",
+              "LIDFA",
+              "KRDMD",
+              "BOBET"
+            ],
+            "down": [
+              "SEKUR",
+              "GEDIK",
+              "OZSUB",
+              "SOKE",
+              "BORLS",
+              "ZOREN",
+              "KRSTL",
+              "DOGUB",
+              "EUHOL",
+              "PATEK"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "runAt": "2026-06-30T13:01:14.717Z",
+      "forced": false,
+      "notified": true,
+      "timeframes": {
+        "4h": {
+          "tf": "4h",
+          "ok": true,
+          "barKey": "2026-06-30T12:00:00.000Z",
+          "scanned": 504,
+          "fetchErrors": 6,
+          "counts": {
+            "up": 36,
+            "down": 11
+          },
+          "total": 47,
+          "notified": true,
+          "skippedReason": null,
+          "telegramSent": 1,
+          "preview": {
+            "up": [
+              "ERBOS",
+              "KONKA",
+              "GMTAS",
+              "YEOTK",
+              "PRDGS",
+              "BVSAN",
+              "DESA",
+              "SRVGY",
+              "BALAT",
+              "EUREN"
+            ],
+            "down": [
+              "IDGYO",
+              "BJKAS",
+              "EUYO",
+              "DOGUB",
+              "HEDEF",
+              "CATES",
+              "PSDTC",
+              "OBASE",
+              "AGYO",
+              "DARDL"
+            ]
+          }
+        },
+        "1d": {
+          "tf": "1d",
+          "ok": true,
+          "barKey": "2026-06-30",
+          "scanned": 504,
+          "fetchErrors": 6,
+          "counts": {
+            "up": 35,
+            "down": 32
+          },
+          "total": 67,
+          "notified": false,
+          "skippedReason": "already-notified",
+          "telegramSent": 0,
+          "preview": {
+            "up": [
+              "TTRAK",
+              "ARDYZ",
+              "ADGYO",
+              "CASA",
+              "OZGYO",
+              "KLGYO",
+              "LIDFA",
+              "OTTO",
+              "LMKDC",
+              "ESCOM"
+            ],
+            "down": [
+              "SEKUR",
+              "SOKE",
+              "GEDIK",
+              "BORLS",
+              "PATEK",
+              "OZSUB",
+              "ZOREN",
+              "TTKOM",
+              "KRSTL",
+              "IDGYO"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "runAt": "2026-06-30T14:01:40.515Z",
+      "forced": false,
+      "notified": false,
+      "timeframes": {
+        "4h": {
+          "tf": "4h",
+          "ok": true,
+          "barKey": "2026-06-30T12:00:00.000Z",
+          "scanned": 504,
+          "fetchErrors": 6,
+          "counts": {
+            "up": 38,
+            "down": 11
+          },
+          "total": 49,
+          "notified": false,
+          "skippedReason": "already-notified",
+          "telegramSent": 0,
+          "preview": {
+            "up": [
+              "BVSAN",
+              "KONKA",
+              "CLEBI",
+              "GARFA",
+              "DNISI",
+              "VKING",
+              "GRSEL",
+              "MPARK",
+              "BRISA",
+              "SRVGY"
+            ],
+            "down": [
+              "DOGUB",
+              "TKFEN",
+              "ALCTL",
+              "AGYO",
+              "HEDEF",
+              "KRDMA",
+              "YKSLN",
+              "OZGYO",
+              "OBASE",
+              "HUNER"
+            ]
+          }
+        },
+        "1d": {
+          "tf": "1d",
+          "ok": true,
+          "barKey": "2026-06-30",
+          "scanned": 504,
+          "fetchErrors": 6,
+          "counts": {
+            "up": 34,
+            "down": 44
+          },
+          "total": 78,
+          "notified": false,
+          "skippedReason": "already-notified",
+          "telegramSent": 0,
+          "preview": {
+            "up": [
+              "TTRAK",
+              "OTTO",
+              "NTGAZ",
+              "ARDYZ",
+              "CASA",
+              "LMKDC",
+              "KLGYO",
+              "ADGYO",
+              "DIRIT",
+              "AKSA"
+            ],
+            "down": [
+              "SEKUR",
+              "SOKE",
+              "GEDIK",
+              "BORLS",
+              "ZOREN",
+              "PATEK",
+              "TTKOM",
+              "CELHA",
+              "KRSTL",
+              "OZSUB"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "runAt": "2026-06-30T15:00:59.697Z",
+      "forced": false,
+      "notified": false,
+      "timeframes": {
+        "4h": {
+          "tf": "4h",
+          "ok": true,
+          "barKey": "2026-06-30T12:00:00.000Z",
+          "scanned": 504,
+          "fetchErrors": 6,
+          "counts": {
+            "up": 33,
+            "down": 20
+          },
+          "total": 53,
+          "notified": false,
+          "skippedReason": "already-notified",
+          "telegramSent": 0,
+          "preview": {
+            "up": [
+              "NETAS",
+              "BRSAN",
+              "ERBOS",
+              "EPLAS",
+              "BALAT",
+              "DNISI",
+              "BEYAZ",
+              "ERCB",
+              "AKGRT",
+              "BVSAN"
+            ],
+            "down": [
+              "IDGYO",
+              "DOGUB",
+              "TKFEN",
+              "KLRHO",
+              "OBASE",
+              "ALCTL",
+              "SEKFK",
+              "SEYKM",
+              "PRKAB",
+              "TMSN"
+            ]
+          }
+        },
+        "1d": {
+          "tf": "1d",
+          "ok": true,
+          "barKey": "2026-06-30",
+          "scanned": 504,
+          "fetchErrors": 6,
+          "counts": {
+            "up": 35,
+            "down": 46
+          },
+          "total": 81,
+          "notified": false,
+          "skippedReason": "already-notified",
+          "telegramSent": 0,
+          "preview": {
+            "up": [
+              "BOBET",
+              "LMKDC",
+              "GLYHO",
+              "TRENJ",
+              "TMSN",
+              "DESA",
+              "CASA",
+              "TTRAK",
+              "ARDYZ",
+              "OTTO"
+            ],
+            "down": [
+              "SEKUR",
+              "GEREL",
+              "GEDIK",
+              "SOKE",
+              "CELHA",
+              "OZSUB",
+              "BORLS",
+              "ZOREN",
+              "PATEK",
+              "KRSTL"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "runAt": "2026-06-30T16:01:03.640Z",
+      "forced": false,
+      "notified": false,
+      "timeframes": {
+        "4h": {
+          "tf": "4h",
+          "ok": true,
+          "barKey": "2026-06-30T12:00:00.000Z",
+          "scanned": 504,
+          "fetchErrors": 6,
+          "counts": {
+            "up": 41,
+            "down": 28
+          },
+          "total": 69,
+          "notified": false,
+          "skippedReason": "already-notified",
+          "telegramSent": 0,
+          "preview": {
+            "up": [
+              "BVSAN",
+              "BEYAZ",
+              "SNGYO",
+              "GMTAS",
+              "KTLEV",
+              "ESCAR",
+              "INTEM",
+              "KONKA",
+              "VAKFA",
+              "ETYAT"
+            ],
+            "down": [
+              "DAPGM",
+              "DOGUB",
+              "TKFEN",
+              "ALCTL",
+              "IDGYO",
+              "SANEL",
+              "EUYO",
+              "KLRHO",
+              "OBASE",
+              "AGYO"
+            ]
+          }
+        },
+        "1d": {
+          "tf": "1d",
+          "ok": true,
+          "barKey": "2026-06-30",
+          "scanned": 504,
+          "fetchErrors": 6,
+          "counts": {
+            "up": 37,
+            "down": 50
+          },
+          "total": 87,
+          "notified": false,
+          "skippedReason": "already-notified",
+          "telegramSent": 0,
+          "preview": {
+            "up": [
+              "BOBET",
+              "KZGYO",
+              "GLYHO",
+              "OZKGY",
+              "DNISI",
+              "TMSN",
+              "COSMO",
+              "KLGYO",
+              "TTRAK",
+              "YATAS"
+            ],
+            "down": [
+              "SEKUR",
+              "GEREL",
+              "GEDIK",
+              "SOKE",
+              "CELHA",
+              "ZOREN",
+              "PATEK",
+              "OZSUB",
+              "KRSTL",
+              "IDGYO"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "runAt": "2026-07-01T07:01:30.931Z",
+      "forced": false,
+      "notified": false,
+      "timeframes": {
+        "4h": {
+          "tf": "4h",
+          "ok": true,
+          "barKey": "2026-06-30T12:00:00.000Z",
+          "scanned": 504,
+          "fetchErrors": 6,
+          "counts": {
+            "up": 42,
+            "down": 28
+          },
+          "total": 70,
+          "notified": false,
+          "skippedReason": "already-notified",
+          "telegramSent": 0,
+          "preview": {
+            "up": [
+              "BVSAN",
+              "BEYAZ",
+              "SNGYO",
+              "GMTAS",
+              "KTLEV",
+              "ESCAR",
+              "INTEM",
+              "KONKA",
+              "VAKFA",
+              "ETYAT"
+            ],
+            "down": [
+              "DAPGM",
+              "DOGUB",
+              "TKFEN",
+              "ALCTL",
+              "IDGYO",
+              "SANEL",
+              "EUYO",
+              "KLRHO",
+              "OBASE",
+              "AGYO"
+            ]
+          }
+        },
+        "1d": {
+          "tf": "1d",
+          "ok": true,
+          "barKey": "2026-06-30",
+          "scanned": 504,
+          "fetchErrors": 6,
+          "counts": {
+            "up": 37,
+            "down": 50
+          },
+          "total": 87,
+          "notified": false,
+          "skippedReason": "already-notified",
+          "telegramSent": 0,
+          "preview": {
+            "up": [
+              "BOBET",
+              "KZGYO",
+              "GLYHO",
+              "OZKGY",
+              "DNISI",
+              "TMSN",
+              "COSMO",
+              "KLGYO",
+              "TTRAK",
+              "YATAS"
+            ],
+            "down": [
+              "SEKUR",
+              "GEREL",
+              "GEDIK",
+              "SOKE",
+              "CELHA",
+              "ZOREN",
+              "PATEK",
+              "OZSUB",
+              "KRSTL",
+              "IDGYO"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "runAt": "2026-07-01T08:01:30.008Z",
+      "forced": false,
+      "notified": true,
+      "timeframes": {
+        "4h": {
+          "tf": "4h",
+          "ok": true,
+          "barKey": "2026-07-01T04:00:00.000Z",
+          "scanned": 504,
+          "fetchErrors": 6,
+          "counts": {
+            "up": 71,
+            "down": 18
+          },
+          "total": 89,
+          "notified": true,
+          "skippedReason": null,
+          "telegramSent": 1,
+          "preview": {
+            "up": [
+              "EKGYO",
+              "TKFEN",
+              "KRPLS",
+              "CANTE",
+              "MSGYO",
+              "MZHLD",
+              "BORSK",
+              "OYAKC",
+              "BIENY",
+              "ESEN"
+            ],
+            "down": [
+              "MANAS",
+              "KRDMB",
+              "TABGD",
+              "KTLEV",
+              "ATATP",
+              "TTKOM",
+              "BALAT",
+              "OZKGY",
+              "ADEL",
+              "MAGEN"
+            ]
+          }
+        },
+        "1d": {
+          "tf": "1d",
+          "ok": true,
+          "barKey": "2026-07-01",
+          "scanned": 504,
+          "fetchErrors": 6,
+          "counts": {
+            "up": 47,
+            "down": 9
+          },
+          "total": 56,
+          "notified": true,
+          "skippedReason": null,
+          "telegramSent": 1,
+          "preview": {
+            "up": [
+              "MZHLD",
+              "VAKFA",
+              "BRYAT",
+              "OZGYO",
+              "OSMEN",
+              "CLEBI",
+              "MSGYO",
+              "YESIL",
+              "ARZUM",
+              "EUHOL"
+            ],
+            "down": [
+              "EKIZ",
+              "PAMEL",
+              "OZKGY",
+              "MAKIM",
+              "ZEDUR",
+              "DESA",
+              "SANEL",
+              "GLYHO",
+              "FORTE"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "runAt": "2026-07-01T09:01:49.505Z",
+      "forced": false,
+      "notified": true,
+      "timeframes": {
+        "4h": {
+          "tf": "4h",
+          "ok": true,
+          "barKey": "2026-07-01T08:00:00.000Z",
+          "scanned": 504,
+          "fetchErrors": 6,
+          "counts": {
+            "up": 29,
+            "down": 15
+          },
+          "total": 44,
+          "notified": true,
+          "skippedReason": null,
+          "telegramSent": 1,
+          "preview": {
+            "up": [
+              "CVKMD",
+              "KRSTL",
+              "PKENT",
+              "LUKSK",
+              "TKNSA",
+              "ECILC",
+              "ORMA",
+              "ENJSA",
+              "SASA",
+              "VAKFA"
+            ],
+            "down": [
+              "GLBMD",
+              "BALAT",
+              "HEDEF",
+              "CCOLA",
+              "EUYO",
+              "KLMSN",
+              "MNDTR",
+              "ULAS",
+              "NUHCM",
+              "CATES"
+            ]
+          }
+        },
+        "1d": {
+          "tf": "1d",
+          "ok": true,
+          "barKey": "2026-07-01",
+          "scanned": 504,
+          "fetchErrors": 6,
+          "counts": {
+            "up": 52,
+            "down": 10
+          },
+          "total": 62,
+          "notified": false,
+          "skippedReason": "already-notified",
+          "telegramSent": 0,
+          "preview": {
+            "up": [
+              "CWENE",
+              "ALGYO",
+              "AKGRT",
+              "AGYO",
+              "YAYLA",
+              "SMART",
+              "YYLGD",
+              "ARZUM",
+              "EUHOL",
+              "RTALB"
+            ],
+            "down": [
+              "EKIZ",
+              "PAMEL",
+              "OZKGY",
+              "MAKIM",
+              "DESA",
+              "ZEDUR",
+              "SANEL",
+              "SELEC",
+              "GLYHO",
+              "BOBET"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "runAt": "2026-07-01T10:01:45.454Z",
+      "forced": false,
+      "notified": false,
+      "timeframes": {
+        "4h": {
+          "tf": "4h",
+          "ok": true,
+          "barKey": "2026-07-01T08:00:00.000Z",
+          "scanned": 504,
+          "fetchErrors": 6,
+          "counts": {
+            "up": 31,
+            "down": 22
+          },
+          "total": 53,
+          "notified": false,
+          "skippedReason": "already-notified",
+          "telegramSent": 0,
+          "preview": {
+            "up": [
+              "GMTAS",
+              "TKNSA",
+              "HATEK",
+              "VAKFA",
+              "TKFEN",
+              "ORMA",
+              "HKTM",
+              "TLMAN",
+              "AKYHO",
+              "IDGYO"
+            ],
+            "down": [
+              "DITAS",
+              "GLBMD",
+              "CANTE",
+              "HEDEF",
+              "BALAT",
+              "CCOLA",
+              "ADGYO",
+              "EDATA",
+              "SAFKR",
+              "OBASE"
+            ]
+          }
+        },
+        "1d": {
+          "tf": "1d",
+          "ok": true,
+          "barKey": "2026-07-01",
+          "scanned": 504,
+          "fetchErrors": 6,
+          "counts": {
+            "up": 56,
+            "down": 12
+          },
+          "total": 68,
+          "notified": false,
+          "skippedReason": "already-notified",
+          "telegramSent": 0,
+          "preview": {
+            "up": [
+              "AKGRT",
+              "KGYO",
+              "DOGUB",
+              "THYAO",
+              "DZGYO",
+              "FROTO",
+              "SISE",
+              "EUHOL",
+              "RTALB",
+              "OSMEN"
+            ],
+            "down": [
+              "EKIZ",
+              "OZKGY",
+              "PAMEL",
+              "MAKIM",
+              "DESA",
+              "GLYHO",
+              "SELEC",
+              "ZEDUR",
+              "UNLU",
+              "AKSA"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "runAt": "2026-07-01T11:01:23.606Z",
+      "forced": false,
+      "notified": false,
+      "timeframes": {
+        "4h": {
+          "tf": "4h",
+          "ok": true,
+          "barKey": "2026-07-01T08:00:00.000Z",
+          "scanned": 504,
+          "fetchErrors": 6,
+          "counts": {
+            "up": 45,
+            "down": 23
+          },
+          "total": 68,
+          "notified": false,
+          "skippedReason": "already-notified",
+          "telegramSent": 0,
+          "preview": {
+            "up": [
+              "ENJSA",
+              "AYCES",
+              "CLEBI",
+              "KUTPO",
+              "MEGAP",
+              "ZEDUR",
+              "TKNSA",
+              "KLRHO",
+              "TRALT",
+              "BUCIM"
+            ],
+            "down": [
+              "DITAS",
+              "SAFKR",
+              "IEYHO",
+              "TSPOR",
+              "OBASE",
+              "GLBMD",
+              "MNDTR",
+              "HEDEF",
+              "DEVA",
+              "EDATA"
+            ]
+          }
+        },
+        "1d": {
+          "tf": "1d",
+          "ok": true,
+          "barKey": "2026-07-01",
+          "scanned": 504,
+          "fetchErrors": 6,
+          "counts": {
+            "up": 63,
+            "down": 13
+          },
+          "total": 76,
+          "notified": false,
+          "skippedReason": "already-notified",
+          "telegramSent": 0,
+          "preview": {
+            "up": [
+              "FROTO",
+              "VAKFA",
+              "AKGRT",
+              "BRYAT",
+              "KGYO",
+              "CGCAM",
+              "ARZUM",
+              "AKYHO",
+              "AKFGY",
+              "ALGYO"
+            ],
+            "down": [
+              "MAKIM",
+              "PAMEL",
+              "OZKGY",
+              "DESA",
+              "SELEC",
+              "GLYHO",
+              "BALAT",
+              "AKSA",
+              "ZEDUR",
+              "EKIZ"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "runAt": "2026-07-01T12:01:31.828Z",
+      "forced": false,
+      "notified": false,
+      "timeframes": {
+        "4h": {
+          "tf": "4h",
+          "ok": true,
+          "barKey": "2026-07-01T08:00:00.000Z",
+          "scanned": 504,
+          "fetchErrors": 6,
+          "counts": {
+            "up": 64,
+            "down": 18
+          },
+          "total": 82,
+          "notified": false,
+          "skippedReason": "already-notified",
+          "telegramSent": 0,
+          "preview": {
+            "up": [
+              "NATEN",
+              "AYEN",
+              "ISDMR",
+              "SEYKM",
+              "MEGAP",
+              "GARAN",
+              "ARSAN",
+              "TBORG",
+              "ISCTR",
+              "TKNSA"
+            ],
+            "down": [
+              "HEDEF",
+              "GLBMD",
+              "CCOLA",
+              "IEYHO",
+              "DEVA",
+              "MNDTR",
+              "OBASE",
+              "DITAS",
+              "TMSN",
+              "ORMA"
+            ]
+          }
+        },
+        "1d": {
+          "tf": "1d",
+          "ok": true,
+          "barKey": "2026-07-01",
+          "scanned": 504,
+          "fetchErrors": 6,
+          "counts": {
+            "up": 70,
+            "down": 11
+          },
+          "total": 81,
+          "notified": false,
+          "skippedReason": "already-notified",
+          "telegramSent": 0,
+          "preview": {
+            "up": [
+              "BOSSA",
+              "IZMDC",
+              "KSTUR",
+              "YESIL",
+              "DZGYO",
+              "PKENT",
+              "AKGRT",
+              "PENGD",
+              "VERTU",
+              "EKGYO"
+            ],
+            "down": [
+              "OZKGY",
+              "MAKIM",
+              "PAMEL",
+              "DESA",
+              "SELEC",
+              "ZEDUR",
+              "GLYHO",
+              "TMPOL",
+              "GOZDE",
+              "KRTEK"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "runAt": "2026-07-01T13:01:18.525Z",
+      "forced": false,
+      "notified": true,
+      "timeframes": {
+        "4h": {
+          "tf": "4h",
+          "ok": true,
+          "barKey": "2026-07-01T12:00:00.000Z",
+          "scanned": 504,
+          "fetchErrors": 6,
+          "counts": {
+            "up": 25,
+            "down": 8
+          },
+          "total": 33,
+          "notified": true,
+          "skippedReason": null,
+          "telegramSent": 1,
+          "preview": {
+            "up": [
+              "EDATA",
+              "CIMSA",
+              "ARSAN",
+              "KLRHO",
+              "TMSN",
+              "MEGAP",
+              "KAPLM",
+              "FADE",
+              "ELITE",
+              "MARTI"
+            ],
+            "down": [
+              "GRNYO",
+              "DURDO",
+              "ORMA",
+              "AKFGY",
+              "ESCOM",
+              "TRGYO",
+              "PAGYO",
+              "TSKB"
+            ]
+          }
+        },
+        "1d": {
+          "tf": "1d",
+          "ok": true,
+          "barKey": "2026-07-01",
+          "scanned": 504,
+          "fetchErrors": 6,
+          "counts": {
+            "up": 73,
+            "down": 10
+          },
+          "total": 83,
+          "notified": false,
+          "skippedReason": "already-notified",
+          "telegramSent": 0,
+          "preview": {
+            "up": [
+              "ALGYO",
+              "FROTO",
+              "KSTUR",
+              "ARZUM",
+              "LIDFA",
+              "AKGRT",
+              "KGYO",
+              "KONKA",
+              "ONRYT",
+              "ERBOS"
+            ],
+            "down": [
+              "MAKIM",
+              "OZKGY",
+              "PAMEL",
+              "GLYHO",
+              "SELEC",
+              "ZEDUR",
+              "DESA",
+              "KRTEK",
+              "AKSA",
+              "TMPOL"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "runAt": "2026-07-01T14:01:44.391Z",
+      "forced": false,
+      "notified": false,
+      "timeframes": {
+        "4h": {
+          "tf": "4h",
+          "ok": true,
+          "barKey": "2026-07-01T12:00:00.000Z",
+          "scanned": 504,
+          "fetchErrors": 6,
+          "counts": {
+            "up": 36,
+            "down": 19
+          },
+          "total": 55,
+          "notified": false,
+          "skippedReason": "already-notified",
+          "telegramSent": 0,
+          "preview": {
+            "up": [
+              "KARSN",
+              "ARSAN",
+              "GMTAS",
+              "ISDMR",
+              "CONSE",
+              "CCOLA",
+              "CATES",
+              "MEGAP",
+              "TAVHL",
+              "TKNSA"
+            ],
+            "down": [
+              "IDGYO",
+              "DURDO",
+              "DAGI",
+              "TLMAN",
+              "TRGYO",
+              "ORMA",
+              "ASTOR",
+              "DENGE",
+              "PAGYO",
+              "TUKAS"
+            ]
+          }
+        },
+        "1d": {
+          "tf": "1d",
+          "ok": true,
+          "barKey": "2026-07-01",
+          "scanned": 504,
+          "fetchErrors": 6,
+          "counts": {
+            "up": 72,
+            "down": 11
+          },
+          "total": 83,
+          "notified": false,
+          "skippedReason": "already-notified",
+          "telegramSent": 0,
+          "preview": {
+            "up": [
+              "MNDRS",
+              "KSTUR",
+              "YESIL",
+              "ONRYT",
+              "FROTO",
+              "EYGYO",
+              "RODRG",
+              "KONKA",
+              "PETUN",
+              "AKFGY"
+            ],
+            "down": [
+              "MAKIM",
+              "OZKGY",
+              "ZEDUR",
+              "PAMEL",
+              "DESA",
+              "GLYHO",
+              "SELEC",
+              "UNLU",
+              "AKSA",
+              "KRTEK"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "runAt": "2026-07-01T15:01:27.825Z",
+      "forced": false,
+      "notified": false,
+      "timeframes": {
+        "4h": {
+          "tf": "4h",
+          "ok": true,
+          "barKey": "2026-07-01T12:00:00.000Z",
+          "scanned": 504,
+          "fetchErrors": 6,
+          "counts": {
+            "up": 31,
+            "down": 31
+          },
+          "total": 62,
+          "notified": false,
+          "skippedReason": "already-notified",
+          "telegramSent": 0,
+          "preview": {
+            "up": [
+              "RGYAS",
+              "MEGAP",
+              "PNSUT",
+              "OBASE",
+              "HUBVC",
+              "FADE",
+              "YBTAS",
+              "OTTO",
+              "EDATA",
+              "ELITE"
+            ],
+            "down": [
+              "IDGYO",
+              "DURDO",
+              "DENGE",
+              "PAGYO",
+              "TSPOR",
+              "BOSSA",
+              "TLMAN",
+              "ASTOR",
+              "PETKM",
+              "BIOEN"
+            ]
+          }
+        },
+        "1d": {
+          "tf": "1d",
+          "ok": true,
+          "barKey": "2026-07-01",
+          "scanned": 504,
+          "fetchErrors": 6,
+          "counts": {
+            "up": 64,
+            "down": 15
+          },
+          "total": 79,
+          "notified": false,
+          "skippedReason": "already-notified",
+          "telegramSent": 0,
+          "preview": {
+            "up": [
+              "MZHLD",
+              "OZGYO",
+              "KSTUR",
+              "YESIL",
+              "AKGRT",
+              "YYLGD",
+              "PENGD",
+              "PETUN",
+              "NTGAZ",
+              "EKGYO"
+            ],
+            "down": [
+              "MAKIM",
+              "PAMEL",
+              "OZKGY",
+              "ZEDUR",
+              "SELEC",
+              "DESA",
+              "GLYHO",
+              "AKSA",
+              "KRTEK",
+              "ALARK"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "runAt": "2026-07-01T16:01:43.213Z",
+      "forced": false,
+      "notified": false,
+      "timeframes": {
+        "4h": {
+          "tf": "4h",
+          "ok": true,
+          "barKey": "2026-07-01T12:00:00.000Z",
+          "scanned": 504,
+          "fetchErrors": 6,
+          "counts": {
+            "up": 35,
+            "down": 40
+          },
+          "total": 75,
+          "notified": false,
+          "skippedReason": "already-notified",
+          "telegramSent": 0,
+          "preview": {
+            "up": [
+              "EUHOL",
+              "SEKFK",
+              "GMTAS",
+              "ATAGY",
+              "LUKSK",
+              "CIMSA",
+              "GOZDE",
+              "TBORG",
+              "DESPC",
+              "FORTE"
+            ],
+            "down": [
+              "BINHO",
+              "DURDO",
+              "BIOEN",
+              "ALARK",
+              "TSPOR",
+              "ASTOR",
+              "NATEN",
+              "TLMAN",
+              "PETKM",
+              "AZTEK"
+            ]
+          }
+        },
+        "1d": {
+          "tf": "1d",
+          "ok": true,
+          "barKey": "2026-07-01",
+          "scanned": 504,
+          "fetchErrors": 6,
+          "counts": {
+            "up": 64,
+            "down": 18
+          },
+          "total": 82,
+          "notified": false,
+          "skippedReason": "already-notified",
+          "telegramSent": 0,
+          "preview": {
+            "up": [
+              "YESIL",
+              "DZGYO",
+              "ERBOS",
+              "KLKIM",
+              "NTGAZ",
+              "PETUN",
+              "CRFSA",
+              "THYAO",
+              "EUHOL",
+              "YAYLA"
+            ],
+            "down": [
+              "MAKIM",
+              "OZKGY",
+              "PAMEL",
+              "SELEC",
+              "EKIZ",
+              "ZEDUR",
+              "DESA",
+              "GLYHO",
+              "ALARK",
+              "AKSA"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "runAt": "2026-07-02T07:02:35.358Z",
+      "forced": false,
+      "notified": false,
+      "timeframes": {
+        "4h": {
+          "tf": "4h",
+          "ok": true,
+          "barKey": "2026-07-01T12:00:00.000Z",
+          "scanned": 504,
+          "fetchErrors": 6,
+          "counts": {
+            "up": 36,
+            "down": 40
+          },
+          "total": 76,
+          "notified": false,
+          "skippedReason": "already-notified",
+          "telegramSent": 0,
+          "preview": {
+            "up": [
+              "EUHOL",
+              "SEKFK",
+              "GMTAS",
+              "ATAGY",
+              "LUKSK",
+              "CIMSA",
+              "GOZDE",
+              "TBORG",
+              "DESPC",
+              "FORTE"
+            ],
+            "down": [
+              "BINHO",
+              "DURDO",
+              "BIOEN",
+              "ALARK",
+              "TSPOR",
+              "ASTOR",
+              "NATEN",
+              "TLMAN",
+              "PETKM",
+              "AZTEK"
+            ]
+          }
+        },
+        "1d": {
+          "tf": "1d",
+          "ok": true,
+          "barKey": "2026-07-01",
+          "scanned": 504,
+          "fetchErrors": 6,
+          "counts": {
+            "up": 64,
+            "down": 18
+          },
+          "total": 82,
+          "notified": false,
+          "skippedReason": "already-notified",
+          "telegramSent": 0,
+          "preview": {
+            "up": [
+              "YESIL",
+              "DZGYO",
+              "ERBOS",
+              "KLKIM",
+              "NTGAZ",
+              "PETUN",
+              "CRFSA",
+              "THYAO",
+              "EUHOL",
+              "YAYLA"
+            ],
+            "down": [
+              "MAKIM",
+              "OZKGY",
+              "PAMEL",
+              "SELEC",
+              "EKIZ",
+              "ZEDUR",
+              "DESA",
+              "GLYHO",
+              "ALARK",
+              "AKSA"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "runAt": "2026-07-02T09:01:23.426Z",
+      "forced": false,
+      "notified": true,
+      "timeframes": {
+        "4h": {
+          "tf": "4h",
+          "ok": true,
+          "barKey": "2026-07-02T08:00:00.000Z",
+          "scanned": 504,
+          "fetchErrors": 6,
+          "counts": {
+            "up": 28,
+            "down": 6
+          },
+          "total": 34,
+          "notified": true,
+          "skippedReason": null,
+          "telegramSent": 1,
+          "preview": {
+            "up": [
+              "AKFGY",
+              "BORSK",
+              "ARCLK",
+              "YIGIT",
+              "LRSHO",
+              "MEGMT",
+              "SONME",
+              "TMSN",
+              "YESIL",
+              "GRSEL"
+            ],
+            "down": [
+              "ANELE",
+              "TRILC",
+              "TDGYO",
+              "YONGA",
+              "ALVES",
+              "GMTAS"
+            ]
+          }
+        },
+        "1d": {
+          "tf": "1d",
+          "ok": true,
+          "barKey": "2026-07-02",
+          "scanned": 504,
+          "fetchErrors": 6,
+          "counts": {
+            "up": 69,
+            "down": 11
+          },
+          "total": 80,
+          "notified": true,
+          "skippedReason": null,
+          "telegramSent": 1,
+          "preview": {
+            "up": [
+              "KRPLS",
+              "SRVGY",
+              "BIZIM",
+              "CIMSA",
+              "TURSG",
+              "DERHL",
+              "DOHOL",
+              "MEDTR",
+              "PAHOL",
+              "KRTEK"
+            ],
+            "down": [
+              "DMSAS",
+              "VERUS",
+              "INVES",
+              "SMART",
+              "TRGYO",
+              "CONSE",
+              "YAYLA",
+              "PAGYO",
+              "CRFSA",
+              "VESBE"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "runAt": "2026-07-02T10:01:25.364Z",
+      "forced": false,
+      "notified": false,
+      "timeframes": {
+        "4h": {
+          "tf": "4h",
+          "ok": true,
+          "barKey": "2026-07-02T08:00:00.000Z",
+          "scanned": 504,
+          "fetchErrors": 6,
+          "counts": {
+            "up": 29,
+            "down": 30
+          },
+          "total": 59,
+          "notified": false,
+          "skippedReason": "already-notified",
+          "telegramSent": 0,
+          "preview": {
+            "up": [
+              "LRSHO",
+              "TMSN",
+              "TKNSA",
+              "YEOTK",
+              "PETKM",
+              "EUHOL",
+              "SONME",
+              "AKFGY",
+              "BIOEN",
+              "GRSEL"
+            ],
+            "down": [
+              "AHGAZ",
+              "ENERY",
+              "ANELE",
+              "AKCNS",
+              "VERTU",
+              "BURCE",
+              "TRILC",
+              "TSPOR",
+              "YONGA",
+              "DOCO"
+            ]
+          }
+        },
+        "1d": {
+          "tf": "1d",
+          "ok": true,
+          "barKey": "2026-07-02",
+          "scanned": 504,
+          "fetchErrors": 6,
+          "counts": {
+            "up": 61,
+            "down": 15
+          },
+          "total": 76,
+          "notified": false,
+          "skippedReason": "already-notified",
+          "telegramSent": 0,
+          "preview": {
+            "up": [
+              "YAPRK",
+              "ECILC",
+              "GSRAY",
+              "TSKB",
+              "AKSEN",
+              "LRSHO",
+              "VAKFN",
+              "SONME",
+              "ASTOR",
+              "KRPLS"
+            ],
+            "down": [
+              "DMSAS",
+              "VERUS",
+              "INVES",
+              "SMART",
+              "AHGAZ",
+              "TRGYO",
+              "CRFSA",
+              "BORLS",
+              "CONSE",
+              "VESBE"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "runAt": "2026-07-02T11:01:39.012Z",
+      "forced": false,
+      "notified": false,
+      "timeframes": {
+        "4h": {
+          "tf": "4h",
+          "ok": true,
+          "barKey": "2026-07-02T08:00:00.000Z",
+          "scanned": 504,
+          "fetchErrors": 6,
+          "counts": {
+            "up": 21,
+            "down": 39
+          },
+          "total": 60,
+          "notified": false,
+          "skippedReason": "already-notified",
+          "telegramSent": 0,
+          "preview": {
+            "up": [
+              "AKFGY",
+              "BIOEN",
+              "MANAS",
+              "PAGYO",
+              "ODAS",
+              "GRSEL",
+              "YEOTK",
+              "AVTUR",
+              "OTKAR",
+              "VANGD"
+            ],
+            "down": [
+              "AHGAZ",
+              "ENERY",
+              "VERTU",
+              "AKCNS",
+              "AKSEN",
+              "KRONT",
+              "OSMEN",
+              "BURCE",
+              "TURSG",
+              "CRFSA"
+            ]
+          }
+        },
+        "1d": {
+          "tf": "1d",
+          "ok": true,
+          "barKey": "2026-07-02",
+          "scanned": 504,
+          "fetchErrors": 6,
+          "counts": {
+            "up": 59,
+            "down": 18
+          },
+          "total": 77,
+          "notified": false,
+          "skippedReason": "already-notified",
+          "telegramSent": 0,
+          "preview": {
+            "up": [
+              "GSRAY",
+              "MOBTL",
+              "KRPLS",
+              "BIENY",
+              "GUBRF",
+              "ECILC",
+              "CEMTS",
+              "TSKB",
+              "ADGYO",
+              "AKGRT"
+            ],
+            "down": [
+              "DMSAS",
+              "VERUS",
+              "INVES",
+              "SMART",
+              "AHGAZ",
+              "CRFSA",
+              "TRGYO",
+              "YAYLA",
+              "VESBE",
+              "CONSE"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "runAt": "2026-07-02T12:02:04.801Z",
+      "forced": false,
+      "notified": false,
+      "timeframes": {
+        "4h": {
+          "tf": "4h",
+          "ok": true,
+          "barKey": "2026-07-02T08:00:00.000Z",
+          "scanned": 504,
+          "fetchErrors": 6,
+          "counts": {
+            "up": 15,
+            "down": 61
+          },
+          "total": 76,
+          "notified": false,
+          "skippedReason": "already-notified",
+          "telegramSent": 0,
+          "preview": {
+            "up": [
+              "TMSN",
+              "GIPTA",
+              "AVTUR",
+              "GRSEL",
+              "TKNSA",
+              "OTKAR",
+              "OZSUB",
+              "YONGA",
+              "DURDO",
+              "ANGEN"
+            ],
+            "down": [
+              "AHGAZ",
+              "ENERY",
+              "KAPLM",
+              "VERTU",
+              "SODSN",
+              "AKSEN",
+              "BURCE",
+              "AKSA",
+              "INDES",
+              "TURSG"
+            ]
+          }
+        },
+        "1d": {
+          "tf": "1d",
+          "ok": true,
+          "barKey": "2026-07-02",
+          "scanned": 504,
+          "fetchErrors": 6,
+          "counts": {
+            "up": 48,
+            "down": 23
+          },
+          "total": 71,
+          "notified": false,
+          "skippedReason": "already-notified",
+          "telegramSent": 0,
+          "preview": {
+            "up": [
+              "ARCLK",
+              "SELEC",
+              "DERHL",
+              "GSRAY",
+              "EUREN",
+              "ISBIR",
+              "VAKFN",
+              "GENIL",
+              "LOGO",
+              "GUBRF"
+            ],
+            "down": [
+              "DMSAS",
+              "VERUS",
+              "INVES",
+              "SMART",
+              "AHGAZ",
+              "PAPIL",
+              "CRFSA",
+              "SKTAS",
+              "TRGYO",
+              "CONSE"
+            ]
+          }
+        }
+      }
+    }
+  ]
+}

@@ -1,1 +1,783 @@
-[]
+[
+  {
+    "id": "fbde56c9f21a",
+    "createdAt": "2026-06-13T20:36:27.062Z",
+    "symbol": "MEDTR",
+    "name": "Medical Park Sağlık Hizmetleri A.Ş.",
+    "status": "closed",
+    "entryDate": "2026-06-12",
+    "entryAt": "2026-06-13T20:36:27.059Z",
+    "entryPrice": 30.38,
+    "entryTema": 30.368,
+    "shares": 164.582,
+    "positionSizeTL": 5000,
+    "commissionPaid": 10,
+    "lastPrice": 30,
+    "lastTema": 30.2886,
+    "lastDate": "2026-06-16",
+    "notes": [
+      {
+        "time": "2026-06-13T20:36:27.060Z",
+        "action": "signal",
+        "text": "MEDTR günlük kapanışı 30.38 TL — TEMA34 30.37 TL'nin üzerine çıktı (kesişim)."
+      },
+      {
+        "time": "2026-06-13T20:36:27.060Z",
+        "action": "entry",
+        "text": "30.38 TL kapanış fiyatından alındı — 164.582 adet, 5000.00 TL, komisyon 10.00 TL."
+      },
+      {
+        "time": "2026-06-16T15:30:47.701Z",
+        "action": "exit",
+        "text": "Günlük kapanış 30.00 TL — TEMA34 30.29 TL'nin altına indi, satıldı. Net P&L: -82.41 TL (%-1.64)."
+      }
+    ],
+    "exitDate": "2026-06-16",
+    "exitAt": "2026-06-16T15:30:47.701Z",
+    "exitPrice": 30,
+    "exitTema": 30.2886,
+    "exitReason": "tema34_below",
+    "closingCommission": 9.87,
+    "realizedPnL": -82.41,
+    "realizedPnLPct": -1.64,
+    "recordedAt": "2026-06-16T15:30:47.705Z"
+  },
+  {
+    "id": "1aa4fb36f6e4",
+    "createdAt": "2026-06-13T20:36:27.099Z",
+    "symbol": "MARTI",
+    "name": "Martı Otel İşletmeleri A.Ş.",
+    "status": "closed",
+    "entryDate": "2026-06-12",
+    "entryAt": "2026-06-13T20:36:27.096Z",
+    "entryPrice": 1.88,
+    "entryTema": 1.8774,
+    "shares": 2279.5327,
+    "positionSizeTL": 4285.52,
+    "commissionPaid": 8.57,
+    "lastPrice": 1.86,
+    "lastTema": 1.8693,
+    "lastDate": "2026-06-16",
+    "notes": [
+      {
+        "time": "2026-06-13T20:36:27.096Z",
+        "action": "signal",
+        "text": "MARTI günlük kapanışı 1.88 TL — TEMA34 1.88 TL'nin üzerine çıktı (kesişim)."
+      },
+      {
+        "time": "2026-06-13T20:36:27.096Z",
+        "action": "entry",
+        "text": "1.88 TL kapanış fiyatından alındı — 2279.5327 adet, 4285.52 TL, komisyon 8.57 TL."
+      },
+      {
+        "time": "2026-06-16T15:30:47.851Z",
+        "action": "exit",
+        "text": "Günlük kapanış 1.86 TL — TEMA34 1.87 TL'nin altına indi, satıldı. Net P&L: -62.64 TL (%-1.46)."
+      }
+    ],
+    "exitDate": "2026-06-16",
+    "exitAt": "2026-06-16T15:30:47.851Z",
+    "exitPrice": 1.86,
+    "exitTema": 1.8693,
+    "exitReason": "tema34_below",
+    "closingCommission": 8.48,
+    "realizedPnL": -62.64,
+    "realizedPnLPct": -1.46,
+    "recordedAt": "2026-06-16T15:30:47.851Z"
+  },
+  {
+    "id": "28b9676cbdfd",
+    "createdAt": "2026-06-13T20:36:27.118Z",
+    "symbol": "IDGYO",
+    "name": "İdealist Gayrimenkul Yatırım Ortaklığı A.Ş.",
+    "status": "closed",
+    "entryDate": "2026-06-12",
+    "entryAt": "2026-06-13T20:36:27.116Z",
+    "entryPrice": 4.99,
+    "entryTema": 4.9815,
+    "shares": 815.795,
+    "positionSizeTL": 4070.82,
+    "commissionPaid": 8.14,
+    "lastPrice": 4.8,
+    "lastTema": 5.0497,
+    "lastDate": "2026-06-16",
+    "notes": [
+      {
+        "time": "2026-06-13T20:36:27.116Z",
+        "action": "signal",
+        "text": "IDGYO günlük kapanışı 4.99 TL — TEMA34 4.98 TL'nin üzerine çıktı (kesişim)."
+      },
+      {
+        "time": "2026-06-13T20:36:27.116Z",
+        "action": "entry",
+        "text": "4.99 TL kapanış fiyatından alındı — 815.795 adet, 4070.82 TL, komisyon 8.14 TL."
+      },
+      {
+        "time": "2026-06-16T15:30:47.878Z",
+        "action": "exit",
+        "text": "Günlük kapanış 4.80 TL — TEMA34 5.05 TL'nin altına indi, satıldı. Net P&L: -170.97 TL (%-4.19)."
+      }
+    ],
+    "exitDate": "2026-06-16",
+    "exitAt": "2026-06-16T15:30:47.878Z",
+    "exitPrice": 4.8,
+    "exitTema": 5.0497,
+    "exitReason": "tema34_below",
+    "closingCommission": 7.83,
+    "realizedPnL": -170.97,
+    "realizedPnLPct": -4.19,
+    "recordedAt": "2026-06-16T15:30:47.878Z"
+  },
+  {
+    "id": "1b05a59a4f72",
+    "createdAt": "2026-06-13T20:36:27.216Z",
+    "symbol": "MEGAP",
+    "name": "Mega Polietilen Köpük Sanayi ve Ticaret A.Ş.",
+    "status": "closed",
+    "entryDate": "2026-06-12",
+    "entryAt": "2026-06-13T20:36:27.214Z",
+    "entryPrice": 2.42,
+    "entryTema": 2.4121,
+    "shares": 1173.8467,
+    "positionSizeTL": 2840.71,
+    "commissionPaid": 5.68,
+    "lastPrice": 2.4,
+    "lastTema": 2.4038,
+    "lastDate": "2026-06-16",
+    "notes": [
+      {
+        "time": "2026-06-13T20:36:27.214Z",
+        "action": "signal",
+        "text": "MEGAP günlük kapanışı 2.42 TL — TEMA34 2.41 TL'nin üzerine çıktı (kesişim)."
+      },
+      {
+        "time": "2026-06-13T20:36:27.214Z",
+        "action": "entry",
+        "text": "2.42 TL kapanış fiyatından alındı — 1173.8467 adet, 2840.71 TL, komisyon 5.68 TL."
+      },
+      {
+        "time": "2026-06-16T15:30:47.921Z",
+        "action": "exit",
+        "text": "Günlük kapanış 2.40 TL — TEMA34 2.40 TL'nin altına indi, satıldı. Net P&L: -34.79 TL (%-1.22)."
+      }
+    ],
+    "exitDate": "2026-06-16",
+    "exitAt": "2026-06-16T15:30:47.921Z",
+    "exitPrice": 2.4,
+    "exitTema": 2.4038,
+    "exitReason": "tema34_below",
+    "closingCommission": 5.63,
+    "realizedPnL": -34.79,
+    "realizedPnLPct": -1.22,
+    "recordedAt": "2026-06-16T15:30:47.921Z"
+  },
+  {
+    "id": "f7c769a53542",
+    "createdAt": "2026-06-13T20:36:27.279Z",
+    "symbol": "ANELE",
+    "name": "Anel Elektrik Proje Taahhüt ve Ticaret A.Ş.",
+    "status": "closed",
+    "entryDate": "2026-06-12",
+    "entryAt": "2026-06-13T20:36:27.277Z",
+    "entryPrice": 109,
+    "entryTema": 108.4782,
+    "shares": 19.1455,
+    "positionSizeTL": 2086.86,
+    "commissionPaid": 4.17,
+    "lastPrice": 113,
+    "lastTema": 113.4354,
+    "lastDate": "2026-06-16",
+    "notes": [
+      {
+        "time": "2026-06-13T20:36:27.277Z",
+        "action": "signal",
+        "text": "ANELE günlük kapanışı 109.00 TL — TEMA34 108.48 TL'nin üzerine çıktı (kesişim)."
+      },
+      {
+        "time": "2026-06-13T20:36:27.277Z",
+        "action": "entry",
+        "text": "109.00 TL kapanış fiyatından alındı — 19.1455 adet, 2086.86 TL, komisyon 4.17 TL."
+      },
+      {
+        "time": "2026-06-16T15:30:47.965Z",
+        "action": "exit",
+        "text": "Günlük kapanış 113.00 TL — TEMA34 113.44 TL'nin altına indi, satıldı. Net P&L: +68.08 TL (%3.26)."
+      }
+    ],
+    "exitDate": "2026-06-16",
+    "exitAt": "2026-06-16T15:30:47.965Z",
+    "exitPrice": 113,
+    "exitTema": 113.4354,
+    "exitReason": "tema34_below",
+    "closingCommission": 4.33,
+    "realizedPnL": 68.08,
+    "realizedPnLPct": 3.26,
+    "recordedAt": "2026-06-16T15:30:47.965Z"
+  },
+  {
+    "id": "89b389fa8cea",
+    "createdAt": "2026-06-13T20:36:27.289Z",
+    "symbol": "POLTK",
+    "name": "Politek Metal Sanayi ve Ticaret A.Ş.",
+    "status": "closed",
+    "entryDate": "2026-06-12",
+    "entryAt": "2026-06-13T20:36:27.287Z",
+    "entryPrice": 5027.5,
+    "entryTema": 5002.9731,
+    "shares": 0.3943,
+    "positionSizeTL": 1982.34,
+    "commissionPaid": 3.96,
+    "lastPrice": 5000,
+    "lastTema": 5001.1241,
+    "lastDate": "2026-06-16",
+    "notes": [
+      {
+        "time": "2026-06-13T20:36:27.287Z",
+        "action": "signal",
+        "text": "POLTK günlük kapanışı 5027.50 TL — TEMA34 5002.97 TL'nin üzerine çıktı (kesişim)."
+      },
+      {
+        "time": "2026-06-13T20:36:27.287Z",
+        "action": "entry",
+        "text": "5027.50 TL kapanış fiyatından alındı — 0.3943 adet, 1982.34 TL, komisyon 3.96 TL."
+      },
+      {
+        "time": "2026-06-16T15:30:47.975Z",
+        "action": "exit",
+        "text": "Günlük kapanış 5000.00 TL — TEMA34 5001.12 TL'nin altına indi, satıldı. Net P&L: -18.74 TL (%-0.94)."
+      }
+    ],
+    "exitDate": "2026-06-16",
+    "exitAt": "2026-06-16T15:30:47.975Z",
+    "exitPrice": 5000,
+    "exitTema": 5001.1241,
+    "exitReason": "tema34_below",
+    "closingCommission": 3.94,
+    "realizedPnL": -18.74,
+    "realizedPnLPct": -0.94,
+    "recordedAt": "2026-06-16T15:30:47.976Z"
+  },
+  {
+    "id": "ed235ec9b9ce",
+    "createdAt": "2026-06-13T20:36:27.321Z",
+    "symbol": "BIGCH",
+    "name": "Big Chef Restoran İşletmeleri A.Ş.",
+    "status": "closed",
+    "entryDate": "2026-06-12",
+    "entryAt": "2026-06-13T20:36:27.319Z",
+    "entryPrice": 6.71,
+    "entryTema": 6.6633,
+    "shares": 240.5251,
+    "positionSizeTL": 1613.92,
+    "commissionPaid": 3.23,
+    "lastPrice": 6.67,
+    "lastTema": 6.6709,
+    "lastDate": "2026-06-16",
+    "notes": [
+      {
+        "time": "2026-06-13T20:36:27.319Z",
+        "action": "signal",
+        "text": "BIGCH günlük kapanışı 6.71 TL — TEMA34 6.66 TL'nin üzerine çıktı (kesişim)."
+      },
+      {
+        "time": "2026-06-13T20:36:27.319Z",
+        "action": "entry",
+        "text": "6.71 TL kapanış fiyatından alındı — 240.5251 adet, 1613.92 TL, komisyon 3.23 TL."
+      },
+      {
+        "time": "2026-06-16T15:30:47.991Z",
+        "action": "exit",
+        "text": "Günlük kapanış 6.67 TL — TEMA34 6.67 TL'nin altına indi, satıldı. Net P&L: -16.06 TL (%-0.99)."
+      }
+    ],
+    "exitDate": "2026-06-16",
+    "exitAt": "2026-06-16T15:30:47.991Z",
+    "exitPrice": 6.67,
+    "exitTema": 6.6709,
+    "exitReason": "tema34_below",
+    "closingCommission": 3.21,
+    "realizedPnL": -16.06,
+    "realizedPnLPct": -0.99,
+    "recordedAt": "2026-06-16T15:30:47.991Z"
+  },
+  {
+    "id": "4e883e2215cb",
+    "createdAt": "2026-06-13T20:36:27.331Z",
+    "symbol": "AYES",
+    "name": "Ayes Çelik Hasır ve Çit Sanayi A.Ş.",
+    "status": "closed",
+    "entryDate": "2026-06-12",
+    "entryAt": "2026-06-13T20:36:27.328Z",
+    "entryPrice": 34.96,
+    "entryTema": 34.7133,
+    "shares": 43.852,
+    "positionSizeTL": 1533.07,
+    "commissionPaid": 3.07,
+    "lastPrice": 33.72,
+    "lastTema": 34.7437,
+    "lastDate": "2026-06-16",
+    "notes": [
+      {
+        "time": "2026-06-13T20:36:27.328Z",
+        "action": "signal",
+        "text": "AYES günlük kapanışı 34.96 TL — TEMA34 34.71 TL'nin üzerine çıktı (kesişim)."
+      },
+      {
+        "time": "2026-06-13T20:36:27.328Z",
+        "action": "entry",
+        "text": "34.96 TL kapanış fiyatından alındı — 43.852 adet, 1533.07 TL, komisyon 3.07 TL."
+      },
+      {
+        "time": "2026-06-16T15:30:47.996Z",
+        "action": "exit",
+        "text": "Günlük kapanış 33.72 TL — TEMA34 34.74 TL'nin altına indi, satıldı. Net P&L: -60.41 TL (%-3.93)."
+      }
+    ],
+    "exitDate": "2026-06-16",
+    "exitAt": "2026-06-16T15:30:47.996Z",
+    "exitPrice": 33.72,
+    "exitTema": 34.7437,
+    "exitReason": "tema34_below",
+    "closingCommission": 2.96,
+    "realizedPnL": -60.41,
+    "realizedPnLPct": -3.93,
+    "recordedAt": "2026-06-16T15:30:47.996Z"
+  },
+  {
+    "id": "54af4ac0528c",
+    "createdAt": "2026-06-13T20:36:27.227Z",
+    "symbol": "CASA",
+    "name": "Casa Emtia Petrol Kimya Sanayi ve Ticaret A.Ş.",
+    "status": "closed",
+    "entryDate": "2026-06-12",
+    "entryAt": "2026-06-13T20:36:27.224Z",
+    "entryPrice": 82,
+    "entryTema": 81.7119,
+    "shares": 32.9072,
+    "positionSizeTL": 2698.39,
+    "commissionPaid": 5.4,
+    "lastPrice": 79.9,
+    "lastTema": 79.9601,
+    "lastDate": "2026-06-18",
+    "notes": [
+      {
+        "time": "2026-06-13T20:36:27.224Z",
+        "action": "signal",
+        "text": "CASA günlük kapanışı 82.00 TL — TEMA34 81.71 TL'nin üzerine çıktı (kesişim)."
+      },
+      {
+        "time": "2026-06-13T20:36:27.224Z",
+        "action": "entry",
+        "text": "82.00 TL kapanış fiyatından alındı — 32.9072 adet, 2698.39 TL, komisyon 5.40 TL."
+      },
+      {
+        "time": "2026-06-18T15:30:17.402Z",
+        "action": "exit",
+        "text": "Günlük kapanış 79.90 TL — TEMA34 79.96 TL'nin altına indi, satıldı. Net P&L: -79.76 TL (%-2.95)."
+      }
+    ],
+    "updatedAt": "2026-06-16T15:30:47.934Z",
+    "exitDate": "2026-06-18",
+    "exitAt": "2026-06-18T15:30:17.402Z",
+    "exitPrice": 79.9,
+    "exitTema": 79.9601,
+    "exitReason": "tema34_below",
+    "closingCommission": 5.26,
+    "realizedPnL": -79.76,
+    "realizedPnLPct": -2.95,
+    "recordedAt": "2026-06-18T15:30:17.402Z"
+  },
+  {
+    "id": "0184e9ba0445",
+    "createdAt": "2026-06-16T15:30:48.074Z",
+    "symbol": "TUCLK",
+    "name": "Tuğçelik Alüminyum ve Metal Mamülleri Sanayi ve Ticaret A.Ş.",
+    "status": "closed",
+    "entryDate": "2026-06-16",
+    "entryAt": "2026-06-16T15:30:48.073Z",
+    "entryPrice": 4.34,
+    "entryTema": 4.3373,
+    "shares": 512.4226,
+    "positionSizeTL": 2223.91,
+    "commissionPaid": 4.45,
+    "lastPrice": 4.24,
+    "lastTema": 4.3105,
+    "lastDate": "2026-06-18",
+    "notes": [
+      {
+        "time": "2026-06-16T15:30:48.073Z",
+        "action": "signal",
+        "text": "TUCLK günlük kapanışı 4.34 TL — TEMA34 4.34 TL'nin üzerine çıktı (kesişim)."
+      },
+      {
+        "time": "2026-06-16T15:30:48.073Z",
+        "action": "entry",
+        "text": "4.34 TL kapanış fiyatından alındı — 512.4226 adet, 2223.91 TL, komisyon 4.45 TL."
+      },
+      {
+        "time": "2026-06-18T15:30:17.413Z",
+        "action": "exit",
+        "text": "Günlük kapanış 4.24 TL — TEMA34 4.31 TL'nin altına indi, satıldı. Net P&L: -60.04 TL (%-2.69)."
+      }
+    ],
+    "exitDate": "2026-06-18",
+    "exitAt": "2026-06-18T15:30:17.413Z",
+    "exitPrice": 4.24,
+    "exitTema": 4.3105,
+    "exitReason": "tema34_below",
+    "closingCommission": 4.35,
+    "realizedPnL": -60.04,
+    "realizedPnLPct": -2.69,
+    "recordedAt": "2026-06-18T15:30:17.413Z"
+  },
+  {
+    "id": "4863d92da9ad",
+    "createdAt": "2026-06-16T15:30:48.085Z",
+    "symbol": "MZHLD",
+    "name": "Mazhar Zorlu Holding A.Ş.",
+    "status": "closed",
+    "entryDate": "2026-06-16",
+    "entryAt": "2026-06-16T15:30:48.085Z",
+    "entryPrice": 6.04,
+    "entryTema": 6.0234,
+    "shares": 315.5841,
+    "positionSizeTL": 1906.13,
+    "commissionPaid": 3.81,
+    "lastPrice": 5.98,
+    "lastTema": 5.9903,
+    "lastDate": "2026-06-18",
+    "notes": [
+      {
+        "time": "2026-06-16T15:30:48.085Z",
+        "action": "signal",
+        "text": "MZHLD günlük kapanışı 6.04 TL — TEMA34 6.02 TL'nin üzerine çıktı (kesişim)."
+      },
+      {
+        "time": "2026-06-16T15:30:48.085Z",
+        "action": "entry",
+        "text": "6.04 TL kapanış fiyatından alındı — 315.5841 adet, 1906.13 TL, komisyon 3.81 TL."
+      },
+      {
+        "time": "2026-06-18T15:30:17.415Z",
+        "action": "exit",
+        "text": "Günlük kapanış 5.98 TL — TEMA34 5.99 TL'nin altına indi, satıldı. Net P&L: -26.52 TL (%-1.39)."
+      }
+    ],
+    "exitDate": "2026-06-18",
+    "exitAt": "2026-06-18T15:30:17.415Z",
+    "exitPrice": 5.98,
+    "exitTema": 5.9903,
+    "exitReason": "tema34_below",
+    "closingCommission": 3.77,
+    "realizedPnL": -26.52,
+    "realizedPnLPct": -1.39,
+    "recordedAt": "2026-06-18T15:30:17.416Z"
+  },
+  {
+    "id": "6cac9f2c8b31",
+    "createdAt": "2026-06-13T20:36:27.138Z",
+    "symbol": "TLMAN",
+    "name": "Trabzon Liman İşletmeciliği A.Ş.",
+    "status": "closed",
+    "entryDate": "2026-06-12",
+    "entryAt": "2026-06-13T20:36:27.134Z",
+    "entryPrice": 100.3,
+    "entryTema": 100.0923,
+    "shares": 38.553,
+    "positionSizeTL": 3866.87,
+    "commissionPaid": 7.73,
+    "lastPrice": 100.4,
+    "lastTema": 101.6393,
+    "lastDate": "2026-06-19",
+    "notes": [
+      {
+        "time": "2026-06-13T20:36:27.134Z",
+        "action": "signal",
+        "text": "TLMAN günlük kapanışı 100.30 TL — TEMA34 100.09 TL'nin üzerine çıktı (kesişim)."
+      },
+      {
+        "time": "2026-06-13T20:36:27.134Z",
+        "action": "entry",
+        "text": "100.30 TL kapanış fiyatından alındı — 38.553 adet, 3866.87 TL, komisyon 7.73 TL."
+      },
+      {
+        "time": "2026-06-19T15:30:45.660Z",
+        "action": "exit",
+        "text": "Günlük kapanış 100.40 TL — TEMA34 101.64 TL'nin altına indi, satıldı. Net P&L: -11.62 TL (%-0.30)."
+      }
+    ],
+    "updatedAt": "2026-06-18T15:30:17.399Z",
+    "exitDate": "2026-06-19",
+    "exitAt": "2026-06-19T15:30:45.660Z",
+    "exitPrice": 100.4,
+    "exitTema": 101.6393,
+    "exitReason": "tema34_below",
+    "closingCommission": 7.74,
+    "realizedPnL": -11.62,
+    "realizedPnLPct": -0.3,
+    "recordedAt": "2026-06-19T15:30:45.661Z"
+  },
+  {
+    "id": "88b7f7a12622",
+    "createdAt": "2026-06-13T20:36:27.202Z",
+    "symbol": "AEFES",
+    "name": "Anadolu Efes Biracılık ve Malt Sanayii A.Ş.",
+    "status": "closed",
+    "entryDate": "2026-06-12",
+    "entryAt": "2026-06-13T20:36:27.200Z",
+    "entryPrice": 20.4,
+    "entryTema": 20.3393,
+    "shares": 146.5948,
+    "positionSizeTL": 2990.53,
+    "commissionPaid": 5.98,
+    "lastPrice": 21.02,
+    "lastTema": 21.045,
+    "lastDate": "2026-06-19",
+    "notes": [
+      {
+        "time": "2026-06-13T20:36:27.200Z",
+        "action": "signal",
+        "text": "AEFES günlük kapanışı 20.40 TL — TEMA34 20.34 TL'nin üzerine çıktı (kesişim)."
+      },
+      {
+        "time": "2026-06-13T20:36:27.200Z",
+        "action": "entry",
+        "text": "20.40 TL kapanış fiyatından alındı — 146.5948 adet, 2990.53 TL, komisyon 5.98 TL."
+      },
+      {
+        "time": "2026-06-19T15:30:45.671Z",
+        "action": "exit",
+        "text": "Günlük kapanış 21.02 TL — TEMA34 21.05 TL'nin altına indi, satıldı. Net P&L: +78.75 TL (%2.63)."
+      }
+    ],
+    "updatedAt": "2026-06-18T15:30:17.402Z",
+    "exitDate": "2026-06-19",
+    "exitAt": "2026-06-19T15:30:45.671Z",
+    "exitPrice": 21.02,
+    "exitTema": 21.045,
+    "exitReason": "tema34_below",
+    "closingCommission": 6.16,
+    "realizedPnL": 78.75,
+    "realizedPnLPct": 2.63,
+    "recordedAt": "2026-06-19T15:30:45.671Z"
+  },
+  {
+    "id": "3019c353c9c0",
+    "createdAt": "2026-06-13T20:36:27.248Z",
+    "symbol": "VERUS",
+    "name": "Verusaturk Girişim Sermayesi Yatırım Ortaklığı A.Ş.",
+    "status": "closed",
+    "entryDate": "2026-06-12",
+    "entryAt": "2026-06-13T20:36:27.246Z",
+    "entryPrice": 618,
+    "entryTema": 615.3711,
+    "shares": 3.9398,
+    "positionSizeTL": 2434.8,
+    "commissionPaid": 4.87,
+    "lastPrice": 626,
+    "lastTema": 666.7339,
+    "lastDate": "2026-06-19",
+    "notes": [
+      {
+        "time": "2026-06-13T20:36:27.246Z",
+        "action": "signal",
+        "text": "VERUS günlük kapanışı 618.00 TL — TEMA34 615.37 TL'nin üzerine çıktı (kesişim)."
+      },
+      {
+        "time": "2026-06-13T20:36:27.246Z",
+        "action": "entry",
+        "text": "618.00 TL kapanış fiyatından alındı — 3.9398 adet, 2434.80 TL, komisyon 4.87 TL."
+      },
+      {
+        "time": "2026-06-19T15:30:45.677Z",
+        "action": "exit",
+        "text": "Günlük kapanış 626.00 TL — TEMA34 666.73 TL'nin altına indi, satıldı. Net P&L: +21.71 TL (%0.89)."
+      }
+    ],
+    "updatedAt": "2026-06-18T15:30:17.405Z",
+    "exitDate": "2026-06-19",
+    "exitAt": "2026-06-19T15:30:45.677Z",
+    "exitPrice": 626,
+    "exitTema": 666.7339,
+    "exitReason": "tema34_below",
+    "closingCommission": 4.93,
+    "realizedPnL": 21.71,
+    "realizedPnLPct": 0.89,
+    "recordedAt": "2026-06-19T15:30:45.677Z"
+  },
+  {
+    "id": "e6d026971c85",
+    "createdAt": "2026-06-16T15:30:48.089Z",
+    "symbol": "IHGZT",
+    "name": "İhlas Gazetecilik A.Ş.",
+    "status": "closed",
+    "entryDate": "2026-06-16",
+    "entryAt": "2026-06-16T15:30:48.089Z",
+    "entryPrice": 1.38,
+    "entryTema": 1.3757,
+    "shares": 1312.0514,
+    "positionSizeTL": 1810.63,
+    "commissionPaid": 3.62,
+    "lastPrice": 1.36,
+    "lastTema": 1.3604,
+    "lastDate": "2026-06-19",
+    "notes": [
+      {
+        "time": "2026-06-16T15:30:48.089Z",
+        "action": "signal",
+        "text": "IHGZT günlük kapanışı 1.38 TL — TEMA34 1.38 TL'nin üzerine çıktı (kesişim)."
+      },
+      {
+        "time": "2026-06-16T15:30:48.089Z",
+        "action": "entry",
+        "text": "1.38 TL kapanış fiyatından alındı — 1312.0514 adet, 1810.63 TL, komisyon 3.62 TL."
+      },
+      {
+        "time": "2026-06-19T15:30:45.762Z",
+        "action": "exit",
+        "text": "Günlük kapanış 1.36 TL — TEMA34 1.36 TL'nin altına indi, satıldı. Net P&L: -33.43 TL (%-1.84)."
+      }
+    ],
+    "updatedAt": "2026-06-18T15:30:17.417Z",
+    "exitDate": "2026-06-19",
+    "exitAt": "2026-06-19T15:30:45.762Z",
+    "exitPrice": 1.36,
+    "exitTema": 1.3604,
+    "exitReason": "tema34_below",
+    "closingCommission": 3.57,
+    "realizedPnL": -33.43,
+    "realizedPnLPct": -1.84,
+    "recordedAt": "2026-06-19T15:30:45.762Z"
+  },
+  {
+    "id": "72d8159f26e6",
+    "createdAt": "2026-06-16T15:30:48.124Z",
+    "symbol": "BUCIM",
+    "name": "Bursa Çimento Fabrikası A.Ş.",
+    "status": "closed",
+    "entryDate": "2026-06-16",
+    "entryAt": "2026-06-16T15:30:48.124Z",
+    "entryPrice": 6.04,
+    "entryTema": 6.0117,
+    "shares": 270.4885,
+    "positionSizeTL": 1633.75,
+    "commissionPaid": 3.27,
+    "lastPrice": 6,
+    "lastTema": 6.0043,
+    "lastDate": "2026-06-19",
+    "notes": [
+      {
+        "time": "2026-06-16T15:30:48.124Z",
+        "action": "signal",
+        "text": "BUCIM günlük kapanışı 6.04 TL — TEMA34 6.01 TL'nin üzerine çıktı (kesişim)."
+      },
+      {
+        "time": "2026-06-16T15:30:48.124Z",
+        "action": "entry",
+        "text": "6.04 TL kapanış fiyatından alındı — 270.4885 adet, 1633.75 TL, komisyon 3.27 TL."
+      },
+      {
+        "time": "2026-06-19T15:30:45.764Z",
+        "action": "exit",
+        "text": "Günlük kapanış 6.00 TL — TEMA34 6.00 TL'nin altına indi, satıldı. Net P&L: -17.34 TL (%-1.06)."
+      }
+    ],
+    "updatedAt": "2026-06-18T15:30:17.418Z",
+    "exitDate": "2026-06-19",
+    "exitAt": "2026-06-19T15:30:45.764Z",
+    "exitPrice": 6,
+    "exitTema": 6.0043,
+    "exitReason": "tema34_below",
+    "closingCommission": 3.25,
+    "realizedPnL": -17.34,
+    "realizedPnLPct": -1.06,
+    "recordedAt": "2026-06-19T15:30:45.764Z"
+  },
+  {
+    "id": "2b2d039a50e1",
+    "createdAt": "2026-06-16T15:30:48.135Z",
+    "symbol": "GSRAY",
+    "name": "Galatasaray Sportif Sınai ve Ticari Yatırımlar A.Ş.",
+    "status": "closed",
+    "entryDate": "2026-06-16",
+    "entryAt": "2026-06-16T15:30:48.135Z",
+    "entryPrice": 1.07,
+    "entryTema": 1.0647,
+    "shares": 1450.3734,
+    "positionSizeTL": 1551.9,
+    "commissionPaid": 3.1,
+    "lastPrice": 1.05,
+    "lastTema": 1.0555,
+    "lastDate": "2026-06-19",
+    "notes": [
+      {
+        "time": "2026-06-16T15:30:48.135Z",
+        "action": "signal",
+        "text": "GSRAY günlük kapanışı 1.07 TL — TEMA34 1.06 TL'nin üzerine çıktı (kesişim)."
+      },
+      {
+        "time": "2026-06-16T15:30:48.135Z",
+        "action": "entry",
+        "text": "1.07 TL kapanış fiyatından alındı — 1450.3734 adet, 1551.90 TL, komisyon 3.10 TL."
+      },
+      {
+        "time": "2026-06-19T15:30:45.765Z",
+        "action": "exit",
+        "text": "Günlük kapanış 1.05 TL — TEMA34 1.06 TL'nin altına indi, satıldı. Net P&L: -35.16 TL (%-2.26)."
+      }
+    ],
+    "updatedAt": "2026-06-18T15:30:17.419Z",
+    "exitDate": "2026-06-19",
+    "exitAt": "2026-06-19T15:30:45.765Z",
+    "exitPrice": 1.05,
+    "exitTema": 1.0555,
+    "exitReason": "tema34_below",
+    "closingCommission": 3.05,
+    "realizedPnL": -35.16,
+    "realizedPnLPct": -2.26,
+    "recordedAt": "2026-06-19T15:30:45.765Z"
+  },
+  {
+    "id": "9bfe68d85606",
+    "createdAt": "2026-06-18T15:30:17.437Z",
+    "symbol": "SODSN",
+    "name": "Sodaş Sodyum Sanayii A.Ş.",
+    "status": "closed",
+    "entryDate": "2026-06-18",
+    "entryAt": "2026-06-18T15:30:17.437Z",
+    "entryPrice": 8.93,
+    "entryTema": 8.9271,
+    "shares": 192.3135,
+    "positionSizeTL": 1717.36,
+    "commissionPaid": 3.43,
+    "lastPrice": 8.83,
+    "lastTema": 8.8833,
+    "lastDate": "2026-06-19",
+    "notes": [
+      {
+        "time": "2026-06-18T15:30:17.437Z",
+        "action": "signal",
+        "text": "SODSN günlük kapanışı 8.93 TL — TEMA34 8.93 TL'nin üzerine çıktı (kesişim)."
+      },
+      {
+        "time": "2026-06-18T15:30:17.437Z",
+        "action": "entry",
+        "text": "8.93 TL kapanış fiyatından alındı — 192.3135 adet, 1717.36 TL, komisyon 3.43 TL."
+      },
+      {
+        "time": "2026-06-19T15:30:45.767Z",
+        "action": "exit",
+        "text": "Günlük kapanış 8.83 TL — TEMA34 8.88 TL'nin altına indi, satıldı. Net P&L: -26.06 TL (%-1.51)."
+      }
+    ],
+    "exitDate": "2026-06-19",
+    "exitAt": "2026-06-19T15:30:45.767Z",
+    "exitPrice": 8.83,
+    "exitTema": 8.8833,
+    "exitReason": "tema34_below",
+    "closingCommission": 3.4,
+    "realizedPnL": -26.06,
+    "realizedPnLPct": -1.51,
+    "recordedAt": "2026-06-19T15:30:45.767Z"
+  }
+]

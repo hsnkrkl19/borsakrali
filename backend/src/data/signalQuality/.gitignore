@@ -1,0 +1,3 @@
+# signalQuality runtime durumu — repoya GİRMEZ (öğrenilen kalibrasyon + shadow loglar)
+calibration.json
+shadow-*.jsonl

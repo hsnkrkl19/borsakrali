@@ -1,0 +1,24 @@
+{
+  "date": "2026-07-03",
+  "intraday": [
+    {
+      "phase": "intraday",
+      "generatedAt": "2026-07-03T04:57:55.493Z",
+      "universeSize": 100,
+      "tradableCount": 100,
+      "analyzedCount": 0,
+      "spot_long": {
+        "signals": [],
+        "allSignals": []
+      },
+      "futures_long": {
+        "signals": [],
+        "allSignals": []
+      },
+      "futures_short": {
+        "signals": [],
+        "allSignals": []
+      }
+    }
+  ]
+}

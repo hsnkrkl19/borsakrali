@@ -1,0 +1,43 @@
+{
+  "date": "2026-06-08",
+  "intraday": [
+    {
+      "phase": "intraday",
+      "generatedAt": "2026-06-08T19:55:15.754Z",
+      "universeSize": 100,
+      "tradableCount": 100,
+      "analyzedCount": 0,
+      "spot_long": {
+        "signals": [],
+        "allSignals": []
+      },
+      "futures_long": {
+        "signals": [],
+        "allSignals": []
+      },
+      "futures_short": {
+        "signals": [],
+        "allSignals": []
+      }
+    },
+    {
+      "phase": "intraday",
+      "generatedAt": "2026-06-08T20:00:05.443Z",
+      "universeSize": 100,
+      "tradableCount": 100,
+      "analyzedCount": 0,
+      "spot_long": {
+        "signals": [],
+        "allSignals": []
+      },
+      "futures_long": {
+        "signals": [],
+        "allSignals": []
+      },
+      "futures_short": {
+        "signals": [],
+        "allSignals": []
+      }
+    }
+  ]
+}

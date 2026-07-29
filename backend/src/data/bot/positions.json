@@ -1,1 +1,39 @@
-[]
+[
+  {
+    "id": "8e4a9cf74bc4",
+    "createdAt": "2026-06-25T14:34:00.596Z",
+    "symbol": "THYAO",
+    "name": "Türk Hava Yolları A.O.",
+    "strategy": "trend",
+    "status": "open",
+    "signalDate": "2026-06-25",
+    "signalPhase": "revision",
+    "signalLogId": "f6f2436a936f",
+    "direction": "long",
+    "originalEntry": 329.5,
+    "originalStop": 316.94,
+    "originalTarget": 350.44,
+    "triggerZone": null,
+    "entryDate": "2026-06-25T14:34:00.596Z",
+    "entryPrice": 329.8295,
+    "shares": 8.3402,
+    "positionSizeTL": 2750.84,
+    "commissionPaid": 5.5,
+    "currentStop": 316.94,
+    "currentTarget": 350.44,
+    "lastPrice": 328.25,
+    "notes": [
+      {
+        "time": "2026-06-25T14:34:00.596Z",
+        "action": "signal",
+        "text": "TREND sinyali (skor 7). Giriş 329.50, SL 316.94, TP 350.44."
+      },
+      {
+        "time": "2026-06-25T14:34:00.596Z",
+        "action": "entry",
+        "text": "Market emirle 329.83 TL'den girildi (slip %0.10). 8.34 adet, komisyon 5.50 TL."
+      }
+    ],
+    "updatedAt": "2026-06-29T14:50:00.874Z"
+  }
+]

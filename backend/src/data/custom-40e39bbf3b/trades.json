@@ -1,0 +1,479 @@
+[
+  {
+    "id": "7cd9af0a5cf7",
+    "createdAt": "2026-06-15T15:40:05.245Z",
+    "symbol": "ODAS",
+    "name": "Odaş Elektrik Üretim Sanayi Ticaret A.Ş.",
+    "strategy": "ema_cross",
+    "status": "closed",
+    "direction": "long",
+    "source": "strategy",
+    "signalDate": "2026-06-15",
+    "entryDate": "2026-06-15T15:40:05.245Z",
+    "entryPrice": 7.75,
+    "shares": 803.3875,
+    "positionSizeTL": 6226.25,
+    "commissionPaid": 12.45,
+    "originalEntry": 7.75,
+    "originalStop": 7.094,
+    "originalTarget": 9.062,
+    "currentStop": 7.8757,
+    "currentTarget": 9.062,
+    "lastPrice": 8.6,
+    "notes": [
+      {
+        "time": "2026-06-15T15:40:05.245Z",
+        "action": "signal",
+        "text": "EMA Kesişimi giriş sinyali — Hızlı EMA(9)=7.37 yavaş EMA(21)=7.34 üzerine çıktı (yukarı kesişim)."
+      },
+      {
+        "time": "2026-06-15T15:40:05.245Z",
+        "action": "entry",
+        "text": "7.75 TL'den 803.39 adet alındı (6226.25 TL, komisyon 12.45 TL). Plan — Stop: 7.09 (2× ATR altı), Hedef: 9.06 (2R (risk katı)), trailing açık."
+      },
+      {
+        "time": "2026-06-16T06:45:03.778Z",
+        "action": "trail",
+        "text": "Fiyat 7.75 (+0.00R). SL 7.09 → 7.20 (ATR×2)."
+      },
+      {
+        "time": "2026-06-16T10:05:03.078Z",
+        "action": "trail",
+        "text": "Fiyat 7.83 (+0.12R). SL 7.20 → 7.25 (ATR×2)."
+      },
+      {
+        "time": "2026-06-16T10:10:00.517Z",
+        "action": "trail",
+        "text": "Fiyat 7.85 (+0.15R). SL 7.25 → 7.27 (ATR×2)."
+      },
+      {
+        "time": "2026-06-16T10:20:03.176Z",
+        "action": "trail",
+        "text": "Fiyat 7.86 (+0.17R). SL 7.27 → 7.28 (ATR×2)."
+      },
+      {
+        "time": "2026-06-16T10:25:02.275Z",
+        "action": "trail",
+        "text": "Fiyat 7.89 (+0.21R). SL 7.28 → 7.31 (ATR×2)."
+      },
+      {
+        "time": "2026-06-16T10:30:03.276Z",
+        "action": "trail",
+        "text": "Fiyat 7.90 (+0.23R). SL 7.31 → 7.32 (ATR×2)."
+      },
+      {
+        "time": "2026-06-16T10:40:02.877Z",
+        "action": "trail",
+        "text": "Fiyat 7.91 (+0.24R). SL 7.32 → 7.33 (ATR×2)."
+      },
+      {
+        "time": "2026-06-16T14:20:02.020Z",
+        "action": "trail",
+        "text": "Fiyat 7.92 (+0.26R). SL 7.33 → 7.34 (ATR×2)."
+      },
+      {
+        "time": "2026-06-17T10:05:00.532Z",
+        "action": "trail",
+        "text": "Fiyat 8.44 (+1.05R). SL 7.34 → 7.77 (ATR×2)."
+      },
+      {
+        "time": "2026-06-17T10:40:03.575Z",
+        "action": "trail",
+        "text": "Fiyat 8.47 (+1.10R). SL 7.77 → 7.79 (ATR×2)."
+      },
+      {
+        "time": "2026-06-17T10:50:01.378Z",
+        "action": "trail",
+        "text": "Fiyat 8.57 (+1.25R). SL 7.79 → 7.88 (ATR×2)."
+      },
+      {
+        "time": "2026-06-17T10:55:02.873Z",
+        "action": "exit",
+        "text": "Gün içi 7.82 ≤ SL 7.88 — stop tetiklendi. Çıkış 7.88. Net P&L: +75.89 TL (%1.22)."
+      }
+    ],
+    "updatedAt": "2026-06-17T10:55:02.874Z",
+    "exitDate": "2026-06-17T10:55:02.873Z",
+    "exitPrice": 7.8757,
+    "exitReason": "stop",
+    "realizedPnL": 75.89,
+    "realizedPnLPct": 1.22,
+    "closingCommission": 12.65,
+    "recordedAt": "2026-06-17T10:55:02.874Z"
+  },
+  {
+    "id": "d945292b3e28",
+    "createdAt": "2026-06-15T15:40:05.243Z",
+    "symbol": "BIMAS",
+    "name": "BİM Birleşik Mağazalar A.Ş.",
+    "strategy": "ema_cross",
+    "status": "closed",
+    "direction": "long",
+    "source": "strategy",
+    "signalDate": "2026-06-15",
+    "entryDate": "2026-06-15T15:40:05.243Z",
+    "entryPrice": 394,
+    "shares": 18.677,
+    "positionSizeTL": 7358.74,
+    "commissionPaid": 14.72,
+    "originalEntry": 394,
+    "originalStop": 370.0384,
+    "originalTarget": 441.9233,
+    "currentStop": 377.8571,
+    "currentTarget": 441.9233,
+    "lastPrice": 378.25,
+    "notes": [
+      {
+        "time": "2026-06-15T15:40:05.243Z",
+        "action": "signal",
+        "text": "EMA Kesişimi giriş sinyali — Hızlı EMA(9)=382.43 yavaş EMA(21)=381.19 üzerine çıktı (yukarı kesişim)."
+      },
+      {
+        "time": "2026-06-15T15:40:05.243Z",
+        "action": "entry",
+        "text": "394.00 TL'den 18.68 adet alındı (7358.74 TL, komisyon 14.72 TL). Plan — Stop: 370.04 (2× ATR altı), Hedef: 441.92 (2R (risk katı)), trailing açık."
+      },
+      {
+        "time": "2026-06-16T06:45:03.379Z",
+        "action": "trail",
+        "text": "Fiyat 394.00 (+0.00R). SL 370.04 → 374.93 (ATR×2)."
+      },
+      {
+        "time": "2026-06-16T10:10:00.304Z",
+        "action": "trail",
+        "text": "Fiyat 395.00 (+0.04R). SL 374.93 → 375.11 (ATR×2)."
+      },
+      {
+        "time": "2026-06-16T10:25:01.074Z",
+        "action": "trail",
+        "text": "Fiyat 396.50 (+0.10R). SL 375.11 → 376.61 (ATR×2)."
+      },
+      {
+        "time": "2026-06-16T10:40:02.575Z",
+        "action": "trail",
+        "text": "Fiyat 397.50 (+0.15R). SL 376.61 → 377.57 (ATR×2)."
+      },
+      {
+        "time": "2026-06-16T10:45:03.080Z",
+        "action": "trail",
+        "text": "Fiyat 396.75 (+0.11R). SL 377.57 → 377.86 (ATR×2)."
+      },
+      {
+        "time": "2026-06-22T15:20:03.154Z",
+        "action": "exit",
+        "text": "Gün içi 377.75 ≤ SL 377.86 — stop tetiklendi. Çıkış 377.86. Net P&L: -330.33 TL (%-4.48)."
+      }
+    ],
+    "updatedAt": "2026-06-22T15:20:03.154Z",
+    "exitDate": "2026-06-22T15:20:03.153Z",
+    "exitPrice": 377.8571,
+    "exitReason": "stop",
+    "realizedPnL": -330.33,
+    "realizedPnLPct": -4.48,
+    "closingCommission": 14.11,
+    "recordedAt": "2026-06-22T15:20:03.154Z"
+  },
+  {
+    "id": "c585aac4906d",
+    "createdAt": "2026-06-15T15:40:05.247Z",
+    "symbol": "TAVHL",
+    "name": "TAV Havalimanları Holding A.Ş.",
+    "strategy": "ema_cross",
+    "status": "closed",
+    "direction": "long",
+    "source": "strategy",
+    "signalDate": "2026-06-15",
+    "entryDate": "2026-06-15T15:40:05.247Z",
+    "entryPrice": 292,
+    "shares": 18.0413,
+    "positionSizeTL": 5268.06,
+    "commissionPaid": 10.54,
+    "originalEntry": 292,
+    "originalStop": 270.9914,
+    "originalTarget": 334.0173,
+    "currentStop": 284.0643,
+    "currentTarget": 334.0173,
+    "lastPrice": 284.75,
+    "notes": [
+      {
+        "time": "2026-06-15T15:40:05.247Z",
+        "action": "signal",
+        "text": "EMA Kesişimi giriş sinyali — Hızlı EMA(9)=267.89 yavaş EMA(21)=266.24 üzerine çıktı (yukarı kesişim)."
+      },
+      {
+        "time": "2026-06-15T15:40:05.247Z",
+        "action": "entry",
+        "text": "292.00 TL'den 18.04 adet alındı (5268.06 TL, komisyon 10.54 TL). Plan — Stop: 270.99 (2× ATR altı), Hedef: 334.02 (2R (risk katı)), trailing açık."
+      },
+      {
+        "time": "2026-06-16T06:45:03.975Z",
+        "action": "trail",
+        "text": "Fiyat 292.00 (+0.00R). SL 270.99 → 274.64 (ATR×2)."
+      },
+      {
+        "time": "2026-06-16T10:05:03.580Z",
+        "action": "trail",
+        "text": "Fiyat 298.25 (+0.30R). SL 274.64 → 279.17 (ATR×2)."
+      },
+      {
+        "time": "2026-06-16T11:55:03.178Z",
+        "action": "trail",
+        "text": "Fiyat 297.75 (+0.27R). SL 279.17 → 279.46 (ATR×2)."
+      },
+      {
+        "time": "2026-06-16T13:50:03.374Z",
+        "action": "trail",
+        "text": "Fiyat 299.50 (+0.36R). SL 279.46 → 280.42 (ATR×2)."
+      },
+      {
+        "time": "2026-06-16T13:55:02.974Z",
+        "action": "trail",
+        "text": "Fiyat 300.50 (+0.40R). SL 280.42 → 281.42 (ATR×2)."
+      },
+      {
+        "time": "2026-06-16T14:40:03.382Z",
+        "action": "trail",
+        "text": "Fiyat 300.75 (+0.42R). SL 281.42 → 281.67 (ATR×2)."
+      },
+      {
+        "time": "2026-06-16T14:50:05.075Z",
+        "action": "trail",
+        "text": "Fiyat 301.50 (+0.45R). SL 281.67 → 282.42 (ATR×2)."
+      },
+      {
+        "time": "2026-06-16T15:05:04.178Z",
+        "action": "trail",
+        "text": "Fiyat 302.00 (+0.48R). SL 282.42 → 282.53 (ATR×2)."
+      },
+      {
+        "time": "2026-06-18T09:30:05.887Z",
+        "action": "trail",
+        "text": "Fiyat 306.25 (+0.68R). SL 282.53 → 283.56 (ATR×2)."
+      },
+      {
+        "time": "2026-06-18T09:45:06.387Z",
+        "action": "trail",
+        "text": "Fiyat 306.75 (+0.70R). SL 283.56 → 284.06 (ATR×2)."
+      },
+      {
+        "time": "2026-06-23T13:45:08.236Z",
+        "action": "exit",
+        "text": "Gün içi 284.00 ≤ SL 284.06 — stop tetiklendi. Çıkış 284.06. Net P&L: -163.96 TL (%-3.11)."
+      }
+    ],
+    "updatedAt": "2026-06-23T13:45:08.341Z",
+    "exitDate": "2026-06-23T13:45:08.136Z",
+    "exitPrice": 284.0643,
+    "exitReason": "stop",
+    "realizedPnL": -163.96,
+    "realizedPnLPct": -3.11,
+    "closingCommission": 10.25,
+    "recordedAt": "2026-06-23T13:45:08.342Z"
+  },
+  {
+    "id": "d6508186769f",
+    "createdAt": "2026-06-18T15:40:01.299Z",
+    "symbol": "ASELS",
+    "name": "Aselsan Elektronik Sanayi ve Ticaret A.Ş.",
+    "strategy": "ema_cross",
+    "status": "closed",
+    "direction": "long",
+    "source": "strategy",
+    "signalDate": "2026-06-18",
+    "entryDate": "2026-06-18T15:40:01.299Z",
+    "entryPrice": 410.75,
+    "shares": 11.2117,
+    "positionSizeTL": 4605.21,
+    "commissionPaid": 9.21,
+    "originalEntry": 410.75,
+    "originalStop": 375.0769,
+    "originalTarget": 482.0961,
+    "currentStop": 375.0769,
+    "currentTarget": 482.0961,
+    "lastPrice": 375.25,
+    "notes": [
+      {
+        "time": "2026-06-18T15:40:01.299Z",
+        "action": "signal",
+        "text": "EMA Kesişimi giriş sinyali — Hızlı EMA(9)=387.62 yavaş EMA(21)=386.76 üzerine çıktı (yukarı kesişim)."
+      },
+      {
+        "time": "2026-06-18T15:40:01.299Z",
+        "action": "entry",
+        "text": "410.75 TL'den 11.21 adet alındı (4605.21 TL, komisyon 9.21 TL). Plan — Stop: 375.08 (2× ATR altı), Hedef: 482.10 (2R (risk katı)), trailing açık."
+      },
+      {
+        "time": "2026-06-24T10:45:21.893Z",
+        "action": "exit",
+        "text": "Gün içi 374.25 ≤ SL 375.08 — stop tetiklendi. Çıkış 375.08. Net P&L: -417.58 TL (%-9.05)."
+      }
+    ],
+    "updatedAt": "2026-06-24T10:45:21.894Z",
+    "exitDate": "2026-06-24T10:45:21.892Z",
+    "exitPrice": 375.0769,
+    "exitReason": "stop",
+    "realizedPnL": -417.58,
+    "realizedPnLPct": -9.05,
+    "closingCommission": 8.41,
+    "recordedAt": "2026-06-24T10:45:21.896Z"
+  },
+  {
+    "id": "fe661f1e6e45",
+    "createdAt": "2026-06-15T15:40:05.241Z",
+    "symbol": "AKBNK",
+    "name": "Akbank T.A.Ş.",
+    "strategy": "ema_cross",
+    "status": "closed",
+    "direction": "long",
+    "source": "strategy",
+    "signalDate": "2026-06-15",
+    "entryDate": "2026-06-15T15:40:05.241Z",
+    "entryPrice": 76.75,
+    "shares": 104.2345,
+    "positionSizeTL": 8000,
+    "commissionPaid": 16,
+    "originalEntry": 76.75,
+    "originalStop": 71.0376,
+    "originalTarget": 88.1748,
+    "currentStop": 76.8286,
+    "currentTarget": 88.1748,
+    "lastPrice": 77.2,
+    "notes": [
+      {
+        "time": "2026-06-15T15:40:05.241Z",
+        "action": "signal",
+        "text": "EMA Kesişimi giriş sinyali — Hızlı EMA(9)=69.32 yavaş EMA(21)=68.52 üzerine çıktı (yukarı kesişim)."
+      },
+      {
+        "time": "2026-06-15T15:40:05.241Z",
+        "action": "entry",
+        "text": "76.75 TL'den 104.23 adet alındı (8000.00 TL, komisyon 16.00 TL). Plan — Stop: 71.04 (2× ATR altı), Hedef: 88.17 (2R (risk katı)), trailing açık."
+      },
+      {
+        "time": "2026-06-16T06:45:01.773Z",
+        "action": "trail",
+        "text": "Fiyat 76.75 (+0.00R). SL 71.04 → 71.84 (ATR×2)."
+      },
+      {
+        "time": "2026-06-16T10:05:02.783Z",
+        "action": "trail",
+        "text": "Fiyat 77.15 (+0.07R). SL 71.84 → 72.05 (ATR×2)."
+      },
+      {
+        "time": "2026-06-16T10:10:00.205Z",
+        "action": "trail",
+        "text": "Fiyat 77.25 (+0.09R). SL 72.05 → 72.15 (ATR×2)."
+      },
+      {
+        "time": "2026-06-16T10:35:02.883Z",
+        "action": "trail",
+        "text": "Fiyat 77.30 (+0.10R). SL 72.15 → 72.20 (ATR×2)."
+      },
+      {
+        "time": "2026-06-17T11:10:01.176Z",
+        "action": "trail",
+        "text": "Fiyat 77.50 (+0.13R). SL 72.20 → 72.21 (ATR×2)."
+      },
+      {
+        "time": "2026-06-18T09:30:01.688Z",
+        "action": "trail",
+        "text": "Fiyat 80.90 (+0.73R). SL 72.21 → 75.06 (ATR×2)."
+      },
+      {
+        "time": "2026-06-18T15:15:00.835Z",
+        "action": "trail",
+        "text": "Fiyat 81.25 (+0.79R). SL 75.06 → 75.35 (ATR×2)."
+      },
+      {
+        "time": "2026-06-19T09:25:01.109Z",
+        "action": "trail",
+        "text": "Fiyat 81.35 (+0.81R). SL 75.35 → 75.55 (ATR×2)."
+      },
+      {
+        "time": "2026-06-19T10:05:03.458Z",
+        "action": "trail",
+        "text": "Fiyat 81.50 (+0.83R). SL 75.55 → 75.70 (ATR×2)."
+      },
+      {
+        "time": "2026-06-19T13:10:01.263Z",
+        "action": "trail",
+        "text": "Fiyat 82.30 (+0.97R). SL 75.70 → 76.34 (ATR×2)."
+      },
+      {
+        "time": "2026-06-22T07:20:04.418Z",
+        "action": "trail",
+        "text": "Fiyat 82.50 (+1.01R). SL 76.34 → 76.83 (ATR×2)."
+      },
+      {
+        "time": "2026-06-26T12:20:01.256Z",
+        "action": "exit",
+        "text": "Gün içi 76.65 ≤ SL 76.83 — stop tetiklendi. Çıkış 76.83. Net P&L: -23.83 TL (%-0.30)."
+      }
+    ],
+    "updatedAt": "2026-06-26T12:20:01.256Z",
+    "exitDate": "2026-06-26T12:20:01.255Z",
+    "exitPrice": 76.8286,
+    "exitReason": "stop",
+    "realizedPnL": -23.83,
+    "realizedPnLPct": -0.3,
+    "closingCommission": 16.02,
+    "recordedAt": "2026-06-26T12:20:01.257Z"
+  },
+  {
+    "id": "535d46d910aa",
+    "createdAt": "2026-06-15T15:40:05.248Z",
+    "symbol": "TCELL",
+    "name": "Turkcell İletişim Hizmetleri A.Ş.",
+    "strategy": "ema_cross",
+    "status": "closed",
+    "direction": "long",
+    "source": "strategy",
+    "signalDate": "2026-06-15",
+    "entryDate": "2026-06-15T15:40:05.248Z",
+    "entryPrice": 114.9,
+    "shares": 42.1739,
+    "positionSizeTL": 4845.78,
+    "commissionPaid": 9.69,
+    "originalEntry": 114.9,
+    "originalStop": 107.6182,
+    "originalTarget": 129.4637,
+    "currentStop": 108.7143,
+    "currentTarget": 129.4637,
+    "lastPrice": 110.1,
+    "notes": [
+      {
+        "time": "2026-06-15T15:40:05.248Z",
+        "action": "signal",
+        "text": "EMA Kesişimi giriş sinyali — Hızlı EMA(9)=108.51 yavaş EMA(21)=108.08 üzerine çıktı (yukarı kesişim)."
+      },
+      {
+        "time": "2026-06-15T15:40:05.248Z",
+        "action": "entry",
+        "text": "114.90 TL'den 42.17 adet alındı (4845.78 TL, komisyon 9.69 TL). Plan — Stop: 107.62 (2× ATR altı), Hedef: 129.46 (2R (risk katı)), trailing açık."
+      },
+      {
+        "time": "2026-06-16T06:45:05.078Z",
+        "action": "trail",
+        "text": "Fiyat 114.90 (+0.00R). SL 107.62 → 108.63 (ATR×2)."
+      },
+      {
+        "time": "2026-06-16T10:40:03.474Z",
+        "action": "trail",
+        "text": "Fiyat 115.20 (+0.04R). SL 108.63 → 108.71 (ATR×2)."
+      },
+      {
+        "time": "2026-06-29T14:10:01.847Z",
+        "action": "exit",
+        "text": "Gün içi 108.60 ≤ SL 108.71 — stop tetiklendi. Çıkış 108.71. Net P&L: -279.73 TL (%-5.76)."
+      }
+    ],
+    "updatedAt": "2026-06-29T14:10:01.848Z",
+    "exitDate": "2026-06-29T14:10:01.836Z",
+    "exitPrice": 108.7143,
+    "exitReason": "stop",
+    "realizedPnL": -279.73,
+    "realizedPnLPct": -5.76,
+    "closingCommission": 9.17,
+    "recordedAt": "2026-06-29T14:10:01.887Z"
+  }
+]

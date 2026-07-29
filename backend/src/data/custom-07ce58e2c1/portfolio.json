@@ -1,0 +1,24 @@
+{
+  "currency": "TRY",
+  "capital": 100000,
+  "cash": 100000,
+  "equity": 100000,
+  "totalRealizedPnL": 0,
+  "totalRealizedPnLPct": 0,
+  "openCount": 0,
+  "winCount": 0,
+  "lossCount": 0,
+  "winRate": 0,
+  "tradingEnabled": true,
+  "haltReason": null,
+  "startedAt": "2026-06-21T12:34:45.009Z",
+  "resetAt": null,
+  "equityHistory": [
+    {
+      "date": "2026-06-22",
+      "equity": 100000
+    }
+  ],
+  "lastCandleDate": "2026-06-22",
+  "lastRunAt": "2026-06-22T15:41:09.618Z"
+}

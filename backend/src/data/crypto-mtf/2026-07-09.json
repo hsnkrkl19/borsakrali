@@ -1,0 +1,399 @@
+{
+  "date": "2026-07-09",
+  "timeframes": {
+    "1m": {
+      "generatedAt": "2026-07-08T21:58:32.993Z",
+      "scanner": {
+        "timeframe": "1m",
+        "higherTimeframe": "5m",
+        "tierLimit": 10,
+        "universeSize": 100,
+        "tradableCount": 10,
+        "analyzedCount": 10,
+        "long": {
+          "signals": [],
+          "allSignals": []
+        },
+        "short": {
+          "signals": [
+            {
+              "strategy": "short",
+              "direction": "short",
+              "timeframe": "1m",
+              "higherTimeframe": "5m",
+              "totalScore": 7,
+              "applicableMax": 12,
+              "ratio": 0.58,
+              "grade": "GUCLU",
+              "conditions": [
+                {
+                  "id": "current_downtrend",
+                  "label": "1m EMA20 < EMA50",
+                  "group": "trend",
+                  "why": "Entry TF'de kısa vadeli yapı aşağı yönlü.",
+                  "met": true,
+                  "applicable": true,
+                  "required": true
+                },
+                {
+                  "id": "current_below_ema200",
+                  "label": "1m fiyat EMA200 altı",
+                  "group": "trend",
+                  "why": "Entry TF'de uzun vadeli ana trend ayı.",
+                  "met": true,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "current_rsi_overbought_recently",
+                  "label": "1m RSI overbought'tan döndü",
+                  "group": "ind",
+                  "why": "Son 10 barda RSI 70 üstünü gördü, şimdi aşağı dönüyor.",
+                  "met": true,
+                  "applicable": true,
+                  "required": true
+                },
+                {
+                  "id": "current_macd_bearish",
+                  "label": "1m MACD negatif + büyüyor",
+                  "group": "ind",
+                  "why": "MACD histogramı negatif ve daha negatif oluyor — düşüş momentumu artıyor.",
+                  "met": false,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "current_volume_on_decline",
+                  "label": "1m hacimli düşüş",
+                  "group": "ind",
+                  "why": "Son mum kırmızı + hacim ortalama üstü — satıcı baskısı güçlü.",
+                  "met": false,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "higher_downtrend",
+                  "label": "5m EMA20 < EMA50 (macro)",
+                  "group": "macro",
+                  "why": "Üst TF'de yapı da aşağı.",
+                  "met": true,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "higher_below_ema50",
+                  "label": "5m fiyat EMA50 altı",
+                  "group": "macro",
+                  "why": "Üst TF orta vadeli ortalama altında.",
+                  "met": true,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "higher_rsi_not_oversold",
+                  "label": "5m RSI > 25",
+                  "group": "macro",
+                  "why": "Üst TF aşırı satımda değil — aşağı alanı var.",
+                  "met": true,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "higher_macd_negative",
+                  "label": "5m MACD ≤ 0",
+                  "group": "macro",
+                  "why": "Üst TF momentumu da short lehine.",
+                  "met": true,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "bearish_divergence",
+                  "label": "Bearish RSI divergence",
+                  "group": "math",
+                  "why": "Fiyat higher-high, RSI lower-high — trend dönüşü olası.",
+                  "met": false,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "bearish_candlestick",
+                  "label": "Ayı candlestick formasyonu",
+                  "group": "pattern",
+                  "why": "Bearish engulfing / shooting star / bearish harami son barda var.",
+                  "met": false,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "volatility_supportive",
+                  "label": "Volatilite trade için uygun",
+                  "group": "math",
+                  "why": "ATR rejimi normal/low — high volatilite false breakout riski.",
+                  "met": false,
+                  "applicable": true,
+                  "required": false
+                }
+              ],
+              "entry": 0.3312,
+              "stop": 0.33123,
+              "target1": 0.33117,
+              "target2": 0.33115,
+              "leverage_suggest": 3,
+              "winProbability": {
+                "probability": 0.61,
+                "confidence": 0,
+                "samples": 0,
+                "bucket": 0.6,
+                "prior": 0.608,
+                "posteriorAlpha": 1.22,
+                "posteriorBeta": 0.78
+              },
+              "indicators": {
+                "current_rsi": 44.83,
+                "current_macdHist": 0,
+                "higher_rsi": 45.33,
+                "higher_macdHist": 0
+              },
+              "patterns": {
+                "engulfing": null,
+                "pinBar": null,
+                "doji": null,
+                "harami": null
+              },
+              "divergence": null,
+              "volatility": {
+                "regime": "high",
+                "atrPct": 0.011,
+                "meanAtrPct": 0.009,
+                "stdAtrPct": 0.001,
+                "zScore": 2
+              },
+              "momentum": {
+                "type": "bullish_decay",
+                "accel": 0
+              },
+              "lastClose": 0.33120250701904297,
+              "atr": 0.000037161367280142645,
+              "updatedAt": "2026-07-08T21:58:34.247Z",
+              "symbol": "TRX",
+              "name": "TRX",
+              "image": null,
+              "coinId": "trx"
+            }
+          ],
+          "allSignals": [
+            {
+              "strategy": "short",
+              "direction": "short",
+              "timeframe": "1m",
+              "higherTimeframe": "5m",
+              "totalScore": 7,
+              "applicableMax": 12,
+              "ratio": 0.58,
+              "grade": "GUCLU",
+              "conditions": [
+                {
+                  "id": "current_downtrend",
+                  "label": "1m EMA20 < EMA50",
+                  "group": "trend",
+                  "why": "Entry TF'de kısa vadeli yapı aşağı yönlü.",
+                  "met": true,
+                  "applicable": true,
+                  "required": true
+                },
+                {
+                  "id": "current_below_ema200",
+                  "label": "1m fiyat EMA200 altı",
+                  "group": "trend",
+                  "why": "Entry TF'de uzun vadeli ana trend ayı.",
+                  "met": true,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "current_rsi_overbought_recently",
+                  "label": "1m RSI overbought'tan döndü",
+                  "group": "ind",
+                  "why": "Son 10 barda RSI 70 üstünü gördü, şimdi aşağı dönüyor.",
+                  "met": true,
+                  "applicable": true,
+                  "required": true
+                },
+                {
+                  "id": "current_macd_bearish",
+                  "label": "1m MACD negatif + büyüyor",
+                  "group": "ind",
+                  "why": "MACD histogramı negatif ve daha negatif oluyor — düşüş momentumu artıyor.",
+                  "met": false,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "current_volume_on_decline",
+                  "label": "1m hacimli düşüş",
+                  "group": "ind",
+                  "why": "Son mum kırmızı + hacim ortalama üstü — satıcı baskısı güçlü.",
+                  "met": false,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "higher_downtrend",
+                  "label": "5m EMA20 < EMA50 (macro)",
+                  "group": "macro",
+                  "why": "Üst TF'de yapı da aşağı.",
+                  "met": true,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "higher_below_ema50",
+                  "label": "5m fiyat EMA50 altı",
+                  "group": "macro",
+                  "why": "Üst TF orta vadeli ortalama altında.",
+                  "met": true,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "higher_rsi_not_oversold",
+                  "label": "5m RSI > 25",
+                  "group": "macro",
+                  "why": "Üst TF aşırı satımda değil — aşağı alanı var.",
+                  "met": true,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "higher_macd_negative",
+                  "label": "5m MACD ≤ 0",
+                  "group": "macro",
+                  "why": "Üst TF momentumu da short lehine.",
+                  "met": true,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "bearish_divergence",
+                  "label": "Bearish RSI divergence",
+                  "group": "math",
+                  "why": "Fiyat higher-high, RSI lower-high — trend dönüşü olası.",
+                  "met": false,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "bearish_candlestick",
+                  "label": "Ayı candlestick formasyonu",
+                  "group": "pattern",
+                  "why": "Bearish engulfing / shooting star / bearish harami son barda var.",
+                  "met": false,
+                  "applicable": true,
+                  "required": false
+                },
+                {
+                  "id": "volatility_supportive",
+                  "label": "Volatilite trade için uygun",
+                  "group": "math",
+                  "why": "ATR rejimi normal/low — high volatilite false breakout riski.",
+                  "met": false,
+                  "applicable": true,
+                  "required": false
+                }
+              ],
+              "entry": 0.3312,
+              "stop": 0.33123,
+              "target1": 0.33117,
+              "target2": 0.33115,
+              "leverage_suggest": 3,
+              "winProbability": {
+                "probability": 0.61,
+                "confidence": 0,
+                "samples": 0,
+                "bucket": 0.6,
+                "prior": 0.608,
+                "posteriorAlpha": 1.22,
+                "posteriorBeta": 0.78
+              },
+              "indicators": {
+                "current_rsi": 44.83,
+                "current_macdHist": 0,
+                "higher_rsi": 45.33,
+                "higher_macdHist": 0
+              },
+              "patterns": {
+                "engulfing": null,
+                "pinBar": null,
+                "doji": null,
+                "harami": null
+              },
+              "divergence": null,
+              "volatility": {
+                "regime": "high",
+                "atrPct": 0.011,
+                "meanAtrPct": 0.009,
+                "stdAtrPct": 0.001,
+                "zScore": 2
+              },
+              "momentum": {
+                "type": "bullish_decay",
+                "accel": 0
+              },
+              "lastClose": 0.33120250701904297,
+              "atr": 0.000037161367280142645,
+              "updatedAt": "2026-07-08T21:58:34.247Z",
+              "symbol": "TRX",
+              "name": "TRX",
+              "image": null,
+              "coinId": "trx"
+            }
+          ]
+        }
+      }
+    }
+  },
+  "confluence": {
+    "generatedAt": "2026-07-08T21:58:34.253Z",
+    "totalCoins": 1,
+    "strongLong": 0,
+    "long": 0,
+    "strongShort": 1,
+    "short": 0,
+    "neutral": 0,
+    "top": [
+      {
+        "symbol": "TRX",
+        "name": "TRX",
+        "verdict": "STRONG_SHORT",
+        "net": -7,
+        "weightedLong": 0,
+        "weightedShort": 7,
+        "alignedLong": 0,
+        "alignedShort": 1,
+        "confidence": 0.49,
+        "tfDirections": {
+          "1m": "short"
+        },
+        "image": null
+      }
+    ],
+    "all": [
+      {
+        "symbol": "TRX",
+        "name": "TRX",
+        "verdict": "STRONG_SHORT",
+        "net": -7,
+        "weightedLong": 0,
+        "weightedShort": 7,
+        "alignedLong": 0,
+        "alignedShort": 1,
+        "confidence": 0.49,
+        "tfDirections": {
+          "1m": "short"
+        },
+        "image": null
+      }
+    ]
+  }
+}

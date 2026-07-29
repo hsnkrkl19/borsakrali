@@ -1,0 +1,1418 @@
+{
+  "botId": null,
+  "botName": "Smoke Uni",
+  "strategyId": "supertrend",
+  "strategyLabel": "Supertrend",
+  "params": {
+    "atrPeriod": 10,
+    "multiplier": 3
+  },
+  "risk": {
+    "stopType": "atr",
+    "stopValue": 2,
+    "targetType": "rr",
+    "targetValue": 2.5,
+    "trailing": true,
+    "timeoutDays": 20
+  },
+  "riskSummary": {
+    "stopTxt": "2× ATR altı",
+    "tgtTxt": "2.5R (risk katı)",
+    "trailing": true,
+    "timeoutDays": 20
+  },
+  "sizing": {
+    "positionPct": 15,
+    "maxPositions": 4,
+    "capital": 100000
+  },
+  "commissionPct": 0.2,
+  "mode": "universe",
+  "symbols": [
+    "THYAO",
+    "ASELS",
+    "GARAN",
+    "AKBNK",
+    "SISE",
+    "EREGL"
+  ],
+  "symbolsWithData": [
+    "THYAO",
+    "ASELS",
+    "GARAN",
+    "AKBNK",
+    "SISE",
+    "EREGL"
+  ],
+  "fetchErrors": 0,
+  "range": "1y",
+  "period": "1 yıl",
+  "assumptions": [
+    "Komisyon canlı motordaki gibi uygulanır; slippage modellenmez.",
+    "Günlük (1g) mum; SL/TP gün-içi düşük/yükseğiyle tetiklenir.",
+    "Aynı barda hem stop hem hedefe değilirse stop önce kabul edilir.",
+    "Drawdown kill-switch uygulanmaz — stratejinin ham performansı ölçülür."
+  ],
+  "dataRange": {
+    "from": "2025-06-19",
+    "to": "2026-06-19",
+    "tradingDays": 255
+  },
+  "symbolsTested": 6,
+  "counts": {
+    "entrySignals": 23,
+    "exitSignals": 0,
+    "barsSimulated": 255
+  },
+  "metrics": {
+    "initialCapital": 100000,
+    "finalEquity": 106953.01,
+    "totalReturnPct": 6.95,
+    "netProfit": 4243.93,
+    "cagrPct": 6.95,
+    "maxDrawdownPct": 3.38,
+    "maxDrawdownAbs": 3505.11,
+    "drawdownPeakDate": "2025-09-25",
+    "drawdownTroughDate": "2025-12-17",
+    "sharpe": 1.23,
+    "totalTrades": 20,
+    "winCount": 9,
+    "lossCount": 11,
+    "winRate": 45,
+    "profitFactor": 1.63,
+    "profitFactorInf": false,
+    "expectancy": 212.2,
+    "avgWin": 1218.23,
+    "avgLoss": 610.92,
+    "avgReturnPct": 1.56,
+    "bestTradePct": 17.18,
+    "worstTradePct": -8.36,
+    "avgHoldingBars": 10.3,
+    "exitBreakdown": {
+      "stop": 14,
+      "target": 5,
+      "timeout": 1
+    }
+  },
+  "equityCurve": [
+    {
+      "date": "2025-06-19",
+      "equity": 100000
+    },
+    {
+      "date": "2025-06-20",
+      "equity": 100000
+    },
+    {
+      "date": "2025-06-23",
+      "equity": 100000
+    },
+    {
+      "date": "2025-06-24",
+      "equity": 100000
+    },
+    {
+      "date": "2025-06-25",
+      "equity": 100000
+    },
+    {
+      "date": "2025-06-26",
+      "equity": 100000
+    },
+    {
+      "date": "2025-06-27",
+      "equity": 100000
+    },
+    {
+      "date": "2025-06-30",
+      "equity": 100000
+    },
+    {
+      "date": "2025-07-01",
+      "equity": 100000
+    },
+    {
+      "date": "2025-07-02",
+      "equity": 100000
+    },
+    {
+      "date": "2025-07-03",
+      "equity": 100000
+    },
+    {
+      "date": "2025-07-04",
+      "equity": 100000
+    },
+    {
+      "date": "2025-07-07",
+      "equity": 100000
+    },
+    {
+      "date": "2025-07-08",
+      "equity": 100000
+    },
+    {
+      "date": "2025-07-09",
+      "equity": 100000
+    },
+    {
+      "date": "2025-07-10",
+      "equity": 100000
+    },
+    {
+      "date": "2025-07-11",
+      "equity": 100000
+    },
+    {
+      "date": "2025-07-14",
+      "equity": 100000
+    },
+    {
+      "date": "2025-07-16",
+      "equity": 100000
+    },
+    {
+      "date": "2025-07-17",
+      "equity": 100000
+    },
+    {
+      "date": "2025-07-18",
+      "equity": 100000
+    },
+    {
+      "date": "2025-07-21",
+      "equity": 100000
+    },
+    {
+      "date": "2025-07-22",
+      "equity": 100000
+    },
+    {
+      "date": "2025-07-23",
+      "equity": 100000
+    },
+    {
+      "date": "2025-07-24",
+      "equity": 100000
+    },
+    {
+      "date": "2025-07-25",
+      "equity": 100000
+    },
+    {
+      "date": "2025-07-28",
+      "equity": 100000
+    },
+    {
+      "date": "2025-07-29",
+      "equity": 100000
+    },
+    {
+      "date": "2025-07-30",
+      "equity": 100000
+    },
+    {
+      "date": "2025-07-31",
+      "equity": 100000
+    },
+    {
+      "date": "2025-08-01",
+      "equity": 100000
+    },
+    {
+      "date": "2025-08-04",
+      "equity": 99970
+    },
+    {
+      "date": "2025-08-05",
+      "equity": 99792.13
+    },
+    {
+      "date": "2025-08-06",
+      "equity": 99705.46
+    },
+    {
+      "date": "2025-08-07",
+      "equity": 99501.9
+    },
+    {
+      "date": "2025-08-08",
+      "equity": 99575.35
+    },
+    {
+      "date": "2025-08-11",
+      "equity": 99794.62
+    },
+    {
+      "date": "2025-08-12",
+      "equity": 99682.22
+    },
+    {
+      "date": "2025-08-13",
+      "equity": 99911.49
+    },
+    {
+      "date": "2025-08-14",
+      "equity": 99768.05
+    },
+    {
+      "date": "2025-08-15",
+      "equity": 99897.34
+    },
+    {
+      "date": "2025-08-18",
+      "equity": 100716.03
+    },
+    {
+      "date": "2025-08-19",
+      "equity": 100775.11
+    },
+    {
+      "date": "2025-08-20",
+      "equity": 100901.28
+    },
+    {
+      "date": "2025-08-21",
+      "equity": 101204.75
+    },
+    {
+      "date": "2025-08-22",
+      "equity": 101274.77
+    },
+    {
+      "date": "2025-08-25",
+      "equity": 101589.1
+    },
+    {
+      "date": "2025-08-26",
+      "equity": 101212.12
+    },
+    {
+      "date": "2025-08-27",
+      "equity": 100931.63
+    },
+    {
+      "date": "2025-08-28",
+      "equity": 101018.08
+    },
+    {
+      "date": "2025-08-29",
+      "equity": 101041.66
+    },
+    {
+      "date": "2025-09-01",
+      "equity": 101033.8
+    },
+    {
+      "date": "2025-09-02",
+      "equity": 100594.64
+    },
+    {
+      "date": "2025-09-03",
+      "equity": 100594.64
+    },
+    {
+      "date": "2025-09-04",
+      "equity": 100594.64
+    },
+    {
+      "date": "2025-09-05",
+      "equity": 100594.64
+    },
+    {
+      "date": "2025-09-08",
+      "equity": 100594.64
+    },
+    {
+      "date": "2025-09-09",
+      "equity": 100594.64
+    },
+    {
+      "date": "2025-09-10",
+      "equity": 100594.64
+    },
+    {
+      "date": "2025-09-11",
+      "equity": 100594.64
+    },
+    {
+      "date": "2025-09-12",
+      "equity": 100594.64
+    },
+    {
+      "date": "2025-09-15",
+      "equity": 100594.64
+    },
+    {
+      "date": "2025-09-16",
+      "equity": 100564.46
+    },
+    {
+      "date": "2025-09-17",
+      "equity": 100479.43
+    },
+    {
+      "date": "2025-09-18",
+      "equity": 100332.56
+    },
+    {
+      "date": "2025-09-19",
+      "equity": 101250
+    },
+    {
+      "date": "2025-09-22",
+      "equity": 102240.64
+    },
+    {
+      "date": "2025-09-23",
+      "equity": 103099.89
+    },
+    {
+      "date": "2025-09-24",
+      "equity": 103218.28
+    },
+    {
+      "date": "2025-09-25",
+      "equity": 103793.65
+    },
+    {
+      "date": "2025-09-26",
+      "equity": 102386.74
+    },
+    {
+      "date": "2025-09-29",
+      "equity": 102309.44
+    },
+    {
+      "date": "2025-09-30",
+      "equity": 102208.95
+    },
+    {
+      "date": "2025-10-01",
+      "equity": 102448.58
+    },
+    {
+      "date": "2025-10-02",
+      "equity": 102363.55
+    },
+    {
+      "date": "2025-10-03",
+      "equity": 102293.98
+    },
+    {
+      "date": "2025-10-06",
+      "equity": 102224.41
+    },
+    {
+      "date": "2025-10-07",
+      "equity": 101783.79
+    },
+    {
+      "date": "2025-10-08",
+      "equity": 102255.33
+    },
+    {
+      "date": "2025-10-09",
+      "equity": 102533.61
+    },
+    {
+      "date": "2025-10-10",
+      "equity": 102093
+    },
+    {
+      "date": "2025-10-13",
+      "equity": 102131.65
+    },
+    {
+      "date": "2025-10-14",
+      "equity": 101944.26
+    },
+    {
+      "date": "2025-10-15",
+      "equity": 101944.26
+    },
+    {
+      "date": "2025-10-16",
+      "equity": 101944.26
+    },
+    {
+      "date": "2025-10-17",
+      "equity": 101944.26
+    },
+    {
+      "date": "2025-10-20",
+      "equity": 101944.26
+    },
+    {
+      "date": "2025-10-21",
+      "equity": 101944.26
+    },
+    {
+      "date": "2025-10-22",
+      "equity": 101944.26
+    },
+    {
+      "date": "2025-10-23",
+      "equity": 101944.26
+    },
+    {
+      "date": "2025-10-24",
+      "equity": 101944.26
+    },
+    {
+      "date": "2025-10-27",
+      "equity": 101944.26
+    },
+    {
+      "date": "2025-10-28",
+      "equity": 101913.68
+    },
+    {
+      "date": "2025-10-30",
+      "equity": 102124.54
+    },
+    {
+      "date": "2025-10-31",
+      "equity": 102084.9
+    },
+    {
+      "date": "2025-11-03",
+      "equity": 102317.93
+    },
+    {
+      "date": "2025-11-04",
+      "equity": 102179.17
+    },
+    {
+      "date": "2025-11-05",
+      "equity": 102253.8
+    },
+    {
+      "date": "2025-11-06",
+      "equity": 102955.81
+    },
+    {
+      "date": "2025-11-07",
+      "equity": 101687.1
+    },
+    {
+      "date": "2025-11-10",
+      "equity": 100999.59
+    },
+    {
+      "date": "2025-11-11",
+      "equity": 100393.21
+    },
+    {
+      "date": "2025-11-12",
+      "equity": 100393.21
+    },
+    {
+      "date": "2025-11-13",
+      "equity": 100393.21
+    },
+    {
+      "date": "2025-11-14",
+      "equity": 100393.21
+    },
+    {
+      "date": "2025-11-17",
+      "equity": 100393.21
+    },
+    {
+      "date": "2025-11-18",
+      "equity": 100393.21
+    },
+    {
+      "date": "2025-11-19",
+      "equity": 100393.21
+    },
+    {
+      "date": "2025-11-20",
+      "equity": 100393.21
+    },
+    {
+      "date": "2025-11-21",
+      "equity": 100393.21
+    },
+    {
+      "date": "2025-11-24",
+      "equity": 100393.21
+    },
+    {
+      "date": "2025-11-25",
+      "equity": 100393.21
+    },
+    {
+      "date": "2025-11-26",
+      "equity": 100393.21
+    },
+    {
+      "date": "2025-11-27",
+      "equity": 100393.21
+    },
+    {
+      "date": "2025-11-28",
+      "equity": 100393.21
+    },
+    {
+      "date": "2025-12-01",
+      "equity": 100393.21
+    },
+    {
+      "date": "2025-12-02",
+      "equity": 100393.21
+    },
+    {
+      "date": "2025-12-03",
+      "equity": 100393.21
+    },
+    {
+      "date": "2025-12-04",
+      "equity": 100393.21
+    },
+    {
+      "date": "2025-12-05",
+      "equity": 100393.21
+    },
+    {
+      "date": "2025-12-08",
+      "equity": 100393.21
+    },
+    {
+      "date": "2025-12-09",
+      "equity": 100363.09
+    },
+    {
+      "date": "2025-12-10",
+      "equity": 100646.38
+    },
+    {
+      "date": "2025-12-11",
+      "equity": 100579.28
+    },
+    {
+      "date": "2025-12-12",
+      "equity": 100512.19
+    },
+    {
+      "date": "2025-12-15",
+      "equity": 101123.49
+    },
+    {
+      "date": "2025-12-16",
+      "equity": 100907.3
+    },
+    {
+      "date": "2025-12-17",
+      "equity": 100288.54
+    },
+    {
+      "date": "2025-12-18",
+      "equity": 100542.01
+    },
+    {
+      "date": "2025-12-19",
+      "equity": 101041.49
+    },
+    {
+      "date": "2025-12-22",
+      "equity": 101168.22
+    },
+    {
+      "date": "2025-12-23",
+      "equity": 101831.71
+    },
+    {
+      "date": "2025-12-24",
+      "equity": 102055.36
+    },
+    {
+      "date": "2025-12-25",
+      "equity": 101906.26
+    },
+    {
+      "date": "2025-12-26",
+      "equity": 102159.73
+    },
+    {
+      "date": "2025-12-29",
+      "equity": 101779.53
+    },
+    {
+      "date": "2025-12-30",
+      "equity": 102375.92
+    },
+    {
+      "date": "2025-12-31",
+      "equity": 102659.87
+    },
+    {
+      "date": "2026-01-02",
+      "equity": 102659.87
+    },
+    {
+      "date": "2026-01-05",
+      "equity": 102659.87
+    },
+    {
+      "date": "2026-01-06",
+      "equity": 102602.9
+    },
+    {
+      "date": "2026-01-07",
+      "equity": 102288.1
+    },
+    {
+      "date": "2026-01-08",
+      "equity": 102629.82
+    },
+    {
+      "date": "2026-01-09",
+      "equity": 102456.98
+    },
+    {
+      "date": "2026-01-12",
+      "equity": 102591.84
+    },
+    {
+      "date": "2026-01-13",
+      "equity": 102547.13
+    },
+    {
+      "date": "2026-01-14",
+      "equity": 102593.08
+    },
+    {
+      "date": "2026-01-15",
+      "equity": 102544.04
+    },
+    {
+      "date": "2026-01-16",
+      "equity": 102899.58
+    },
+    {
+      "date": "2026-01-19",
+      "equity": 103218.35
+    },
+    {
+      "date": "2026-01-20",
+      "equity": 102666.64
+    },
+    {
+      "date": "2026-01-21",
+      "equity": 102813.76
+    },
+    {
+      "date": "2026-01-22",
+      "equity": 103328.7
+    },
+    {
+      "date": "2026-01-23",
+      "equity": 103512.6
+    },
+    {
+      "date": "2026-01-26",
+      "equity": 103687.81
+    },
+    {
+      "date": "2026-01-27",
+      "equity": 103687.81
+    },
+    {
+      "date": "2026-01-28",
+      "equity": 103656.7
+    },
+    {
+      "date": "2026-01-29",
+      "equity": 105211.27
+    },
+    {
+      "date": "2026-01-30",
+      "equity": 105393.67
+    },
+    {
+      "date": "2026-02-02",
+      "equity": 105393.67
+    },
+    {
+      "date": "2026-02-03",
+      "equity": 105393.67
+    },
+    {
+      "date": "2026-02-04",
+      "equity": 105393.67
+    },
+    {
+      "date": "2026-02-05",
+      "equity": 105393.67
+    },
+    {
+      "date": "2026-02-06",
+      "equity": 105393.67
+    },
+    {
+      "date": "2026-02-09",
+      "equity": 105393.67
+    },
+    {
+      "date": "2026-02-10",
+      "equity": 105393.67
+    },
+    {
+      "date": "2026-02-11",
+      "equity": 105393.67
+    },
+    {
+      "date": "2026-02-12",
+      "equity": 105393.67
+    },
+    {
+      "date": "2026-02-13",
+      "equity": 105393.67
+    },
+    {
+      "date": "2026-02-16",
+      "equity": 105393.67
+    },
+    {
+      "date": "2026-02-17",
+      "equity": 105393.67
+    },
+    {
+      "date": "2026-02-18",
+      "equity": 105393.67
+    },
+    {
+      "date": "2026-02-19",
+      "equity": 105393.67
+    },
+    {
+      "date": "2026-02-20",
+      "equity": 105393.67
+    },
+    {
+      "date": "2026-02-23",
+      "equity": 105393.67
+    },
+    {
+      "date": "2026-02-24",
+      "equity": 105393.67
+    },
+    {
+      "date": "2026-02-25",
+      "equity": 105393.67
+    },
+    {
+      "date": "2026-02-26",
+      "equity": 105393.67
+    },
+    {
+      "date": "2026-02-27",
+      "equity": 105393.67
+    },
+    {
+      "date": "2026-03-02",
+      "equity": 105362.05
+    },
+    {
+      "date": "2026-03-03",
+      "equity": 104536.72
+    },
+    {
+      "date": "2026-03-04",
+      "equity": 105036.57
+    },
+    {
+      "date": "2026-03-05",
+      "equity": 105594.53
+    },
+    {
+      "date": "2026-03-06",
+      "equity": 105059.82
+    },
+    {
+      "date": "2026-03-09",
+      "equity": 104385.61
+    },
+    {
+      "date": "2026-03-10",
+      "equity": 105094.69
+    },
+    {
+      "date": "2026-03-11",
+      "equity": 105164.43
+    },
+    {
+      "date": "2026-03-12",
+      "equity": 104897.08
+    },
+    {
+      "date": "2026-03-13",
+      "equity": 104536.72
+    },
+    {
+      "date": "2026-03-16",
+      "equity": 104200.07
+    },
+    {
+      "date": "2026-03-17",
+      "equity": 104200.07
+    },
+    {
+      "date": "2026-03-18",
+      "equity": 104200.07
+    },
+    {
+      "date": "2026-03-19",
+      "equity": 104200.07
+    },
+    {
+      "date": "2026-03-23",
+      "equity": 104168.81
+    },
+    {
+      "date": "2026-03-24",
+      "equity": 103770.67
+    },
+    {
+      "date": "2026-03-25",
+      "equity": 103680.77
+    },
+    {
+      "date": "2026-03-26",
+      "equity": 103089.99
+    },
+    {
+      "date": "2026-03-27",
+      "equity": 102890.74
+    },
+    {
+      "date": "2026-03-30",
+      "equity": 102890.74
+    },
+    {
+      "date": "2026-03-31",
+      "equity": 102890.74
+    },
+    {
+      "date": "2026-04-01",
+      "equity": 102890.74
+    },
+    {
+      "date": "2026-04-02",
+      "equity": 102890.74
+    },
+    {
+      "date": "2026-04-03",
+      "equity": 102890.74
+    },
+    {
+      "date": "2026-04-06",
+      "equity": 102890.74
+    },
+    {
+      "date": "2026-04-07",
+      "equity": 102890.74
+    },
+    {
+      "date": "2026-04-08",
+      "equity": 102833.64
+    },
+    {
+      "date": "2026-04-09",
+      "equity": 102845.38
+    },
+    {
+      "date": "2026-04-10",
+      "equity": 103590.89
+    },
+    {
+      "date": "2026-04-13",
+      "equity": 103252.81
+    },
+    {
+      "date": "2026-04-14",
+      "equity": 103662.09
+    },
+    {
+      "date": "2026-04-15",
+      "equity": 103540.43
+    },
+    {
+      "date": "2026-04-16",
+      "equity": 102909.87
+    },
+    {
+      "date": "2026-04-17",
+      "equity": 105546.11
+    },
+    {
+      "date": "2026-04-20",
+      "equity": 105455.43
+    },
+    {
+      "date": "2026-04-21",
+      "equity": 105180.76
+    },
+    {
+      "date": "2026-04-22",
+      "equity": 104169.78
+    },
+    {
+      "date": "2026-04-24",
+      "equity": 104004.77
+    },
+    {
+      "date": "2026-04-27",
+      "equity": 103903.8
+    },
+    {
+      "date": "2026-04-28",
+      "equity": 103202.72
+    },
+    {
+      "date": "2026-04-29",
+      "equity": 103414.45
+    },
+    {
+      "date": "2026-04-30",
+      "equity": 103662.92
+    },
+    {
+      "date": "2026-05-04",
+      "equity": 103912.12
+    },
+    {
+      "date": "2026-05-05",
+      "equity": 104243.93
+    },
+    {
+      "date": "2026-05-06",
+      "equity": 104243.93
+    },
+    {
+      "date": "2026-05-07",
+      "equity": 104243.93
+    },
+    {
+      "date": "2026-05-08",
+      "equity": 104243.93
+    },
+    {
+      "date": "2026-05-11",
+      "equity": 104243.93
+    },
+    {
+      "date": "2026-05-12",
+      "equity": 104243.93
+    },
+    {
+      "date": "2026-05-13",
+      "equity": 104243.93
+    },
+    {
+      "date": "2026-05-14",
+      "equity": 104243.93
+    },
+    {
+      "date": "2026-05-15",
+      "equity": 104243.93
+    },
+    {
+      "date": "2026-05-18",
+      "equity": 104243.93
+    },
+    {
+      "date": "2026-05-20",
+      "equity": 104243.93
+    },
+    {
+      "date": "2026-05-21",
+      "equity": 104243.93
+    },
+    {
+      "date": "2026-05-22",
+      "equity": 104243.93
+    },
+    {
+      "date": "2026-05-25",
+      "equity": 104243.93
+    },
+    {
+      "date": "2026-05-26",
+      "equity": 104243.93
+    },
+    {
+      "date": "2026-05-27",
+      "equity": 104243.93
+    },
+    {
+      "date": "2026-05-28",
+      "equity": 104243.93
+    },
+    {
+      "date": "2026-05-29",
+      "equity": 104243.93
+    },
+    {
+      "date": "2026-06-01",
+      "equity": 104243.93
+    },
+    {
+      "date": "2026-06-02",
+      "equity": 104243.93
+    },
+    {
+      "date": "2026-06-03",
+      "equity": 104243.93
+    },
+    {
+      "date": "2026-06-04",
+      "equity": 104243.93
+    },
+    {
+      "date": "2026-06-05",
+      "equity": 104243.93
+    },
+    {
+      "date": "2026-06-08",
+      "equity": 104243.93
+    },
+    {
+      "date": "2026-06-09",
+      "equity": 104243.93
+    },
+    {
+      "date": "2026-06-10",
+      "equity": 104243.93
+    },
+    {
+      "date": "2026-06-11",
+      "equity": 104243.93
+    },
+    {
+      "date": "2026-06-12",
+      "equity": 104186.09
+    },
+    {
+      "date": "2026-06-15",
+      "equity": 105555.95
+    },
+    {
+      "date": "2026-06-16",
+      "equity": 105579.11
+    },
+    {
+      "date": "2026-06-17",
+      "equity": 105686.55
+    },
+    {
+      "date": "2026-06-18",
+      "equity": 106881.45
+    },
+    {
+      "date": "2026-06-19",
+      "equity": 106953.01
+    }
+  ],
+  "trades": [
+    {
+      "id": "bt1",
+      "symbol": "GARAN",
+      "entryDate": "2025-08-04T00:00:00.000Z",
+      "exitDate": "2025-08-18T00:00:00.000Z",
+      "entryPrice": 151.8,
+      "exitPrice": 142.4621,
+      "shares": 98.8142,
+      "realizedPnL": -980.87,
+      "realizedPnLPct": -6.53,
+      "exitReason": "stop",
+      "holdingBars": 10
+    },
+    {
+      "id": "bt3",
+      "symbol": "THYAO",
+      "entryDate": "2025-08-06T00:00:00.000Z",
+      "exitDate": "2025-08-26T00:00:00.000Z",
+      "entryPrice": 308.5,
+      "exitPrice": 342.7586,
+      "shares": 35.1049,
+      "realizedPnL": 1156.92,
+      "realizedPnLPct": 10.66,
+      "exitReason": "target",
+      "holdingBars": 14
+    },
+    {
+      "id": "bt2",
+      "symbol": "SISE",
+      "entryDate": "2025-08-06T00:00:00.000Z",
+      "exitDate": "2025-08-27T00:00:00.000Z",
+      "entryPrice": 39.78,
+      "exitPrice": 41.39,
+      "shares": 320.3997,
+      "realizedPnL": 463.83,
+      "realizedPnLPct": 3.63,
+      "exitReason": "stop",
+      "holdingBars": 15
+    },
+    {
+      "id": "bt4",
+      "symbol": "EREGL",
+      "entryDate": "2025-08-18T00:00:00.000Z",
+      "exitDate": "2025-09-02T00:00:00.000Z",
+      "entryPrice": 28.78,
+      "exitPrice": 28.78,
+      "shares": 392.9636,
+      "realizedPnL": -45.24,
+      "realizedPnLPct": -0.4,
+      "exitReason": "stop",
+      "holdingBars": 11
+    },
+    {
+      "id": "bt6",
+      "symbol": "EREGL",
+      "entryDate": "2025-09-19T00:00:00.000Z",
+      "exitDate": "2025-09-26T00:00:00.000Z",
+      "entryPrice": 28.94,
+      "exitPrice": 30.6548,
+      "shares": 443.0301,
+      "realizedPnL": 706.91,
+      "realizedPnLPct": 5.5,
+      "exitReason": "stop",
+      "holdingBars": 5
+    },
+    {
+      "id": "bt7",
+      "symbol": "SISE",
+      "entryDate": "2025-09-22T00:00:00.000Z",
+      "exitDate": "2025-09-26T00:00:00.000Z",
+      "entryPrice": 40.18,
+      "exitPrice": 38.1496,
+      "shares": 271.1362,
+      "realizedPnL": -592.99,
+      "realizedPnLPct": -5.43,
+      "exitReason": "stop",
+      "holdingBars": 4
+    },
+    {
+      "id": "bt5",
+      "symbol": "ASELS",
+      "entryDate": "2025-09-16T00:00:00.000Z",
+      "exitDate": "2025-10-14T00:00:00.000Z",
+      "entryPrice": 195.2,
+      "exitPrice": 212,
+      "shares": 77.3012,
+      "realizedPnL": 1235.7,
+      "realizedPnLPct": 8.17,
+      "exitReason": "timeout",
+      "holdingBars": 20
+    },
+    {
+      "id": "bt8",
+      "symbol": "SISE",
+      "entryDate": "2025-10-28T00:00:00.000Z",
+      "exitDate": "2025-11-10T00:00:00.000Z",
+      "entryPrice": 36.26,
+      "exitPrice": 35.609,
+      "shares": 421.722,
+      "realizedPnL": -335.15,
+      "realizedPnLPct": -2.19,
+      "exitReason": "stop",
+      "holdingBars": 8
+    },
+    {
+      "id": "bt9",
+      "symbol": "AKBNK",
+      "entryDate": "2025-10-31T00:00:00.000Z",
+      "exitDate": "2025-11-11T00:00:00.000Z",
+      "entryPrice": 60.8,
+      "exitPrice": 58.2675,
+      "shares": 213.7057,
+      "realizedPnL": -592.1,
+      "realizedPnLPct": -4.55,
+      "exitReason": "stop",
+      "holdingBars": 7
+    },
+    {
+      "id": "bta",
+      "symbol": "GARAN",
+      "entryDate": "2025-10-31T00:00:00.000Z",
+      "exitDate": "2025-11-11T00:00:00.000Z",
+      "entryPrice": 134.6,
+      "exitPrice": 127.5192,
+      "shares": 82.0239,
+      "realizedPnL": -623.8,
+      "realizedPnLPct": -5.64,
+      "exitReason": "stop",
+      "holdingBars": 7
+    },
+    {
+      "id": "btb",
+      "symbol": "ASELS",
+      "entryDate": "2025-12-09T00:00:00.000Z",
+      "exitDate": "2025-12-31T00:00:00.000Z",
+      "entryPrice": 202,
+      "exitPrice": 233.2754,
+      "shares": 74.5494,
+      "realizedPnL": 2266.66,
+      "realizedPnLPct": 15.02,
+      "exitReason": "target",
+      "holdingBars": 16
+    },
+    {
+      "id": "btd",
+      "symbol": "THYAO",
+      "entryDate": "2026-01-06T00:00:00.000Z",
+      "exitDate": "2026-01-14T00:00:00.000Z",
+      "entryPrice": 288.5,
+      "exitPrice": 282.902,
+      "shares": 45.3536,
+      "realizedPnL": -305.72,
+      "realizedPnLPct": -2.33,
+      "exitReason": "stop",
+      "holdingBars": 6
+    },
+    {
+      "id": "btc",
+      "symbol": "EREGL",
+      "entryDate": "2026-01-06T00:00:00.000Z",
+      "exitDate": "2026-01-26T00:00:00.000Z",
+      "entryPrice": 25.12,
+      "exitPrice": 27.4006,
+      "shares": 613.0167,
+      "realizedPnL": 1333.66,
+      "realizedPnLPct": 8.64,
+      "exitReason": "target",
+      "holdingBars": 14
+    },
+    {
+      "id": "bte",
+      "symbol": "SISE",
+      "entryDate": "2026-01-28T00:00:00.000Z",
+      "exitDate": "2026-01-30T00:00:00.000Z",
+      "entryPrice": 41.62,
+      "exitPrice": 46.3608,
+      "shares": 373.6947,
+      "realizedPnL": 1705.86,
+      "realizedPnLPct": 10.95,
+      "exitReason": "target",
+      "holdingBars": 2
+    },
+    {
+      "id": "btf",
+      "symbol": "ASELS",
+      "entryDate": "2026-03-02T00:00:00.000Z",
+      "exitDate": "2026-03-16T00:00:00.000Z",
+      "entryPrice": 340,
+      "exitPrice": 315.641,
+      "shares": 46.4972,
+      "realizedPnL": -1193.6,
+      "realizedPnLPct": -7.54,
+      "exitReason": "stop",
+      "holdingBars": 10
+    },
+    {
+      "id": "btg",
+      "symbol": "SISE",
+      "entryDate": "2026-03-23T00:00:00.000Z",
+      "exitDate": "2026-03-27T00:00:00.000Z",
+      "entryPrice": 48.68,
+      "exitPrice": 44.789,
+      "shares": 321.0766,
+      "realizedPnL": -1309.33,
+      "realizedPnLPct": -8.36,
+      "exitReason": "stop",
+      "holdingBars": 4
+    },
+    {
+      "id": "bth",
+      "symbol": "AKBNK",
+      "entryDate": "2026-04-08T00:00:00.000Z",
+      "exitDate": "2026-04-28T00:00:00.000Z",
+      "entryPrice": 75.75,
+      "exitPrice": 76.9184,
+      "shares": 203.744,
+      "realizedPnL": 175.84,
+      "realizedPnLPct": 1.14,
+      "exitReason": "stop",
+      "holdingBars": 13
+    },
+    {
+      "id": "btk",
+      "symbol": "GARAN",
+      "entryDate": "2026-04-10T00:00:00.000Z",
+      "exitDate": "2026-04-28T00:00:00.000Z",
+      "entryPrice": 140.4,
+      "exitPrice": 135.5882,
+      "shares": 67.4369,
+      "realizedPnL": -361.72,
+      "realizedPnLPct": -3.81,
+      "exitReason": "stop",
+      "holdingBars": 11
+    },
+    {
+      "id": "bti",
+      "symbol": "THYAO",
+      "entryDate": "2026-04-08T00:00:00.000Z",
+      "exitDate": "2026-04-30T00:00:00.000Z",
+      "entryPrice": 317,
+      "exitPrice": 309.0764,
+      "shares": 41.3689,
+      "realizedPnL": -379.59,
+      "realizedPnLPct": -2.89,
+      "exitReason": "stop",
+      "holdingBars": 15
+    },
+    {
+      "id": "btj",
+      "symbol": "EREGL",
+      "entryDate": "2026-04-10T00:00:00.000Z",
+      "exitDate": "2026-05-05T00:00:00.000Z",
+      "entryPrice": 31.3,
+      "exitPrice": 36.8257,
+      "shares": 356.0036,
+      "realizedPnL": 1918.66,
+      "realizedPnLPct": 17.18,
+      "exitReason": "target",
+      "holdingBars": 15
+    }
+  ],
+  "openAtEnd": [
+    {
+      "symbol": "AKBNK",
+      "entryDate": "2026-06-12T00:00:00.000Z",
+      "entryPrice": 72.6,
+      "lastPrice": 81.85,
+      "shares": 215.38,
+      "currentStop": 76.2707,
+      "currentTarget": 85.8449,
+      "unrealizedPnL": 1992.26,
+      "unrealizedPnLPct": 12.74
+    },
+    {
+      "symbol": "GARAN",
+      "entryDate": "2026-06-12T00:00:00.000Z",
+      "entryPrice": 135.9,
+      "lastPrice": 143.7,
+      "shares": 97.7661,
+      "currentStop": 135.0259,
+      "currentTarget": 158.9618,
+      "unrealizedPnL": 762.58,
+      "unrealizedPnLPct": 5.74
+    },
+    {
+      "symbol": "THYAO",
+      "entryDate": "2026-06-15T00:00:00.000Z",
+      "entryPrice": 325.75,
+      "lastPrice": 326.75,
+      "shares": 34.6568,
+      "currentStop": 311.8503,
+      "currentTarget": 368.6509,
+      "unrealizedPnL": 34.66,
+      "unrealizedPnLPct": 0.31
+    }
+  ],
+  "createdAt": "2026-06-20T10:11:17.194Z",
+  "id": "70b0869e7b"
+}

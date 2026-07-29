@@ -1,0 +1,212 @@
+[
+  {
+    "id": "b94f2ab3b9f0",
+    "createdAt": "2026-06-15T15:40:05.244Z",
+    "symbol": "KRDMD",
+    "name": "Kardemir Karabük Demir Çelik Sanayi ve Ticaret A.Ş.",
+    "strategy": "ema_cross",
+    "status": "open",
+    "direction": "long",
+    "source": "strategy",
+    "signalDate": "2026-06-15",
+    "entryDate": "2026-06-15T15:40:05.244Z",
+    "entryPrice": 41.04,
+    "shares": 164.9328,
+    "positionSizeTL": 6768.84,
+    "commissionPaid": 13.54,
+    "originalEntry": 41.04,
+    "originalStop": 37.4936,
+    "originalTarget": 48.1329,
+    "currentStop": 38.8514,
+    "currentTarget": 48.1329,
+    "lastPrice": 40.38,
+    "notes": [
+      {
+        "time": "2026-06-15T15:40:05.244Z",
+        "action": "signal",
+        "text": "EMA Kesişimi giriş sinyali — Hızlı EMA(9)=39.57 yavaş EMA(21)=39.56 üzerine çıktı (yukarı kesişim)."
+      },
+      {
+        "time": "2026-06-15T15:40:05.244Z",
+        "action": "entry",
+        "text": "41.04 TL'den 164.93 adet alındı (6768.84 TL, komisyon 13.54 TL). Plan — Stop: 37.49 (2× ATR altı), Hedef: 48.13 (2R (risk katı)), trailing açık."
+      },
+      {
+        "time": "2026-06-16T06:45:03.589Z",
+        "action": "trail",
+        "text": "Fiyat 41.04 (+0.00R). SL 37.49 → 38.35 (ATR×2)."
+      },
+      {
+        "time": "2026-06-16T08:00:03.477Z",
+        "action": "trail",
+        "text": "Fiyat 41.04 (+0.00R). SL 38.35 → 38.36 (ATR×2)."
+      },
+      {
+        "time": "2026-06-16T10:05:02.976Z",
+        "action": "trail",
+        "text": "Fiyat 41.60 (+0.16R). SL 38.36 → 38.77 (ATR×2)."
+      },
+      {
+        "time": "2026-06-16T10:35:03.279Z",
+        "action": "trail",
+        "text": "Fiyat 41.64 (+0.17R). SL 38.77 → 38.81 (ATR×2)."
+      },
+      {
+        "time": "2026-06-16T10:40:02.776Z",
+        "action": "trail",
+        "text": "Fiyat 41.60 (+0.16R). SL 38.81 → 38.85 (ATR×2)."
+      }
+    ],
+    "updatedAt": "2026-06-29T14:50:00.879Z"
+  },
+  {
+    "id": "6762f0bfe6c3",
+    "createdAt": "2026-06-15T15:40:05.246Z",
+    "symbol": "SAHOL",
+    "name": "Hacı Ömer Sabancı Holding A.Ş.",
+    "strategy": "ema_cross",
+    "status": "open",
+    "direction": "long",
+    "source": "strategy",
+    "signalDate": "2026-06-15",
+    "entryDate": "2026-06-15T15:40:05.246Z",
+    "entryPrice": 101.2,
+    "shares": 56.5925,
+    "positionSizeTL": 5727.16,
+    "commissionPaid": 11.45,
+    "originalEntry": 101.2,
+    "originalStop": 95.0753,
+    "originalTarget": 113.4494,
+    "currentStop": 96.5571,
+    "currentTarget": 113.4494,
+    "lastPrice": 97.5,
+    "notes": [
+      {
+        "time": "2026-06-15T15:40:05.246Z",
+        "action": "signal",
+        "text": "EMA Kesişimi giriş sinyali — Hızlı EMA(9)=94.06 yavaş EMA(21)=93.35 üzerine çıktı (yukarı kesişim)."
+      },
+      {
+        "time": "2026-06-15T15:40:05.246Z",
+        "action": "entry",
+        "text": "101.20 TL'den 56.59 adet alındı (5727.16 TL, komisyon 11.45 TL). Plan — Stop: 95.08 (2× ATR altı), Hedef: 113.45 (2R (risk katı)), trailing açık."
+      },
+      {
+        "time": "2026-06-16T06:45:03.879Z",
+        "action": "trail",
+        "text": "Fiyat 101.20 (+0.00R). SL 95.08 → 95.94 (ATR×2)."
+      },
+      {
+        "time": "2026-06-16T13:20:02.979Z",
+        "action": "trail",
+        "text": "Fiyat 101.50 (+0.05R). SL 95.94 → 95.98 (ATR×2)."
+      },
+      {
+        "time": "2026-06-16T13:25:03.378Z",
+        "action": "trail",
+        "text": "Fiyat 101.60 (+0.07R). SL 95.98 → 96.08 (ATR×2)."
+      },
+      {
+        "time": "2026-06-18T09:30:05.482Z",
+        "action": "trail",
+        "text": "Fiyat 103.00 (+0.29R). SL 96.08 → 96.56 (ATR×2)."
+      }
+    ],
+    "updatedAt": "2026-06-29T14:50:04.067Z"
+  },
+  {
+    "id": "0a9e5e582826",
+    "createdAt": "2026-06-15T15:40:05.249Z",
+    "symbol": "THYAO",
+    "name": "Türk Hava Yolları A.O.",
+    "strategy": "ema_cross",
+    "status": "open",
+    "direction": "long",
+    "source": "strategy",
+    "signalDate": "2026-06-15",
+    "entryDate": "2026-06-15T15:40:05.249Z",
+    "entryPrice": 325.75,
+    "shares": 13.6833,
+    "positionSizeTL": 4457.33,
+    "commissionPaid": 8.91,
+    "originalEntry": 325.75,
+    "originalStop": 308.5896,
+    "originalTarget": 360.0707,
+    "currentStop": 316,
+    "currentTarget": 360.0707,
+    "lastPrice": 328.25,
+    "notes": [
+      {
+        "time": "2026-06-15T15:40:05.249Z",
+        "action": "signal",
+        "text": "EMA Kesişimi giriş sinyali — Hızlı EMA(9)=303.84 yavaş EMA(21)=301.28 üzerine çıktı (yukarı kesişim)."
+      },
+      {
+        "time": "2026-06-15T15:40:05.249Z",
+        "action": "entry",
+        "text": "325.75 TL'den 13.68 adet alındı (4457.33 TL, komisyon 8.91 TL). Plan — Stop: 308.59 (2× ATR altı), Hedef: 360.07 (2R (risk katı)), trailing açık."
+      },
+      {
+        "time": "2026-06-16T06:45:05.574Z",
+        "action": "trail",
+        "text": "Fiyat 325.75 (+0.00R). SL 308.59 → 312.11 (ATR×2)."
+      },
+      {
+        "time": "2026-06-16T07:25:04.875Z",
+        "action": "trail",
+        "text": "Fiyat 325.75 (+0.00R). SL 312.11 → 312.64 (ATR×2)."
+      },
+      {
+        "time": "2026-06-16T10:20:03.978Z",
+        "action": "trail",
+        "text": "Fiyat 326.50 (+0.04R). SL 312.64 → 312.93 (ATR×2)."
+      },
+      {
+        "time": "2026-06-19T13:10:05.165Z",
+        "action": "trail",
+        "text": "Fiyat 332.00 (+0.36R). SL 312.93 → 315.29 (ATR×2)."
+      },
+      {
+        "time": "2026-06-25T09:05:16.211Z",
+        "action": "trail",
+        "text": "Fiyat 332.75 (+0.41R). SL 315.29 → 316.00 (ATR×2)."
+      }
+    ],
+    "updatedAt": "2026-06-29T14:50:04.572Z"
+  },
+  {
+    "id": "11ad99bf152e",
+    "createdAt": "2026-06-22T15:40:43.228Z",
+    "symbol": "TRMET",
+    "name": "TR Anadolu Metal Madencilik İşletmeleri A.Ş.",
+    "strategy": "ema_cross",
+    "status": "open",
+    "direction": "long",
+    "source": "strategy",
+    "signalDate": "2026-06-22",
+    "entryDate": "2026-06-22T15:40:43.227Z",
+    "entryPrice": 116,
+    "shares": 41.3751,
+    "positionSizeTL": 4799.51,
+    "commissionPaid": 9.6,
+    "originalEntry": 116,
+    "originalStop": 104.1726,
+    "originalTarget": 139.6548,
+    "currentStop": 104.1726,
+    "currentTarget": 139.6548,
+    "lastPrice": 106.6,
+    "notes": [
+      {
+        "time": "2026-06-22T15:40:43.227Z",
+        "action": "signal",
+        "text": "EMA Kesişimi giriş sinyali — Hızlı EMA(9)=114.93 yavaş EMA(21)=114.91 üzerine çıktı (yukarı kesişim)."
+      },
+      {
+        "time": "2026-06-22T15:40:43.227Z",
+        "action": "entry",
+        "text": "116.00 TL'den 41.38 adet alındı (4799.51 TL, komisyon 9.60 TL). Plan — Stop: 104.17 (2× ATR altı), Hedef: 139.65 (2R (risk katı)), trailing açık."
+      }
+    ],
+    "updatedAt": "2026-06-29T14:50:07.663Z"
+  }
+]

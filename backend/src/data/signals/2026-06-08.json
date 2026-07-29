@@ -1,0 +1,17 @@
+{
+  "date": "2026-06-08",
+  "intraday": [
+    {
+      "phase": "intraday",
+      "generatedAt": "2026-06-08T19:55:56.129Z",
+      "trend": {
+        "signals": [],
+        "allSignals": []
+      },
+      "reversion": {
+        "signals": [],
+        "allSignals": []
+      }
+    }
+  ]
+}

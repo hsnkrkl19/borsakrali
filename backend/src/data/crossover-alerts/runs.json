@@ -1,0 +1,218 @@
+{
+  "lastCandleDate": "2026-06-19",
+  "lastResult": {
+    "runAt": "2026-06-19T15:50:45.764Z",
+    "candleDate": "2026-06-19",
+    "scanned": 504,
+    "fetchErrors": 6,
+    "counts": {
+      "temaUp": 34,
+      "temaDown": 53,
+      "emaUp": 27,
+      "emaDown": 25
+    },
+    "total": 139,
+    "notified": true,
+    "skippedReason": null,
+    "forced": false,
+    "telegramSent": 2,
+    "broadcast": {
+      "ok": true,
+      "fcmStatus": "sent"
+    },
+    "preview": {
+      "temaUp": [
+        "USAK",
+        "MRGYO",
+        "METRO",
+        "DOAS",
+        "UNLU",
+        "IHEVA",
+        "JANTS",
+        "ESEN",
+        "EGSER",
+        "LMKDC"
+      ],
+      "temaDown": [
+        "ANELE",
+        "VERUS",
+        "SUMAS",
+        "NUGYO",
+        "INVES",
+        "ULKER",
+        "BARMA",
+        "COSMO",
+        "RYGYO",
+        "TGSAS"
+      ],
+      "emaUp": [
+        "MEDTR",
+        "ECZYT",
+        "BINHO",
+        "AVHOL",
+        "SAYAS",
+        "SNPAM",
+        "AKMGY",
+        "TEKTU",
+        "BSOKE",
+        "PAPIL"
+      ],
+      "emaDown": [
+        "EKSUN",
+        "AKCNS",
+        "YAYLA",
+        "BASCM",
+        "TATEN",
+        "ATAKP",
+        "GRNYO",
+        "GRSEL",
+        "TRMET",
+        "AKFYE"
+      ]
+    }
+  },
+  "history": [
+    {
+      "runAt": "2026-06-18T15:50:45.996Z",
+      "candleDate": "2026-06-18",
+      "scanned": 504,
+      "fetchErrors": 6,
+      "counts": {
+        "temaUp": 78,
+        "temaDown": 12,
+        "emaUp": 42,
+        "emaDown": 12
+      },
+      "total": 144,
+      "notified": true,
+      "skippedReason": null,
+      "forced": false,
+      "telegramSent": 2,
+      "broadcast": {
+        "ok": true,
+        "fcmStatus": "sent"
+      },
+      "preview": {
+        "temaUp": [
+          "BIENY",
+          "SODSN",
+          "RTALB",
+          "ADESE",
+          "CGCAM",
+          "EGPRO",
+          "BIZIM",
+          "GSRAY",
+          "TRCAS",
+          "RYGYO"
+        ],
+        "temaDown": [
+          "DURDO",
+          "AKCNS",
+          "ENSRI",
+          "KONTR",
+          "AKSUE",
+          "PKART",
+          "OBASE",
+          "GEREL",
+          "KENT",
+          "CASA"
+        ],
+        "emaUp": [
+          "BNTAS",
+          "GRNYO",
+          "KRSTL",
+          "EMNIS",
+          "TURSG",
+          "GRSEL",
+          "IZFAS",
+          "FADE",
+          "TATEN",
+          "OYAKC"
+        ],
+        "emaDown": [
+          "TURGG",
+          "ARENA",
+          "GESAN",
+          "ZEDUR",
+          "IZINV",
+          "BRLSM",
+          "SONME",
+          "AKFGY",
+          "SNPAM",
+          "NUHCM"
+        ]
+      }
+    },
+    {
+      "runAt": "2026-06-19T15:50:45.764Z",
+      "candleDate": "2026-06-19",
+      "scanned": 504,
+      "fetchErrors": 6,
+      "counts": {
+        "temaUp": 34,
+        "temaDown": 53,
+        "emaUp": 27,
+        "emaDown": 25
+      },
+      "total": 139,
+      "notified": true,
+      "skippedReason": null,
+      "forced": false,
+      "telegramSent": 2,
+      "broadcast": {
+        "ok": true,
+        "fcmStatus": "sent"
+      },
+      "preview": {
+        "temaUp": [
+          "USAK",
+          "MRGYO",
+          "METRO",
+          "DOAS",
+          "UNLU",
+          "IHEVA",
+          "JANTS",
+          "ESEN",
+          "EGSER",
+          "LMKDC"
+        ],
+        "temaDown": [
+          "ANELE",
+          "VERUS",
+          "SUMAS",
+          "NUGYO",
+          "INVES",
+          "ULKER",
+          "BARMA",
+          "COSMO",
+          "RYGYO",
+          "TGSAS"
+        ],
+        "emaUp": [
+          "MEDTR",
+          "ECZYT",
+          "BINHO",
+          "AVHOL",
+          "SAYAS",
+          "SNPAM",
+          "AKMGY",
+          "TEKTU",
+          "BSOKE",
+          "PAPIL"
+        ],
+        "emaDown": [
+          "EKSUN",
+          "AKCNS",
+          "YAYLA",
+          "BASCM",
+          "TATEN",
+          "ATAKP",
+          "GRNYO",
+          "GRSEL",
+          "TRMET",
+          "AKFYE"
+        ]
+      }
+    }
+  ]
+}

@@ -1,1 +1,1295 @@
-[]
+[
+  {
+    "id": "9a69736baa0b",
+    "createdAt": "2026-06-29T15:27:35.634Z",
+    "symbol": "TIA",
+    "name": "TIA",
+    "image": null,
+    "coinId": "tia",
+    "strategy": "futures_long",
+    "direction": "long",
+    "status": "open",
+    "signalDate": "2026-06-29",
+    "signalPhase": "intraday",
+    "signalLogId": "7a370d3996ea",
+    "originalEntry": 0.3971,
+    "originalStop": 0.35013,
+    "originalTarget": 0.45972,
+    "target2": 0.50669,
+    "suggestedLeverage": 3,
+    "totalScore": 7,
+    "grade": "GUCLU",
+    "signalConditions": [
+      {
+        "label": "4H 20-bar yüksek kırıldı",
+        "why": "4H kapanış son 20 4H mum yüksek seviyesinin üstünde — kırılım gerçekleşti.",
+        "met": true,
+        "required": true
+      },
+      {
+        "label": "4H yukarı trend",
+        "why": "4H EMA20 > EMA50 — kısa vadeli yapı yukarı yönlü.",
+        "met": true,
+        "required": true
+      },
+      {
+        "label": "1D yukarı trend uyumu",
+        "why": "1D EMA20 > EMA50 — kırılım ana trende uygun (kontra-trend değil).",
+        "met": false,
+        "required": false
+      },
+      {
+        "label": "4H RSI 50-75",
+        "why": "RSI 50 üstü — alıcı kontrolde ama henüz aşırı alım değil.",
+        "met": true,
+        "required": false
+      },
+      {
+        "label": "4H MACD pozitif + büyüyor",
+        "why": "Momentum hızlanıyor — 4H MACD histogramı yukarı.",
+        "met": true,
+        "required": false
+      },
+      {
+        "label": "4H hacim patlaması (2x+)",
+        "why": "Kırılım hacimle teyit edildi — sürdürülebilir momentum.",
+        "met": true,
+        "required": false
+      },
+      {
+        "label": "Funding rate avantajlı (≤0.05%)",
+        "why": "Funding rate düşük/negatif — long pozisyon ucuz, short squeeze potansiyeli.",
+        "met": false,
+        "required": false
+      },
+      {
+        "label": "4H fiyat EMA200 üstü",
+        "why": "4H EMA200 üstünde olmak — ana 4H trend boğa.",
+        "met": true,
+        "required": false
+      },
+      {
+        "label": "Son 5 4H mumda kırılım",
+        "why": "Kırılım taze (son ~20 saat) — momentum henüz tükenmedi.",
+        "met": false,
+        "required": false
+      },
+      {
+        "label": "1D MACD pozitif",
+        "why": "1D MACD histogramı pozitif — büyük resim long için uygun.",
+        "met": true,
+        "required": false
+      }
+    ],
+    "entryDate": "2026-06-29T15:27:35.634Z",
+    "entryPrice": 0.39729855,
+    "shares": 1201.23770902,
+    "positionSize": 477.25,
+    "commissionPaid": 0.48,
+    "currentStop": 0.35013,
+    "currentTarget": 0.45972,
+    "lastPrice": 0.3971000015735626,
+    "notes": [
+      {
+        "time": "2026-06-29T15:27:35.634Z",
+        "action": "signal",
+        "text": "Futures Long (agresif long) — skor 7/10 (GUCLU). Karşılanan koşullar: 4H 20-bar yüksek kırıldı, 4H yukarı trend, 4H RSI 50-75, 4H MACD pozitif + büyüyor, 4H hacim patlaması (2x+). Giriş $0.3971, hedef $0.4597, stop $0.3501."
+      },
+      {
+        "time": "2026-06-29T15:27:35.634Z",
+        "action": "entry",
+        "text": "ALIŞ (long) market emirle $0.3973'den açıldı (slip %0.05). 1,201.2377 adet, komisyon $0.48."
+      }
+    ],
+    "updatedAt": "2026-07-05T19:45:01.598Z"
+  },
+  {
+    "id": "835bb5e716a0",
+    "createdAt": "2026-07-04T10:00:05.961Z",
+    "symbol": "XLM",
+    "name": "Stellar",
+    "image": "https://coin-images.coingecko.com/coins/images/100/large/fmpFRHHQ_400x400.jpg?1735231350",
+    "coinId": "stellar",
+    "strategy": "spot_long",
+    "direction": "long",
+    "status": "open",
+    "signalDate": "2026-07-04",
+    "signalPhase": "midday",
+    "signalLogId": "677d4470802c",
+    "originalEntry": 0.20643,
+    "originalStop": 0.1789,
+    "originalTarget": 0.23946,
+    "target2": 0.26148,
+    "suggestedLeverage": 1,
+    "totalScore": 8,
+    "grade": "MUKEMMEL",
+    "signalConditions": [
+      {
+        "label": "1D yukarı trend",
+        "why": "1D zaman diliminde EMA20 > EMA50 — ana trend yukarı.",
+        "met": true,
+        "required": true
+      },
+      {
+        "label": "1D EMA dizilimi (20>50>200)",
+        "why": "Uzun vadeli yükseliş yapısı sağlam.",
+        "met": false,
+        "required": false
+      },
+      {
+        "label": "Fiyat 1D EMA200 üstü",
+        "why": "1D EMA200 boğa-ayı ayrımı — üstünde olmak güvenli alan.",
+        "met": true,
+        "required": false
+      },
+      {
+        "label": "RSI sağlıklı bantta (35-70)",
+        "why": "Aşırı satım bölgesinden çıkmış, aşırı alım bölgesine girmemiş.",
+        "met": true,
+        "required": true
+      },
+      {
+        "label": "1D MACD pozitif + büyüyor",
+        "why": "MACD histogramı pozitif ve son barda büyüyor — momentum güçleniyor.",
+        "met": true,
+        "required": false
+      },
+      {
+        "label": "Hacim ortalama üstü",
+        "why": "Son 1D mum hacmi 20-bar SMA üstünde — katılım var.",
+        "met": true,
+        "required": false
+      },
+      {
+        "label": "ADX trend modunda (≥20)",
+        "why": "1D ADX ≥ 20 — fiyat yatay değil yönlü hareket ediyor.",
+        "met": false,
+        "required": false
+      },
+      {
+        "label": "4H trend uyumlu",
+        "why": "4H EMA20 > EMA50 — kısa vadeli yapı da yukarı.",
+        "met": true,
+        "required": false
+      },
+      {
+        "label": "4H higher-high",
+        "why": "Son 4H mum, son 20 4H mumun en yüksek kapanışı — momentum başlangıcı.",
+        "met": true,
+        "required": false
+      },
+      {
+        "label": "4H hacim patlaması",
+        "why": "Son 4H mum hacmi 20-bar ortalamasının 1.5 katı — alıcı katılımı yüksek.",
+        "met": true,
+        "required": false
+      }
+    ],
+    "entryDate": "2026-07-04T10:00:05.960Z",
+    "entryPrice": 0.20653321,
+    "shares": 4612.09119831,
+    "positionSize": 952.55,
+    "commissionPaid": 0.95,
+    "currentStop": 0.1789,
+    "currentTarget": 0.23946,
+    "lastPrice": 0.20044000446796417,
+    "notes": [
+      {
+        "time": "2026-07-04T10:00:05.960Z",
+        "action": "signal",
+        "text": "Spot AL (güvenli long) — skor 8/10 (MUKEMMEL). Karşılanan koşullar: 1D yukarı trend, Fiyat 1D EMA200 üstü, RSI sağlıklı bantta (35-70), 1D MACD pozitif + büyüyor, Hacim ortalama üstü. Giriş $0.2064, hedef $0.2395, stop $0.1789."
+      },
+      {
+        "time": "2026-07-04T10:00:05.960Z",
+        "action": "entry",
+        "text": "ALIŞ (long) market emirle $0.2065'den açıldı (slip %0.05). 4,612.0912 adet, komisyon $0.95."
+      }
+    ],
+    "updatedAt": "2026-07-05T19:45:01.599Z"
+  },
+  {
+    "id": "83d080b5abff",
+    "createdAt": "2026-07-04T10:00:05.976Z",
+    "symbol": "DEXE",
+    "name": "DeXe",
+    "image": "https://coin-images.coingecko.com/coins/images/12713/large/DEXE_token_logo.png?1696512514",
+    "coinId": "dexe",
+    "strategy": "spot_long",
+    "direction": "long",
+    "status": "open",
+    "signalDate": "2026-07-04",
+    "signalPhase": "midday",
+    "signalLogId": "e28a1f3aafff",
+    "originalEntry": 23.36,
+    "originalStop": 17.943,
+    "originalTarget": 29.861,
+    "target2": 34.195,
+    "suggestedLeverage": 1,
+    "totalScore": 7,
+    "grade": "GUCLU",
+    "signalConditions": [
+      {
+        "label": "1D yukarı trend",
+        "why": "1D zaman diliminde EMA20 > EMA50 — ana trend yukarı.",
+        "met": true,
+        "required": true
+      },
+      {
+        "label": "1D EMA dizilimi (20>50>200)",
+        "why": "Uzun vadeli yükseliş yapısı sağlam.",
+        "met": true,
+        "required": false
+      },
+      {
+        "label": "Fiyat 1D EMA200 üstü",
+        "why": "1D EMA200 boğa-ayı ayrımı — üstünde olmak güvenli alan.",
+        "met": true,
+        "required": false
+      },
+      {
+        "label": "RSI sağlıklı bantta (35-70)",
+        "why": "Aşırı satım bölgesinden çıkmış, aşırı alım bölgesine girmemiş.",
+        "met": true,
+        "required": true
+      },
+      {
+        "label": "1D MACD pozitif + büyüyor",
+        "why": "MACD histogramı pozitif ve son barda büyüyor — momentum güçleniyor.",
+        "met": false,
+        "required": false
+      },
+      {
+        "label": "Hacim ortalama üstü",
+        "why": "Son 1D mum hacmi 20-bar SMA üstünde — katılım var.",
+        "met": false,
+        "required": false
+      },
+      {
+        "label": "ADX trend modunda (≥20)",
+        "why": "1D ADX ≥ 20 — fiyat yatay değil yönlü hareket ediyor.",
+        "met": true,
+        "required": false
+      },
+      {
+        "label": "4H trend uyumlu",
+        "why": "4H EMA20 > EMA50 — kısa vadeli yapı da yukarı.",
+        "met": true,
+        "required": false
+      },
+      {
+        "label": "4H higher-high",
+        "why": "Son 4H mum, son 20 4H mumun en yüksek kapanışı — momentum başlangıcı.",
+        "met": true,
+        "required": false
+      },
+      {
+        "label": "4H hacim patlaması",
+        "why": "Son 4H mum hacmi 20-bar ortalamasının 1.5 katı — alıcı katılımı yüksek.",
+        "met": false,
+        "required": false
+      }
+    ],
+    "entryDate": "2026-07-04T10:00:05.973Z",
+    "entryPrice": 23.37168,
+    "shares": 36.67686705,
+    "positionSize": 857.2,
+    "commissionPaid": 0.86,
+    "currentStop": 19.8366,
+    "currentTarget": 29.861,
+    "lastPrice": 23.925254821777344,
+    "notes": [
+      {
+        "time": "2026-07-04T10:00:05.973Z",
+        "action": "signal",
+        "text": "Spot AL (güvenli long) — skor 7/10 (GUCLU). Karşılanan koşullar: 1D yukarı trend, 1D EMA dizilimi (20>50>200), Fiyat 1D EMA200 üstü, RSI sağlıklı bantta (35-70), ADX trend modunda (≥20). Giriş $23.36, hedef $29.861, stop $17.943."
+      },
+      {
+        "time": "2026-07-04T10:00:05.973Z",
+        "action": "entry",
+        "text": "ALIŞ (long) market emirle $23.3717'den açıldı (slip %0.05). 36.6769 adet, komisyon $0.86."
+      },
+      {
+        "time": "2026-07-05T15:45:02.129Z",
+        "action": "trail",
+        "text": "Fiyat 24.38 (+0.19R). SL 17.94 → 19.84 (ATR×2)."
+      }
+    ],
+    "updatedAt": "2026-07-05T19:45:01.600Z"
+  },
+  {
+    "id": "fcb6c43544d4",
+    "createdAt": "2026-07-04T10:00:05.985Z",
+    "symbol": "BDX",
+    "name": "Beldex",
+    "image": "https://coin-images.coingecko.com/coins/images/5111/large/Beldex.png?1696505631",
+    "coinId": "beldex",
+    "strategy": "spot_long",
+    "direction": "long",
+    "status": "open",
+    "signalDate": "2026-07-04",
+    "signalPhase": "midday",
+    "signalLogId": "646bf4ff6c67",
+    "originalEntry": 0.0884,
+    "originalStop": 0.07689,
+    "originalTarget": 0.10221,
+    "target2": 0.11142,
+    "suggestedLeverage": 1,
+    "totalScore": 7,
+    "grade": "GUCLU",
+    "signalConditions": [
+      {
+        "label": "1D yukarı trend",
+        "why": "1D zaman diliminde EMA20 > EMA50 — ana trend yukarı.",
+        "met": true,
+        "required": true
+      },
+      {
+        "label": "1D EMA dizilimi (20>50>200)",
+        "why": "Uzun vadeli yükseliş yapısı sağlam.",
+        "met": false,
+        "required": false
+      },
+      {
+        "label": "Fiyat 1D EMA200 üstü",
+        "why": "1D EMA200 boğa-ayı ayrımı — üstünde olmak güvenli alan.",
+        "met": true,
+        "required": false
+      },
+      {
+        "label": "RSI sağlıklı bantta (35-70)",
+        "why": "Aşırı satım bölgesinden çıkmış, aşırı alım bölgesine girmemiş.",
+        "met": true,
+        "required": true
+      },
+      {
+        "label": "1D MACD pozitif + büyüyor",
+        "why": "MACD histogramı pozitif ve son barda büyüyor — momentum güçleniyor.",
+        "met": false,
+        "required": false
+      },
+      {
+        "label": "Hacim ortalama üstü",
+        "why": "Son 1D mum hacmi 20-bar SMA üstünde — katılım var.",
+        "met": true,
+        "required": false
+      },
+      {
+        "label": "ADX trend modunda (≥20)",
+        "why": "1D ADX ≥ 20 — fiyat yatay değil yönlü hareket ediyor.",
+        "met": true,
+        "required": false
+      },
+      {
+        "label": "4H trend uyumlu",
+        "why": "4H EMA20 > EMA50 — kısa vadeli yapı da yukarı.",
+        "met": true,
+        "required": false
+      },
+      {
+        "label": "4H higher-high",
+        "why": "Son 4H mum, son 20 4H mumun en yüksek kapanışı — momentum başlangıcı.",
+        "met": false,
+        "required": false
+      },
+      {
+        "label": "4H hacim patlaması",
+        "why": "Son 4H mum hacmi 20-bar ortalamasının 1.5 katı — alıcı katılımı yüksek.",
+        "met": true,
+        "required": false
+      }
+    ],
+    "entryDate": "2026-07-04T10:00:05.985Z",
+    "entryPrice": 0.0884442,
+    "shares": 8721.77033655,
+    "positionSize": 771.39,
+    "commissionPaid": 0.77,
+    "currentStop": 0.0809,
+    "currentTarget": 0.10221,
+    "lastPrice": 0.08948521316051483,
+    "notes": [
+      {
+        "time": "2026-07-04T10:00:05.985Z",
+        "action": "signal",
+        "text": "Spot AL (güvenli long) — skor 7/10 (GUCLU). Karşılanan koşullar: 1D yukarı trend, Fiyat 1D EMA200 üstü, RSI sağlıklı bantta (35-70), Hacim ortalama üstü, ADX trend modunda (≥20). Giriş $0.0884, hedef $0.1022, stop $0.0769."
+      },
+      {
+        "time": "2026-07-04T10:00:05.985Z",
+        "action": "entry",
+        "text": "ALIŞ (long) market emirle $0.0884'den açıldı (slip %0.05). 8,721.7703 adet, komisyon $0.77."
+      },
+      {
+        "time": "2026-07-05T15:45:02.132Z",
+        "action": "trail",
+        "text": "Fiyat 0.09 (+0.13R). SL 0.08 → 0.08 (ATR×2)."
+      }
+    ],
+    "updatedAt": "2026-07-05T19:45:01.601Z"
+  },
+  {
+    "id": "5419043d91e4",
+    "createdAt": "2026-07-04T10:00:05.992Z",
+    "symbol": "JTO",
+    "name": "Jito",
+    "image": "https://coin-images.coingecko.com/coins/images/33228/large/jto.png?1701137022",
+    "coinId": "jito-governance-token",
+    "strategy": "spot_long",
+    "direction": "long",
+    "status": "open",
+    "signalDate": "2026-07-04",
+    "signalPhase": "midday",
+    "signalLogId": "5d305620af1c",
+    "originalEntry": 0.7266,
+    "originalStop": 0.51741,
+    "originalTarget": 0.97763,
+    "target2": 1.14499,
+    "suggestedLeverage": 1,
+    "totalScore": 7,
+    "grade": "GUCLU",
+    "signalConditions": [
+      {
+        "label": "1D yukarı trend",
+        "why": "1D zaman diliminde EMA20 > EMA50 — ana trend yukarı.",
+        "met": true,
+        "required": true
+      },
+      {
+        "label": "1D EMA dizilimi (20>50>200)",
+        "why": "Uzun vadeli yükseliş yapısı sağlam.",
+        "met": true,
+        "required": false
+      },
+      {
+        "label": "Fiyat 1D EMA200 üstü",
+        "why": "1D EMA200 boğa-ayı ayrımı — üstünde olmak güvenli alan.",
+        "met": true,
+        "required": false
+      },
+      {
+        "label": "RSI sağlıklı bantta (35-70)",
+        "why": "Aşırı satım bölgesinden çıkmış, aşırı alım bölgesine girmemiş.",
+        "met": true,
+        "required": true
+      },
+      {
+        "label": "1D MACD pozitif + büyüyor",
+        "why": "MACD histogramı pozitif ve son barda büyüyor — momentum güçleniyor.",
+        "met": false,
+        "required": false
+      },
+      {
+        "label": "Hacim ortalama üstü",
+        "why": "Son 1D mum hacmi 20-bar SMA üstünde — katılım var.",
+        "met": false,
+        "required": false
+      },
+      {
+        "label": "ADX trend modunda (≥20)",
+        "why": "1D ADX ≥ 20 — fiyat yatay değil yönlü hareket ediyor.",
+        "met": true,
+        "required": false
+      },
+      {
+        "label": "4H trend uyumlu",
+        "why": "4H EMA20 > EMA50 — kısa vadeli yapı da yukarı.",
+        "met": true,
+        "required": false
+      },
+      {
+        "label": "4H higher-high",
+        "why": "Son 4H mum, son 20 4H mumun en yüksek kapanışı — momentum başlangıcı.",
+        "met": false,
+        "required": false
+      },
+      {
+        "label": "4H hacim patlaması",
+        "why": "Son 4H mum hacmi 20-bar ortalamasının 1.5 katı — alıcı katılımı yüksek.",
+        "met": true,
+        "required": false
+      }
+    ],
+    "entryDate": "2026-07-04T10:00:05.992Z",
+    "entryPrice": 0.7269633,
+    "shares": 954.90377575,
+    "positionSize": 694.18,
+    "commissionPaid": 0.69,
+    "currentStop": 0.559,
+    "currentTarget": 0.97763,
+    "lastPrice": 0.7134000062942505,
+    "notes": [
+      {
+        "time": "2026-07-04T10:00:05.992Z",
+        "action": "signal",
+        "text": "Spot AL (güvenli long) — skor 7/10 (GUCLU). Karşılanan koşullar: 1D yukarı trend, 1D EMA dizilimi (20>50>200), Fiyat 1D EMA200 üstü, RSI sağlıklı bantta (35-70), ADX trend modunda (≥20). Giriş $0.7266, hedef $0.9776, stop $0.5174."
+      },
+      {
+        "time": "2026-07-04T10:00:05.992Z",
+        "action": "entry",
+        "text": "ALIŞ (long) market emirle $0.727'den açıldı (slip %0.05). 954.9038 adet, komisyon $0.69."
+      },
+      {
+        "time": "2026-07-05T15:45:02.135Z",
+        "action": "trail",
+        "text": "Fiyat 0.72 (+-0.05R). SL 0.52 → 0.56 (ATR×2)."
+      }
+    ],
+    "updatedAt": "2026-07-05T19:45:01.602Z"
+  },
+  {
+    "id": "ada064c8898a",
+    "createdAt": "2026-07-04T10:00:05.999Z",
+    "symbol": "XMR",
+    "name": "Monero",
+    "image": "https://coin-images.coingecko.com/coins/images/69/large/monero_logo.png?1696501460",
+    "coinId": "monero",
+    "strategy": "futures_long",
+    "direction": "long",
+    "status": "open",
+    "signalDate": "2026-07-04",
+    "signalPhase": "midday",
+    "signalLogId": "9898b3bdfff0",
+    "originalEntry": 329.423,
+    "originalStop": 305.669,
+    "originalTarget": 361.095,
+    "target2": 384.849,
+    "suggestedLeverage": 3,
+    "totalScore": 6,
+    "grade": "GUCLU",
+    "signalConditions": [
+      {
+        "label": "4H 20-bar yüksek kırıldı",
+        "why": "4H kapanış son 20 4H mum yüksek seviyesinin üstünde — kırılım gerçekleşti.",
+        "met": true,
+        "required": true
+      },
+      {
+        "label": "4H yukarı trend",
+        "why": "4H EMA20 > EMA50 — kısa vadeli yapı yukarı yönlü.",
+        "met": true,
+        "required": true
+      },
+      {
+        "label": "1D yukarı trend uyumu",
+        "why": "1D EMA20 > EMA50 — kırılım ana trende uygun (kontra-trend değil).",
+        "met": false,
+        "required": false
+      },
+      {
+        "label": "4H RSI 50-75",
+        "why": "RSI 50 üstü — alıcı kontrolde ama henüz aşırı alım değil.",
+        "met": true,
+        "required": false
+      },
+      {
+        "label": "4H MACD pozitif + büyüyor",
+        "why": "Momentum hızlanıyor — 4H MACD histogramı yukarı.",
+        "met": true,
+        "required": false
+      },
+      {
+        "label": "4H hacim patlaması (2x+)",
+        "why": "Kırılım hacimle teyit edildi — sürdürülebilir momentum.",
+        "met": true,
+        "required": false
+      },
+      {
+        "label": "Funding rate avantajlı (≤0.05%)",
+        "why": "Funding rate düşük/negatif — long pozisyon ucuz, short squeeze potansiyeli.",
+        "met": false,
+        "required": false
+      },
+      {
+        "label": "4H fiyat EMA200 üstü",
+        "why": "4H EMA200 üstünde olmak — ana 4H trend boğa.",
+        "met": false,
+        "required": false
+      },
+      {
+        "label": "Son 5 4H mumda kırılım",
+        "why": "Kırılım taze (son ~20 saat) — momentum henüz tükenmedi.",
+        "met": false,
+        "required": false
+      },
+      {
+        "label": "1D MACD pozitif",
+        "why": "1D MACD histogramı pozitif — büyük resim long için uygun.",
+        "met": true,
+        "required": false
+      }
+    ],
+    "entryDate": "2026-07-04T10:00:05.998Z",
+    "entryPrice": 329.5877115,
+    "shares": 1.895368,
+    "positionSize": 624.69,
+    "commissionPaid": 0.62,
+    "currentStop": 305.669,
+    "currentTarget": 361.095,
+    "lastPrice": 327.5279235839844,
+    "notes": [
+      {
+        "time": "2026-07-04T10:00:05.998Z",
+        "action": "signal",
+        "text": "Futures Long (agresif long) — skor 6/10 (GUCLU). Karşılanan koşullar: 4H 20-bar yüksek kırıldı, 4H yukarı trend, 4H RSI 50-75, 4H MACD pozitif + büyüyor, 4H hacim patlaması (2x+). Giriş $329.423, hedef $361.095, stop $305.669."
+      },
+      {
+        "time": "2026-07-04T10:00:05.998Z",
+        "action": "entry",
+        "text": "ALIŞ (long) market emirle $329.5877'den açıldı (slip %0.05). 1.8954 adet, komisyon $0.62."
+      }
+    ],
+    "updatedAt": "2026-07-05T19:45:01.603Z"
+  },
+  {
+    "id": "2a52fda42149",
+    "createdAt": "2026-07-04T10:00:06.005Z",
+    "symbol": "GT",
+    "name": "Gate",
+    "image": "https://coin-images.coingecko.com/coins/images/8183/large/200X200.png?1735246724",
+    "coinId": "gatechain-token",
+    "strategy": "futures_long",
+    "direction": "long",
+    "status": "open",
+    "signalDate": "2026-07-04",
+    "signalPhase": "midday",
+    "signalLogId": "3f0769ab1628",
+    "originalEntry": 6.8202,
+    "originalStop": 6.5091,
+    "originalTarget": 7.235,
+    "target2": 7.546,
+    "suggestedLeverage": 3,
+    "totalScore": 6,
+    "grade": "GUCLU",
+    "signalConditions": [
+      {
+        "label": "4H 20-bar yüksek kırıldı",
+        "why": "4H kapanış son 20 4H mum yüksek seviyesinin üstünde — kırılım gerçekleşti.",
+        "met": true,
+        "required": true
+      },
+      {
+        "label": "4H yukarı trend",
+        "why": "4H EMA20 > EMA50 — kısa vadeli yapı yukarı yönlü.",
+        "met": true,
+        "required": true
+      },
+      {
+        "label": "1D yukarı trend uyumu",
+        "why": "1D EMA20 > EMA50 — kırılım ana trende uygun (kontra-trend değil).",
+        "met": false,
+        "required": false
+      },
+      {
+        "label": "4H RSI 50-75",
+        "why": "RSI 50 üstü — alıcı kontrolde ama henüz aşırı alım değil.",
+        "met": true,
+        "required": false
+      },
+      {
+        "label": "4H MACD pozitif + büyüyor",
+        "why": "Momentum hızlanıyor — 4H MACD histogramı yukarı.",
+        "met": true,
+        "required": false
+      },
+      {
+        "label": "4H hacim patlaması (2x+)",
+        "why": "Kırılım hacimle teyit edildi — sürdürülebilir momentum.",
+        "met": false,
+        "required": false
+      },
+      {
+        "label": "Funding rate avantajlı (≤0.05%)",
+        "why": "Funding rate düşük/negatif — long pozisyon ucuz, short squeeze potansiyeli.",
+        "met": false,
+        "required": false
+      },
+      {
+        "label": "4H fiyat EMA200 üstü",
+        "why": "4H EMA200 üstünde olmak — ana 4H trend boğa.",
+        "met": true,
+        "required": false
+      },
+      {
+        "label": "Son 5 4H mumda kırılım",
+        "why": "Kırılım taze (son ~20 saat) — momentum henüz tükenmedi.",
+        "met": false,
+        "required": false
+      },
+      {
+        "label": "1D MACD pozitif",
+        "why": "1D MACD histogramı pozitif — büyük resim long için uygun.",
+        "met": true,
+        "required": false
+      }
+    ],
+    "entryDate": "2026-07-04T10:00:06.004Z",
+    "entryPrice": 6.8236101,
+    "shares": 82.38454304,
+    "positionSize": 562.16,
+    "commissionPaid": 0.56,
+    "currentStop": 6.5091,
+    "currentTarget": 7.235,
+    "lastPrice": 6.694965839385986,
+    "notes": [
+      {
+        "time": "2026-07-04T10:00:06.004Z",
+        "action": "signal",
+        "text": "Futures Long (agresif long) — skor 6/10 (GUCLU). Karşılanan koşullar: 4H 20-bar yüksek kırıldı, 4H yukarı trend, 4H RSI 50-75, 4H MACD pozitif + büyüyor, 4H fiyat EMA200 üstü. Giriş $6.8202, hedef $7.235, stop $6.5091."
+      },
+      {
+        "time": "2026-07-04T10:00:06.004Z",
+        "action": "entry",
+        "text": "ALIŞ (long) market emirle $6.8236'den açıldı (slip %0.05). 82.3845 adet, komisyon $0.56."
+      }
+    ],
+    "updatedAt": "2026-07-05T19:45:01.604Z"
+  },
+  {
+    "id": "8b7cdede1e85",
+    "createdAt": "2026-07-05T15:37:04.067Z",
+    "symbol": "NEAR",
+    "name": "NEAR Protocol",
+    "image": "https://coin-images.coingecko.com/coins/images/10365/large/near.jpg?1696510367",
+    "coinId": "near",
+    "strategy": "spot_long",
+    "direction": "long",
+    "status": "open",
+    "signalDate": "2026-07-05",
+    "signalPhase": "intraday",
+    "signalLogId": "e048e5ae4ce3",
+    "originalEntry": 1.985,
+    "originalStop": 1.6729,
+    "originalTarget": 2.3595,
+    "target2": 2.6092,
+    "suggestedLeverage": 1,
+    "totalScore": 6,
+    "grade": "GUCLU",
+    "signalConditions": [
+      {
+        "label": "1D yukarı trend",
+        "why": "1D zaman diliminde EMA20 > EMA50 — ana trend yukarı.",
+        "met": true,
+        "required": true
+      },
+      {
+        "label": "1D EMA dizilimi (20>50>200)",
+        "why": "Uzun vadeli yükseliş yapısı sağlam.",
+        "met": true,
+        "required": false
+      },
+      {
+        "label": "Fiyat 1D EMA200 üstü",
+        "why": "1D EMA200 boğa-ayı ayrımı — üstünde olmak güvenli alan.",
+        "met": true,
+        "required": false
+      },
+      {
+        "label": "RSI sağlıklı bantta (35-70)",
+        "why": "Aşırı satım bölgesinden çıkmış, aşırı alım bölgesine girmemiş.",
+        "met": true,
+        "required": true
+      },
+      {
+        "label": "1D MACD pozitif + büyüyor",
+        "why": "MACD histogramı pozitif ve son barda büyüyor — momentum güçleniyor.",
+        "met": true,
+        "required": false
+      },
+      {
+        "label": "Hacim ortalama üstü",
+        "why": "Son 1D mum hacmi 20-bar SMA üstünde — katılım var.",
+        "met": false,
+        "required": false
+      },
+      {
+        "label": "ADX trend modunda (≥20)",
+        "why": "1D ADX ≥ 20 — fiyat yatay değil yönlü hareket ediyor.",
+        "met": false,
+        "required": false
+      },
+      {
+        "label": "4H trend uyumlu",
+        "why": "4H EMA20 > EMA50 — kısa vadeli yapı da yukarı.",
+        "met": true,
+        "required": false
+      },
+      {
+        "label": "4H higher-high",
+        "why": "Son 4H mum, son 20 4H mumun en yüksek kapanışı — momentum başlangıcı.",
+        "met": false,
+        "required": false
+      },
+      {
+        "label": "4H hacim patlaması",
+        "why": "Son 4H mum hacmi 20-bar ortalamasının 1.5 katı — alıcı katılımı yüksek.",
+        "met": false,
+        "required": false
+      }
+    ],
+    "entryDate": "2026-07-05T15:37:04.067Z",
+    "entryPrice": 1.9859925,
+    "shares": 254.72905864,
+    "positionSize": 505.89,
+    "commissionPaid": 0.51,
+    "currentStop": 1.7523,
+    "currentTarget": 2.3595,
+    "lastPrice": 2.002000093460083,
+    "notes": [
+      {
+        "time": "2026-07-05T15:37:04.067Z",
+        "action": "signal",
+        "text": "Spot AL (güvenli long) — skor 6/10 (GUCLU). Karşılanan koşullar: 1D yukarı trend, 1D EMA dizilimi (20>50>200), Fiyat 1D EMA200 üstü, RSI sağlıklı bantta (35-70), 1D MACD pozitif + büyüyor. Giriş $1.985, hedef $2.3595, stop $1.6729."
+      },
+      {
+        "time": "2026-07-05T15:37:04.067Z",
+        "action": "entry",
+        "text": "ALIŞ (long) market emirle $1.986'den açıldı (slip %0.05). 254.7291 adet, komisyon $0.51."
+      },
+      {
+        "time": "2026-07-05T15:45:02.140Z",
+        "action": "trail",
+        "text": "Fiyat 1.97 (+-0.04R). SL 1.67 → 1.72 (ATR×2)."
+      },
+      {
+        "time": "2026-07-05T19:30:01.973Z",
+        "action": "trail",
+        "text": "Fiyat 1.99 (+0.01R). SL 1.72 → 1.74 (ATR×2)."
+      },
+      {
+        "time": "2026-07-05T19:45:01.607Z",
+        "action": "trail",
+        "text": "Fiyat 2.00 (+0.05R). SL 1.74 → 1.75 (ATR×2)."
+      }
+    ],
+    "updatedAt": "2026-07-05T19:45:01.608Z"
+  },
+  {
+    "id": "d2d8f83ca71c",
+    "createdAt": "2026-07-05T15:37:04.074Z",
+    "symbol": "JST",
+    "name": "JUST",
+    "image": "https://coin-images.coingecko.com/coins/images/11095/large/JUST.jpg?1696511035",
+    "coinId": "just",
+    "strategy": "spot_long",
+    "direction": "long",
+    "status": "open",
+    "signalDate": "2026-07-05",
+    "signalPhase": "intraday",
+    "signalLogId": "09b160241d6f",
+    "originalEntry": 0.09252,
+    "originalStop": 0.08575,
+    "originalTarget": 0.10065,
+    "target2": 0.10606,
+    "suggestedLeverage": 1,
+    "totalScore": 6,
+    "grade": "GUCLU",
+    "signalConditions": [
+      {
+        "label": "1D yukarı trend",
+        "why": "1D zaman diliminde EMA20 > EMA50 — ana trend yukarı.",
+        "met": true,
+        "required": true
+      },
+      {
+        "label": "1D EMA dizilimi (20>50>200)",
+        "why": "Uzun vadeli yükseliş yapısı sağlam.",
+        "met": true,
+        "required": false
+      },
+      {
+        "label": "Fiyat 1D EMA200 üstü",
+        "why": "1D EMA200 boğa-ayı ayrımı — üstünde olmak güvenli alan.",
+        "met": true,
+        "required": false
+      },
+      {
+        "label": "RSI sağlıklı bantta (35-70)",
+        "why": "Aşırı satım bölgesinden çıkmış, aşırı alım bölgesine girmemiş.",
+        "met": true,
+        "required": true
+      },
+      {
+        "label": "1D MACD pozitif + büyüyor",
+        "why": "MACD histogramı pozitif ve son barda büyüyor — momentum güçleniyor.",
+        "met": false,
+        "required": false
+      },
+      {
+        "label": "Hacim ortalama üstü",
+        "why": "Son 1D mum hacmi 20-bar SMA üstünde — katılım var.",
+        "met": false,
+        "required": false
+      },
+      {
+        "label": "ADX trend modunda (≥20)",
+        "why": "1D ADX ≥ 20 — fiyat yatay değil yönlü hareket ediyor.",
+        "met": false,
+        "required": false
+      },
+      {
+        "label": "4H trend uyumlu",
+        "why": "4H EMA20 > EMA50 — kısa vadeli yapı da yukarı.",
+        "met": true,
+        "required": false
+      },
+      {
+        "label": "4H higher-high",
+        "why": "Son 4H mum, son 20 4H mumun en yüksek kapanışı — momentum başlangıcı.",
+        "met": true,
+        "required": false
+      },
+      {
+        "label": "4H hacim patlaması",
+        "why": "Son 4H mum hacmi 20-bar ortalamasının 1.5 katı — alıcı katılımı yüksek.",
+        "met": false,
+        "required": false
+      }
+    ],
+    "entryDate": "2026-07-05T15:37:04.074Z",
+    "entryPrice": 0.09256626,
+    "shares": 4918.09866792,
+    "positionSize": 455.25,
+    "commissionPaid": 0.46,
+    "currentStop": 0.0874,
+    "currentTarget": 0.10065,
+    "lastPrice": 0.09282730519771576,
+    "notes": [
+      {
+        "time": "2026-07-05T15:37:04.074Z",
+        "action": "signal",
+        "text": "Spot AL (güvenli long) — skor 6/10 (GUCLU). Karşılanan koşullar: 1D yukarı trend, 1D EMA dizilimi (20>50>200), Fiyat 1D EMA200 üstü, RSI sağlıklı bantta (35-70), 4H trend uyumlu. Giriş $0.0925, hedef $0.1007, stop $0.0858."
+      },
+      {
+        "time": "2026-07-05T15:37:04.074Z",
+        "action": "entry",
+        "text": "ALIŞ (long) market emirle $0.0926'den açıldı (slip %0.05). 4,918.0987 adet, komisyon $0.46."
+      },
+      {
+        "time": "2026-07-05T15:45:02.144Z",
+        "action": "trail",
+        "text": "Fiyat 0.09 (+0.00R). SL 0.09 → 0.09 (ATR×2)."
+      },
+      {
+        "time": "2026-07-05T19:45:01.611Z",
+        "action": "trail",
+        "text": "Fiyat 0.09 (+0.04R). SL 0.09 → 0.09 (ATR×2)."
+      }
+    ],
+    "updatedAt": "2026-07-05T19:45:01.611Z"
+  },
+  {
+    "id": "e540f69fe860",
+    "createdAt": "2026-07-05T15:37:04.084Z",
+    "symbol": "BNB",
+    "name": "BNB",
+    "image": "https://coin-images.coingecko.com/coins/images/825/large/bnb-icon2_2x.png?1696501970",
+    "coinId": "binancecoin",
+    "strategy": "futures_long",
+    "direction": "long",
+    "status": "open",
+    "signalDate": "2026-07-05",
+    "signalPhase": "intraday",
+    "signalLogId": "0ff200d9032f",
+    "originalEntry": 587.97,
+    "originalStop": 560.253,
+    "originalTarget": 624.926,
+    "target2": 652.642,
+    "suggestedLeverage": 3,
+    "totalScore": 7,
+    "grade": "GUCLU",
+    "signalConditions": [
+      {
+        "label": "4H 20-bar yüksek kırıldı",
+        "why": "4H kapanış son 20 4H mum yüksek seviyesinin üstünde — kırılım gerçekleşti.",
+        "met": true,
+        "required": true
+      },
+      {
+        "label": "4H yukarı trend",
+        "why": "4H EMA20 > EMA50 — kısa vadeli yapı yukarı yönlü.",
+        "met": true,
+        "required": true
+      },
+      {
+        "label": "1D yukarı trend uyumu",
+        "why": "1D EMA20 > EMA50 — kırılım ana trende uygun (kontra-trend değil).",
+        "met": false,
+        "required": false
+      },
+      {
+        "label": "4H RSI 50-75",
+        "why": "RSI 50 üstü — alıcı kontrolde ama henüz aşırı alım değil.",
+        "met": true,
+        "required": false
+      },
+      {
+        "label": "4H MACD pozitif + büyüyor",
+        "why": "Momentum hızlanıyor — 4H MACD histogramı yukarı.",
+        "met": true,
+        "required": false
+      },
+      {
+        "label": "4H hacim patlaması (2x+)",
+        "why": "Kırılım hacimle teyit edildi — sürdürülebilir momentum.",
+        "met": true,
+        "required": false
+      },
+      {
+        "label": "Funding rate avantajlı (≤0.05%)",
+        "why": "Funding rate düşük/negatif — long pozisyon ucuz, short squeeze potansiyeli.",
+        "met": false,
+        "required": false
+      },
+      {
+        "label": "4H fiyat EMA200 üstü",
+        "why": "4H EMA200 üstünde olmak — ana 4H trend boğa.",
+        "met": false,
+        "required": false
+      },
+      {
+        "label": "Son 5 4H mumda kırılım",
+        "why": "Kırılım taze (son ~20 saat) — momentum henüz tükenmedi.",
+        "met": true,
+        "required": false
+      },
+      {
+        "label": "1D MACD pozitif",
+        "why": "1D MACD histogramı pozitif — büyük resim long için uygun.",
+        "met": true,
+        "required": false
+      }
+    ],
+    "entryDate": "2026-07-05T15:37:04.083Z",
+    "entryPrice": 588.263985,
+    "shares": 0.69640503,
+    "positionSize": 409.67,
+    "commissionPaid": 0.41,
+    "currentStop": 560.253,
+    "currentTarget": 624.926,
+    "lastPrice": 589.5,
+    "notes": [
+      {
+        "time": "2026-07-05T15:37:04.083Z",
+        "action": "signal",
+        "text": "Futures Long (agresif long) — skor 7/10 (GUCLU). Karşılanan koşullar: 4H 20-bar yüksek kırıldı, 4H yukarı trend, 4H RSI 50-75, 4H MACD pozitif + büyüyor, 4H hacim patlaması (2x+). Giriş $587.97, hedef $624.926, stop $560.253."
+      },
+      {
+        "time": "2026-07-05T15:37:04.083Z",
+        "action": "entry",
+        "text": "ALIŞ (long) market emirle $588.264'den açıldı (slip %0.05). 0.6964 adet, komisyon $0.41."
+      }
+    ],
+    "updatedAt": "2026-07-05T19:45:01.612Z"
+  },
+  {
+    "id": "0afd9fc17b1c",
+    "createdAt": "2026-07-05T15:37:04.091Z",
+    "symbol": "LTC",
+    "name": "Litecoin",
+    "image": "https://coin-images.coingecko.com/coins/images/2/large/litecoin.png?1696501400",
+    "coinId": "litecoin",
+    "strategy": "futures_long",
+    "direction": "long",
+    "status": "open",
+    "signalDate": "2026-07-05",
+    "signalPhase": "intraday",
+    "signalLogId": "983e2d154a5f",
+    "originalEntry": 45.47,
+    "originalStop": 42.698,
+    "originalTarget": 49.166,
+    "target2": 51.938,
+    "suggestedLeverage": 3,
+    "totalScore": 6,
+    "grade": "GUCLU",
+    "signalConditions": [
+      {
+        "label": "4H 20-bar yüksek kırıldı",
+        "why": "4H kapanış son 20 4H mum yüksek seviyesinin üstünde — kırılım gerçekleşti.",
+        "met": true,
+        "required": true
+      },
+      {
+        "label": "4H yukarı trend",
+        "why": "4H EMA20 > EMA50 — kısa vadeli yapı yukarı yönlü.",
+        "met": true,
+        "required": true
+      },
+      {
+        "label": "1D yukarı trend uyumu",
+        "why": "1D EMA20 > EMA50 — kırılım ana trende uygun (kontra-trend değil).",
+        "met": false,
+        "required": false
+      },
+      {
+        "label": "4H RSI 50-75",
+        "why": "RSI 50 üstü — alıcı kontrolde ama henüz aşırı alım değil.",
+        "met": true,
+        "required": false
+      },
+      {
+        "label": "4H MACD pozitif + büyüyor",
+        "why": "Momentum hızlanıyor — 4H MACD histogramı yukarı.",
+        "met": true,
+        "required": false
+      },
+      {
+        "label": "4H hacim patlaması (2x+)",
+        "why": "Kırılım hacimle teyit edildi — sürdürülebilir momentum.",
+        "met": false,
+        "required": false
+      },
+      {
+        "label": "Funding rate avantajlı (≤0.05%)",
+        "why": "Funding rate düşük/negatif — long pozisyon ucuz, short squeeze potansiyeli.",
+        "met": false,
+        "required": false
+      },
+      {
+        "label": "4H fiyat EMA200 üstü",
+        "why": "4H EMA200 üstünde olmak — ana 4H trend boğa.",
+        "met": true,
+        "required": false
+      },
+      {
+        "label": "Son 5 4H mumda kırılım",
+        "why": "Kırılım taze (son ~20 saat) — momentum henüz tükenmedi.",
+        "met": false,
+        "required": false
+      },
+      {
+        "label": "1D MACD pozitif",
+        "why": "1D MACD histogramı pozitif — büyük resim long için uygun.",
+        "met": true,
+        "required": false
+      }
+    ],
+    "entryDate": "2026-07-05T15:37:04.091Z",
+    "entryPrice": 45.492735,
+    "shares": 8.10393132,
+    "positionSize": 368.67,
+    "commissionPaid": 0.37,
+    "currentStop": 42.698,
+    "currentTarget": 49.166,
+    "lastPrice": 45.59000015258789,
+    "notes": [
+      {
+        "time": "2026-07-05T15:37:04.091Z",
+        "action": "signal",
+        "text": "Futures Long (agresif long) — skor 6/10 (GUCLU). Karşılanan koşullar: 4H 20-bar yüksek kırıldı, 4H yukarı trend, 4H RSI 50-75, 4H MACD pozitif + büyüyor, 4H fiyat EMA200 üstü. Giriş $45.47, hedef $49.166, stop $42.698."
+      },
+      {
+        "time": "2026-07-05T15:37:04.091Z",
+        "action": "entry",
+        "text": "ALIŞ (long) market emirle $45.4927'den açıldı (slip %0.05). 8.1039 adet, komisyon $0.37."
+      }
+    ],
+    "updatedAt": "2026-07-05T19:45:01.613Z"
+  },
+  {
+    "id": "e03ffadc2f4d",
+    "createdAt": "2026-07-05T19:30:12.707Z",
+    "symbol": "WBT",
+    "name": "WhiteBIT Coin",
+    "image": "https://coin-images.coingecko.com/coins/images/27045/large/wbt_token.png?1696526096",
+    "coinId": "whitebit",
+    "strategy": "spot_long",
+    "direction": "long",
+    "status": "open",
+    "signalDate": "2026-07-05",
+    "signalPhase": "intraday",
+    "signalLogId": "88532c9b04fd",
+    "originalEntry": 56.775,
+    "originalStop": 51.476,
+    "originalTarget": 63.133,
+    "target2": 67.373,
+    "suggestedLeverage": 1,
+    "totalScore": 7,
+    "grade": "GUCLU",
+    "signalConditions": [
+      {
+        "label": "1D yukarı trend",
+        "why": "1D zaman diliminde EMA20 > EMA50 — ana trend yukarı.",
+        "met": true,
+        "required": true
+      },
+      {
+        "label": "1D EMA dizilimi (20>50>200)",
+        "why": "Uzun vadeli yükseliş yapısı sağlam.",
+        "met": false,
+        "required": false
+      },
+      {
+        "label": "Fiyat 1D EMA200 üstü",
+        "why": "1D EMA200 boğa-ayı ayrımı — üstünde olmak güvenli alan.",
+        "met": true,
+        "required": false
+      },
+      {
+        "label": "RSI sağlıklı bantta (35-70)",
+        "why": "Aşırı satım bölgesinden çıkmış, aşırı alım bölgesine girmemiş.",
+        "met": true,
+        "required": true
+      },
+      {
+        "label": "1D MACD pozitif + büyüyor",
+        "why": "MACD histogramı pozitif ve son barda büyüyor — momentum güçleniyor.",
+        "met": true,
+        "required": false
+      },
+      {
+        "label": "Hacim ortalama üstü",
+        "why": "Son 1D mum hacmi 20-bar SMA üstünde — katılım var.",
+        "met": false,
+        "required": false
+      },
+      {
+        "label": "ADX trend modunda (≥20)",
+        "why": "1D ADX ≥ 20 — fiyat yatay değil yönlü hareket ediyor.",
+        "met": true,
+        "required": false
+      },
+      {
+        "label": "4H trend uyumlu",
+        "why": "4H EMA20 > EMA50 — kısa vadeli yapı da yukarı.",
+        "met": true,
+        "required": false
+      },
+      {
+        "label": "4H higher-high",
+        "why": "Son 4H mum, son 20 4H mumun en yüksek kapanışı — momentum başlangıcı.",
+        "met": true,
+        "required": false
+      },
+      {
+        "label": "4H hacim patlaması",
+        "why": "Son 4H mum hacmi 20-bar ortalamasının 1.5 katı — alıcı katılımı yüksek.",
+        "met": false,
+        "required": false
+      }
+    ],
+    "entryDate": "2026-07-05T19:30:12.707Z",
+    "entryPrice": 56.8033875,
+    "shares": 6.6253091,
+    "positionSize": 376.34,
+    "commissionPaid": 0.38,
+    "currentStop": 52.518,
+    "currentTarget": 63.133,
+    "lastPrice": 56.75727844238281,
+    "notes": [
+      {
+        "time": "2026-07-05T19:30:12.707Z",
+        "action": "signal",
+        "text": "Spot AL (güvenli long) — skor 7/10 (GUCLU). Karşılanan koşullar: 1D yukarı trend, Fiyat 1D EMA200 üstü, RSI sağlıklı bantta (35-70), 1D MACD pozitif + büyüyor, ADX trend modunda (≥20). Giriş $56.775, hedef $63.133, stop $51.476."
+      },
+      {
+        "time": "2026-07-05T19:30:12.707Z",
+        "action": "entry",
+        "text": "ALIŞ (long) market emirle $56.8034'den açıldı (slip %0.05). 6.6253 adet, komisyon $0.38."
+      },
+      {
+        "time": "2026-07-05T19:45:01.616Z",
+        "action": "trail",
+        "text": "Fiyat 56.76 (+-0.01R). SL 51.48 → 52.52 (ATR×2)."
+      }
+    ],
+    "updatedAt": "2026-07-05T19:45:01.616Z"
+  }
+]

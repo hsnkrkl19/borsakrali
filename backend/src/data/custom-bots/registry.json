@@ -1,0 +1,108 @@
+[
+  {
+    "id": "40e39bbf3b",
+    "name": "Örnek: BIST30 EMA Avcısı",
+    "description": "9/21 EMA kesişiminde alır; 2×ATR stop, 2R hedef, iz süren stop açık. Tüm BIST30 hisselerini tarar.",
+    "strategyId": "ema_cross",
+    "params": {
+      "fastPeriod": 9,
+      "slowPeriod": 21
+    },
+    "universe": [
+      "AKBNK",
+      "ARCLK",
+      "ASELS",
+      "BIMAS",
+      "EKGYO",
+      "EREGL",
+      "FROTO",
+      "GARAN",
+      "GUBRF",
+      "HEKTS",
+      "ISCTR",
+      "KCHOL",
+      "TRMET",
+      "TRALT",
+      "KRDMD",
+      "ODAS",
+      "PETKM",
+      "PGSUS",
+      "SAHOL",
+      "SASA",
+      "SISE",
+      "TAVHL",
+      "TCELL",
+      "THYAO",
+      "TKFEN",
+      "TOASO",
+      "TTKOM",
+      "TUPRS",
+      "YKBNK",
+      "VESBE"
+    ],
+    "risk": {
+      "stopType": "atr",
+      "stopValue": 2,
+      "targetType": "rr",
+      "targetValue": 2,
+      "trailing": true,
+      "timeoutDays": 15
+    },
+    "sizing": {
+      "positionPct": 8,
+      "maxPositions": 8,
+      "capital": 100000
+    },
+    "commissionPct": 0.2,
+    "slippagePct": 0.1,
+    "status": "active",
+    "createdAt": "2026-06-15T09:35:49.086Z",
+    "updatedAt": "2026-06-15T09:35:49.086Z"
+  },
+  {
+    "id": "07ce58e2c1",
+    "name": "dip",
+    "description": "Dip dönüşü",
+    "strategyId": "rsi_reversal",
+    "params": {
+      "rsiPeriod": 14,
+      "oversold": 30,
+      "overbought": 70
+    },
+    "universe": [
+      "NATEN",
+      "KLRHO",
+      "COSMO",
+      "FRIGO",
+      "ALGYO",
+      "OTTO",
+      "ISKPL",
+      "MEKAG",
+      "VESTL",
+      "VESBE",
+      "BLCYT",
+      "PRKAB",
+      "SODSN",
+      "ALKA",
+      "BMSCH"
+    ],
+    "risk": {
+      "stopType": "atr",
+      "stopValue": 2,
+      "targetType": "rr",
+      "targetValue": 2,
+      "trailing": true,
+      "timeoutDays": 15
+    },
+    "sizing": {
+      "positionPct": 10,
+      "maxPositions": 10,
+      "capital": 100000
+    },
+    "commissionPct": 0.2,
+    "slippagePct": 0.1,
+    "status": "active",
+    "createdAt": "2026-06-21T12:34:44.810Z",
+    "updatedAt": "2026-06-21T12:36:16.912Z"
+  }
+]

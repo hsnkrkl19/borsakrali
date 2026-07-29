@@ -1,0 +1,145 @@
+{
+  "version": 1,
+  "combos": {
+    "ETHUSD": {
+      "mode": "real",
+      "riskMult": 1,
+      "real": [
+        {
+          "r": 1.98,
+          "usd": 396.34,
+          "outcome": "TP1",
+          "t": 1783069200
+        },
+        {
+          "r": -1,
+          "usd": -200,
+          "outcome": "SL",
+          "t": 1783206900
+        }
+      ],
+      "shadow": []
+    },
+    "BTCUSD": {
+      "mode": "real",
+      "riskMult": 1,
+      "real": [
+        {
+          "r": -0.56,
+          "usd": -111.16,
+          "outcome": "SL",
+          "t": 1783091100
+        },
+        {
+          "r": 1.56,
+          "usd": 311.11,
+          "outcome": "TP1",
+          "t": 1783110000
+        }
+      ],
+      "shadow": []
+    },
+    "XAGUSD": {
+      "mode": "real",
+      "riskMult": 1,
+      "real": [
+        {
+          "r": -0.93,
+          "usd": -186.7,
+          "outcome": "SL",
+          "t": 1782999300
+        }
+      ],
+      "shadow": []
+    },
+    "SOLUSD": {
+      "mode": "real",
+      "riskMult": 1,
+      "real": [
+        {
+          "r": -0.78,
+          "usd": -155.82,
+          "outcome": "SL",
+          "t": 1783071300
+        },
+        {
+          "r": -1,
+          "usd": -200,
+          "outcome": "SL",
+          "t": 1783211400
+        }
+      ],
+      "shadow": []
+    },
+    "XRPUSD": {
+      "mode": "real",
+      "riskMult": 1,
+      "real": [
+        {
+          "r": -1,
+          "usd": -200,
+          "outcome": "SL",
+          "t": 1783211400
+        }
+      ],
+      "shadow": []
+    },
+    "NZDUSD": {
+      "mode": "real",
+      "riskMult": 1,
+      "real": [
+        {
+          "r": 4.67,
+          "usd": 934.78,
+          "outcome": "TP1",
+          "t": 1784233800
+        }
+      ],
+      "shadow": []
+    },
+    "NAS100": {
+      "mode": "real",
+      "riskMult": 1,
+      "real": [],
+      "shadow": []
+    },
+    "USDCHF": {
+      "mode": "real",
+      "riskMult": 1,
+      "real": [
+        {
+          "r": 1.56,
+          "usd": 311.25,
+          "outcome": "TP1",
+          "t": 1784792700
+        }
+      ],
+      "shadow": []
+    },
+    "GBPUSD": {
+      "mode": "real",
+      "riskMult": 1,
+      "real": [],
+      "shadow": []
+    },
+    "USDJPY": {
+      "mode": "real",
+      "riskMult": 1,
+      "real": [],
+      "shadow": []
+    },
+    "EURUSD": {
+      "mode": "real",
+      "riskMult": 1,
+      "real": [],
+      "shadow": []
+    },
+    "AUDUSD": {
+      "mode": "real",
+      "riskMult": 1,
+      "real": [],
+      "shadow": []
+    }
+  },
+  "decisions": []
+}

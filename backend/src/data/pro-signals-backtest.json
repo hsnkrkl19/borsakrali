@@ -1,0 +1,548 @@
+{
+  "BTCUSD:15m": {
+    "high": {
+      "winRate": null,
+      "sampleSize": 0,
+      "open": 0,
+      "avgReturn": null,
+      "expectancy": null,
+      "profitFactor": null
+    },
+    "mid": {
+      "winRate": 21.1,
+      "sampleSize": 19,
+      "open": 2,
+      "avgReturn": -0.08,
+      "expectancy": -0.094,
+      "profitFactor": 0.347
+    },
+    "low": {
+      "winRate": 26.2,
+      "sampleSize": 61,
+      "open": 4,
+      "avgReturn": -0.07,
+      "expectancy": -0.079,
+      "profitFactor": 0.469
+    },
+    "all": {
+      "winRate": 25,
+      "sampleSize": 80,
+      "open": 6,
+      "avgReturn": -0.07,
+      "expectancy": -0.082,
+      "profitFactor": 0.44
+    }
+  },
+  "BTCUSD:1h": {
+    "high": {
+      "winRate": null,
+      "sampleSize": 0,
+      "open": 0,
+      "avgReturn": null,
+      "expectancy": null,
+      "profitFactor": null
+    },
+    "mid": {
+      "winRate": 33.3,
+      "sampleSize": 15,
+      "open": 5,
+      "avgReturn": -0.18,
+      "expectancy": -0.16,
+      "profitFactor": 0.739
+    },
+    "low": {
+      "winRate": 46.3,
+      "sampleSize": 41,
+      "open": 17,
+      "avgReturn": 0.24,
+      "expectancy": 0.343,
+      "profitFactor": 2.048
+    },
+    "all": {
+      "winRate": 42.9,
+      "sampleSize": 56,
+      "open": 22,
+      "avgReturn": 0.13,
+      "expectancy": 0.208,
+      "profitFactor": 1.515
+    }
+  },
+  "BTCUSD:4h": {
+    "high": {
+      "winRate": null,
+      "sampleSize": 0,
+      "open": 0,
+      "avgReturn": null,
+      "expectancy": null,
+      "profitFactor": null
+    },
+    "mid": {
+      "winRate": 15,
+      "sampleSize": 20,
+      "open": 47,
+      "avgReturn": 0.19,
+      "expectancy": -1.324,
+      "profitFactor": 0.322
+    },
+    "low": {
+      "winRate": 45,
+      "sampleSize": 20,
+      "open": 10,
+      "avgReturn": 0.45,
+      "expectancy": 0.505,
+      "profitFactor": 1.461
+    },
+    "all": {
+      "winRate": 30,
+      "sampleSize": 40,
+      "open": 57,
+      "avgReturn": 0.27,
+      "expectancy": -0.409,
+      "profitFactor": 0.731
+    }
+  },
+  "BTCUSD:1d": {
+    "high": {
+      "winRate": null,
+      "sampleSize": 0,
+      "open": 0,
+      "avgReturn": null,
+      "expectancy": null,
+      "profitFactor": null
+    },
+    "mid": {
+      "winRate": 0,
+      "sampleSize": 4,
+      "open": 6,
+      "avgReturn": -3.99,
+      "expectancy": -7.98,
+      "profitFactor": 0
+    },
+    "low": {
+      "winRate": 50,
+      "sampleSize": 12,
+      "open": 47,
+      "avgReturn": -0.38,
+      "expectancy": 0.439,
+      "profitFactor": 1.111
+    },
+    "all": {
+      "winRate": 37.5,
+      "sampleSize": 16,
+      "open": 53,
+      "avgReturn": -0.9,
+      "expectancy": -1.666,
+      "profitFactor": 0.664
+    }
+  },
+  "XAUUSD:15m": {
+    "high": {
+      "winRate": null,
+      "sampleSize": 0,
+      "open": 0,
+      "avgReturn": null,
+      "expectancy": null,
+      "profitFactor": null
+    },
+    "mid": {
+      "winRate": 15.4,
+      "sampleSize": 13,
+      "open": 0,
+      "avgReturn": -0.11,
+      "expectancy": -0.107,
+      "profitFactor": 0.414
+    },
+    "low": {
+      "winRate": 40.5,
+      "sampleSize": 74,
+      "open": 6,
+      "avgReturn": 0,
+      "expectancy": -0.006,
+      "profitFactor": 0.958
+    },
+    "all": {
+      "winRate": 36.8,
+      "sampleSize": 87,
+      "open": 6,
+      "avgReturn": -0.01,
+      "expectancy": -0.021,
+      "profitFactor": 0.862
+    }
+  },
+  "XAUUSD:1h": {
+    "high": {
+      "winRate": null,
+      "sampleSize": 0,
+      "open": 0,
+      "avgReturn": null,
+      "expectancy": null,
+      "profitFactor": null
+    },
+    "mid": {
+      "winRate": 5.9,
+      "sampleSize": 17,
+      "open": 5,
+      "avgReturn": -0.5,
+      "expectancy": -0.624,
+      "profitFactor": 0.103
+    },
+    "low": {
+      "winRate": 17.4,
+      "sampleSize": 23,
+      "open": 8,
+      "avgReturn": -0.25,
+      "expectancy": -0.384,
+      "profitFactor": 0.296
+    },
+    "all": {
+      "winRate": 12.5,
+      "sampleSize": 40,
+      "open": 13,
+      "avgReturn": -0.35,
+      "expectancy": -0.486,
+      "profitFactor": 0.202
+    }
+  },
+  "XAUUSD:4h": {
+    "high": {
+      "winRate": null,
+      "sampleSize": 0,
+      "open": 0,
+      "avgReturn": null,
+      "expectancy": null,
+      "profitFactor": null
+    },
+    "mid": {
+      "winRate": 23.7,
+      "sampleSize": 38,
+      "open": 18,
+      "avgReturn": -0.45,
+      "expectancy": -0.721,
+      "profitFactor": 0.509
+    },
+    "low": {
+      "winRate": 36.4,
+      "sampleSize": 22,
+      "open": 17,
+      "avgReturn": 0.21,
+      "expectancy": -0.137,
+      "profitFactor": 0.897
+    },
+    "all": {
+      "winRate": 28.3,
+      "sampleSize": 60,
+      "open": 35,
+      "avgReturn": -0.18,
+      "expectancy": -0.507,
+      "profitFactor": 0.642
+    }
+  },
+  "XAUUSD:1d": {
+    "high": {
+      "winRate": null,
+      "sampleSize": 0,
+      "open": 0,
+      "avgReturn": null,
+      "expectancy": null,
+      "profitFactor": null
+    },
+    "mid": {
+      "winRate": 75,
+      "sampleSize": 20,
+      "open": 15,
+      "avgReturn": 1.9,
+      "expectancy": 2.754,
+      "profitFactor": 3.499
+    },
+    "low": {
+      "winRate": 46.2,
+      "sampleSize": 13,
+      "open": 21,
+      "avgReturn": 1.04,
+      "expectancy": 0.538,
+      "profitFactor": 1.236
+    },
+    "all": {
+      "winRate": 63.6,
+      "sampleSize": 33,
+      "open": 36,
+      "avgReturn": 1.47,
+      "expectancy": 1.881,
+      "profitFactor": 2.2
+    }
+  },
+  "SPX500:15m": {
+    "high": {
+      "winRate": null,
+      "sampleSize": 0,
+      "open": 0,
+      "avgReturn": null,
+      "expectancy": null,
+      "profitFactor": null
+    },
+    "mid": {
+      "winRate": 61.1,
+      "sampleSize": 18,
+      "open": 0,
+      "avgReturn": 0.05,
+      "expectancy": 0.05,
+      "profitFactor": 2.097
+    },
+    "low": {
+      "winRate": 23.9,
+      "sampleSize": 46,
+      "open": 4,
+      "avgReturn": -0.02,
+      "expectancy": -0.039,
+      "profitFactor": 0.54
+    },
+    "all": {
+      "winRate": 34.4,
+      "sampleSize": 64,
+      "open": 4,
+      "avgReturn": 0,
+      "expectancy": -0.014,
+      "profitFactor": 0.808
+    }
+  },
+  "SPX500:1h": {
+    "high": {
+      "winRate": null,
+      "sampleSize": 0,
+      "open": 0,
+      "avgReturn": null,
+      "expectancy": null,
+      "profitFactor": null
+    },
+    "mid": {
+      "winRate": 21.4,
+      "sampleSize": 14,
+      "open": 15,
+      "avgReturn": -0.06,
+      "expectancy": -0.158,
+      "profitFactor": 0.345
+    },
+    "low": {
+      "winRate": 52.8,
+      "sampleSize": 36,
+      "open": 10,
+      "avgReturn": 0.09,
+      "expectancy": 0.074,
+      "profitFactor": 1.502
+    },
+    "all": {
+      "winRate": 44,
+      "sampleSize": 50,
+      "open": 25,
+      "avgReturn": 0.04,
+      "expectancy": 0.009,
+      "profitFactor": 1.053
+    }
+  },
+  "SPX500:4h": {
+    "high": {
+      "winRate": null,
+      "sampleSize": 0,
+      "open": 0,
+      "avgReturn": null,
+      "expectancy": null,
+      "profitFactor": null
+    },
+    "mid": {
+      "winRate": 0,
+      "sampleSize": 16,
+      "open": 13,
+      "avgReturn": -0.74,
+      "expectancy": -1.259,
+      "profitFactor": 0
+    },
+    "low": {
+      "winRate": 0,
+      "sampleSize": 18,
+      "open": 23,
+      "avgReturn": -0.22,
+      "expectancy": -1.029,
+      "profitFactor": 0
+    },
+    "all": {
+      "winRate": 0,
+      "sampleSize": 34,
+      "open": 36,
+      "avgReturn": -0.44,
+      "expectancy": -1.137,
+      "profitFactor": 0
+    }
+  },
+  "SPX500:1d": {
+    "high": {
+      "winRate": null,
+      "sampleSize": 0,
+      "open": 0,
+      "avgReturn": null,
+      "expectancy": null,
+      "profitFactor": null
+    },
+    "mid": {
+      "winRate": 0,
+      "sampleSize": 6,
+      "open": 22,
+      "avgReturn": 0.45,
+      "expectancy": -3.862,
+      "profitFactor": 0
+    },
+    "low": {
+      "winRate": 4.3,
+      "sampleSize": 23,
+      "open": 41,
+      "avgReturn": -0.12,
+      "expectancy": -2.29,
+      "profitFactor": 0.067
+    },
+    "all": {
+      "winRate": 3.4,
+      "sampleSize": 29,
+      "open": 63,
+      "avgReturn": 0.05,
+      "expectancy": -2.615,
+      "profitFactor": 0.047
+    }
+  },
+  "EURUSD:15m": {
+    "high": {
+      "winRate": null,
+      "sampleSize": 0,
+      "open": 0,
+      "avgReturn": null,
+      "expectancy": null,
+      "profitFactor": null
+    },
+    "mid": {
+      "winRate": 36.4,
+      "sampleSize": 22,
+      "open": 0,
+      "avgReturn": -0.01,
+      "expectancy": -0.008,
+      "profitFactor": 0.835
+    },
+    "low": {
+      "winRate": 42.1,
+      "sampleSize": 19,
+      "open": 1,
+      "avgReturn": 0,
+      "expectancy": 0.003,
+      "profitFactor": 1.062
+    },
+    "all": {
+      "winRate": 39,
+      "sampleSize": 41,
+      "open": 1,
+      "avgReturn": 0,
+      "expectancy": -0.003,
+      "profitFactor": 0.935
+    }
+  },
+  "EURUSD:1h": {
+    "high": {
+      "winRate": null,
+      "sampleSize": 0,
+      "open": 0,
+      "avgReturn": null,
+      "expectancy": null,
+      "profitFactor": null
+    },
+    "mid": {
+      "winRate": 5.6,
+      "sampleSize": 18,
+      "open": 1,
+      "avgReturn": -0.09,
+      "expectancy": -0.098,
+      "profitFactor": 0.093
+    },
+    "low": {
+      "winRate": 18.8,
+      "sampleSize": 48,
+      "open": 8,
+      "avgReturn": -0.05,
+      "expectancy": -0.064,
+      "profitFactor": 0.347
+    },
+    "all": {
+      "winRate": 15.2,
+      "sampleSize": 66,
+      "open": 9,
+      "avgReturn": -0.06,
+      "expectancy": -0.073,
+      "profitFactor": 0.272
+    }
+  },
+  "EURUSD:4h": {
+    "high": {
+      "winRate": null,
+      "sampleSize": 0,
+      "open": 0,
+      "avgReturn": null,
+      "expectancy": null,
+      "profitFactor": null
+    },
+    "mid": {
+      "winRate": 42.1,
+      "sampleSize": 19,
+      "open": 20,
+      "avgReturn": 0.08,
+      "expectancy": 0.073,
+      "profitFactor": 1.399
+    },
+    "low": {
+      "winRate": 9.7,
+      "sampleSize": 31,
+      "open": 17,
+      "avgReturn": -0.14,
+      "expectancy": -0.24,
+      "profitFactor": 0.193
+    },
+    "all": {
+      "winRate": 22,
+      "sampleSize": 50,
+      "open": 37,
+      "avgReturn": -0.04,
+      "expectancy": -0.121,
+      "profitFactor": 0.522
+    }
+  },
+  "EURUSD:1d": {
+    "high": {
+      "winRate": null,
+      "sampleSize": 0,
+      "open": 0,
+      "avgReturn": null,
+      "expectancy": null,
+      "profitFactor": null
+    },
+    "mid": {
+      "winRate": 33.3,
+      "sampleSize": 3,
+      "open": 5,
+      "avgReturn": -0.38,
+      "expectancy": -0.451,
+      "profitFactor": 0.582
+    },
+    "low": {
+      "winRate": 16.7,
+      "sampleSize": 6,
+      "open": 41,
+      "avgReturn": -0.16,
+      "expectancy": -0.925,
+      "profitFactor": 0.246
+    },
+    "all": {
+      "winRate": 22.2,
+      "sampleSize": 9,
+      "open": 46,
+      "avgReturn": -0.19,
+      "expectancy": -0.767,
+      "profitFactor": 0.349
+    }
+  },
+  "generatedAt": "2026-07-08T21:58:02.975Z",
+  "engine": "js"
+}

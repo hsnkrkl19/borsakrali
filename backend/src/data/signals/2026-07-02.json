@@ -1,0 +1,15 @@
+{
+  "date": "2026-07-02",
+  "revision": {
+    "phase": "revision",
+    "generatedAt": "2026-07-02T12:04:43.285Z",
+    "trend": {
+      "signals": [],
+      "allSignals": []
+    },
+    "reversion": {
+      "signals": [],
+      "allSignals": []
+    }
+  }
+}
