@@ -186,7 +186,9 @@ app.use((req, res, next) => {
   }
   next();
 });
-app.use(express.json());
+// 4mb: MT5 kopru yasam dongusu raporu (40+ acik pozisyon + 48 saatlik kapanis
+// defteri) varsayilan 100kb'i asiyor ve 413 donuyordu (2026-07-29 VPS).
+app.use(express.json({ limit: '4mb' }));
 app.use(express.urlencoded({ extended: true }));
 app.use(morgan('dev'));
 

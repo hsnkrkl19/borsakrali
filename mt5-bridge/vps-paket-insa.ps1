@@ -27,7 +27,7 @@ if ($LASTEXITCODE -ge 8) { throw "robocopy altin-botu hatasi: $LASTEXITCODE" }
 $WHITELIST = @(
   "account_brain.py", "borsakrali_account_brain.py", "borsakrali_mt5.py",
   "borsakrali_mt5_all.py", "borsakrali_mt5_scanner.py", "mt5_brain_adapter.py",
-  "trade_guard.py", "hesap_guncelle.py", "preflight.py", "diag.py",
+  "trade_guard.py", "hesap_guncelle.py", "pozisyon_temizle.py", "preflight.py", "diag.py",
   "diag_trail.py", "requirements.txt", "README.md", "configure-secrets.ps1",
   "brain-start-gate.ps1", "config.example.json", "config_all.example.json",
   "config_brain.example.json", "config_scanner.example.json",

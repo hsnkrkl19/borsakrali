@@ -1187,7 +1187,25 @@ def run_once(cfg, state, last_report=0.0, forced_stop_reason=None,
         log.critical("heartbeat yazilamadi; risk kapatmalari yine denenecek: %s", exc)
 
     if global_reason:
-        log.critical("HESAP FRENI %s: hesaptaki tum pozisyonlar kapatiliyor", global_reason)
+        # Dry-run'da ayni fren her saniye tekrarlanir; 42 pozisyonluk listeyi
+        # her turda basmak log selidir. Ayni neden surerken 60 sn'de bir tek
+        # ozet satiri yeter; canli modda kapatmalar gercek oldugundan kisilmaz.
+        dry_summary_only = False
+        if cfg.get("dry_run", True):
+            marker = state.get("dryFlattenLog") or {}
+            now_sec = time.time()
+            same_reason = marker.get("reason") == global_reason
+            recent = now_sec - float(marker.get("timeSec", 0) or 0) < 60
+            if same_reason and recent:
+                dry_summary_only = True
+            else:
+                state["dryFlattenLog"] = {"reason": global_reason,
+                                          "timeSec": now_sec}
+        if dry_summary_only:
+            log.warning("[DRY] HESAP FRENI %s suruyor: %d pozisyon kapatilacakti (ozet)",
+                        global_reason, len(risk_positions))
+        else:
+            log.critical("HESAP FRENI %s: hesaptaki tum pozisyonlar kapatiliyor", global_reason)
         prior = latch if isinstance(latch, dict) else {}
         if risk_positions:
             state["emergencyFlatten"] = {
@@ -1210,12 +1228,13 @@ def run_once(cfg, state, last_report=0.0, forced_stop_reason=None,
                 _write_stop(global_reason, snap)
             except Exception as exc:
                 log.critical("STOP_MASTER yazilamadi; kapatma yine suruyor: %s", exc)
-        for pos in list(risk_positions):
-            try:
-                _close_position(cfg, pos, global_reason, state)
-            except Exception as exc:
-                log.exception("global kapatma ticket=%s hata=%s",
-                              getattr(pos, "ticket", "?"), exc)
+        if not dry_summary_only:
+            for pos in list(risk_positions):
+                try:
+                    _close_position(cfg, pos, global_reason, state)
+                except Exception as exc:
+                    log.exception("global kapatma ticket=%s hata=%s",
+                                  getattr(pos, "ticket", "?"), exc)
     else:
         tickets = state.setdefault("tickets", {})
         now = time.time()
