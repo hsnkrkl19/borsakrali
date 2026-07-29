@@ -957,7 +957,8 @@ def main():
                         log.info("#%s: gün-sonu süresi geçmiş — açılmadı.", code); continue
                     if broker_sym in blocked_syms:
                         log.warning("#%s %s: kimliği çözülemeyen mevcut pozisyon var — çift açılış emniyeti, atlandı.", code, broker_sym); continue
-                    if len(by_code) + len(unknown) >= int(cfg["max_open_positions"]):
+                    if (cfg.get("race_mode") is not True
+                            and len(by_code) + len(unknown) >= int(cfg["max_open_positions"])):
                         log.warning("max_open_positions (%s) doldu — #%s atlandı.", cfg["max_open_positions"], code); continue
                     # B3: PORTFOY RISK FRENI - acik toplam risk tavani asildiysa yeni giris yok.
                     # (tur basinda hesaplanir, yalniz acilis sonrasi yenilenir - review IPC bulgusu)

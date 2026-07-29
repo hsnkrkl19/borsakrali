@@ -1525,7 +1525,8 @@ def main():
                         cfg, ("max_open_risk_pct",), 1.5)))
                     if (snap["dailyLossPct"] >= daily_warning
                             or snap["totalDrawdownPct"] >= total_warning
-                            or snap["openRiskPct"] >= open_warning):
+                            or (cfg.get("race_mode") is not True
+                                and snap["openRiskPct"] >= open_warning)):
                         log.warning(
                             "LIMIT YAKIN: acikRisk=%%%s gunluk=%%%s toplamDD=%%%s",
                             snap["openRiskPct"], snap["dailyLossPct"],

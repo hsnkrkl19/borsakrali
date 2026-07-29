@@ -960,8 +960,11 @@ def run_once(cfg):
         total_open = len([p for p in open_pos if parse_code(p.comment)])
         # 0 (veya negatif) = SINIRSIZ. Her botun tüm işlemleri açılsın istenirse
         # config'te max_open_total ve max_open_per_bot = 0 yapilir.
-        max_total = int(cfg.get("max_open_total", 20))
-        max_per_bot = int(cfg.get("max_open_per_bot", 3))
+        # YARIS MODU: pozisyon-sayisi tavanlari devre disi (0 = sinirsiz) —
+        # her botun her sinyali islem olur; risk kontrolu beyinde.
+        race = cfg.get("race_mode") is True
+        max_total = 0 if race else int(cfg.get("max_open_total", 20))
+        max_per_bot = 0 if race else int(cfg.get("max_open_per_bot", 3))
         for s in sorted(feed, key=lambda x: -(x.get("confidence") or 0)):
             code = str(s["code"])
             if code in open_codes:

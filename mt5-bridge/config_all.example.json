@@ -25,8 +25,8 @@
   "max_lot": 1.0,
   "account_tier_max_lot": 1.0,
 
-  "max_open_total": 6,
-  "max_open_per_bot": 1,
+  "max_open_total": 0,
+  "max_open_per_bot": 0,
   "max_per_symbol_side": 1,
   "min_rr": 2.0,
   "min_confidence": 60,

@@ -954,7 +954,8 @@ def main():
                     if broker_sym in loss_syms:
                         log.info("#%s %s: az önce zararla kapandı — köprü yeniden-giriş freni (%sdk).",
                                  code, broker_sym, cfg.get("loss_reopen_cooldown_min", 45)); continue
-                    if len(open_by_code) >= int(cfg["max_open_positions"]):
+                    if (cfg.get("race_mode") is not True
+                            and len(open_by_code) >= int(cfg["max_open_positions"])):
                         log.warning("max_open_positions (%s) doldu — #%s atlandı.", cfg["max_open_positions"], code); continue
                     # B3: PORTFOY RISK FRENI - acik toplam risk tavani asildiysa yeni giris yok.
                     # (tur basinda hesaplanir, yalniz acilis sonrasi yenilenir - review IPC bulgusu)
