@@ -49,7 +49,8 @@ def t_clamp_lot():
     assert trade_guard.clamp_lot(1.1, i, None, cfg) == 0.15
     assert trade_guard.clamp_lot(0.5, i, None, cfg) == 0.15
     assert trade_guard.clamp_lot(0.07, i, None, cfg) == 0.07
-    assert trade_guard.clamp_lot(0.004, i, None, cfg) == 0.01   # taban
+    # Riskten hesaplanan lot broker minimumunun altindaysa yukariya buyutulmez.
+    assert trade_guard.clamp_lot(0.004, i, None, cfg) == 0.0
     assert trade_guard.clamp_lot(0, i, None, cfg) == 0.0
     assert trade_guard.clamp_lot("x", i, None, cfg) == 0.0
     # Bot 37: 0.20
@@ -58,6 +59,22 @@ def t_clamp_lot():
     # Baska bot 0.20 alamaz
     assert trade_guard.clamp_lot(3.0, i, {"botId": "mt5-trend", "magic": 5717}, cfg) == 0.15
     print("OK clamp_lot (0.01-0.15; Bot 37 konsensus 0.20)")
+
+
+def t_central_brain_dynamic_lot():
+    i = info()
+    cfg = {
+        "central_brain_enabled": True,
+        "account_tier_max_lot": 1.0,
+        "max_lot": 0.15,  # legacy alan beyin modunda dinamik lotu kirpmaz
+    }
+    assert trade_guard.clamp_lot(1.4, i, {"botId": "mt5-trend"}, cfg) == 1.0
+    assert trade_guard.clamp_lot(1.4, i, {"botId": "consensus-radar"}, cfg) == 1.0
+    assert trade_guard.clamp_lot(0.63, i, {"lotCap": 0.15}, cfg) == 0.63
+    # Hesap kademesi mutlak tavani yine dusurebilir.
+    small = dict(cfg, account_tier_max_lot=0.25)
+    assert trade_guard.clamp_lot(0.8, i, None, small) == 0.25
+    print("OK merkezi beyin risk-bazli dinamik lot (mutlak 1.00)")
 
 
 def t_cfg_only_lowers():
@@ -91,11 +108,25 @@ def t_rounds_down():
     print("OK adim yuvarlamasi AŞAĞI (risk artmaz)")
 
 
+def t_loss_tick_value_is_used_for_stop_risk():
+    i = SimpleNamespace(
+        trade_tick_value_loss=12.0, trade_tick_value=10.0,
+        trade_tick_size=0.1, trade_contract_size=100.0)
+    assert trade_guard.per_lot_risk_usd(i, 0.2) == 24.0
+    cross_without_conversion = SimpleNamespace(
+        trade_tick_value_loss=0, trade_tick_value=0,
+        trade_tick_size=0.0001, trade_contract_size=100_000)
+    assert trade_guard.per_lot_risk_usd(cross_without_conversion, 0.01) == 0.0
+    print("OK SL riski trade_tick_value_loss ile olculur")
+
+
 if __name__ == "__main__":
     t_banned_symbols()
     t_consensus_detect()
     t_clamp_lot()
+    t_central_brain_dynamic_lot()
     t_cfg_only_lowers()
     t_broker_limits()
     t_rounds_down()
+    t_loss_tick_value_is_used_for_stop_risk()
     print("\nHEPSI YESIL - OK")

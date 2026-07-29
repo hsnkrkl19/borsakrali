@@ -27,6 +27,7 @@ CONFIGLER = [
     ("config.json", "forex köprüsü       (magic 550055)"),
     ("config_scanner.json", "gün-içi tarayıcı    (magic 550066)"),
 ]
+CONFIGLER.append(("config_brain.json", "merkez hesap beyni"))
 
 
 def mt5_hesap():
@@ -106,10 +107,12 @@ def main():
     print("=" * 62)
 
     hedef = elle
+    sunucu = None
     if hedef is None:
         bilgi, hata = mt5_hesap()
         if bilgi:
             hedef = bilgi["login"]
+            sunucu = str(bilgi["server"] or "").strip()
             print("MT5'ten okundu:")
             print("   HESAP NO : %s" % bilgi["login"])
             print("   SUNUCU   : %s" % bilgi["server"])
@@ -166,6 +169,9 @@ def main():
         if hedef is not None and int(eski or 0) != int(hedef):
             cfg["allowed_account"] = int(hedef)
             yapilan.append("hesap %s -> %s" % (eski, hedef))
+        if sunucu and str(cfg.get("account_server") or "").strip().lower() != sunucu.lower():
+            cfg["account_server"] = sunucu
+            yapilan.append("account_server -> %s" % sunucu)
 
         # 2) TERMİNAL YOLU — dolu ama dosya yoksa BOŞALT (çalışan terminale bağlan).
         #    "IPC initialize failed, Process create failed" hatasının sebebi budur.

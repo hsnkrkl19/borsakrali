@@ -13,7 +13,7 @@ Forex köprüsünden farklar (tasarım gereği):
   • SL/TP SABİT (iz-süren YOK): Telegram = MT5 hep birebir.
   • Aynı sembolde AYNI yönde birden çok pozisyon OLABİLİR (farklı TF kodları,
     örn. GBT01 1h + GBT02 15m) — kimlik kesinlikle #kod (comment "BKG#...").
-    Comment kaybolursa scanner_state.json (ticket→kod) yedeğinden çözülür.
+    Comment kaybolursa scanner_state.json (position identifier→kod) yedeğinden çözülür.
   • GÜN-İÇİ failsafe İKİ katman:
       1) Açılışta her pozisyonun gün-sonu vakti (eodDeadlineSec) state'e yazılır;
          süresi geçen pozisyon HER TURDA kapatılır (pencere/feed'den bağımsız).
@@ -66,11 +66,13 @@ except ImportError:
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)               # yerel modüller (trade_guard) için
 CONFIG_PATH = sys.argv[1] if len(sys.argv) > 1 else os.path.join(HERE, "config_scanner.json")
-STOP_FILES = (os.path.join(HERE, "STOP"), os.path.join(HERE, "STOP_SCANNER"))
+STOP_FILES = (os.path.join(HERE, "STOP"), os.path.join(HERE, "STOP_SCANNER"),
+              os.path.join(HERE, "STOP_MASTER"))
 STATE_PATH = os.path.join(HERE, "scanner_state.json")
 NEWS_CACHE = os.path.join(HERE, "news_windows_scanner.json")
 
 import trade_guard  # ortak İŞLEM KORUMASI: hafta sonu (kripto-dışı) + ABD haber molası + günlük zarar freni
+import mt5_brain_adapter
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s",
                     handlers=[logging.StreamHandler()])
@@ -86,7 +88,7 @@ RETCODE_BAD_FILLING = 10030
 DEFAULTS = {
     "backend_url": "https://borsakrali.com",
     "exec_token": "",
-    "poll_seconds": 60,
+    "poll_seconds": 10,
     "dry_run": True,
     "enabled": True,
     # ── VPS GÜVENLİĞİ (iki terminal / iki hesap) — forex köprüsüyle aynı ─────
@@ -99,17 +101,43 @@ DEFAULTS = {
     "magic": 550066,
     "deviation_points": 30,
     "max_open_positions": 12,
-    "max_lot": 10.0,              # emniyet tavanı — feed lotu bunu aşarsa AÇILMAZ (kırpılmaz)
+    "max_lot": 1.0,
     # B3: acik pozisyonlarin TOPLAM riski equity'nin bu %'sini asarsa YENI giris yok (0=kapali):
-    "max_portfolio_risk_pct": 8.0,
+    "max_portfolio_risk_pct": 2.0,
+    "central_brain_enabled": True,
+    "brain_required": True,
+    "risk_fail_closed": True,
+    "risk_profile": "balanced",
+    "balanced_risk_pct_min": 0.10,
+    "balanced_risk_pct_max": 0.25,
+    "aggressive_risk_pct_min": 0.50,
+    "aggressive_risk_pct_max": 1.00,
+    "max_symbol_direction_risk_pct": 0.50,
+    "max_bot_open_risk_pct": 0.50,
+    "max_account_open_risk_pct": 2.0,
+    "daily_entry_brake_pct": 1.50,
+    "daily_flatten_warning_pct": 4.00,
+    "daily_flatten_pct": 4.25,
+    "daily_hard_limit_pct": 4.50,
+    "total_flatten_warning_pct": 9.00,
+    "total_flatten_pct": 9.25,
+    "total_hard_limit_pct": 9.50,
+    "profit_stop_pct": 10.0,
+    "min_expected_pnl_usd": 15.0,
+    "min_initial_risk_usd": 15.0,
+    "same_underlying_one_position": True,
+    "reversal_confirmations": 2,
+    "reversal_window_seconds": 20,
+    "reversal_cooldown_seconds": 15,
+    "brain_heartbeat_max_age_seconds": 10,
     # GUNLUK ZARAR DEVRE-KESICISI (2026-07-06 olayi): bugunku (TR) gerceklesen+acik
     # P/L esigi asarsa YENI islem yok. bot = yalniz bu magic; account = hesabin TUMU
     # (forex koprusu + altin botuyla BIRLIKTE FTMO gunluk %5 limitini korur). 0 = kapali.
-    "max_daily_loss_pct": 3.0,
+    "max_daily_loss_pct": 1.5,
     "max_daily_loss_pct_account": 4.5,
     # Az once ZARARLA kapanan sembole bu kadar dakika yeni emir yok (yeniden-giris freni):
     "loss_reopen_cooldown_min": 45,
-    "min_rr": 0.7,
+    "min_rr": 2.0,
     "close_on_backend_close": True,
     "push_prices": False,
     "no_new_after_tr_min": 23 * 60,        # 23:00 TR sonrası yeni işlem yok
@@ -137,6 +165,10 @@ def load_config():
         cfg = json.load(f)
     merged = dict(DEFAULTS)
     merged.update(cfg)
+    if not isinstance(merged.get("dry_run"), bool):
+        raise ValueError("config dry_run JSON boolean (true/false) olmali")
+    if not isinstance(merged.get("central_brain_enabled"), bool):
+        raise ValueError("config central_brain_enabled JSON boolean olmali")
     return merged
 
 
@@ -149,20 +181,22 @@ def parse_code(comment):
     return c[len(COMMENT_PREFIX):] if c.startswith(COMMENT_PREFIX) else None
 
 
-# ── kalıcı durum: tickets (ticket→{code,eod}) + done (kod→zaman) ─────────────
+# ── kalıcı durum: tickets (position identifier→meta) + pending + done ────────
 def load_state():
     try:
         with open(STATE_PATH, "r", encoding="utf-8") as f:
             d = json.load(f)
         if not isinstance(d, dict):
-            return {"tickets": {}, "done": {}}
+            return {"tickets": {}, "pending": {}, "done": {}}
         if "tickets" not in d:  # eski düz {ticket: code} şeması → yükselt
-            d = {"tickets": {t: {"code": c, "eod": None} for t, c in d.items()}, "done": {}}
+            d = {"tickets": {t: {"code": c, "eod": None} for t, c in d.items()},
+                 "pending": {}, "done": {}}
         d.setdefault("tickets", {})
+        d.setdefault("pending", {})
         d.setdefault("done", {})
         return d
     except Exception:  # noqa
-        return {"tickets": {}, "done": {}}
+        return {"tickets": {}, "pending": {}, "done": {}}
 
 
 def save_state(state):
@@ -249,10 +283,17 @@ def send_ok(r):
     return r is not None and r.retcode in (RETCODE_OK, RETCODE_PARTIAL)
 
 
-def send_with_filling(req):
-    """Broker'ın desteklediği filling modunu dene (IOC→FOK→RETURN)."""
+def send_with_filling(req, allow_return=True):
+    """Broker'ın desteklediği filling modunu dene.
+
+    Açılış emirlerinde RETURN kapatılır; RETURN+DONE_PARTIAL kalan hacmi
+    bekleyen emre dönüştürüp nihai dolum gibi görünmemelidir.
+    """
     last = None
-    for fmode in (mt5.ORDER_FILLING_IOC, mt5.ORDER_FILLING_FOK, mt5.ORDER_FILLING_RETURN):
+    modes = (mt5.ORDER_FILLING_IOC, mt5.ORDER_FILLING_FOK)
+    if allow_return:
+        modes += (mt5.ORDER_FILLING_RETURN,)
+    for fmode in modes:
         req["type_filling"] = fmode
         r = mt5.order_send(req)
         last = r
@@ -265,6 +306,64 @@ def send_with_filling(req):
             continue
         return r
     return last
+
+
+def position_state_key(pos):
+    """MT5 service ticket değişse bile sabit kalan position identifier anahtarı."""
+    identifier = getattr(pos, "identifier", 0) or 0
+    ticket = getattr(pos, "ticket", 0) or 0
+    value = identifier or ticket
+    return str(value) if value else ""
+
+
+def _live_open_position(cfg, symbol, code, is_long, attempts=5, delay_seconds=0.10):
+    """Broker sonucundaki order/deal yerine oluşan canlı position kaydını bul."""
+    wanted_type = mt5.POSITION_TYPE_BUY if is_long else mt5.POSITION_TYPE_SELL
+    total_attempts = max(1, int(attempts))
+    for attempt in range(total_attempts):
+        raw = mt5.positions_get()
+        if raw is not None:
+            matches = [
+                p for p in raw
+                if getattr(p, "magic", None) == int(cfg["magic"])
+                and getattr(p, "symbol", None) == symbol
+                and getattr(p, "type", None) == wanted_type
+                and parse_code(getattr(p, "comment", "")) == str(code)
+            ]
+            if matches:
+                return max(
+                    matches,
+                    key=lambda p: (
+                        int(getattr(p, "time_msc", 0) or 0),
+                        int(getattr(p, "time", 0) or 0),
+                        int(getattr(p, "ticket", 0) or 0),
+                    ),
+                )
+        if attempt + 1 < total_attempts:
+            time.sleep(max(0.0, float(delay_seconds)))
+    return None
+
+
+def _remember_live_position(state, pos, code, eod=None):
+    """Canlı pozisyonun sabit kimliğini state'e yaz; mevcut EOD bilgisini koru."""
+    key = position_state_key(pos)
+    if not key:
+        return False
+    tickets = state.setdefault("tickets", {})
+    cur = tickets.get(key)
+    old_eod = cur.get("eod") if isinstance(cur, dict) else None
+    identifier = getattr(pos, "identifier", 0) or 0
+    meta = {
+        "code": str(code),
+        "eod": eod if eod is not None else old_eod,
+        "ticket": str(getattr(pos, "ticket", 0) or ""),
+        "identifier": str(identifier or key),
+    }
+    pending = state.setdefault("pending", {})
+    changed = cur != meta or str(code) in pending
+    tickets[key] = meta
+    pending.pop(str(code), None)
+    return changed
 
 
 def open_trade(cfg, s, info, state):
@@ -302,8 +401,43 @@ def open_trade(cfg, s, info, state):
 
     d = info.digits
     sl, tp = round(sl, d), round(tp, d)
-    lot = snap_lot(s.get("lots"), info, cfg)
+    brain_plan = None
+    if mt5_brain_adapter.enabled(cfg):
+        brain_plan = mt5_brain_adapter.evaluate(
+            mt5, cfg, info,
+            candidate_id="scanner:%s:%s" % (cfg.get("magic"), code),
+            bot_id=str(int(cfg.get("magic") or 0)), symbol=info.name,
+            direction="long" if is_long else "short",
+            timeframe=s.get("timeframe") or s.get("tf") or "default",
+            entry=price, stop=sl, target=tp,
+            confidence=s.get("confidence"),
+            confirmations=s.get("agreeCount") or s.get("confirmations") or 1,
+            # BKG# consumes four of MT5's 31 comment characters.
+            code=str(code)[:27],
+            logger=log,
+        )
+        if not brain_plan.allowed:
+            return
+        if brain_plan.decision.requires_atomic_execution:
+            if not mt5_brain_adapter.close_for_reversal(
+                    mt5, cfg, brain_plan.decision.close_tickets,
+                    logger=log, plan=brain_plan):
+                mt5_brain_adapter.finalize(brain_plan, False, logger=log)
+                return
+        lot = brain_plan.lot
+        # Beynin puana gore 3R/4R/5R hedefi TP'yi yalniz UZAKLASTIRABILIR.
+        brain_tp = float(getattr(brain_plan.decision, "target", 0) or 0)
+        if brain_tp > 0:
+            tp = round(max(tp, brain_tp) if is_long else min(tp, brain_tp), d)
+        plan_meta = getattr(brain_plan, "metadata", None)
+        if isinstance(plan_meta, dict):
+            # Telegram/lifecycle satiri brokera giden GERCEK TP'yi tasimali.
+            plan_meta["tp"] = tp
+    else:
+        lot = snap_lot(s.get("lots"), info, cfg)
     if lot <= 0:
+        if brain_plan:
+            mt5_brain_adapter.finalize(brain_plan, False, logger=log)
         log.warning("#%s %s: feed lotu (%s) broker/emniyet limitlerine uymadı — atlandı.", code, info.name, s.get("lots"))
         return
 
@@ -311,6 +445,14 @@ def open_trade(cfg, s, info, state):
     if cfg["dry_run"]:
         log.info("[DRY] AÇ %s %s %s lot=%s @%.*f SL=%.*f TP=%.*f (tf %s, güven %s)",
                  code, info.name, label, lot, d, price, d, sl, d, tp, s.get("tf"), s.get("confidence"))
+        if brain_plan:
+            mt5_brain_adapter.finalize(brain_plan, False, logger=log)
+        return
+
+    if brain_plan and not mt5_brain_adapter.pre_send_check(
+            mt5, cfg, brain_plan, logger=log):
+        mt5_brain_adapter.finalize(
+            brain_plan, False, logger=log, reason="fail_closed:pre_send_gate")
         return
 
     req = {
@@ -326,18 +468,46 @@ def open_trade(cfg, s, info, state):
         "comment": code_comment(code),
         "type_time": mt5.ORDER_TIME_GTC,
     }
-    r = send_with_filling(req)
+    r = send_with_filling(req, allow_return=False)
     if send_ok(r):
-        fill = r.price if (r.price and r.price > 0) else price
+        fill = float(getattr(r, "price", 0) or 0) or price
+        filled_volume = float(getattr(r, "volume", 0) or lot)
+        broker_ticket = (getattr(r, "order", 0) or getattr(r, "deal", 0))
+        if brain_plan:
+            finalized = mt5_brain_adapter.finalize(
+                brain_plan, True, ticket=broker_ticket, logger=log,
+                fill_price=fill, filled_volume=filled_volume)
+            if not finalized:
+                log.critical(
+                    "BROKER DOLUMU VAR AMA BEYIN FINALIZE BASARISIZ: "
+                    "code=%s symbol=%s ticket=%s lot=%s",
+                    code, info.name, broker_ticket, filled_volume)
         part = " (KISMİ dolum)" if r.retcode == RETCODE_PARTIAL else ""
         log.info("✅ AÇILDI%s %s %s %s lot=%s @%.*f SL=%.*f TP=%.*f ticket=%s",
-                 part, code, info.name, label, lot, d, fill, d, sl, d, tp, r.order)
-        # kimlik + gün-sonu yedeği: comment kaybolsa da restart'ta çözülür,
-        # gün-sonu kapanışı pencere/feed'den bağımsız garanti edilir.
-        if r.order:
-            state["tickets"][str(r.order)] = {"code": code, "eod": s.get("eodDeadlineSec")}
-            save_state(state)
+                 part, code, info.name, label, filled_volume,
+                 d, fill, d, sl, d, tp, broker_ticket)
+        # order/deal bileti pozisyon bileti değildir. Canlı position identifier
+        # state anahtarıdır; görünürlük gecikirse EOD bilgisi pending'de korunur.
+        live_pos = _live_open_position(cfg, info.name, code, is_long)
+        if live_pos is not None:
+            _remember_live_position(
+                state, live_pos, code, eod=s.get("eodDeadlineSec"))
+        else:
+            state.setdefault("pending", {})[code] = {
+                "code": code,
+                "eod": s.get("eodDeadlineSec"),
+                "symbol": info.name,
+                "brokerTicket": str(broker_ticket or ""),
+                "created": time.time(),
+            }
+            log.critical(
+                "BROKER DOLUMU VAR AMA CANLI POSITION HENUZ BULUNAMADI: "
+                "code=%s symbol=%s order/deal=%s; EOD pending state'te korundu.",
+                code, info.name, broker_ticket)
+        save_state(state)
     else:
+        if brain_plan:
+            mt5_brain_adapter.finalize(brain_plan, False, logger=log)
         rc = r.retcode if r else "None"
         cm = r.comment if r else mt5.last_error()
         log.error("❌ AÇILAMADI %s %s: retcode=%s %s", code, info.name, rc, cm)
@@ -372,7 +542,9 @@ def close_position(cfg, pos, reason):
     }
     r = send_with_filling(req)
     if send_ok(r):
-        log.info("KAPANDI %s %s (%s)", code, pos.symbol, reason)
+        partial = " KISMEN" if r.retcode == RETCODE_PARTIAL else ""
+        log.info("KAPATMA%s DOLUMU %s %s (%s)", partial,
+                 code, pos.symbol, reason)
         return True
     log.error("KAPATILAMADI %s %s: %s", code, pos.symbol, (r.comment if r else mt5.last_error()))
     return False
@@ -424,27 +596,53 @@ def push_broker_prices(cfg):
 
 
 def identify_positions(cfg, raw_positions, state):
-    """Bizim magic'li pozisyonları kimliklendir. raw_positions = mt5.positions_get()
-    SONUCU (None ise çağıran turu atlar — burada None GELMEZ varsayılır).
-    Kimlik: comment BKG#kod → state tickets yedeği → 'unknown'.
-    Dönen: by_code {kod: pos}, unknown [pos]. State'e öğrenilen kimlikler yazılır
-    (ticket temizliği burada YAPILMAZ — kapananlar reconcile_closures'ta işlenir)."""
+    """Pozisyonları canlı ``identifier`` ile kimliklendir ve eski state'i yükselt.
+
+    Position ticket broker servis işlemlerinde değişebilir; identifier sabittir.
+    Eski ticket anahtarları ve açılış görünürlük gecikmesindeki pending EOD kaydı,
+    canlı identifier anahtarına taşınır. Temizlik reconcile_closures'ta yapılır.
+    """
     by_code, unknown = {}, []
+    tickets = state.setdefault("tickets", {})
+    pending = state.setdefault("pending", {})
     changed = False
     for p in raw_positions:
         if p.magic != int(cfg["magic"]):
             continue
+        key = position_state_key(p)
+        ticket_key = str(getattr(p, "ticket", 0) or "")
+        cur = tickets.get(key)
+        legacy = tickets.get(ticket_key) if ticket_key and ticket_key != key else None
         code = parse_code(p.comment)
         if not code:
-            meta = state["tickets"].get(str(p.ticket))
-            code = meta.get("code") if isinstance(meta, dict) else None
+            for meta in (cur, legacy):
+                if isinstance(meta, dict) and meta.get("code"):
+                    code = str(meta["code"])
+                    break
         if code:
-            by_code[str(code)] = p
-            cur = state["tickets"].get(str(p.ticket))
-            if not isinstance(cur, dict) or cur.get("code") != str(code):
-                state["tickets"][str(p.ticket)] = {"code": str(code),
-                                                   "eod": (cur or {}).get("eod") if isinstance(cur, dict) else None}
+            code = str(code)
+            by_code[code] = p
+            eod = None
+            for meta in (cur, legacy, pending.get(code)):
+                if isinstance(meta, dict) and meta.get("eod") is not None:
+                    eod = meta.get("eod")
+                    break
+            # Comment sağlam fakat ticket değişmiş eski kayıtta EOD varsa onu da koru.
+            if eod is None:
+                for old_meta in tickets.values():
+                    if (isinstance(old_meta, dict)
+                            and str(old_meta.get("code")) == code
+                            and old_meta.get("eod") is not None):
+                        eod = old_meta.get("eod")
+                        break
+            if _remember_live_position(state, p, code, eod=eod):
                 changed = True
+            # Aynı kodun eski order/ticket anahtarlarını identifier'a taşı.
+            for alias, old in list(tickets.items()):
+                if (alias != key and isinstance(old, dict)
+                        and str(old.get("code")) == code):
+                    del tickets[alias]
+                    changed = True
         else:
             unknown.append(p)
     if changed:
@@ -452,18 +650,18 @@ def identify_positions(cfg, raw_positions, state):
     return by_code, unknown
 
 
-def reconcile_closures(state, open_tickets, feed_codes):
-    """MT5'te artık AÇIK OLMAYAN ticket kayıtlarını işle:
+def reconcile_closures(state, open_position_ids, feed_codes):
+    """MT5'te artık AÇIK OLMAYAN position identifier kayıtlarını işle:
     • kodu hâlâ feed'de ise → broker tarafında kapanmış (SL/TP/manuel/bizim
       kapanışımız) → done'a yaz: bu kod bir daha AÇILMAZ (zincirleme stop yok).
     • ticket kaydını sil. Feed'den düşen kodların done kaydı 3 ARDIŞIK dolu-feed'de
       görünmeyince temizlenir (denetim 2026-07-06: tek geçici/eksik feed done'u
       silip broker-kapalı kodun yeniden açılmasına izin veriyordu)."""
     changed = False
-    for t in list(state["tickets"].keys()):
-        if t in open_tickets:
+    for position_id in list(state["tickets"].keys()):
+        if position_id in open_position_ids:
             continue
-        meta = state["tickets"].pop(t)
+        meta = state["tickets"].pop(position_id)
         changed = True
         code = (meta or {}).get("code") if isinstance(meta, dict) else meta
         if code:
@@ -518,7 +716,15 @@ def _mt5_init(cfg):
 def account_allowed(cfg, ai):
     """HESAP KİLİDİ: allowed_account ayarlıysa YALNIZ o login kabul edilir.
     FAIL-CLOSED: kilit ayarlıyken hesap bilgisi yoksa (ai None) işleme İZİN YOK."""
-    want = int(cfg.get("allowed_account") or 0)
+    raw_want = cfg.get("allowed_account", 0)
+    if type(raw_want) is not int or raw_want < 0:
+        log.error("HESAP KILIDI: allowed_account literal JSON integer degil")
+        return False
+    want = raw_want
+    wanted_server = str(cfg.get("account_server") or "").strip().lower()
+    if cfg.get("dry_run") is not True and (want <= 0 or not wanted_server):
+        log.error("HESAP KILIDI: canli mod allowed_account + account_server gerektirir")
+        return False
     if not want:
         return True
     if ai is None:
@@ -527,6 +733,10 @@ def account_allowed(cfg, ai):
     if int(ai.login) != want:
         log.error("🔒 HESAP KİLİDİ: bağlı hesap %s ≠ izinli %s — bu köprü İŞLEM AÇMAZ.",
                   ai.login, want)
+        return False
+    connected_server = str(getattr(ai, "server", "") or "").strip().lower()
+    if wanted_server and connected_server != wanted_server:
+        log.error("HESAP KILIDI: bagli server %s != izinli %s", connected_server, wanted_server)
         return False
     return True
 
@@ -648,7 +858,10 @@ def main():
 
             tr_min = tr_minutes_now()
             by_code, unknown = identify_positions(cfg, raw, state)
-            open_tickets = {str(p.ticket) for p in raw if p.magic == int(cfg["magic"])}
+            open_position_ids = {
+                position_state_key(p) for p in raw
+                if p.magic == int(cfg["magic"]) and position_state_key(p)
+            }
 
             # ── HABER MOLASI (TÜM enstrümanlar, kripto DAHİL): ABD önemli verisi
             #    ±30 dk → EOD süpürmesi gibi tümünü kapat + bu tur yeni açma.
@@ -687,7 +900,7 @@ def main():
 
             feed_codes = {str(s.get("code")) for s in feed}
             # MT5'te kapananları işle: feed'de duran kod → done (yeniden açma!)
-            reconcile_closures(state, open_tickets, feed_codes)
+            reconcile_closures(state, open_position_ids, feed_codes)
 
             stop_kill = any(os.path.exists(f) for f in STOP_FILES)
             no_new_window = tr_min >= int(cfg["no_new_after_tr_min"])
@@ -713,13 +926,16 @@ def main():
                     if code in by_code:
                         # açık — gün-sonu vaktini state'e işle (comment'ten benimsenen
                         # eski pozisyonların eod'u boş olabilir)
-                        t = str(by_code[code].ticket)
-                        meta = state["tickets"].get(t)
+                        position_id = position_state_key(by_code[code])
+                        meta = state["tickets"].get(position_id)
                         if isinstance(meta, dict) and not meta.get("eod") and s.get("eodDeadlineSec"):
                             meta["eod"] = s.get("eodDeadlineSec"); save_state(state)
                         continue
                     if code in state["done"]:
                         continue  # MT5 tarafında kapanmış kod — ASLA yeniden açma
+                    if code in state.get("pending", {}):
+                        log.warning("#%s: broker dolumu canlı position kimliği bekliyor — çift emir açılmadı.", code)
+                        continue
                     # YASAKLI ENSTRÜMAN (2026-07-24): gümüş/XAGUSD'ye YENİ işlem yok.
                     # `code in by_code` kontrolünün ALTINDA → açık pozisyonun EOD/
                     # yönetim akışı yukarıda bozulmadan sürer.

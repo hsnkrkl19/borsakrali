@@ -44,10 +44,12 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 CONFIG_PATH = sys.argv[1] if len(sys.argv) > 1 else os.path.join(HERE, "config_all.json")
 STOP_FILE = os.path.join(HERE, "STOP_ALL")
+STOP_MASTER = os.path.join(HERE, "STOP_MASTER")
 SHADOW_STATE = os.path.join(HERE, "shadow_positions.json")   # açık gölge pozisyonlar
 SHADOW_TRADES = os.path.join(HERE, "shadow_trades.jsonl")    # kapanan gölge işlemler (P/L)
 
 import trade_guard  # ortak İŞLEM KORUMASI + risk matematiği
+import mt5_brain_adapter  # tum kopruler icin TEK hesap-risk/underlying karari
 
 BRIDGE_VERSION = "2026-07-18-all-bots"
 
@@ -58,15 +60,16 @@ log = logging.getLogger("bk-all")
 DEFAULTS = {
     "backend_url": "https://borsakrali.com",
     "exec_token": "",
-    "poll_seconds": 60,
+    "poll_seconds": 10,
     "dry_run": True,
     "enabled": True,
     "terminal_path": "",
     "allowed_account": 0,
     "deviation_points": 30,
     # Birleşik köprüde ÇOK bot açabilir → toplam tavan + bot-başına tavan küçük tutulur.
-    "max_open_total": 20,
-    "max_open_per_bot": 3,
+    # Pozisyon adedi yerine merkez beyin dolar-risk tavanlari son sozdur.
+    "max_open_total": 0,
+    "max_open_per_bot": 0,
     # Lot: sabit-küçük (fixed) VEYA risk-bazlı (risk). VARSAYILAN küçük fixed —
     # çok bot aynı hesapta olduğundan tutucu başla, güven gelince artır.
     # RISK varsayılan (2026-07-21): seviyeler artık fibo-YAPISAL, yani stop genişliği
@@ -77,8 +80,35 @@ DEFAULTS = {
     "lot_mode": "risk",
     "fixed_lot": 0.05,
     "risk_pct": 0.25,
-    "max_lot": 0.5,
-    "min_rr": 0.5,
+    "max_lot": 1.0,
+    "min_rr": 2.0,
+    # TEK HESAP BEYNI: tum kopruler ayni risk/underlying/ters-donus kapisindan gecer.
+    "central_brain_enabled": True,
+    "brain_required": True,
+    "risk_fail_closed": True,
+    "risk_profile": "balanced",
+    "balanced_risk_pct_min": 0.10,
+    "balanced_risk_pct_max": 0.25,
+    "aggressive_risk_pct_min": 0.50,
+    "aggressive_risk_pct_max": 1.00,
+    "max_symbol_direction_risk_pct": 0.50,
+    "max_bot_open_risk_pct": 0.50,
+    "max_account_open_risk_pct": 2.0,
+    "daily_entry_brake_pct": 1.50,
+    "daily_flatten_warning_pct": 4.00,
+    "daily_flatten_pct": 4.25,
+    "daily_hard_limit_pct": 4.50,
+    "total_flatten_warning_pct": 9.00,
+    "total_flatten_pct": 9.25,
+    "total_hard_limit_pct": 9.50,
+    "profit_stop_pct": 10.0,
+    "min_expected_pnl_usd": 15.0,
+    "min_initial_risk_usd": 15.0,
+    "same_underlying_one_position": True,
+    "reversal_confirmations": 2,
+    "reversal_window_seconds": 20,
+    "reversal_cooldown_seconds": 15,
+    "brain_heartbeat_max_age_seconds": 10,
     "min_confidence": 0,          # feed'de bu güvenin altındakini açma (0 = hepsi)
     "close_on_feed_drift": True,  # feed'den düşen kodu MT5'te kapat (competition kapattı)
     # ── FLIP-FLOP / ÇIĞ KORUMASI (çok önemli) ──────────────────────────────────
@@ -96,7 +126,7 @@ DEFAULTS = {
     # trade_guard korumaları (vars. AÇIK)
     "weekend_flatten": True,
     "news_blackout": True,
-    "max_daily_loss_pct": 3.0,
+    "max_daily_loss_pct": 1.5,
     "max_daily_loss_pct_account": 4.5,
     "loss_reopen_cooldown_min": 45,
     # Sembol takma-adları: feed sembolü → broker sembolü (VPS broker'ına göre düzelt).
@@ -137,6 +167,10 @@ def load_config():
         cfg = json.load(f)
     merged = dict(DEFAULTS)
     merged.update(cfg)
+    if not isinstance(merged.get("dry_run"), bool):
+        raise ValueError("config dry_run JSON boolean (true/false) olmali")
+    if not isinstance(merged.get("central_brain_enabled"), bool):
+        raise ValueError("config central_brain_enabled JSON boolean olmali")
     return merged
 
 
@@ -159,12 +193,21 @@ def _mt5_init(cfg):
 
 
 def account_allowed(cfg, ai):
-    want = int(cfg.get("allowed_account") or 0)
+    raw_want = cfg.get("allowed_account", 0)
+    if type(raw_want) is not int or raw_want < 0:
+        return False
+    want = raw_want
+    wanted_server = str(cfg.get("account_server") or "").strip().lower()
+    if cfg.get("dry_run") is not True and (want <= 0 or not wanted_server):
+        return False
     if not want:
         return True
     if ai is None:
         return False
-    return int(getattr(ai, "login", 0) or 0) == want
+    if int(getattr(ai, "login", 0) or 0) != want:
+        return False
+    connected_server = str(getattr(ai, "server", "") or "").strip().lower()
+    return not wanted_server or connected_server == wanted_server
 
 
 def autotrading_on():
@@ -234,16 +277,21 @@ def resolve_broker_symbol(cfg, feed_sym):
     return None
 
 
-def send_with_filling(req):
+def send_with_filling(req, allow_return=True):
     last = None
-    for fmode in (mt5.ORDER_FILLING_IOC, mt5.ORDER_FILLING_FOK, mt5.ORDER_FILLING_RETURN):
+    modes = (mt5.ORDER_FILLING_IOC, mt5.ORDER_FILLING_FOK)
+    if allow_return:
+        modes += (mt5.ORDER_FILLING_RETURN,)
+    for fmode in modes:
         req["type_filling"] = fmode
         r = mt5.order_send(req)
         last = r
         if r is None:
             log.error("order_send None — %s", mt5.last_error())
             return None
-        if r.retcode == mt5.TRADE_RETCODE_DONE:
+        if r.retcode in (
+                mt5.TRADE_RETCODE_DONE,
+                getattr(mt5, "TRADE_RETCODE_DONE_PARTIAL", 10010)):
             return r
         if r.retcode == 10030:
             continue
@@ -282,7 +330,10 @@ def compute_lot(cfg, s, info, entry, stop):
 def our_positions(cfg):
     """Bu köprünün açtığı tüm pozisyonlar (comment 'A#' + catalog magic'leri)."""
     out = []
-    for p in mt5.positions_get() or []:
+    raw = mt5.positions_get()
+    if raw is None:
+        raise RuntimeError("positions_get None: %s" % (mt5.last_error(),))
+    for p in raw:
         code = parse_code(getattr(p, "comment", ""))
         if code is not None:
             out.append(p)
@@ -364,41 +415,112 @@ def open_from_feed(cfg, s):
     tp1 = price + reward if is_long else price - reward
     d = info.digits
     sl, tp = round(sl, d), round(tp1, d)
-    lot = compute_lot(cfg, s, info, price, sl)
+    brain_plan = None
+    if mt5_brain_adapter.enabled(cfg):
+        brain_plan = mt5_brain_adapter.evaluate(
+            mt5, cfg, info,
+            candidate_id="all:%s:%s" % (magic, s["code"]),
+            bot_id=str(magic), symbol=info.name,
+            direction="long" if is_long else "short",
+            timeframe=s.get("timeframe") or s.get("tf") or "default",
+            entry=price, stop=sl, target=tp,
+            confidence=s.get("confidence"),
+            confirmations=s.get("agreeCount") or s.get("confirmations") or 1,
+            # A# consumes two of MT5's 31 comment characters.
+            code=str(s.get("code") or "")[:29],
+            logger=log,
+        )
+        if not brain_plan.allowed:
+            return "beyin_red:%s" % brain_plan.decision.reasons[0]
+        if brain_plan.decision.requires_atomic_execution:
+            if not mt5_brain_adapter.close_for_reversal(
+                    mt5, cfg, brain_plan.decision.close_tickets,
+                    logger=log, plan=brain_plan):
+                mt5_brain_adapter.finalize(brain_plan, False, logger=log)
+                return "beyin_ters_kapatma_hatasi"
+        lot = brain_plan.lot
+        # Beynin puana gore 3R/4R/5R hedefi TP'yi yalniz UZAKLASTIRABILIR.
+        brain_tp = float(getattr(brain_plan.decision, "target", 0) or 0)
+        if brain_tp > 0:
+            tp = round(max(tp, brain_tp) if is_long else min(tp, brain_tp), d)
+        plan_meta = getattr(brain_plan, "metadata", None)
+        if isinstance(plan_meta, dict):
+            # Telegram/lifecycle satiri brokera giden GERCEK TP'yi tasimali.
+            plan_meta["tp"] = tp
+    else:
+        lot = compute_lot(cfg, s, info, price, sl)
     if lot <= 0:
+        if brain_plan:
+            mt5_brain_adapter.finalize(brain_plan, False, logger=log)
         return "lot_sifir"
     label = "LONG" if is_long else "SHORT"
     if cfg["dry_run"]:
         log.info("[DRY] AÇ %s | %s %s lot=%s @%.*f SL=%.*f TP=%.*f magic=%s (%s)",
                  s.get("botName"), info.name, label, lot, d, price, d, sl, d, tp, magic, s["code"])
+        if brain_plan:
+            mt5_brain_adapter.finalize(brain_plan, False, logger=log)
         return "dry"
+    if brain_plan and not mt5_brain_adapter.pre_send_check(
+            mt5, cfg, brain_plan, logger=log):
+        mt5_brain_adapter.finalize(
+            brain_plan, False, logger=log, reason="fail_closed:pre_send_gate")
+        return "beyin_emir_oncesi_red"
     req = {
         "action": mt5.TRADE_ACTION_DEAL, "symbol": info.name, "volume": float(lot),
         "type": mt5.ORDER_TYPE_BUY if is_long else mt5.ORDER_TYPE_SELL,
         "price": price, "sl": sl, "tp": tp, "deviation": int(cfg["deviation_points"]),
         "magic": magic, "comment": code_comment(s["code"]), "type_time": mt5.ORDER_TIME_GTC,
     }
-    r = send_with_filling(req)
-    if r and r.retcode == mt5.TRADE_RETCODE_DONE:
-        log.info("✅ AÇILDI %s | %s %s lot=%s magic=%s ticket=%s", s.get("botName"), info.name, label, lot, magic, r.order)
+    # Açılışta RETURN yok: kısmi dolum kalan hacmi bekleyen emir olarak bırakamaz.
+    r = send_with_filling(req, allow_return=False)
+    if r and r.retcode in (
+            mt5.TRADE_RETCODE_DONE,
+            getattr(mt5, "TRADE_RETCODE_DONE_PARTIAL", 10010)):
+        fill = float(getattr(r, "price", 0) or 0) or price
+        filled_volume = float(getattr(r, "volume", 0) or lot)
+        broker_ticket = (getattr(r, "order", 0) or getattr(r, "deal", 0))
+        if brain_plan:
+            finalized = mt5_brain_adapter.finalize(
+                brain_plan, True, ticket=broker_ticket, logger=log,
+                fill_price=fill, filled_volume=filled_volume)
+            if not finalized:
+                log.critical(
+                    "BROKER DOLUMU VAR AMA BEYIN FINALIZE BASARISIZ: "
+                    "code=%s symbol=%s ticket=%s lot=%s",
+                    s.get("code"), info.name, broker_ticket, filled_volume)
+        partial = " (KISMİ dolum)" if r.retcode == getattr(
+            mt5, "TRADE_RETCODE_DONE_PARTIAL", 10010) else ""
+        log.info("✅ AÇILDI%s %s | %s %s lot=%s magic=%s ticket=%s",
+                 partial, s.get("botName"), info.name, label,
+                 filled_volume, magic, broker_ticket)
         return "acildi"
     elif r and r.retcode == getattr(mt5, "TRADE_RETCODE_MARKET_CLOSED", 10018):
+        if brain_plan:
+            mt5_brain_adapter.finalize(brain_plan, False, logger=log)
         # Piyasa kapalı (hafta sonu / seans dışı): sembolü 15 dk atla, bir kez INFO logla.
         _market_closed_until[info.name] = time.time() + 900
         log.info("⏸ %s piyasa kapalı — 15 dk atlanacak (%s).", info.name, s.get("botName"))
         return "piyasa_kapali"
     elif r and r.retcode == getattr(mt5, "TRADE_RETCODE_NO_MONEY", 10019):
+        if brain_plan:
+            mt5_brain_adapter.finalize(brain_plan, False, logger=log)
         return "no_money"
     elif r and r.retcode == 10027:
+        if brain_plan:
+            mt5_brain_adapter.finalize(brain_plan, False, logger=log)
         # Algo Trading terminalde KAPALI — hiçbir emir geçmez; turu durdur (spam önle).
         return "algo_kapali"
     else:
+        if brain_plan:
+            mt5_brain_adapter.finalize(brain_plan, False, logger=log)
         rc = r.retcode if r else "None"
         log.error("❌ AÇILAMADI %s %s: retcode=%s %s", s.get("botName"), info.name, rc, (r.comment if r else mt5.last_error()))
         return "hata:%s" % rc
 
 
 def close_position(cfg, pos, reason):
+    if not account_allowed(cfg, mt5.account_info()):
+        return False
     info = mt5.symbol_info(pos.symbol)
     if info is None:
         return
@@ -417,8 +539,13 @@ def close_position(cfg, pos, reason):
         "comment": "close", "type_time": mt5.ORDER_TIME_GTC,
     }
     r = send_with_filling(req)
-    if r and r.retcode == mt5.TRADE_RETCODE_DONE:
-        log.info("🔒 KAPATILDI %s %s (%s)", parse_code(pos.comment), pos.symbol, reason)
+    if r and r.retcode in (
+            mt5.TRADE_RETCODE_DONE,
+            getattr(mt5, "TRADE_RETCODE_DONE_PARTIAL", 10010)):
+        partial = " KISMEN" if r.retcode == getattr(
+            mt5, "TRADE_RETCODE_DONE_PARTIAL", 10010) else ""
+        log.info("🔒 KAPATMA%s DOLUMU %s %s (%s)", partial,
+                 parse_code(pos.comment), pos.symbol, reason)
     else:
         log.error("❌ KAPATILAMADI %s %s: %s", parse_code(pos.comment), pos.symbol, (r.retcode if r else mt5.last_error()))
 
@@ -616,6 +743,11 @@ def report_real_results(cfg, force=False):
     + altın 20260707) okuyup siteye POST eder. Lider tablosu + günlük rapor
     bunu GERÇEK sonuç olarak kullanır. 5 dk'da bir (throttle)."""
     global _last_results_report
+    if mt5_brain_adapter.enabled(cfg):
+        # Exact entry+exit commission/fee/swap lifecycle has one owner. Sending
+        # this legacy close first could produce an approximate Telegram that a
+        # later exact daemon row cannot retract.
+        return
     now = time.time()
     if not force and now - _last_results_report < 300:
         return
@@ -680,6 +812,9 @@ def report_mt5_state(cfg):
     (Kapanışlar farklı: report_real_results BİLEREK tüm hesabı tarar — lider
     tablosu gerçek sonuçları magic→bot eşlemesiyle doğru sahibine yazar.)"""
     global _last_state_report
+    if mt5_brain_adapter.enabled(cfg):
+        # Broker-open outbox + account daemon are the sole live lifecycle path.
+        return
     now = time.time()
     if now - _last_state_report < 25:      # aynı turda çift göndermeyi önle
         return
@@ -730,7 +865,7 @@ def report_mt5_state(cfg):
 
 
 def run_once(cfg):
-    if os.path.exists(STOP_FILE):
+    if os.path.exists(STOP_FILE) or os.path.exists(STOP_MASTER):
         log.info("STOP_ALL dosyası var — yeni emir açılmıyor (mevcutlar yönetilir).")
         stop = True
     else:
@@ -742,8 +877,10 @@ def run_once(cfg):
         positions = mt5.positions_get()
         blocked, why = trade_guard.daily_loss_blocked(mt5, cfg, logger=log, deals=deals, positions=positions)
     except Exception as exc:
-        blocked, why = False, None
-        log.warning("trade_guard günlük fren okunamadı (fail-open): %s", exc)
+        blocked = bool(cfg.get("risk_fail_closed", cfg.get("central_brain_enabled", False)))
+        why = "risk verisi okunamadi"
+        log.error("trade_guard günlük fren okunamadı (%s): %s",
+                  "fail-closed" if blocked else "fail-open", exc)
     new_orders_allowed = not stop and not blocked
     if blocked:
         log.warning("🛑 Günlük zarar freni AKTİF (%s) — yeni emir yok.", why)
@@ -815,7 +952,11 @@ def run_once(cfg):
             log.info("hafta sonu penceresi — kripto-dışı yeni emir yok.")
         if news:
             log.info("ABD haber molası — kripto-dışı yeni emir yok.")
+        # Restart/poll siniri bot tavanini sifirlamasin: mevcutlardan tohumla.
         per_bot = {}
+        for _p in open_pos:
+            _magic = str(int(getattr(_p, "magic", 0) or 0))
+            per_bot[_magic] = per_bot.get(_magic, 0) + 1
         total_open = len([p for p in open_pos if parse_code(p.comment)])
         # 0 (veya negatif) = SINIRSIZ. Her botun tüm işlemleri açılsın istenirse
         # config'te max_open_total ve max_open_per_bot = 0 yapilir.
@@ -827,7 +968,7 @@ def run_once(cfg):
                 _bump("zaten_acik"); continue
             if max_total > 0 and total_open >= max_total:
                 _bump("tavan_doldu"); break
-            bkey = s.get("botId")
+            bkey = str(int(s.get("magic") or 0)) if s.get("magic") else str(s.get("botId"))
             if max_per_bot > 0 and per_bot.get(bkey, 0) >= max_per_bot:
                 _bump("bot_tavani"); continue
             if symbol_guarded(cfg, s["symbol"], weekend, news):

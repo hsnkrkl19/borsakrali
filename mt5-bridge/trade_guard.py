@@ -82,16 +82,17 @@ def is_banned_symbol(symbol, cfg=None):
     return False
 
 
-# ── LOT SINIRLARI (2026-07-24, kullanıcı talebi) ──────────────────────────────
-# "tüm botların lot sayısını 0.01 ile 0.15 arasına getir. sadece bot 37 konsensüs
-#  değerlendirme sonuçlarında birden çok botun ortak karar aldığı işlemlere 0.20."
-#
-# ⚠️ Sınır KODDA, config'te DEĞİL. Sebebi: üç köprünün config'i de (config.json,
-# config_all.json, config_scanner.json) .gitignore'da / yalnız VPS'te yaşıyor —
-# oraya yazılan bir tavan repoda görünmez ve bir dosya yeniden üretilirse sessizce
-# kaybolur. Config yalnız tavanı DÜŞÜREBİLİR, yükseltemez.
+# ── LOT SINIRLARI ────────────────────────────────────────────────────────
+# Eski/merkezî-beyinsiz köprüler savunma derinliği olarak 0.15 lot (konsensüs
+# 0.20) tavanında kalır. Yeni merkezî beyin modunda lot, sabit bir sayıdan değil
+# SL mesafesindeki gerçek dolar riskinden hesaplanır; hesap kademesi izin verirse 1.0
+# lota kadar çıkabilir. Bu yüksek tavan YALNIZ `central_brain_enabled=true` iken
+# kullanılır; köprüde merkezî pre-trade kararı alınamazsa emir fail-closed reddedilir.
 LOT_HARD_MIN = 0.01
-LOT_HARD_MAX = 0.15
+LOT_LEGACY_HARD_MAX = 0.15
+LOT_BRAIN_HARD_MAX = 1.00
+# Geriye uyum: eski test/import'lar bu sabiti kullanıyor.
+LOT_HARD_MAX = LOT_LEGACY_HARD_MAX
 # Konsensüs botu (Bot 37, magic 5749) — birden çok botun ortak kararı.
 CONSENSUS_LOT = 0.20
 CONSENSUS_BOT_ID = "consensus-radar"
@@ -112,11 +113,22 @@ def is_consensus(feed_row):
 
 
 def lot_cap_for(feed_row=None, cfg=None):
-    """Bu işlem için izin verilen AZAMİ lot. Konsensüs dışı her şey 0.15."""
-    cap = CONSENSUS_LOT if is_consensus(feed_row) else LOT_HARD_MAX
+    """Bu işlem için izin verilen azami lot.
+
+    Merkezî beyin kapalıysa eski 0.15/0.20 savunma tavanı korunur. Beyin açıksa
+    sabit konsensüs ayrıcalığı yoktur: her bot aynı dolar-risk kapılarından geçer
+    ve yalnız hesap kademesi/config tavanına kadar (mutlak 1.0) büyüyebilir.
+    """
+    cfg = cfg or {}
+    brain_on = cfg.get("central_brain_enabled") is True
+    cap = LOT_BRAIN_HARD_MAX if brain_on else (
+        CONSENSUS_LOT if is_consensus(feed_row) else LOT_LEGACY_HARD_MAX
+    )
     # Backend feed'i per-pozisyon tavan bildiriyorsa (bridgeFeed `lotCap`) onu da
     # dikkate al — ama YALNIZ DÜŞÜRÜCÜ yönde; feed bizden yüksek tavan isteyemez.
-    if isinstance(feed_row, dict) and feed_row.get("lotCap") is not None:
+    # Eski backend `lotCap` alanı 0.15/0.20 sabitidir. Merkezî beyin modunda
+    # risk-doğrulanmış dinamik lotu yanlışlıkla kırpmaması için kullanılmaz.
+    if not brain_on and isinstance(feed_row, dict) and feed_row.get("lotCap") is not None:
         try:
             feed_cap = float(feed_row["lotCap"])
             if feed_cap > 0:
@@ -125,7 +137,8 @@ def lot_cap_for(feed_row=None, cfg=None):
             pass
     # config yalnız DÜŞÜREBİLİR (güvenlik yönü tek taraflı).
     try:
-        cfg_cap = float((cfg or {}).get("max_lot", cap))
+        tier_cap = cfg.get("account_tier_max_lot", cfg.get("brain_max_lot", cap))
+        cfg_cap = float(cfg.get("max_lot", tier_cap) if not brain_on else tier_cap)
         if cfg_cap > 0:
             cap = min(cap, cfg_cap)
     except (TypeError, ValueError):
@@ -134,8 +147,12 @@ def lot_cap_for(feed_row=None, cfg=None):
 
 
 def clamp_lot(lot, info=None, feed_row=None, cfg=None):
-    """Lot'u [0.01, 0.15] (konsensüste [0.01, 0.20]) aralığına ve broker'ın
-    volume_step/volume_min/volume_max kısıtlarına oturtur.
+    """Lot'u etkin emniyet tavanına ve broker adımına AŞAĞI oturtur.
+
+    Hesaplanan güvenli lot broker minimumunun altındaysa yukarı büyütmez; 0.0
+    döndürüp işlemi reddeder. Aksi davranış geniş stopta hedef dolar riskini
+    sessizce aşardı.
+
     Dönen 0.0 = bu broker'da geçerli lot üretilemedi (işlem açılmamalı)."""
     try:
         lot = float(lot)
@@ -145,18 +162,20 @@ def clamp_lot(lot, info=None, feed_row=None, cfg=None):
         return 0.0
     step = float(getattr(info, "volume_step", 0) or 0.01)
     vmin = float(getattr(info, "volume_min", 0) or LOT_HARD_MIN)
-    vmax = float(getattr(info, "volume_max", 0) or LOT_HARD_MAX)
+    vmax = float(getattr(info, "volume_max", 0) or LOT_BRAIN_HARD_MAX)
     cap = lot_cap_for(feed_row, cfg)
     floor_lot = max(LOT_HARD_MIN, vmin)
     # Taban tavanı aşıyorsa (örn. broker volume_min 0.5 > 0.15) işlem AÇILAMAZ.
     if floor_lot > cap + 1e-9 or floor_lot > vmax + 1e-9:
         return 0.0
-    lot = min(lot, cap, vmax)
+    raw_lot = min(lot, cap, vmax)
+    if raw_lot + 1e-9 < floor_lot:
+        return 0.0
     # ⚠️ Adıma AŞAĞI otur — repo değişmezi: yuvarlama riski sinyalin üstüne
     # ASLA taşımaz (en yakına yuvarlamak 0.017→0.02 yapıp riski büyütürdü).
-    lot = round(int(lot / step + 1e-9) * step, 2)
+    lot = round(int(raw_lot / step + 1e-9) * step, 2)
     if lot < floor_lot:
-        lot = round(floor_lot, 2)   # taban: kullanıcı kuralı "0.01 ile ... arasına"
+        return 0.0
     return lot
 
 
@@ -214,15 +233,21 @@ def contract_size(info):
 
 
 def per_lot_risk_usd(info, stop_dist):
-    """1.0 lotun stop mesafesindeki $ riski. trade_tick_value/trade_tick_size HESAP
-    para biriminde dogru deger verir (USDJPY gibi USD-quote-olmayanlar dahil);
-    yoksa contract_size'a duser (USD-quote varsayimi)."""
-    tv = float(getattr(info, "trade_tick_value", 0) or 0)
+    """1.0 lotun stop mesafesindeki hesap-parasi zarari.
+
+    Risk yonunde ``trade_tick_value_loss`` esastir; profit alias'i ancak broker
+    loss degerini vermiyorsa geriye uyumlu yedektir.
+    """
+    tv = float(getattr(info, "trade_tick_value_loss", 0)
+               or getattr(info, "trade_tick_value", 0) or 0)
     ts = float(getattr(info, "trade_tick_size", 0) or 0)
     if tv > 0 and ts > 0:
         return stop_dist / ts * tv
-    contract = contract_size(info)
-    return stop_dist * contract if contract > 0 else 0.0
+    # Contract-size * price-distance is denominated in the symbol's quote
+    # currency, not necessarily the account currency (EURGBP on a USD account
+    # is the classic failure). Missing broker tick conversion is therefore
+    # unknown risk and must stay 0 so central callers reject/mark unbounded.
+    return 0.0
 
 
 # ── GÜNLÜK ZARAR DEVRE-KESİCİSİ (2026-07-06 olayı) ──────────────────────────
@@ -323,8 +348,11 @@ def daily_loss_blocked(mt5mod, cfg, logger=None, deals=None, positions=None, ske
       • HESAP katmanı: TÜM magic'lerin toplamı ≤ -max_daily_loss_pct_account → blok
         (FTMO günlük %5 limitini diğer botlarla BİRLİKTE korur).
       • BOT katmanı: bu botun (magic) günlük realized+floating ≤ -max_daily_loss_pct → blok.
-    Yüzde tabanı = gün-başı bakiye ≈ bakiye − bugünkü realized. Veri yoksa fail-open.
+    Yüzde tabanı = gün-başı bakiye ≈ bakiye − bugünkü realized.
+    `risk_fail_closed=true` (merkezî beyin modunda varsayılan) ise hesap/history/
+    pozisyon verisi okunamadığında yeni emirler bloke edilir.
     Dönüş: (blok?, sebep|None)."""
+    fail_closed = bool(cfg.get("risk_fail_closed", cfg.get("central_brain_enabled", False)))
     layers = [
         ("HESAP", None, float(cfg.get("max_daily_loss_pct_account", 4.5) or 0)),
         ("BOT", cfg.get("magic"), float(cfg.get("max_daily_loss_pct", 3.0) or 0)),
@@ -334,15 +362,24 @@ def daily_loss_blocked(mt5mod, cfg, logger=None, deals=None, positions=None, ske
     ai = mt5mod.account_info()
     balance = getattr(ai, "balance", None) if ai else None
     if not balance or balance <= 0:
-        return False, None
+        reason = "hesap bilgisi/bakiye okunamadi"
+        if fail_closed and logger:
+            logger.error("gunluk zarar freni: %s (fail-closed).", reason)
+        return (True, reason) if fail_closed else (False, None)
     if deals is None:
         deals = fetch_recent_deals(mt5mod, 0, skew=skew)
     if deals is None:
         if logger:
-            logger.warning("gunluk zarar freni: deal history okunamadi (fail-open).")
-        return False, None
+            logger.error("gunluk zarar freni: deal history okunamadi (%s).",
+                         "fail-closed" if fail_closed else "fail-open")
+        return (True, "deal history okunamadi") if fail_closed else (False, None)
     if positions is None:
         positions = mt5mod.positions_get()
+    if positions is None:
+        reason = "acik pozisyonlar okunamadi"
+        if fail_closed and logger:
+            logger.error("gunluk zarar freni: %s (fail-closed).", reason)
+        return (True, reason) if fail_closed else (False, None)
     for name, magic, pct in layers:
         if pct <= 0:
             continue

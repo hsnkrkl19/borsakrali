@@ -8,11 +8,21 @@ import time
 import tempfile
 from datetime import datetime, timezone
 from types import SimpleNamespace
-import MetaTrader5 as mt5
+try:
+    import MetaTrader5 as mt5
+except ModuleNotFoundError:
+    from mt5_test_stub import install
+    mt5 = install()
 import borsakrali_mt5_scanner as bk
 
+# Keep ordinary unit cases independent of the live central-brain daemon.
+bk.mt5_brain_adapter.enabled = lambda cfg: bool(cfg.get("_offline_brain_enabled"))
+
+TEST_LOGIN = 1514061487
+TEST_SERVER = "FTMO-Demo"
 CFG = {"max_lot": 10.0, "min_rr": 0.7, "magic": 550066, "deviation_points": 30,
-       "dry_run": False, "no_new_after_tr_min": 1380, "eod_close_tr_min": 1425}
+       "dry_run": False, "no_new_after_tr_min": 1380, "eod_close_tr_min": 1425,
+       "allowed_account": TEST_LOGIN, "account_server": TEST_SERVER}
 
 sent = []
 
@@ -30,10 +40,14 @@ def setup_stubs(ask, bid, positions=()):
     mt5.symbol_info_tick = lambda n: SimpleNamespace(ask=ask, bid=bid)
     mt5.symbol_select = lambda *a: True
     mt5.positions_get = lambda: list(positions)
+    mt5.account_info = lambda: SimpleNamespace(login=TEST_LOGIN, server=TEST_SERVER,
+                                               trade_allowed=True)
 
     def cap(req):
         sent.append(req)
-        return SimpleNamespace(retcode=bk.RETCODE_OK, order=777, price=req.get("price", 0), comment="ok")
+        return SimpleNamespace(retcode=bk.RETCODE_OK, order=777, deal=778,
+                               volume=req.get("volume", 0),
+                               price=req.get("price", 0), comment="ok")
     mt5.order_send = cap
     mt5.last_error = lambda: (0, "ok")
 
@@ -62,8 +76,10 @@ def sig(**over):
     return base
 
 
-def fake_pos(ticket, comment, symbol="XAUUSD", magic=550066, ptype=0, price_current=4000.0):
-    return SimpleNamespace(ticket=ticket, comment=comment, symbol=symbol, magic=magic,
+def fake_pos(ticket, comment, symbol="XAUUSD", magic=550066, ptype=0,
+             price_current=4000.0, identifier=None, ptime=1):
+    return SimpleNamespace(ticket=ticket, identifier=(ticket if identifier is None else identifier),
+                           comment=comment, symbol=symbol, magic=magic, time=ptime,
                            type=ptype, volume=0.05, sl=3980.0, tp=4020.0, price_current=price_current)
 
 
@@ -77,7 +93,7 @@ def t_snap_lot():
     assert approx(bk.snap_lot(0.15, info, CFG), 0.15), "tam tavan geçer"
     assert approx(bk.snap_lot(1.96, info, CFG), 0.15), "tavan üstü KIRPILIR (eskiden 0 dönerdi)"
     assert approx(bk.snap_lot(6.7, info, CFG), 0.15), "büyük lot da 0.15'e kırpılır"
-    assert approx(bk.snap_lot(0.005, info, CFG), 0.01), "vmin altı TABANA çekilir"
+    assert bk.snap_lot(0.005, info, CFG) == 0.0, "risk lotu vmin altindaysa yukari buyutulmez"
     assert approx(bk.snap_lot(0.017, info, CFG), 0.01), "adım-dışı lot AŞAĞI tabanlanır (risk artmaz)"
     assert bk.snap_lot(None, info, CFG) == 0.0 and bk.snap_lot("x", info, CFG) == 0.0
     assert bk.snap_lot(0, info, CFG) == 0.0
@@ -96,10 +112,11 @@ def t_tr_minutes():
     print("OK tr_minutes_now (UTC+3, gün sarması)")
 
 
-# ── open_trade: feed lot + MUTLAK SL/TP + BKG# + state (ticket→{code,eod}) ───
+# ── open_trade: feed lot + MUTLAK SL/TP + canlı position identifier state ────
 def t_open_long():
     use_temp_state()
-    setup_stubs(ask=4000.5, bid=4000.3)
+    live = fake_pos(901, "BKG#GAU01", identifier=7001)
+    setup_stubs(ask=4000.5, bid=4000.3, positions=[live])
     state = fresh_state()
     s = sig()
     bk.open_trade(CFG, s, fake_info(), state)
@@ -108,9 +125,11 @@ def t_open_long():
     assert approx(r["volume"], 0.05), "lot feed'den AYNEN"
     assert approx(r["sl"], 3980.0) and approx(r["tp"], 4020.0), "MUTLAK seviye"
     assert r["comment"] == "BKG#GAU01" and r["magic"] == 550066
-    meta = state["tickets"].get("777")
-    assert meta and meta["code"] == "GAU01" and approx(meta["eod"], s["eodDeadlineSec"]), "ticket→{code,eod} yedeği"
-    print("OK open_trade LONG (feed lot, mutlak SL/TP, BKG#, state {code,eod})")
+    meta = state["tickets"].get("7001")
+    assert "777" not in state["tickets"], "order bileti position kimliği diye yazılamaz"
+    assert meta and meta["ticket"] == "901" and meta["identifier"] == "7001"
+    assert meta["code"] == "GAU01" and approx(meta["eod"], s["eodDeadlineSec"])
+    print("OK open_trade LONG (canlı position ticket+identifier, EOD state)")
 
 
 def t_open_short():
@@ -126,16 +145,51 @@ def t_open_short():
 
 def t_partial_fill_is_success():
     use_temp_state()
-    setup_stubs(ask=4000.5, bid=4000.3)
+    live = fake_pos(902, "BKG#GAU01", identifier=7002)
+    setup_stubs(ask=4000.5, bid=4000.3, positions=[live])
 
     def cap(req):
         sent.append(req)
-        return SimpleNamespace(retcode=bk.RETCODE_PARTIAL, order=888, price=req.get("price", 0), comment="partial")
+        return SimpleNamespace(retcode=bk.RETCODE_PARTIAL, order=888, deal=889,
+                               volume=0.02, price=req.get("price", 0), comment="partial")
     mt5.order_send = cap
     state = fresh_state()
     bk.open_trade(CFG, sig(), fake_info(), state)
-    assert state["tickets"].get("888"), "KISMİ dolum başarı sayılır — kimlik yazılır (inceleme bulgusu)"
-    print("OK partial fill (10010) başarı sayılır, state yazılır")
+    assert state["tickets"].get("7002"), "IOC/FOK kısmi dolumu canlı identifier ile yazılır"
+    assert "888" not in state["tickets"], "order bileti state anahtarı değildir"
+    print("OK IOC/FOK partial fill canlı position identifier ile reconcile edildi")
+
+
+def t_open_never_uses_return():
+    setup_stubs(ask=4000.5, bid=4000.3)
+    modes = []
+
+    def unsupported(req):
+        modes.append(req["type_filling"])
+        return SimpleNamespace(retcode=bk.RETCODE_BAD_FILLING, order=0, deal=0,
+                               volume=0, price=0, comment="unsupported")
+
+    mt5.order_send = unsupported
+    bk.open_trade(CFG, sig(code="GAU02"), fake_info(), fresh_state())
+    assert modes == [mt5.ORDER_FILLING_IOC, mt5.ORDER_FILLING_FOK]
+    assert mt5.ORDER_FILLING_RETURN not in modes
+    print("OK scanner açılışı IOC/FOK ile sınırlı; RETURN denenmiyor")
+
+
+def t_pending_fill_migrates_without_losing_eod():
+    use_temp_state()
+    setup_stubs(ask=4000.5, bid=4000.3, positions=[])
+    state = fresh_state()
+    s = sig(code="GAU12")
+    bk.open_trade(CFG, s, fake_info(), state)
+    assert "GAU12" in state.get("pending", {})
+    assert "777" not in state["tickets"], "order/deal ticket state kimliği olamaz"
+    live = fake_pos(912, "BKG#GAU12", identifier=7012)
+    by_code, unknown = bk.identify_positions(CFG, [live], state)
+    assert not unknown and "GAU12" in by_code
+    assert "GAU12" not in state["pending"]
+    assert approx(state["tickets"]["7012"]["eod"], s["eodDeadlineSec"])
+    print("OK gecikmiş canlı position reconcile edildi; pending EOD korundu")
 
 
 # ── bayat/kovalama korumaları ────────────────────────────────────────────────
@@ -156,19 +210,40 @@ def t_stale_guards():
 # ── kimlik: comment → state fallback → unknown bloklama ──────────────────────
 def t_identity():
     path = use_temp_state()
-    p1 = fake_pos(1, "BKG#GAU01")          # comment sağlam
-    p2 = fake_pos(2, "")                    # comment silinmiş, state'te var
+    p1 = fake_pos(101, "BKG#GAU01", identifier=9001)  # comment sağlam
+    p2 = fake_pos(202, "", identifier=9002)           # comment silinmiş, state'te var
     p3 = fake_pos(3, "", symbol="BTCUSD")   # kimliksiz → unknown
     p4 = fake_pos(4, "BK#074A", magic=550055)  # FOREX köprüsünün pozisyonu — bizim değil
     setup_stubs(4000.5, 4000.3, positions=[p1, p2, p3, p4])
-    state = {"tickets": {"2": {"code": "GET05", "eod": None}}, "done": {}}
+    eod = time.time() + 1800
+    state = {"tickets": {"202": {"code": "GET05", "eod": eod}},
+             "pending": {}, "done": {}}
     by_code, unknown = bk.identify_positions(CFG, [p1, p2, p3, p4], state)
     assert set(by_code.keys()) == {"GAU01", "GET05"}, by_code.keys()
     assert [p.ticket for p in unknown] == [3], "kimliksiz pozisyon unknown"
-    assert state["tickets"].get("1", {}).get("code") == "GAU01", "comment'ten öğrenilen kod state'e yazıldı"
+    assert state["tickets"].get("9001", {}).get("ticket") == "101"
+    assert state["tickets"].get("9002", {}).get("code") == "GET05"
+    assert approx(state["tickets"]["9002"]["eod"], eod), "legacy ticket EOD korunmalı"
+    assert "202" not in state["tickets"], "legacy ticket anahtarı identifier'a taşınmalı"
     with open(path, encoding="utf-8") as f:
-        assert json.load(f)["tickets"]["2"]["code"] == "GET05"
-    print("OK identify_positions kimlik (comment → state → unknown) + forex magic ayrımı")
+        assert json.load(f)["tickets"]["9002"]["code"] == "GET05"
+    print("OK identify_positions canlı identifier + legacy ticket/EOD migration")
+
+
+def t_service_ticket_change_keeps_eod():
+    use_temp_state()
+    eod = time.time() + 900
+    state = {"tickets": {"9900": {"code": "GAU11", "eod": eod,
+                                    "ticket": "301", "identifier": "9900"}},
+             "pending": {}, "done": {}}
+    changed_ticket = fake_pos(399, "", identifier=9900)
+    by_code, unknown = bk.identify_positions(CFG, [changed_ticket], state)
+    assert not unknown and by_code["GAU11"].ticket == 399
+    assert state["tickets"]["9900"]["ticket"] == "399"
+    assert approx(state["tickets"]["9900"]["eod"], eod)
+    bk.reconcile_closures(state, open_position_ids={"9900"}, feed_codes={"GAU11"})
+    assert "GAU11" not in state["done"], "ticket değişimi broker kapanışı sanılmamalı"
+    print("OK service ticket değişiminde identifier ve EOD korunuyor")
 
 
 # ── done-kodları: broker tarafında kapanan kod ASLA yeniden açılmaz ──────────
@@ -180,24 +255,24 @@ def t_reconcile_done():
     # görünmeyince temizlenir (2026-07-06: tek geçici/eksik feed done'u silip
     # broker-kapalı kodun yeniden açılmasına izin veriyordu).
     state["done"]["GXX99"] = 123.0
-    bk.reconcile_closures(state, open_tickets={"11"}, feed_codes={"GBT01", "GET01"})
+    bk.reconcile_closures(state, open_position_ids={"11"}, feed_codes={"GBT01", "GET01"})
     assert "GBT01" in state["done"], "broker-kapanış → done (yeniden açılmaz — zincirleme stop koruması)"
     assert "10" not in state["tickets"] and "11" in state["tickets"]
     assert "GXX99" in state["done"], "1. eksik dolu-feed done'u HENÜZ silmez (geçici feed koruması)"
-    bk.reconcile_closures(state, open_tickets={"11"}, feed_codes={"GBT01", "GET01"})
+    bk.reconcile_closures(state, open_position_ids={"11"}, feed_codes={"GBT01", "GET01"})
     assert "GXX99" in state["done"], "2. eksik dolu-feed de silmez"
     # araya kod feed'e GERİ gelirse sayaç sıfırlanır
-    bk.reconcile_closures(state, open_tickets={"11"}, feed_codes={"GBT01", "GET01", "GXX99"})
-    bk.reconcile_closures(state, open_tickets={"11"}, feed_codes={"GBT01", "GET01"})
-    bk.reconcile_closures(state, open_tickets={"11"}, feed_codes={"GBT01", "GET01"})
+    bk.reconcile_closures(state, open_position_ids={"11"}, feed_codes={"GBT01", "GET01", "GXX99"})
+    bk.reconcile_closures(state, open_position_ids={"11"}, feed_codes={"GBT01", "GET01"})
+    bk.reconcile_closures(state, open_position_ids={"11"}, feed_codes={"GBT01", "GET01"})
     assert "GXX99" in state["done"], "geri gelen kod sayacı sıfırladı — 2 eksik yetmez"
-    bk.reconcile_closures(state, open_tickets={"11"}, feed_codes={"GBT01", "GET01"})
+    bk.reconcile_closures(state, open_position_ids={"11"}, feed_codes={"GBT01", "GET01"})
     assert "GXX99" not in state["done"], "3 ardışık eksik dolu-feed → done temizlendi"
     # BOŞ feed done'a asla dokunmaz
     state["done"]["GYY88"] = 456.0
-    bk.reconcile_closures(state, open_tickets={"11"}, feed_codes=set())
+    bk.reconcile_closures(state, open_position_ids={"11"}, feed_codes=set())
     assert "GYY88" in state["done"], "boş feed done'u SİLMEZ (backend arızası koruması)"
-    print("OK reconcile_closures (broker SL → done; 3-yoklama done temizliği + boş-feed koruması)")
+    print("OK reconcile_closures (broker SL -> done; 3-yoklama done temizligi + bos-feed korumasi)")
 
 
 # ── saklanan gün-sonu vakti: pencereden/feed'den bağımsız kapanış listesi ────
@@ -246,11 +321,14 @@ def t_comment():
 
 
 def t_account_lock():
-    # Saf mantık: kilit kapalı → izin; kilit açık → fail-closed + login eşleşmesi
-    assert bk.account_allowed({"allowed_account": 0}, None) is True
-    assert bk.account_allowed({"allowed_account": 1513908484}, None) is False, "fail-closed"
-    assert bk.account_allowed({"allowed_account": 1513908484}, SimpleNamespace(login=999)) is False
-    assert bk.account_allowed({"allowed_account": 1513908484}, SimpleNamespace(login=1513908484)) is True
+    # 2026-07: canli mod (dry_run != True) allowed_account + account_server ZORUNLU.
+    assert bk.account_allowed({"allowed_account": 0, "dry_run": True}, None) is True
+    assert bk.account_allowed({"allowed_account": 0}, None) is False, "canli + kilitsiz: FAIL-CLOSED"
+    live = {"allowed_account": TEST_LOGIN, "account_server": TEST_SERVER}
+    assert bk.account_allowed(live, None) is False, "fail-closed"
+    assert bk.account_allowed(live, SimpleNamespace(login=999, server=TEST_SERVER)) is False
+    assert bk.account_allowed(live, SimpleNamespace(login=TEST_LOGIN, server="Baska")) is False
+    assert bk.account_allowed(live, SimpleNamespace(login=TEST_LOGIN, server=TEST_SERVER)) is True
     print("OK hesap kilidi (fail-closed + login eslesmesi)")
 
 
@@ -258,11 +336,11 @@ def t_wrong_account_no_order():
     # YANLIS hesaba bagliyken open_trade EMIR GONDERMEMELI
     use_temp_state()
     setup_stubs(ask=4000.5, bid=4000.3)
-    locked = dict(CFG); locked["allowed_account"] = 1513908484
-    mt5.account_info = lambda: SimpleNamespace(login=999, trade_allowed=True)
+    locked = dict(CFG)
+    mt5.account_info = lambda: SimpleNamespace(login=999, server=TEST_SERVER, trade_allowed=True)
     bk.open_trade(locked, sig(), fake_info(), fresh_state())
     assert not sent, "yanlis hesapta emir ACILMAMALI"
-    mt5.account_info = lambda: SimpleNamespace(login=1513908484, trade_allowed=True)
+    mt5.account_info = lambda: SimpleNamespace(login=TEST_LOGIN, server=TEST_SERVER, trade_allowed=True)
     bk.open_trade(locked, sig(), fake_info(), fresh_state())
     assert sent, "dogru hesapta emir gitmeli"
     print("OK yanlis hesapta emir yok / dogru hesapta emir var")
@@ -287,11 +365,14 @@ if __name__ == "__main__":
     t_wrong_account_no_order()
     t_autotrading_button()
     t_partial_fill_is_success()
+    t_open_never_uses_return()
+    t_pending_fill_migrates_without_losing_eod()
     t_stale_guards()
     t_identity()
+    t_service_ticket_change_keeps_eod()
     t_reconcile_done()
     t_past_deadline()
     t_close_tick_fallback()
     t_state_upgrade()
     t_comment()
-    print("\nHEPSİ YEŞİL ✅")
+    print("\nHEPSI YESIL - OK")

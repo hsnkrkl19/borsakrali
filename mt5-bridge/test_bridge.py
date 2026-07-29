@@ -3,12 +3,25 @@
 """Köprü işlem matematiği testleri (MT5 stub'lanır — terminal gerekmez).
 Çalıştır: python test_bridge.py"""
 from types import SimpleNamespace
-import MetaTrader5 as mt5
+try:
+    import MetaTrader5 as mt5
+except ModuleNotFoundError:
+    from mt5_test_stub import install
+    mt5 = install()
 import borsakrali_mt5 as bk
+import borsakrali_mt5_all as all_bk
 import trade_guard
 
+# Live bridge configs intentionally force the central brain. Unit tests below
+# isolate bridge execution math unless a test explicitly enables a fake plan.
+bk.mt5_brain_adapter.enabled = lambda cfg: bool(cfg.get("_offline_brain_enabled"))
+
+TEST_LOGIN = 1514061487
+TEST_SERVER = "FTMO-Demo"
 CFG = {"lot_min": 0.01, "lot_max": 0.03, "conf_min": 60, "conf_max": 100,
-       "max_lot": 0.05, "min_rr": 0.7, "magic": 550055, "deviation_points": 30, "dry_run": False}
+       "max_lot": 0.05, "min_rr": 0.7, "magic": 550055, "deviation_points": 30,
+       "dry_run": False, "lot_mode": "confidence",
+       "allowed_account": TEST_LOGIN, "account_server": TEST_SERVER}
 
 sent = []
 
@@ -20,15 +33,20 @@ def fake_info(name="EURUSD", stops=0):
                            visible=True, trade_stops_level=stops, trade_freeze_level=0)
 
 
-def setup_stubs(ask, bid):
+def setup_stubs(ask, bid, positions=()):
     sent.clear()
     mt5.symbol_info = lambda n: fake_info(n)
     mt5.symbol_info_tick = lambda n: SimpleNamespace(ask=ask, bid=bid)
     mt5.symbol_select = lambda *a: True
+    mt5.positions_get = lambda: list(positions)
+    mt5.account_info = lambda: SimpleNamespace(login=TEST_LOGIN, server=TEST_SERVER,
+                                               trade_allowed=True)
 
     def cap(req):
         sent.append(req)
-        return SimpleNamespace(retcode=mt5.TRADE_RETCODE_DONE, order=1, price=req.get("price", 0), comment="ok")
+        return SimpleNamespace(retcode=mt5.TRADE_RETCODE_DONE, order=1, deal=2,
+                               volume=req.get("volume", 0),
+                               price=req.get("price", 0), comment="ok")
     mt5.order_send = cap
     mt5.last_error = lambda: (0, "ok")
 
@@ -138,28 +156,121 @@ def t_dry_run_no_send():
     print("OK dry_run gerçekten emir göndermiyor")
 
 
+def t_open_never_uses_return():
+    setup_stubs(ask=100.05, bid=100.04)
+    modes = []
+
+    def unsupported(req):
+        modes.append(req["type_filling"])
+        return SimpleNamespace(retcode=10030, order=0, deal=0, volume=0,
+                               price=0, comment="unsupported")
+
+    mt5.order_send = unsupported
+    bk.open_trade(CFG, {"code": "006", "direction": "long", "entry": 100.0,
+                        "stop": 98.0, "target1": 104.0, "target2": 108.0,
+                        "confidence": 80}, fake_info())
+    assert modes == [mt5.ORDER_FILLING_IOC, mt5.ORDER_FILLING_FOK]
+    assert mt5.ORDER_FILLING_RETURN not in modes
+    print("OK açılış IOC/FOK ile sınırlı; RETURN bekleyen kısmi emir riski yok")
+
+
+def t_all_bridge_open_modes_exclude_return():
+    modes = []
+
+    def unsupported(req):
+        modes.append(req["type_filling"])
+        return SimpleNamespace(retcode=10030, order=0, deal=0, volume=0,
+                               price=0, comment="unsupported")
+
+    mt5.order_send = unsupported
+    all_bk.send_with_filling({}, allow_return=False)
+    assert modes == [mt5.ORDER_FILLING_IOC, mt5.ORDER_FILLING_FOK]
+    assert mt5.ORDER_FILLING_RETURN not in modes
+    print("OK all-bots açılış filling zincirinde RETURN yok")
+
+
+def t_finalize_failure_is_critical():
+    setup_stubs(ask=100.05, bid=100.04)
+    plan = SimpleNamespace(
+        allowed=True, lot=0.02,
+        decision=SimpleNamespace(requires_atomic_execution=False, reasons=[]),
+    )
+    originals = (
+        bk.mt5_brain_adapter.enabled,
+        bk.mt5_brain_adapter.evaluate,
+        bk.mt5_brain_adapter.pre_send_check,
+        bk.mt5_brain_adapter.finalize,
+        bk.log.critical,
+    )
+    critical = []
+    try:
+        bk.mt5_brain_adapter.enabled = lambda cfg: True
+        bk.mt5_brain_adapter.evaluate = lambda *a, **k: plan
+        bk.mt5_brain_adapter.pre_send_check = lambda *a, **k: True
+        bk.mt5_brain_adapter.finalize = lambda *a, **k: False
+        bk.log.critical = lambda *a, **k: critical.append(a)
+        bk.open_trade(CFG, {"code": "007", "direction": "long", "entry": 100.0,
+                            "stop": 98.0, "target1": 104.0, "target2": 108.0,
+                            "confidence": 80}, fake_info())
+    finally:
+        (bk.mt5_brain_adapter.enabled,
+         bk.mt5_brain_adapter.evaluate,
+         bk.mt5_brain_adapter.pre_send_check,
+         bk.mt5_brain_adapter.finalize,
+         bk.log.critical) = originals
+    assert sent, "broker fill oluşmalı"
+    assert critical and "FINALIZE" in critical[-1][0], "finalize False kritik log üretmeli"
+    print("OK başarılı broker fill + finalize False kritik alarm")
+
+
+def t_close_requires_position_absence():
+    p = SimpleNamespace(type=mt5.POSITION_TYPE_BUY, ticket=41, identifier=4100,
+                        comment="BK#041", symbol="EURUSD", volume=0.05)
+    setup_stubs(ask=1.1010, bid=1.1008, positions=[p])
+
+    def partial(req):
+        sent.append(dict(req))
+        return SimpleNamespace(retcode=getattr(mt5, "TRADE_RETCODE_DONE_PARTIAL", 10010),
+                               order=9, deal=10, volume=0.02,
+                               price=req["price"], comment="partial")
+
+    mt5.order_send = partial
+    assert bk.close_position(CFG, p) is False, "kısmi dolumda pozisyon duruyorsa kapanmış sayılmaz"
+
+    setup_stubs(ask=1.1010, bid=1.1008, positions=[])
+    assert bk.close_position(CFG, p) is True, "ticket/identifier yoksa tam kapanış doğrulanır"
+    print("OK kapanış retcode değil canlı pozisyon yokluğu ile doğrulanıyor")
+
+
 def t_account_lock():
-    # Saf mantık: kilit kapalı → hep izin; kilit açık → fail-closed + login eşleşmesi
-    assert bk.account_allowed({"allowed_account": 0}, None) is True, "kilit kapali: izin"
-    assert bk.account_allowed({}, None) is True, "anahtar yok: eski davranis"
-    assert bk.account_allowed({"allowed_account": 1513908484}, None) is False, "kilit acik + ai None: FAIL-CLOSED"
-    wrong = SimpleNamespace(login=999)
-    assert bk.account_allowed({"allowed_account": 1513908484}, wrong) is False, "yanlis hesap: RED"
-    right = SimpleNamespace(login=1513908484)
-    assert bk.account_allowed({"allowed_account": 1513908484}, right) is True, "dogru hesap: izin"
+    # 2026-07: canli mod (dry_run != True) allowed_account + account_server ZORUNLU.
+    assert bk.account_allowed({"allowed_account": 0, "dry_run": True}, None) is True, "dry-run + kilit kapali: izin"
+    assert bk.account_allowed({"dry_run": True}, None) is True, "dry-run + anahtar yok: eski davranis"
+    assert bk.account_allowed({"allowed_account": 0}, None) is False, "canli + kilitsiz: FAIL-CLOSED"
+    assert bk.account_allowed({}, None) is False, "canli + anahtar yok: FAIL-CLOSED"
+    live = {"allowed_account": TEST_LOGIN, "account_server": TEST_SERVER}
+    assert bk.account_allowed(live, None) is False, "kilit acik + ai None: FAIL-CLOSED"
+    assert bk.account_allowed({"allowed_account": TEST_LOGIN}, SimpleNamespace(login=TEST_LOGIN, server=TEST_SERVER)) is False, "canli + server yok: RED"
+    wrong = SimpleNamespace(login=999, server=TEST_SERVER)
+    assert bk.account_allowed(live, wrong) is False, "yanlis hesap: RED"
+    wrong_srv = SimpleNamespace(login=TEST_LOGIN, server="Baska-Server")
+    assert bk.account_allowed(live, wrong_srv) is False, "yanlis server: RED"
+    right = SimpleNamespace(login=TEST_LOGIN, server=TEST_SERVER)
+    assert bk.account_allowed(live, right) is True, "dogru hesap+server: izin"
+    assert bk.account_allowed({"allowed_account": str(TEST_LOGIN), "account_server": TEST_SERVER}, right) is False, "string hesap: RED"
     print("OK hesap kilidi (fail-closed + login eslesmesi)")
 
 
 def t_wrong_account_no_order():
     # YANLIS hesaba bagliyken open_trade EMIR GONDERMEMELI (emir-oncesi guard)
     setup_stubs(ask=100.05, bid=100.04)
-    mt5.account_info = lambda: SimpleNamespace(login=999, trade_allowed=True)
-    locked = dict(CFG); locked["allowed_account"] = 1513908484
+    mt5.account_info = lambda: SimpleNamespace(login=999, server=TEST_SERVER, trade_allowed=True)
+    locked = dict(CFG)
     bk.open_trade(locked, {"code": "099", "direction": "long", "entry": 100.0, "stop": 98.0,
                            "target1": 104.0, "target2": 108.0, "confidence": 80}, fake_info())
     assert not sent, "yanlis hesapta emir ACILMAMALI (hesap kilidi)"
     # Dogru hesaba baglaninca ayni sinyal ACILIR
-    mt5.account_info = lambda: SimpleNamespace(login=1513908484, trade_allowed=True)
+    mt5.account_info = lambda: SimpleNamespace(login=TEST_LOGIN, server=TEST_SERVER, trade_allowed=True)
     bk.open_trade(locked, {"code": "099", "direction": "long", "entry": 100.0, "stop": 98.0,
                            "target1": 104.0, "target2": 108.0, "confidence": 80}, fake_info())
     assert sent, "dogru hesapta emir gitmeli"
@@ -182,5 +293,8 @@ if __name__ == "__main__":
     t_lot(); t_open_long_absolute(); t_open_short_absolute(); t_skip_stale_rr()
     t_skip_out_of_bracket(); t_trail_absolute(); t_trail_dir_mismatch()
     t_no_hedge_suppress(); t_dry_run_no_send()
+    t_open_never_uses_return(); t_all_bridge_open_modes_exclude_return()
+    t_finalize_failure_is_critical()
+    t_close_requires_position_absence()
     t_account_lock(); t_wrong_account_no_order(); t_autotrading_button()
     print("\nTUM TESTLER GECTI - OK")

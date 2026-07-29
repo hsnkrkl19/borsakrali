@@ -57,7 +57,10 @@ def pos(ticket, magic, comment, symbol="EURUSD"):
                            type=0, volume=0.05, price_open=1.1, sl=1.09, tp=1.12, time=1753300000)
 
 
-CFG = {"backend_url": "https://www.borsakrali.com", "exec_token": "t"}
+CFG = {
+    "backend_url": "https://www.borsakrali.com", "exec_token": "t",
+    "dry_run": True, "central_brain_enabled": False,
+}
 
 
 def t_yalniz_kendi_pozisyonlarini_bildirir():
@@ -116,8 +119,18 @@ def t_our_positions_comment_bazli():
     print("OK our_positions comment 'A#' bazli (magic'e bakmaz)")
 
 
+def t_merkez_beyin_lifecycle_tek_sahip():
+    global _POSITIONS
+    _POSITIONS = [pos(111, 5716, "A#mt5-trend:1")]
+    _POSTS.clear()
+    bridge.report_mt5_state(dict(CFG, central_brain_enabled=True))
+    assert _POSTS == [], "merkez lifecycle aktifken legacy POST atildi"
+    print("OK merkez beyin aktifken legacy lifecycle susturulur")
+
+
 if __name__ == "__main__":
     t_our_positions_comment_bazli()
+    t_merkez_beyin_lifecycle_tek_sahip()
     t_yalniz_kendi_pozisyonlarini_bildirir()
     t_yabanci_pozisyon_varsa_hic_post_atmaz()
     t_ayni_ticket_iki_kez_bildirilmez()
