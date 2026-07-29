@@ -15,6 +15,8 @@ const os = require('os');
 
 const TMP = fs.mkdtempSync(path.join(os.tmpdir(), 'nr7supa-'));
 process.env.NR7_SHADOW_FILE = path.join(TMP, 'nr7-shadow.json');   // BOŞ disk (Render gibi)
+// This regression suite measures the legacy sender's dedup semantics.
+process.env.MT5_LEGACY_PAPER_NOTIFY = '1';
 
 // Bugünün beklenen "fill" anahtarı — simDay: kırılım barından SONRAKİ barda dolum
 const BASE = Math.floor(new Date().setUTCHours(0, 0, 0, 0) / 1000);
@@ -68,6 +70,8 @@ jest.mock('../../src/services/forex/forexKlines', () => ({
 const nr7 = require('../../src/services/nr7Shadow/nr7Shadow');
 
 describe('NR7 Gölge — Supabase dedup geri yükleme (trades=0)', () => {
+  afterAll(() => { delete process.env.MT5_LEGACY_PAPER_NOTIFY; });
+
   test('⭐ uzakta trades=0 ama sent VAR → giriş TEKRAR duyurulmaz', async () => {
     sent.length = 0;
     nr7._resetForTest();

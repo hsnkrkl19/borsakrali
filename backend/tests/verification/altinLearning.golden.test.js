@@ -61,12 +61,16 @@ describe('altın öğrenme katmanı — TF devre kesici + gölge', () => {
     process.env.ALTIN_LEARNING_FILE = path.join(tmpBase, 'learning.json');
     delete process.env.ALTIN_LEARNING_DISABLED;
     delete process.env.ALTIN_PUSH_DISABLED;
+    // This suite verifies the legacy notifier after learning/shadow gates.
+    process.env.MT5_LEGACY_PAPER_NOTIFY = '1';
     tracker = require('../../src/services/altin/altinTracker');
     learning = require('../../src/services/altin/altinLearning');
     notifier = require('../../src/services/altin/altinNotifier');
     tracker.__resetForTest();
     for (const k of Object.keys(candleStore)) delete candleStore[k];
   });
+
+  afterAll(() => { delete process.env.MT5_LEGACY_PAPER_NOTIFY; });
 
   async function closeAtTp(tf = '4h') {
     const p = (await tracker.listOpen()).find(x => x.tf === tf);

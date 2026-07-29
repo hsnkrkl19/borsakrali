@@ -22,6 +22,7 @@ const telegramService = require('../telegramService');
 const tracker = require('./altinTracker');
 const signalDelivery = require('../signalDelivery');
 const logger = require('../../utils/logger');
+const { paperNotificationSuppressed } = require('../mt5TradeNotifier');
 
 // ── Kanal seçimi (YALNIZ kanal — DM'e DÜŞMEZ) ───────────────────────────────
 function chan() {
@@ -175,13 +176,14 @@ function buildBiasChangeMsg(prevDir, newBias) {
  * Dönen: { telegram, considered, opened }.
  */
 async function evaluateAndPush(snapshot) {
-  if (process.env.ALTIN_PUSH_DISABLED === '1') return { telegram: 0, considered: 0, opened: 0, disabled: true };
   if (!snapshot) return { telegram: 0, considered: 0, opened: 0 };
 
   const chatId = chan();
   let events = [];
   try { events = await withTimeout(tracker.ingest(snapshot.signals || []), 12000, 'ingest'); }
   catch (e) { logger.error(`[AltinPush] ingest: ${e.message}`); return { telegram: 0, considered: 0, opened: 0 }; }
+  const disabled = process.env.ALTIN_PUSH_DISABLED === '1';
+  const brokerOwned = paperNotificationSuppressed('gold-signals');
 
   let tg = 0, considered = 0, shadowCount = 0;
   for (const p of (events || [])) {
@@ -189,6 +191,7 @@ async function evaluateAndPush(snapshot) {
     // (soğuma haritasına da yazılmaz — gerçeğe dönünce ilk sinyal engellenmesin).
     if (p.shadow) { shadowCount++; continue; }
     considered++;
+    if (disabled || brokerOwned) continue;
     if (inSigCooldown(p)) continue;
     markSigPushed(p);
     const meta = pickMeta(snapshot.signals, p);
@@ -201,7 +204,7 @@ async function evaluateAndPush(snapshot) {
     }
   }
   if (tg) logger.info(`🥇 ALTIN — ${events.length} yeni sinyal · TG ${tg}`);
-  return { telegram: tg, considered, opened: (events || []).length, shadow: shadowCount };
+  return { telegram: tg, considered, opened: (events || []).length, shadow: shadowCount, disabled, brokerOwned };
 }
 
 // ── Kapanış / teyit (aynı NO) ────────────────────────────────────────────────
@@ -210,7 +213,9 @@ async function evaluateAndPush(snapshot) {
  * kanala yollar. Dönen: { telegram }.
  */
 async function pushClosures(events) {
-  if (process.env.ALTIN_PUSH_DISABLED === '1') return { telegram: 0 };
+  if (process.env.ALTIN_PUSH_DISABLED === '1' || paperNotificationSuppressed('gold-signals')) {
+    return { telegram: 0, disabled: process.env.ALTIN_PUSH_DISABLED === '1', brokerOwned: true };
+  }
   const chatId = chan();
   let tg = 0;
   for (const ev of (events || [])) {

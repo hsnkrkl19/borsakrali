@@ -11,9 +11,10 @@ const telegramService = require('../telegramService');
 const signalDelivery = require('../signalDelivery');
 const tracker = require('./ictFvgTracker');
 const logger = require('../../utils/logger');
+const { paperNotificationSuppressed } = require('../mt5TradeNotifier');
 
 function pushDisabled() {
-  return process.env.ICT_FVG_PUSH_DISABLED === '1';
+  return process.env.ICT_FVG_PUSH_DISABLED === '1' || paperNotificationSuppressed('ict-fvg');
 }
 
 function channel() {

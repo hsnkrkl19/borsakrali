@@ -26,6 +26,7 @@ const fs = require('fs');
 const path = require('path');
 const botPersistence = require('../botPersistence');
 const instrumentBans = require('../instrumentBans');
+const { paperNotificationSuppressed } = require('../mt5TradeNotifier');
 
 const BOT_ID = 'consensus-radar';
 const MIN_AGREE = () => Math.max(2, Number(process.env.CONSENSUS_MIN || 3));
@@ -150,7 +151,9 @@ async function run(positions, options = {}) {
     // Telegram uyarısı — aynı gün aynı sembol+yön için yalnız bot sayısı ARTARSA tekrar
     const k = `${g.symbol}|${g.direction}|${day}`;
     const prev = Number(alerted[k] || 0);
-    if (g.count > prev && process.env.CONSENSUS_PUSH_DISABLED !== '1') {
+    if (g.count > prev
+      && process.env.CONSENSUS_PUSH_DISABLED !== '1'
+      && !paperNotificationSuppressed(BOT_ID)) {
       alerted[k] = g.count;
       try {
         const telegram = require('../telegramService');

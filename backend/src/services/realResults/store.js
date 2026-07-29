@@ -16,9 +16,10 @@ const path = require('path');
 const botPersistence = require('../botPersistence');
 const catalog = require('../botCompetition/catalog');
 
-const DATA_DIR = process.env.BOT_DATA_DIR
-  ? path.join(process.env.BOT_DATA_DIR, 'real-results')
-  : path.join(__dirname, '..', '..', 'data', 'real-results');
+const DATA_DIR = process.env.REAL_RESULTS_DATA_DIR
+  || (process.env.BOT_DATA_DIR
+    ? path.join(process.env.BOT_DATA_DIR, 'real-results')
+    : path.join(__dirname, '..', '..', 'data', 'real-results'));
 const STATE_FILE = path.join(DATA_DIR, 'deals.json');
 const TEST_EPHEMERAL = process.env.NODE_ENV === 'test' && !process.env.REAL_RESULTS_DATA_DIR;
 const MAX_DEALS = 8000;
@@ -42,6 +43,101 @@ for (const e of catalog) {
 
 function nowSec() { return Math.floor(Date.now() / 1000); }
 function round(v, d = 2) { const n = Number(v); return Number.isFinite(n) ? Math.round(n * 10 ** d) / 10 ** d : 0; }
+function finite(v) {
+  if (v === null || v === undefined || v === '') return null;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : null;
+}
+function clean(v) { return v == null ? '' : String(v).trim(); }
+function accountFields(raw = {}, context = {}) {
+  const nested = raw && raw.account && typeof raw.account === 'object' ? raw.account : {};
+  const primitive = raw && raw.account !== null && typeof raw.account !== 'object' ? raw.account : null;
+  const fallback = context && context.account && typeof context.account === 'object' ? context.account : context;
+  return {
+    accountLogin: clean(raw.accountLogin ?? raw.login ?? raw.accountNumber
+      ?? nested.accountLogin ?? nested.login ?? nested.accountNumber
+      ?? primitive ?? fallback.accountLogin ?? fallback.login ?? fallback.accountNumber),
+    accountServer: clean(raw.accountServer ?? raw.server ?? raw.brokerServer
+      ?? nested.accountServer ?? nested.server ?? nested.brokerServer
+      ?? fallback.accountServer ?? fallback.server ?? fallback.brokerServer),
+  };
+}
+function accountScope(raw = {}) {
+  const { accountLogin, accountServer } = accountFields(raw);
+  if (!accountLogin && !accountServer) return '';
+  return `${encodeURIComponent(accountLogin || '?')}@${encodeURIComponent(accountServer.toUpperCase() || '?')}`;
+}
+function dealStorageKey(deal) {
+  const scope = accountScope(deal);
+  return scope ? `${scope}|${deal.id}` : deal.id;
+}
+function codeFrom(raw) {
+  const value = clean(raw && (raw.code || raw.signalId || raw.comment));
+  const prefixed = /^(?:A|BK|BKG)#(.+)$/i.exec(value);
+  return clean(prefixed ? prefixed[1] : value).slice(0, 96);
+}
+
+// MetaTrader 5 DEAL_REASON values.  Keep the numeric code as well: brokers may
+// add a value that this backend version does not know yet.
+const REASON_LABELS = Object.freeze({
+  0: 'terminal/client', 1: 'mobile', 2: 'web', 3: 'expert-advisor',
+  4: 'stop-loss', 5: 'take-profit', 6: 'stop-out', 7: 'rollover',
+  8: 'variation-margin', 9: 'split', 10: 'corporate-action',
+});
+function reasonLabel(code, supplied) {
+  const named = clean(supplied);
+  if (named && !/^\d+$/.test(named)) return named;
+  const n = finite(code);
+  return n !== null && REASON_LABELS[n] ? REASON_LABELS[n] : (n !== null ? `mt5-reason-${n}` : 'broker-exit');
+}
+
+/**
+ * Canonical broker exit deal.  A close must have a broker deal id, magic,
+ * close timestamp and financial result.  If the bridge supplies the raw
+ * profit/commission/swap components (plus the central daemon's optional signed
+ * `fee`), net P/L is recomputed here; otherwise legacy `pnl` is treated as the
+ * already-net broker amount.
+ */
+function normalizeExitDeal(raw, context = {}) {
+  if (!raw || typeof raw !== 'object' || raw.isExit === false) return null;
+  const entry = clean(raw.entry).toLowerCase();
+  // MT5 DEAL_ENTRY_IN is numeric 0; textual bridges commonly send "in".
+  // Missing entry remains accepted for the legacy bridge, which pre-filters
+  // history_deals_get to DEAL_ENTRY_OUT before posting.
+  if (entry === 'in' || entry === '0') return null;
+  const id = clean(raw.dealId || raw.id || raw.dealTicket);
+  const magic = finite(raw.magic);
+  const closedSec = finite(raw.closedSec || raw.closedAtSec || raw.time);
+  const hasComponents = finite(raw.profit) !== null;
+  const legacyNet = finite(raw.netPnl ?? raw.pnl);
+  if (!id || magic === null || magic <= 0 || closedSec === null || closedSec <= 0
+    || (!hasComponents && legacyNet === null)) return null;
+  const profit = hasComponents ? (finite(raw.profit) || 0) : legacyNet;
+  const commission = hasComponents ? (finite(raw.commission) || 0) : null;
+  const swap = hasComponents ? (finite(raw.swap) || 0) : null;
+  const fee = hasComponents ? (finite(raw.fee) || 0) : finite(raw.fee);
+  // `fee` is a signed extra broker charge used by the central daemon. Legacy
+  // `pnl` is already net and must not have the fee applied a second time.
+  const pnl = hasComponents ? profit + commission + swap + fee : legacyNet;
+  const reasonCode = finite(raw.reasonCode ?? raw.reason);
+  const account = accountFields(raw, context);
+  return {
+    id, magic, pnl: round(pnl, 2), netPnl: round(pnl, 2),
+    profit: round(profit, 2),
+    commission: commission === null ? null : round(commission, 2),
+    swap: swap === null ? null : round(swap, 2),
+    fee: fee === null ? null : round(fee, 2),
+    componentsExact: hasComponents,
+    closedSec,
+    reasonCode: reasonCode === null ? null : reasonCode,
+    reason: reasonLabel(reasonCode, raw.reasonText || (typeof raw.reason === 'string' ? raw.reason : '')),
+    symbol: clean(raw.symbol), direction: clean(raw.direction || raw.side).toLowerCase(),
+    exitPrice: finite(raw.exitPrice ?? raw.priceExit ?? raw.price),
+    positionTicket: clean(raw.positionTicket || raw.positionId || raw.openTicket),
+    positionIdentifier: clean(raw.positionIdentifier || raw.position_identifier),
+    code: codeFrom(raw), volume: finite(raw.volume ?? raw.lot), ...account,
+  };
+}
 
 let state = { deals: {}, updatedAt: null };
 let loaded = false;
@@ -80,19 +176,30 @@ function magicToBot(magic) {
 }
 
 /** Köprüden gelen deal listesini içeri al (dedup + budama). */
-function ingest(deals) {
+function ingest(deals, context = {}) {
   load();
-  if (!Array.isArray(deals)) return { ingested: 0, total: 0 };
-  let added = 0;
-  for (const d of deals) {
-    const id = String(d.id || d.dealId || '');
-    if (!id) continue;
-    const magic = Number(d.magic);
-    const pnl = Number(d.pnl);
-    const closedSec = Number(d.closedSec || d.time);
-    if (!Number.isFinite(magic) || !Number.isFinite(pnl) || !Number.isFinite(closedSec)) continue;
-    if (!state.deals[id]) added++;
-    state.deals[id] = { magic, pnl: round(pnl, 2), closedSec, reason: Number(d.reason) || 0, symbol: String(d.symbol || '') };
+  if (!Array.isArray(deals)) return { ingested: 0, invalid: 0, total: Object.keys(state.deals).length };
+  let added = 0, invalid = 0;
+  for (const raw of deals) {
+    const d = normalizeExitDeal(raw, context);
+    if (!d) { invalid++; continue; }
+    const storageKey = dealStorageKey(d);
+    if (!state.deals[storageKey] && storageKey !== d.id && state.deals[d.id]
+      && !accountScope(state.deals[d.id])) {
+      state.deals[storageKey] = state.deals[d.id];
+      delete state.deals[d.id];
+    }
+    if (!state.deals[storageKey]) added++;
+    // Repeated seven-day bridge batches must not erase richer fields previously
+    // supplied by a state/deal payload.  Only defined values replace old ones.
+    const old = state.deals[storageKey] || {};
+    const merged = { ...old };
+    for (const [key, value] of Object.entries(d)) {
+      if (old.componentsExact && !d.componentsExact
+        && ['profit', 'commission', 'swap', 'fee', 'pnl', 'netPnl', 'componentsExact'].includes(key)) continue;
+      if (value !== undefined && value !== null && value !== '') merged[key] = value;
+    }
+    state.deals[storageKey] = merged;
   }
   // budama: 60 günden eski + kapak
   const cutoff = nowSec() - PRUNE_DAYS * 86400;
@@ -104,7 +211,7 @@ function ingest(deals) {
   state.deals = Object.fromEntries(entries);
   state.updatedAt = new Date().toISOString();
   if (added || deals.length) persist();
-  return { ingested: added, total: Object.keys(state.deals).length };
+  return { ingested: added, invalid, total: Object.keys(state.deals).length };
 }
 
 /** sinceSec'ten beri kapanan işlemleri magic-bazlı topla → bot dökümü. */
@@ -117,7 +224,8 @@ function aggregate(sinceSec = 0) {
     if (!b) { b = { magic: d.magic, trades: 0, tp: 0, sl: 0, profit: 0, loss: 0, net: 0 }; by.set(d.magic, b); }
     b.trades++; b.net += d.pnl;
     if (d.pnl > 0) b.profit += d.pnl; else if (d.pnl < 0) b.loss += d.pnl;
-    const isTp = d.reason === 5 ? true : d.reason === 4 ? false : d.pnl >= 0; // 5=TP, 4=SL
+    const reasonCode = d.reasonCode ?? d.reason;
+    const isTp = reasonCode === 5 ? true : reasonCode === 4 ? false : d.pnl >= 0; // 5=TP, 4=SL
     if (isTp) b.tp++; else b.sl++;
   }
   return [...by.values()].map((b) => {
@@ -130,7 +238,7 @@ function hasData() { load(); return Object.keys(state.deals).length > 0; }
 function summary() { load(); return { deals: Object.keys(state.deals).length, updatedAt: state.updatedAt }; }
 
 module.exports = {
-  ingest, aggregate, magicToBot, hasData, summary,
+  ingest, aggregate, magicToBot, hasData, summary, normalizeExitDeal, reasonLabel,
   GOLD_MAGIC,
   _dangerouslyResetForTest() { state = { deals: {}, updatedAt: null }; loaded = true; },
 };

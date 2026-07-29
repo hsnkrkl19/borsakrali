@@ -234,6 +234,13 @@ function normalizeSignal(botId, input, meta = {}) {
     target: round(target, 8),
     target2: firstFinite(rawValue(raw, 'target2', 'tp2')),
     confidence: firstFinite(rawValue(raw, 'confidence', 'score', 'net', 'avgScore', 'avgVoteScore')),
+    // Konsensus Radari'nin kac BAGIMSIZ botla olustugunu MT5 risk beynine kadar
+    // koru. Eskiden normalize asamasinda dusuyor, kopru konsensusu siradan tek
+    // bot sinyali sanmak zorunda kaliyordu.
+    agreeCount: firstFinite(rawValue(raw, 'agreeCount', 'botCount', 'supportCount')),
+    agreeBots: Array.isArray(rawValue(raw, 'agreeBots', 'botIds', 'supportingBots'))
+      ? rawValue(raw, 'agreeBots', 'botIds', 'supportingBots').map(String)
+      : [],
     externalId,
     observedAt,
     syntheticLevels: synthetic,
@@ -870,6 +877,8 @@ function bridgeFeed(opts = {}) {
         target1: pos.target > 0 ? round(pos.target, 8) : null,
         target2: pos.target2 > 0 ? round(pos.target2, 8) : null,
         confidence: finite(pos.confidence, null),
+        agreeCount: finite(pos.agreeCount, null),
+        agreeBots: Array.isArray(pos.agreeBots) ? pos.agreeBots.map(String) : [],
         strategy: pos.strategy || entry.id,
         timeframe: pos.timeframe || '',
         openedAt: pos.openedAt,

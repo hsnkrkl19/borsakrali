@@ -35,6 +35,38 @@ describe('Gerçek MT5 Sonuç Deposu', () => {
     expect(b.no).toBe(1);
   });
 
+  test('broker exit details are retained and net P/L includes signed fee', () => {
+    const r = store.ingest([{
+      dealId: 'rich-1', positionTicket: 'open-77', code: 'SIG-77', magic: 5702,
+      symbol: 'EURUSD', direction: 'long', profit: 20, commission: -1.5, swap: -0.25,
+      fee: -0.5, price: 1.12345, closedSec: nowSec, reason: 5,
+    }]);
+    expect(r).toMatchObject({ ingested: 1, invalid: 0 });
+    const b = store.aggregate(0).find((x) => x.magic === 5702);
+    expect(b.net).toBe(17.75);
+
+    // A poorer repeated seven-day batch must not erase rich broker fields.
+    store.ingest([{ id: 'rich-1', magic: 5702, pnl: 999, netPnl: 999, closedSec: nowSec, reason: 5 }]);
+    expect(store.aggregate(0).find((x) => x.magic === 5702).net).toBe(17.75);
+  });
+
+  test('same deal ticket is deduplicated independently per MT5 account', () => {
+    const shared = { id: 'same-deal', magic: 5702, pnl: 10, closedSec: nowSec, reason: 5 };
+    store.ingest([shared], { account: { login: '111', server: 'Broker-A' } });
+    store.ingest([{ ...shared, pnl: 20 }], { account: { login: '222', server: 'Broker-A' } });
+    expect(store.summary().deals).toBe(2);
+    expect(store.aggregate(0).find((x) => x.magic === 5702).net).toBe(30);
+  });
+
+  test('non-exit/invalid rows are rejected from real results', () => {
+    const r = store.ingest([
+      { id: 'no-time', magic: 5701, pnl: 3 },
+      { id: 'entry', magic: 5701, pnl: 3, closedSec: nowSec, isExit: false },
+      { id: 'entry-code', magic: 5701, pnl: 3, closedSec: nowSec, entry: 0 },
+    ]);
+    expect(r).toMatchObject({ ingested: 0, invalid: 3, total: 0 });
+  });
+
   test('aggregate sinceSec filtresi (eski işlem hariç)', () => {
     store.ingest([
       { id: 'old', magic: 5702, pnl: 5, closedSec: nowSec - 3 * 86400 },

@@ -144,6 +144,35 @@ function save(subdir, filename, dataObj) {
   pending.set(key, { data: dataObj, timer });
 }
 
+/**
+ * Immediate acknowledged write used by safety-critical broker lifecycle state
+ * when its local atomic file write is unavailable. Unlike the normal debounced
+ * mirror, the returned `saved` flag means Storage accepted this exact snapshot.
+ */
+async function saveNow(subdir, filename, dataObj) {
+  if (!isSupabaseEnabled()) return { enabled: false, saved: false };
+  if (!isAllowedSubdir(subdir) || !FILES.includes(filename)) {
+    return { enabled: true, saved: false, error: 'persistence-key-not-allowed' };
+  }
+  const key = keyOf(subdir, filename);
+  const queued = pending.get(key);
+  if (queued?.timer) clearTimeout(queued.timer);
+  pending.delete(key);
+  try {
+    if (!(await ensureBucket())) return { enabled: true, saved: false, error: 'bucket-unavailable' };
+    const body = Buffer.from(JSON.stringify(dataObj, null, 2), 'utf8');
+    const { error } = await supabaseAdmin.storage.from(BUCKET).upload(key, body, {
+      contentType: 'application/json',
+      upsert: true,
+    });
+    if (error) throw error;
+    return { enabled: true, saved: true };
+  } catch (error) {
+    console.error(`[BotPersistence] anlık kaydetme hatası (${key}):`, error.message);
+    return { enabled: true, saved: false, error: String(error.message || error).slice(0, 160) };
+  }
+}
+
 async function flush(key) {
   const entry = pending.get(key);
   if (!entry) return;
@@ -191,4 +220,4 @@ async function remove(subdir) {
   }
 }
 
-module.exports = { loadAll, save, flush, flushAll, remove, ensureBucket, BUCKET, SUBDIRS, FILES };
+module.exports = { loadAll, save, saveNow, flush, flushAll, remove, ensureBucket, BUCKET, SUBDIRS, FILES };

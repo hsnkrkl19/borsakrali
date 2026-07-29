@@ -25,6 +25,7 @@ const forexKlines = require('../forex/forexKlines');
 const telegramService = require('../telegramService');
 const signalDelivery = require('../signalDelivery');
 const competitionManager = require('../botCompetition/competitionManager');
+const { paperNotificationSuppressed } = require('../mt5TradeNotifier');
 const logger = require('../../utils/logger');
 
 let supa = null, supaEnabled = () => false;
@@ -124,7 +125,7 @@ async function say(key, msg) {
   // yüzlerce mükerrer mesaj atmaktan iyidir.
   await persistNow();
   logger.info(`[NR7-Gölge] ${msg.replace(/\n/g, ' · ')}`);
-  if (pushOff()) return;
+  if (pushOff() || paperNotificationSuppressed('nr7-shadow')) return;
   const chat = signalDelivery.signalChannel();
   if (!chat) return;
   try { await telegramService.sendMessage(chat, msg); } catch (e) { logger.error(`[NR7-Gölge] telegram: ${e.message}`); }

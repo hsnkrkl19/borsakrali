@@ -13,6 +13,7 @@ const telegramService = require('../telegramService');
 const pushNotificationService = require('../pushNotificationService');
 const tracker = require('./forexSignalTracker');
 const statsStore = require('./forexStatsStore');
+const { paperNotificationSuppressed } = require('../mt5TradeNotifier');
 const logger = require('../../utils/logger');
 
 const PUSH_CONFIDENCE = 60;
@@ -82,13 +83,14 @@ function appUpdate(p, ev) {
 }
 
 async function evaluateAndPush(signals) {
-  if (process.env.FOREX_PUSH_DISABLED === '1') return { telegram: 0, app: 0, considered: 0, disabled: true };
   const chatId = require('../signalDelivery').signalChannel(); // YALNIZ kanal (DM/app yok)
   const eligible = (signals || []).filter(s => s.confidence >= PUSH_CONFIDENCE);
 
   let events = [];
   try { events = await withTimeout(tracker.syncPositions(eligible), 12000, 'sync'); }
   catch (e) { logger.error(`[ForexPush] sync: ${e.message}`); return { telegram: 0, app: 0, considered: 0, eligible: eligible.length }; }
+  const disabled = process.env.FOREX_PUSH_DISABLED === '1';
+  const brokerOwned = paperNotificationSuppressed('forex-signals');
 
   const now = Date.now();
   let tg = 0, app = 0, sent = 0, shadowCount = 0;
@@ -103,11 +105,15 @@ async function evaluateAndPush(signals) {
       if (now - last < UPDATE_COOLDOWN_MS) continue;
     }
     if (ev.type === 'new') statsStore.recordOpen().catch(() => {});   // sinyal sayacı
+    if (disabled || brokerOwned) continue;
     const tgMsg = ev.type === 'new' ? buildNew(p, ev.reverseOf) : buildUpdate(p, ev);
     if (chatId) { try { const r = await withTimeout(telegramService.sendMessage(chatId, tgMsg), 16000, 'tg'); if (r?.success) { tg++; sent++; } } catch (e) { logger.error(`[ForexPush] tg #${p.code}: ${e.message}`); } }
     lastSent.set(p.code, now);
   }
-  return { telegram: tg, app, considered: sent, shadow: shadowCount, eligible: eligible.length, chatSet: !!chatId };
+  return {
+    telegram: tg, app, considered: sent, shadow: shadowCount, eligible: eligible.length,
+    chatSet: !!chatId, disabled, brokerOwned,
+  };
 }
 
 // ── Kapanış / teyit (aynı NO) ───────────────────────────────────────────────
@@ -133,15 +139,17 @@ function buildClosureTelegram(ev) {
 }
 
 async function pushClosures(events) {
-  if (process.env.FOREX_PUSH_DISABLED === '1') return { telegram: 0, app: 0 };
   const chatId = require('../signalDelivery').signalChannel(); // YALNIZ kanal (DM/app yok)
+  const disabled = process.env.FOREX_PUSH_DISABLED === '1';
+  const brokerOwned = paperNotificationSuppressed('forex-signals');
   let tg = 0;
   for (const ev of (events || [])) {
     statsStore.recordClosure(ev).catch(() => {});   // TP/SL/iz-süren sayacı
+    if (disabled || brokerOwned) continue;
     if (chatId) { try { const r = await withTimeout(telegramService.sendMessage(chatId, buildClosureTelegram(ev)), 16000, 'closeTg'); if (r?.success) tg++; } catch (e) { logger.error(`[ForexPush] closeTg #${ev.code}: ${e.message}`); } }
   }
   if (tg) logger.info(`💱✅ Forex kapanış — ${events.length} · TG ${tg}`);
-  return { telegram: tg };
+  return { telegram: tg, disabled, brokerOwned };
 }
 
 // Günlük rapor (her gün 20:00, cron) — TP/SL/iz-süren sayıları → kanala.

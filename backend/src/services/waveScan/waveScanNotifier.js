@@ -8,6 +8,7 @@
 const telegramService = require('../telegramService');
 const tracker = require('./waveScanTracker');
 const logger = require('../../utils/logger');
+const { paperNotificationSuppressed } = require('../mt5TradeNotifier');
 
 function withTimeout(p, ms, label) {
   return Promise.race([Promise.resolve(p), new Promise((_, rej) => setTimeout(() => rej(new Error('timeout:' + label)), ms))]);
@@ -52,11 +53,15 @@ function buildClosure(ev) {
 }
 
 async function evaluateAndPush(signals) {
-  if (process.env.WAVESCAN_PUSH_DISABLED === '1') return { telegram: 0, disabled: true };
   const chatId = chan();
   let events = [];
   try { events = await withTimeout(tracker.syncSignals(signals), 12000, 'sync'); }
   catch (e) { logger.error(`[WaveScan] sync: ${e.message}`); return { telegram: 0 }; }
+  const disabled = process.env.WAVESCAN_PUSH_DISABLED === '1';
+  const brokerOwned = paperNotificationSuppressed('wave-scan');
+  if (disabled || brokerOwned) {
+    return { telegram: 0, newCount: events.length, disabled, brokerOwned };
+  }
   let tg = 0;
   for (const ev of events) {
     if (chatId) { try { const r = await withTimeout(telegramService.sendMessage(chatId, buildNew(ev.position)), 16000, 'tg'); if (r?.success) tg++; } catch (e) { logger.error(`[WaveScan] tg #${ev.position.code}: ${e.message}`); } }
@@ -66,6 +71,7 @@ async function evaluateAndPush(signals) {
 }
 
 async function pushClosures(events) {
+  if (paperNotificationSuppressed('wave-scan')) return { telegram: 0, brokerOwned: true };
   if (process.env.WAVESCAN_PUSH_DISABLED === '1') return { telegram: 0 };
   const chatId = chan();
   let tg = 0;

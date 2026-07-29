@@ -16,6 +16,8 @@ const os = require('os');
 
 const TMP = fs.mkdtempSync(path.join(os.tmpdir(), 'nr7-'));
 process.env.NR7_SHADOW_FILE = path.join(TMP, 'nr7-shadow.json');
+// This regression suite measures the legacy sender's dedup semantics.
+process.env.MT5_LEGACY_PAPER_NOTIFY = '1';
 
 // Telegram'ı mock'la — kaç mesaj gittiğini say
 const sent = [];
@@ -54,6 +56,8 @@ const nr7 = require('../../src/services/nr7Shadow/nr7Shadow');
 
 describe('NR7 Gölge — mükerrer duyuru regresyonu', () => {
   beforeEach(() => { sent.length = 0; });
+
+  afterAll(() => { delete process.env.MT5_LEGACY_PAPER_NOTIFY; });
 
   test('aynı süreçte tekrar tick → İKİNCİ mesaj YOK (bellek-içi dedup)', async () => {
     nr7._resetForTest();

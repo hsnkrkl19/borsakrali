@@ -176,12 +176,17 @@ describe('ICT/FVG bağımsız paper tracker', () => {
 
 describe('ICT/FVG Telegram notifier', () => {
   beforeEach(() => {
+    // Formatter/channel tests intentionally opt into the legacy paper sender;
+    // production Telegram is owned by broker-state ingest.
+    process.env.MT5_LEGACY_PAPER_NOTIFY = '1';
     delete process.env.ICT_FVG_PUSH_DISABLED;
     delete process.env.TELEGRAM_ICT_FVG_CHANNEL;
     tracker.__resetForTest();
     telegramService.sendMessage.mockReset();
     telegramService.sendMessage.mockResolvedValue({ success: true });
   });
+
+  afterAll(() => { delete process.env.MT5_LEGACY_PAPER_NOTIFY; });
 
   test('özel ICT kanalı fallback kanalından önceliklidir ve paper uyarısı taşır', async () => {
     process.env.TELEGRAM_ICT_FVG_CHANNEL = '@ict_fvg_channel';

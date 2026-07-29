@@ -19,6 +19,7 @@
 
 const pushNotificationService = require('./pushNotificationService');
 const logger = require('../utils/logger');
+const { paperNotificationSuppressed } = require('./mt5TradeNotifier');
 
 // Telegram channel — opsiyonel. TELEGRAM_MTF_CHAT_ID env var ayarlanırsa
 // FCM push'a ek olarak Telegram kanalına/grubuna da gönderir.
@@ -112,6 +113,13 @@ async function evaluateAndPush(confluences) {
     return sb - sa;
   });
   const top = upgrades.slice(0, MAX_BATCH);
+
+  // mtf-confluence is executed by the unified MT5 bridge.  Its actionable
+  // notification belongs to broker-state ingest, after a real ticket exists.
+  // Keep the detector/cooldown state current, but do not publish a paper event.
+  if (paperNotificationSuppressed('mtf-confluence')) {
+    return { upgrades: upgrades.length, pushed: 0, brokerOwned: true };
+  }
 
   // Bildirim metni
   const longCoins  = top.filter(c => c.verdict === 'STRONG_LONG').map(c => c.symbol);

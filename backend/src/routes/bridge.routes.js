@@ -14,6 +14,9 @@ const router = express.Router();
 const competitionManager = require('../services/botCompetition/competitionManager');
 const builderStore = require('../services/botBuilder/store');
 const customBotRunner = require('../services/botBuilder/customBotRunner');
+const mt5TradeNotifier = require('../services/mt5TradeNotifier');
+const realResults = require('../services/realResults/store');
+const lifecycleReadiness = require('../services/lifecycleReadiness');
 
 function checkExecToken(req) {
   const need = process.env.FOREX_EXEC_TOKEN;
@@ -24,10 +27,21 @@ function checkExecToken(req) {
   return { ok: true };
 }
 
+function requireLifecycleReady(res) {
+  const status = lifecycleReadiness.status();
+  if (status.ready) return true;
+  res.status(503).json({
+    success: false, ready: false, retryable: true,
+    error: 'broker-lifecycle-restoring', phase: status.phase,
+  });
+  return false;
+}
+
 // GET /api/bridge/positions — açık competition pozisyonları (köprü feed'i).
 router.get('/positions', (req, res) => {
   const auth = checkExecToken(req);
   if (!auth.ok) return res.status(auth.code).json({ success: false, error: auth.error });
+  if (!requireLifecycleReady(res)) return undefined;
   try {
     // forExecution: adanmış köprüsü olan botlar (forex-signals → borsakrali_mt5.py,
     // mt5-scanner → borsakrali_mt5_scanner.py) bu feed'e GİRMEZ. 2026-07-24
@@ -47,6 +61,9 @@ router.get('/positions', (req, res) => {
     if (feed.enabled) {
       try { positions = positions.concat(customBotRunner.feed()); } catch (_) {}
     }
+    // Executable feed rows are audit candidates, not Telegram signals.  A
+    // signal is emitted only after /state contains a broker-confirmed ticket.
+    try { mt5TradeNotifier.observeCandidates(positions); } catch (_) { /* execution feed remains independent */ }
     res.json({ success: true, enabled: feed.enabled, generatedAt: feed.generatedAt, count: positions.length, positions });
   } catch (e) {
     res.status(500).json({ success: false, error: e.message });
@@ -62,29 +79,88 @@ router.get('/positions', (req, res) => {
 router.post('/state', express.json({ limit: '2mb' }), async (req, res) => {
   const auth = checkExecToken(req);
   if (!auth.ok) return res.status(auth.code).json({ success: false, error: auth.error });
+  if (!requireLifecycleReady(res)) return undefined;
   try {
-    const notifier = require('../services/mt5TradeNotifier');
-    const r = await notifier.ingestState(req.body || {});
+    let results = { ingested: 0, invalid: 0, total: realResults.summary().deals };
     // Kapananlar aynı yükte geldiyse gerçek-sonuç deposunu da besle (lider tablosu).
     if (Array.isArray(req.body && req.body.closed) && req.body.closed.length) {
-      try { require('../services/realResults/store').ingest(req.body.closed); } catch (_) { /* yut */ }
+      results = realResults.ingest(req.body.closed, req.body);
     }
-    res.json({ success: true, ...r });
+    const lifecycle = await mt5TradeNotifier.ingestState(req.body || {});
+    if (lifecycle.retryableFailures > 0 || lifecycle.invalid > 0
+        || (lifecycle.decisions && lifecycle.decisions.invalid > 0)
+        || results.invalid > 0) {
+      return res.status(503).json({
+        success: false, retryable: true,
+        error: lifecycle.invalid > 0 || results.invalid > 0
+          ? 'invalid-broker-lifecycle-row' : 'trade-notification-pending',
+        ...lifecycle, results, lifecycle, audit: lifecycle.audit,
+      });
+    }
+    // Keep the legacy top-level lifecycle counters while also returning the
+    // structured result used by the reconciliation endpoint/tests.
+    res.json({ success: true, ...lifecycle, results, lifecycle, audit: lifecycle.audit });
   } catch (e) {
     res.status(500).json({ success: false, error: e.message });
   }
 });
 
-router.post('/results', express.json({ limit: '2mb' }), (req, res) => {
+router.post('/results', express.json({ limit: '2mb' }), async (req, res) => {
   const auth = checkExecToken(req);
   if (!auth.ok) return res.status(auth.code).json({ success: false, error: auth.error });
+  if (!requireLifecycleReady(res)) return undefined;
   try {
-    const realResults = require('../services/realResults/store');
-    const r = realResults.ingest(req.body && req.body.deals);
-    res.json({ success: true, ...r });
+    const deals = req.body && req.body.deals;
+    const results = realResults.ingest(deals, req.body || {});
+    const lifecycle = await mt5TradeNotifier.ingestState({
+      ...(req.body && typeof req.body === 'object' ? req.body : {}),
+      closed: Array.isArray(deals) ? deals : [],
+    });
+    if (lifecycle.retryableFailures > 0 || lifecycle.invalid > 0
+        || (lifecycle.decisions && lifecycle.decisions.invalid > 0)
+        || results.invalid > 0) {
+      return res.status(503).json({
+        success: false, retryable: true,
+        error: lifecycle.invalid > 0 || results.invalid > 0
+          ? 'invalid-broker-lifecycle-row' : 'trade-notification-pending',
+        ...results, ...lifecycle, results, lifecycle, audit: lifecycle.audit,
+      });
+    }
+    // /results historically returned ingested/invalid/total at top level.
+    res.json({ success: true, ...results, ...lifecycle, results, lifecycle, audit: lifecycle.audit });
   } catch (e) {
     res.status(500).json({ success: false, error: e.message });
   }
+});
+
+// Broker lifecycle reconciliation. Rejected execution decisions are retained as
+// audit facts but never counted as Telegram signals.
+router.get('/audit', (req, res) => {
+  const auth = checkExecToken(req);
+  if (!auth.ok) return res.status(auth.code).json({ success: false, error: auth.error });
+  if (!requireLifecycleReady(res)) return undefined;
+  try {
+    const details = String(req.query.details || '') === '1';
+    const audit = mt5TradeNotifier.auditStatus({ details, limit: req.query.limit });
+    res.json({ success: true, audit, realResults: realResults.summary() });
+  } catch (e) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
+// Authenticated pre-order readiness probe. It intentionally avoids loading or
+// mutating notifier stores while restoration is pending.
+router.get('/ready', (req, res) => {
+  const auth = checkExecToken(req);
+  if (!auth.ok) return res.status(auth.code).json({ success: false, ready: false, error: auth.error });
+  if (!requireLifecycleReady(res)) return undefined;
+  if (mt5TradeNotifier.notificationsDisabled()) {
+    return res.status(503).json({
+      success: false, ready: false, retryable: true,
+      error: 'trade-notifications-disabled',
+    });
+  }
+  return res.json({ success: true, ready: true });
 });
 
 module.exports = router;

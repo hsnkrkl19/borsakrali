@@ -14,10 +14,13 @@ const telegram = require('../telegramService');
 const delivery = require('../signalDelivery');
 const tracker = require('./beastTracker');
 const competitionManager = require('../botCompetition/competitionManager');
+const { paperNotificationSuppressed } = require('../mt5TradeNotifier');
 
 const PUSH_CONFIDENCE = Number(process.env.BEAST_PUSH_CONFIDENCE) || 62;
 
-function pushDisabled() { return process.env.BEAST_PUSH_DISABLED !== '0'; } // VARSAYILAN KAPALI
+function pushDisabled() {
+  return process.env.BEAST_PUSH_DISABLED !== '0' || paperNotificationSuppressed('beast-signals');
+} // Bildirim anahtarı execution/tracker akışını etkilemez.
 
 function fmt(v, p) { return Number(v).toFixed(p); }
 

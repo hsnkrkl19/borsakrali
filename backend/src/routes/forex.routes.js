@@ -11,6 +11,8 @@
 
 const express = require('express');
 const router = express.Router();
+const mt5TradeNotifier = require('../services/mt5TradeNotifier');
+const competitionCatalog = require('../services/botCompetition/catalog');
 
 const forexEngine = require('../services/forex/forexEngineMTF');
 const forexTracker = require('../services/forex/forexSignalTracker');
@@ -19,6 +21,7 @@ const instrumentBans = require('../services/instrumentBans');
 const accountReport = require('../services/forex/accountReport');
 const dailyGuard = require('../services/forex/forexDailyGuard');
 const { listInstruments } = require('../services/forex/forexInstruments');
+const FOREX_CATALOG = competitionCatalog.find((entry) => entry.id === 'forex-signals');
 
 function checkExecToken(req) {
   const need = process.env.FOREX_EXEC_TOKEN;
@@ -81,6 +84,14 @@ router.get('/positions', async (req, res) => {
       confidence: p.confidence, tfs: p.tfs, mt5Symbol: p.mt5Symbol || p.instrumentId,
       issuedAt: p.issuedAt, stopSetSec: p.stopSetSec,
     }));
+    // Dedicated feed candidates join the same reconciliation ledger. They are
+    // not Telegram signals until the central daemon reports a real MT5 ticket.
+    try {
+      mt5TradeNotifier.observeCandidates(positions.map((p) => ({
+        ...p, botId: 'forex-signals', botName: FOREX_CATALOG && FOREX_CATALOG.name,
+        magic: FOREX_CATALOG && (FOREX_CATALOG.dedicatedBridgeMagic || FOREX_CATALOG.magic),
+      })));
+    } catch (_) { /* execution feed remains independent */ }
     res.json({ success: true, count: positions.length, generatedAt: new Date().toISOString(), positions });
   } catch (e) {
     res.status(500).json({ success: false, error: e.message });

@@ -33,6 +33,9 @@ describe('mt5Bots bildirimcisi', () => {
   beforeEach(() => {
     telegram.sendMessage.mockClear();
     delete process.env.MT5_BOTS_PUSH_DISABLED;
+    // This suite exercises the legacy formatter/delivery unit in isolation.
+    // Production defaults to broker-owned Telegram lifecycle.
+    process.env.MT5_LEGACY_PAPER_NOTIFY = '1';
     process.env.TELEGRAM_SIGNAL_CHANNEL = '@testkanal';
   });
 
@@ -40,6 +43,7 @@ describe('mt5Bots bildirimcisi', () => {
     fs.rmSync(tempDir, { recursive: true, force: true });
     delete process.env.BOT_COMPETITION_DATA_DIR;
     delete process.env.TELEGRAM_SIGNAL_CHANNEL;
+    delete process.env.MT5_LEGACY_PAPER_NOTIFY;
   });
 
   test('mesaj: Bot N etiketi + AL/SAT + giriş/stop/TP + enstrüman hassasiyeti', () => {

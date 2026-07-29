@@ -46,6 +46,8 @@ describe('mtfPushNotifier — kanal-tek + izinli parite filtresi (BTC/ETH)', () 
   const mtf = require('../../src/services/mtfPushNotifier');
   beforeEach(() => {
     mtf.reset();
+    // Channel-routing unit tests opt into the legacy paper publisher.
+    process.env.MT5_LEGACY_PAPER_NOTIFY = '1';
     process.env.SIGNALS_CHANNEL_ONLY = '1';
     process.env.MTF_CHANNEL_SYMBOLS = 'BTC,ETH';
     delete process.env.TELEGRAM_FOREX_CHANNEL; // chatId boş → testte gerçek gönderim olmaz

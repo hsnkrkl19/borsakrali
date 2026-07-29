@@ -290,14 +290,50 @@ describe('mt5Notifier + learning — gölge duyurulmaz', () => {
     expect(mockAppPush).not.toHaveBeenCalled();
   });
 
-  test('gerçek sinyal aynen duyurulur (kontrol)', async () => {
+  test('broker-owned varsayılan: gerçek tracker pozisyonu açılır, paper Telegram/app susar', async () => {
+    delete process.env.MT5_LEGACY_PAPER_NOTIFY;
+    delete process.env.MT5_PUSH_DISABLED;
     const m = fresh();
     process.env.TELEGRAM_MT5_CHANNEL = '@test';
-    mockTgSend.mockClear();
+    mockTgSend.mockClear(); mockAppPush.mockClear();
     await m.tracker.load();
     const snap = { equity: 10000, signals: [{ ...makeSignal(m), status: 'signal' }] };
     const out = await m.notifier.evaluateAndPush(snap);
-    expect(out.opened).toBe(1);
-    expect(mockTgSend).toHaveBeenCalled();
+    expect(out).toMatchObject({ opened: 1, brokerOwned: true, telegram: 0, app: 0 });
+    expect(m.tracker.getOpen()).toHaveLength(1);
+    expect(mockTgSend).not.toHaveBeenCalled();
+    expect(mockAppPush).not.toHaveBeenCalled();
+  });
+
+  test('MT5_PUSH_DISABLED yalnız bildirimi keser; tracker/execution feed açılışı sürer', async () => {
+    delete process.env.MT5_LEGACY_PAPER_NOTIFY;
+    process.env.MT5_PUSH_DISABLED = '1';
+    try {
+      const m = fresh();
+      mockTgSend.mockClear(); mockAppPush.mockClear();
+      await m.tracker.load();
+      const snap = { equity: 10000, signals: [{ ...makeSignal(m), status: 'signal' }] };
+      const out = await m.notifier.evaluateAndPush(snap);
+      expect(out).toMatchObject({ opened: 1, disabled: true, telegram: 0, app: 0 });
+      expect(m.tracker.getOpen()).toHaveLength(1);
+    } finally {
+      delete process.env.MT5_PUSH_DISABLED;
+    }
+  });
+
+  test('legacy override eski formatter/sender kontrolünü çalıştırır', async () => {
+    process.env.MT5_LEGACY_PAPER_NOTIFY = '1';
+    try {
+      const m = fresh();
+      process.env.TELEGRAM_MT5_CHANNEL = '@test';
+      mockTgSend.mockClear();
+      await m.tracker.load();
+      const snap = { equity: 10000, signals: [{ ...makeSignal(m), status: 'signal' }] };
+      const out = await m.notifier.evaluateAndPush(snap);
+      expect(out.opened).toBe(1);
+      expect(mockTgSend).toHaveBeenCalled();
+    } finally {
+      delete process.env.MT5_LEGACY_PAPER_NOTIFY;
+    }
   });
 });

@@ -18,7 +18,10 @@ const engine = require('../services/mt5Scanner/mt5Engine');
 const tracker = require('../services/mt5Scanner/mt5Tracker');
 const learning = require('../services/mt5Scanner/mt5Learning');
 const instrumentBans = require('../services/instrumentBans');
+const mt5TradeNotifier = require('../services/mt5TradeNotifier');
+const competitionCatalog = require('../services/botCompetition/catalog');
 const { listInstruments } = require('../services/mt5Scanner/mt5Instruments');
+const SCANNER_CATALOG = competitionCatalog.find((entry) => entry.id === 'mt5-scanner');
 
 // MT5 köprüsü yürütme beslemesi — forex.routes ile AYNI token (FOREX_EXEC_TOKEN).
 function checkExecToken(req) {
@@ -101,6 +104,12 @@ router.get('/positions', async (req, res) => {
       mt5Symbol: p.mt5Symbol || p.instrumentId,
       issuedAt: p.issuedAt, issueTimeSec: p.issueTimeSec, eodDeadlineSec: p.eodDeadlineSec,
     }));
+    try {
+      mt5TradeNotifier.observeCandidates(positions.map((p) => ({
+        ...p, botId: 'mt5-scanner', botName: SCANNER_CATALOG && SCANNER_CATALOG.name,
+        magic: SCANNER_CATALOG && (SCANNER_CATALOG.dedicatedBridgeMagic || SCANNER_CATALOG.magic),
+      })));
+    } catch (_) { /* execution feed remains independent */ }
     res.json({ success: true, count: positions.length, generatedAt: new Date().toISOString(), positions });
   } catch (e) {
     res.status(500).json({ success: false, error: e.message });

@@ -9,6 +9,7 @@
 
 const telegramService = require('./telegramService');
 const tracker = require('./cryptoSignalTracker');
+const { paperNotificationSuppressed } = require('./mt5TradeNotifier');
 const { signalChannel } = require('./signalDelivery');
 const { listInstruments } = require('./forex/forexInstruments');
 const logger = require('../utils/logger');
@@ -85,12 +86,14 @@ function buildClosure(ev) {
 
 // Sürekli yayın: tarama sonucundan yeni bulunanları kanala bas (dedup tracker'da)
 async function evaluateAndPush(result) {
-  if (process.env.CRYPTO_PUSH_DISABLED === '1') return { telegram: 0, disabled: true };
   const chatId = signalChannel();
   const eligible = Array.isArray(result) ? result : flatten(result);
   let events = [];
   try { events = await withTimeout(tracker.syncSignals(eligible), 12000, 'sync'); }
   catch (e) { logger.error(`[CryptoChannel] sync: ${e.message}`); return { telegram: 0 }; }
+  const disabled = process.env.CRYPTO_PUSH_DISABLED === '1';
+  const brokerOwned = paperNotificationSuppressed('crypto-signals');
+  if (disabled || brokerOwned) return { telegram: 0, newCount: events.length, disabled, brokerOwned };
   let tg = 0;
   for (const ev of events) {
     if (chatId) { try { const r = await withTimeout(telegramService.sendMessage(chatId, buildNew(ev.position)), 16000, 'tg'); if (r?.success) tg++; } catch (e) { logger.error(`[CryptoChannel] tg #${ev.position.code}: ${e.message}`); } }
@@ -100,7 +103,9 @@ async function evaluateAndPush(result) {
 }
 
 async function pushClosures(events) {
-  if (process.env.CRYPTO_PUSH_DISABLED === '1') return { telegram: 0 };
+  if (process.env.CRYPTO_PUSH_DISABLED === '1' || paperNotificationSuppressed('crypto-signals')) {
+    return { telegram: 0, disabled: process.env.CRYPTO_PUSH_DISABLED === '1', brokerOwned: true };
+  }
   const chatId = signalChannel();
   let tg = 0;
   for (const ev of (events || [])) {

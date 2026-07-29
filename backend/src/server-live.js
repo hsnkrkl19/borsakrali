@@ -2993,6 +2993,7 @@ const dailySignalsService = require('./services/dailySignalsService');
 const snapshotStore = require('./services/snapshotStore');
 const cronJobsService = require('./services/cronJobs');
 const botPersistence = require('./services/botPersistence');
+const lifecycleReadiness = require('./services/lifecycleReadiness');
 const dailyPerformanceService = require('./services/dailyPerformanceService');
 
 // Gün sonu performans — son N tarih listesi
@@ -8166,6 +8167,7 @@ server.on('error', (err) => {
   }
 });
 
+lifecycleReadiness.beginRestore();
 server.listen(PORT, () => {
   console.log('');
   console.log('========================================================================');
@@ -8194,6 +8196,7 @@ server.listen(PORT, () => {
   // Önce botların kalıcı durumunu Supabase'ten geri yükle (cron'lar/ingest
   // okumadan ÖNCE), sonra cron'ları başlat. Supabase kapalıysa loadAll no-op.
   (async () => {
+    let persistenceRestored = false;
     // İSTATİSTİK SIFIRLAMA (2026-07-24): BOT_STATS_RESET jetonu değiştiyse eski
     // defterleri sil. loadAll'dan ÖNCE olmalı — sonra çalışırsa Supabase'ten
     // geri yüklenen dosyaları siler ve bir sonraki açılışta hepsi geri gelir.
@@ -8204,6 +8207,7 @@ server.listen(PORT, () => {
     }
     try {
       await botPersistence.loadAll();
+      persistenceRestored = true;
     } catch (e) {
       console.error('[BotPersistence] loadAll hata:', e.message);
     }
@@ -8232,6 +8236,8 @@ server.listen(PORT, () => {
     // YASAKLI ENSTRÜMAN TAHLİYESİ (2026-07-24): yasaktan ÖNCE açılmış gümüş
     // pozisyonlarını kâğıtta kapat → köprü feed'de bulamayınca gerçek MT5
     // pozisyonunu kapatır. reload()'lardan SONRA olmalı (boş state taranmasın).
+    if (persistenceRestored) lifecycleReadiness.completeRestore();
+    else lifecycleReadiness.failRestore('bot-persistence-load-failed');
     try {
       require('./services/bannedPositionSweep').run();
     } catch (e) {

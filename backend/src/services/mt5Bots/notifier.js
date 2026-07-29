@@ -18,10 +18,13 @@ const telegram = require('../telegramService');
 const delivery = require('../signalDelivery');
 const { botLabel } = require('../botCompetition/botLabels');
 const { getInstrument } = require('../forex/forexInstruments');
+const { paperNotificationSuppressed } = require('../mt5TradeNotifier');
 
 const MAX_LINES = 4;
 
-function pushDisabled() { return process.env.MT5_BOTS_PUSH_DISABLED === '1'; }
+function pushDisabled(botId) {
+  return process.env.MT5_BOTS_PUSH_DISABLED === '1' || paperNotificationSuppressed(botId);
+}
 
 function fmt(value, symbol) {
   const precision = getInstrument(symbol)?.precision ?? 2;
@@ -59,7 +62,13 @@ function buildMessage(botId, positions) {
  */
 async function notifyOpened(botId, positions) {
   if (!Array.isArray(positions) || positions.length === 0) return { pushed: 0 };
-  if (pushDisabled()) return { pushed: 0, disabled: true };
+  if (pushDisabled(botId)) {
+    return {
+      pushed: 0,
+      disabled: process.env.MT5_BOTS_PUSH_DISABLED === '1',
+      brokerOwned: paperNotificationSuppressed(botId),
+    };
+  }
   const chat = delivery.signalChannel();
   if (!chat) return { pushed: 0, noChannel: true };
   try {

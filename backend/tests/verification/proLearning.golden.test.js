@@ -77,11 +77,15 @@ describe('YENİ ROBOT öğrenme katmanı — enstrüman:TF devre kesici + gölge
     delete process.env.PRO_LEARNING_DISABLED;
     delete process.env.PRO_PUSH_DISABLED;
     delete process.env.PRO_QUALITY_GATE;
+    // This suite verifies the legacy notifier after learning/shadow gates.
+    process.env.MT5_LEGACY_PAPER_NOTIFY = '1';
     tracker = require('../../src/services/proSignals/proSignalTracker');
     learning = require('../../src/services/proSignals/proLearning');
     notifier = require('../../src/services/proSignals/proPushNotifier');
     tracker.__resetForTest();
   });
+
+  afterAll(() => { delete process.env.MT5_LEGACY_PAPER_NOTIFY; });
 
   // TP1 vuran 5m mum (long: high >= target1 110) → checkClosures TP1 kapatır.
   async function closeAtTp() {

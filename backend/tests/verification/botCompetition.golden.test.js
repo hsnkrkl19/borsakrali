@@ -67,6 +67,20 @@ describe('Telegram bot yarışı — izole paper yürütme', () => {
     expect(pro.closed).toBe(0);
   });
 
+  test('konsensus bot sayisi normalize ve MT5 execution feed boyunca korunur', () => {
+    const row = {
+      ...signal('cons-1', 'EURUSD', 'long'),
+      agreeCount: 4,
+      agreeBots: ['mt5-trend', 'mt5-momentum', 'ict-structure', 'forex-signals'],
+    };
+    expect(manager.recordOpen('consensus-radar', row).ok).toBe(true);
+    const feedRow = manager.bridgeFeed({ forExecution: true }).positions
+      .find((p) => p.botId === 'consensus-radar');
+    expect(feedRow).toBeTruthy();
+    expect(feedRow.agreeCount).toBe(4);
+    expect(feedRow.agreeBots).toEqual(row.agreeBots);
+  });
+
   test('snapshot fiyatı SL/TP kapanışını yapar ve tekrar pozisyon açmaz', () => {
     manager.observeSnapshot('mt5-scanner', {
       signals: [signal('mt5-1', 'XAUUSD')],

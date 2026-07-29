@@ -21,6 +21,7 @@ const tracker = require('./proSignalTracker');
 const statsStore = require('./proStatsStore');
 const signalLog = require('./proSignalLog');
 const logger = require('../../utils/logger');
+const { paperNotificationSuppressed } = require('../mt5TradeNotifier');
 
 const MIN_SAMPLE = 12;
 
@@ -190,7 +191,6 @@ function pickMeta(signals, p) {
 
 // ── Ana akış: değerlendir + push ────────────────────────────────────────────
 async function evaluateAndPush(signals) {
-  if (process.env.PRO_PUSH_DISABLED === '1') return { telegram: 0, considered: 0, disabled: true };
   const chatId = chan();
   const threshold = getPushThreshold();
 
@@ -207,6 +207,8 @@ async function evaluateAndPush(signals) {
   let events = [];
   try { events = await withTimeout(tracker.syncPositions(eligible), 12000, 'sync'); }
   catch (e) { logger.error(`[ProPush] sync: ${e.message}`); return { telegram: 0, considered: 0, eligible: eligible.length }; }
+  const disabled = process.env.PRO_PUSH_DISABLED === '1';
+  const brokerOwned = paperNotificationSuppressed('pro-robot');
 
   let tg = 0, sent = 0, shadowCount = 0;
   for (const ev of events) { // syncPositions YALNIZ 'new' döndürür
@@ -230,6 +232,7 @@ async function evaluateAndPush(signals) {
         outcome: null,
       });
     } catch (_) {}
+    if (disabled || brokerOwned) continue;
     markPushed(p);
     if (chatId) {
       try {
@@ -239,12 +242,14 @@ async function evaluateAndPush(signals) {
     }
   }
   if (tg) logger.info(`🤖 YENİ ROBOT — ${events.length} yeni sinyal · TG ${tg} (eşik ${threshold})`);
-  return { telegram: tg, considered: sent, shadow: shadowCount, eligible: eligible.length, threshold, chatSet: !!chatId };
+  return { telegram: tg, considered: sent, shadow: shadowCount, eligible: eligible.length, threshold, chatSet: !!chatId, disabled, brokerOwned };
 }
 
 // ── R-merdiveni stop güncellemeleri (≥4h) ───────────────────────────────────
 async function pushManagementUpdates(events) {
-  if (process.env.PRO_PUSH_DISABLED === '1') return { telegram: 0 };
+  if (process.env.PRO_PUSH_DISABLED === '1' || paperNotificationSuppressed('pro-robot')) {
+    return { telegram: 0, disabled: process.env.PRO_PUSH_DISABLED === '1', brokerOwned: true };
+  }
   const chatId = chan();
   let tg = 0, shadowCount = 0;
   for (const ev of (events || [])) {
@@ -259,17 +264,18 @@ async function pushManagementUpdates(events) {
 
 // ── Kapanış / teyit (aynı NO) ───────────────────────────────────────────────
 async function pushClosures(events) {
-  if (process.env.PRO_PUSH_DISABLED === '1') return { telegram: 0 };
   const chatId = chan();
+  const disabled = process.env.PRO_PUSH_DISABLED === '1';
+  const brokerOwned = paperNotificationSuppressed('pro-robot');
   let tg = 0;
   for (const ev of (events || [])) {
     statsStore.recordClosure(ev).catch(() => {});
     // Adli log: aynı kodun outcome'unu yama.
     try { signalLog.patchOutcome(ev.code, { result: ev.outcome, exit: ev.exit, pnlPct: ev.pnlPct, pnlUsd: ev.pnlUsd, closedAt: new Date().toISOString() }); } catch (_) {}
-    if (chatId) { try { const r = await withTimeout(telegramService.sendMessage(chatId, buildClosureTelegram(ev), 'HTML'), 16000, 'closeTg'); if (r?.success) tg++; } catch (e) { logger.error(`[ProPush] closeTg #${ev.code}: ${e.message}`); } }
+    if (!disabled && !brokerOwned && chatId) { try { const r = await withTimeout(telegramService.sendMessage(chatId, buildClosureTelegram(ev), 'HTML'), 16000, 'closeTg'); if (r?.success) tg++; } catch (e) { logger.error(`[ProPush] closeTg #${ev.code}: ${e.message}`); } }
   }
   if (tg) logger.info(`🤖✅ YENİ ROBOT kapanış — ${events.length} · TG ${tg}`);
-  return { telegram: tg };
+  return { telegram: tg, disabled, brokerOwned };
 }
 
 // ── Günlük istatistik (enstrüman bazlı long/short başarı) — yalnız kanal ─────

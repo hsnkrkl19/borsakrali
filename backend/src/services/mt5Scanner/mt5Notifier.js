@@ -24,6 +24,7 @@ const pushNotificationService = require('../pushNotificationService');
 const signalDelivery = require('../signalDelivery');
 const tracker = require('./mt5Tracker');
 const learning = require('./mt5Learning');
+const { paperNotificationSuppressed } = require('../mt5TradeNotifier');
 const logger = require('../../utils/logger');
 
 const PUSH_CONFIDENCE = (() => {
@@ -116,9 +117,10 @@ async function sendBoth(tgMsg, appPayload) {
  * SIRAYLA (güven desc): her açılış bütçeden düşer, kural toplamda da korunur.
  */
 async function evaluateAndPush(snap) {
-  if (pushDisabled()) return { telegram: 0, app: 0, opened: 0, disabled: true };
   const signals = (snap?.signals || []).filter((s) => s.status === 'signal' && s.confidence >= PUSH_CONFIDENCE);
   signals.sort((a, b) => b.confidence - a.confidence);
+  const disabled = pushDisabled();
+  const brokerOwned = paperNotificationSuppressed('mt5-scanner');
   let tg = 0, app = 0, opened = 0, shadowOpened = 0;
   const skipped = {};
   for (const sig of signals) {
@@ -128,15 +130,21 @@ async function evaluateAndPush(snap) {
     if (!res.ok) { skipped[res.reason] = (skipped[res.reason] || 0) + 1; continue; }
     if (res.position.shadow) { shadowOpened += 1; continue; }   // gölge: izlenir, DUYURULMAZ
     opened += 1;
+    if (disabled || brokerOwned) continue;
     const budget = tracker.budget(snap.equity);
     const sent = await sendBoth(buildNew(res.position, sig, budget), appNew(res.position, sig));
     tg += sent.tg; app += sent.app;
   }
-  return { telegram: tg, app, opened, shadowOpened, eligible: signals.length, skipped, chatSet: !!channelId() };
+  return {
+    telegram: tg, app, opened, shadowOpened, eligible: signals.length, skipped,
+    chatSet: !!channelId(), disabled, brokerOwned,
+  };
 }
 
 async function pushClosures(events) {
-  if (pushDisabled()) return { telegram: 0, app: 0 };
+  const disabled = pushDisabled();
+  const brokerOwned = paperNotificationSuppressed('mt5-scanner');
+  if (disabled || brokerOwned) return { telegram: 0, app: 0, disabled, brokerOwned };
   let tg = 0, app = 0;
   for (const ev of (events || [])) {
     const sent = await sendBoth(buildClosure(ev), appClosure(ev));
