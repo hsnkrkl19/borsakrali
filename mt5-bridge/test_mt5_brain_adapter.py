@@ -149,6 +149,26 @@ class AdapterTests(unittest.TestCase):
         self.assertFalse(mismatch.allowed)
         self.assertIn("dry_run_mismatch", mismatch.decision.reasons[0])
 
+    def test_reentry_cooldown_blocks_same_direction_only(self):
+        self.heartbeat.write_text(json.dumps({
+            "ok": True, "timeSec": time.time(), "dryRun": True, "login": 1,
+            "initialBalance": 10_000, "initialEquity": 10_000,
+            "dayStartBalance": 10_000, "dayStartEquity": 10_000,
+            "peakEquity": 10_000,
+            "reentryCooldowns": {
+                "EURUSD": {"untilSec": int(time.time()) + 600,
+                           "direction": "long"},
+            },
+        }), encoding="utf-8")
+        blocked = self.evaluate(candidate="cooldown-long")
+        self.assertFalse(blocked.allowed)
+        self.assertIn("reentry_cooldown_active", blocked.decision.reasons[0])
+        # Ters yon serbest: gercek donusler sogumaya takilmaz.
+        allowed = self.evaluate(candidate="cooldown-short", direction="short",
+                                entry=100.0, stop=101.0, target=98.0)
+        self.assertTrue(allowed.allowed, allowed.decision.reasons)
+        adapter.finalize(allowed, False)
+
     def test_atomic_reversal_closes_exact_ticket_and_verifies(self):
         position = SimpleNamespace(
             ticket=77, symbol="EURUSD", magic=550055, type=0, volume=0.2,

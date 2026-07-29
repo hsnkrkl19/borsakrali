@@ -682,6 +682,20 @@ def evaluate(mt5mod, cfg, info, *, candidate_id, bot_id, symbol, direction,
                  or not _backend_base(cfg))):
         return _reject("fail_closed:broker_lifecycle_backend_not_configured",
                        candidate_id, cfg, metadata, True)
+    # Beyin az once bu enstrumani kendisi kapattiysa AYNI YONDE hemen yeniden
+    # acilmaz (kapan-ac dongusu / Telegram spami onlemi); ters yon serbest.
+    cooldown_rows = heartbeat.get("reentryCooldowns")
+    if isinstance(cooldown_rows, dict):
+        asset = account_brain.canonical_underlying(str(symbol or ""))
+        row = cooldown_rows.get(asset)
+        if isinstance(row, dict):
+            until = row.get("untilSec")
+            side = str(row.get("direction") or "")
+            if (isinstance(until, (int, float)) and not isinstance(until, bool)
+                    and now < float(until)
+                    and (not side or side == str(direction or ""))):
+                return _reject("reentry_cooldown_active", candidate_id,
+                               cfg, metadata, True)
     outbox_ready, outbox_count = _broker_event_outbox_ready(cfg, logger=logger)
     if not outbox_ready:
         return _reject(

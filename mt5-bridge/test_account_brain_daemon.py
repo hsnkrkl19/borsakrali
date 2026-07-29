@@ -74,7 +74,13 @@ def t_profit_giveback_exit():
     meta2 = {"peakPnl": 12.0, "peakSec": now, "lastPnl": 12.0,
              "lastSec": now - 2, "initialRiskUsd": 100.0}
     assert brain._dynamic_exit_reason(cfg, pos(10.0), meta2, now) is None
-    print("OK peak-profit giveback + tiny-PnL anti-churn")
+    # 1R gorulmeden kar kilidi SILAHLANMAZ: risk $100, tepe $50 (0.5R),
+    # simdiki $35 -> eski davranis ($20 arm) erken kapatirdi, artik HOLD.
+    meta3 = {"peakPnl": 50.0, "peakSec": now - 30, "lastPnl": 50.0,
+             "lastSec": now - 2, "initialRiskUsd": 100.0}
+    assert brain._dynamic_exit_reason(cfg, pos(35.0), meta3, now) is None, \
+        "0.5R tepede giveback tetiklenmemeli (churn onlemi)"
+    print("OK peak-profit giveback (1R arm) + tiny-PnL anti-churn")
 
 
 def t_fast_adverse_exit():
@@ -247,6 +253,33 @@ def t_order_calc_profit_measures_loss_and_trailing_stop_zero_risk():
     print("OK broker order_calc_profit measures loss; profitable trailing SL is zero risk")
 
 
+def t_discretionary_close_records_reentry_cooldown():
+    live = pos(120.0, ticket=61)
+    ai = SimpleNamespace(login=1, balance=10_000.0, equity=10_000.0, server="Demo")
+    cfg = dict(brain.DEFAULTS, dry_run=False, allowed_account=1,
+               exec_token="x", report_interval_seconds=999)
+    state = {"tickets": {}, "close_reasons": {}}
+    safe = {
+        "profitPct": 0, "dailyLossPct": 0, "totalDrawdownPct": 0,
+        "openRiskPct": 0, "maxBotRiskPct": 0, "maxSymbolSideRiskPct": 0,
+        "unboundedTickets": [], "ok": True,
+    }
+    with patch.object(brain.mt5, "account_info", return_value=ai), \
+            patch.object(brain.mt5, "positions_get", return_value=[live]), \
+            patch.object(brain, "_history", return_value=[]), \
+            patch.object(brain, "_snapshot", return_value=safe.copy()), \
+            patch.object(brain.mt5_brain_adapter, "broker_event_outbox_count", return_value=0), \
+            patch.object(brain, "_atomic_json"), patch.object(brain, "_save_state"), \
+            patch.object(brain, "_dynamic_exit_reason",
+                         return_value="profit-giveback-test"), \
+            patch.object(brain, "_close_position", return_value=True):
+        brain.run_once(cfg, state, last_report=time.time())
+    row = state.get("reentryCooldowns", {}).get("XAUUSD")
+    assert row and row["direction"] == "long", state.get("reentryCooldowns")
+    assert row["untilSec"] > time.time() + 60, row
+    print("OK beyin kapatinca ayni-yon yeniden-giris sogumasi kaydediliyor")
+
+
 def t_trailing_stop_after_3r():
     info = SimpleNamespace(point=0.01, digits=2, trade_stops_level=0, spread=10)
     sent = []
@@ -377,6 +410,7 @@ if __name__ == "__main__":
     t_close_only_latch_retries_residual_positions()
     t_live_state_schema_and_stop_modes()
     t_order_calc_profit_measures_loss_and_trailing_stop_zero_risk()
+    t_discretionary_close_records_reentry_cooldown()
     t_trailing_stop_after_3r()
     t_history_and_disk_failures_do_not_skip_global_flatten()
     print("\nTUM MERKEZI DAEMON TESTLERI GECTI - OK")

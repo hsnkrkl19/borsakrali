@@ -54,6 +54,8 @@
   "adverse_window_seconds": 12,
   "trail_start_r": 3.0,
   "trail_distance_r": 1.0,
+  "profit_giveback_activation_r": 1.0,
+  "reentry_cooldown_minutes": 45.0,
   "min_discretionary_exit_usd": 15.0,
 
   "report_interval_seconds": 2,

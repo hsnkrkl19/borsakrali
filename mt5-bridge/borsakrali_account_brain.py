@@ -94,6 +94,12 @@ DEFAULTS = {
     "adverse_window_seconds": 12,
     "trail_start_r": 3.0,
     "trail_distance_r": 1.0,
+    # Kar kilidi dolarla degil R ile silahlanir: tepe en az bu kadar R olmadan
+    # erken kar-alma kapanisi yapilmaz (kurus-islem/churn onlemi).
+    "profit_giveback_activation_r": 1.0,
+    # Beyin kendi kapattigi enstrumanda AYNI YONDE bu kadar dakika yeni giris
+    # engellenir (kapan-ac dongusu kirilir); ters yon serbesttir.
+    "reentry_cooldown_minutes": 45.0,
     "min_discretionary_exit_usd": 15.0,
     "report_interval_seconds": 2,
     "closed_history_hours": 48,
@@ -189,6 +195,8 @@ def _validate_numeric_config(cfg):
         "adverse_window_seconds": (1.0, 3600.0),
         "trail_start_r": (0.5, 10.0),
         "trail_distance_r": (0.25, 5.0),
+        "profit_giveback_activation_r": (0.1, 5.0),
+        "reentry_cooldown_minutes": (0.0, 480.0),
         "min_discretionary_exit_usd": (15.0, 1e9),
         "report_interval_seconds": (0.2, 5.0),
         "closed_history_hours": (24.0, 720.0),
@@ -626,7 +634,27 @@ def _snapshot(cfg, ai, positions, deals, state, telemetry_ok=True,
                    if equity > 0 else 999.0)
     max_symbol_side_pct = (max(by_symbol_side.values(), default=0.0) / equity * 100.0
                            if equity > 0 else 999.0)
+    # Suresi dolan yeniden-giris sogumalarini temizle; kalanlari heartbeat'e
+    # koy ki TUM kopruler (adapter) ayni kapiyi gorsun.
+    cooldowns = state.get("reentryCooldowns")
+    active_cooldowns = {}
+    if isinstance(cooldowns, dict):
+        now_sec = time.time()
+        for key in list(cooldowns):
+            row = cooldowns.get(key)
+            try:
+                until = float((row or {}).get("untilSec", 0) or 0)
+            except (TypeError, ValueError):
+                until = 0.0
+            if not isinstance(row, dict) or until <= now_sec:
+                cooldowns.pop(key, None)
+            else:
+                active_cooldowns[key] = {
+                    "untilSec": int(until),
+                    "direction": str(row.get("direction") or ""),
+                }
     return {
+        "reentryCooldowns": active_cooldowns,
         "version": VERSION,
         "timeSec": int(time.time()),
         "ok": bool(telemetry_ok),
@@ -712,11 +740,20 @@ def _dynamic_exit_reason(cfg, pos, meta, now):
         meta["peakPnl"] = peak
     risk = float(meta.get("initialRiskUsd", 0) or 0)
     if risk <= 0:
-        risk = _initial_risk_usd(pos)
-        meta["initialRiskUsd"] = risk
+        raw_risk = _initial_risk_usd(pos)
+        meta["initialRiskUsd"] = raw_risk
+        risk = (float(raw_risk)
+                if isinstance(raw_risk, (int, float))
+                and not isinstance(raw_risk, bool)
+                and math.isfinite(float(raw_risk)) else 0.0)
 
     arm = max(float(cfg.get("profit_lock_arm_usd", 20.0)),
               float(cfg.get("min_discretionary_exit_usd", 15.0)))
+    # Kurus-islem/churn onlemi: kar kilidi tepe en az +1R (config) olmadan
+    # silahlanmaz; $20'lik dolar esigi 40-50$ riskli islemde 0.5R'de erken
+    # kar aldirip ayni sinyalin yeniden acilmasina yol aciyordu.
+    if risk > 0:
+        arm = max(arm, risk * float(cfg.get("profit_giveback_activation_r", 1.0)))
     floor = float(cfg.get("profit_lock_floor_usd", 15.0))
     giveback = float(cfg.get("profit_giveback_pct", 20.0)) / 100.0
     if peak >= arm:
@@ -1257,7 +1294,22 @@ def run_once(cfg, state, last_report=0.0, forced_stop_reason=None,
             meta.pop("absentTurns", None)
             reason = _dynamic_exit_reason(cfg, pos, meta, now)
             if reason:
-                _close_position(cfg, pos, reason, state)
+                if _close_position(cfg, pos, reason, state):
+                    # Kapan-ac dongusu kirici: beyin kapattigi enstrumanda
+                    # AYNI YONDE yeni girisi bir sure engelle (ters yon
+                    # serbest - gercek donusler kacirilmaz).
+                    cooldown_min = float(cfg.get("reentry_cooldown_minutes", 45) or 0)
+                    if cooldown_min > 0:
+                        bucket = state.setdefault("reentryCooldowns", {})
+                        asset = account_brain.canonical_underlying(
+                            getattr(pos, "symbol", ""))
+                        is_buy_pos = int(getattr(pos, "type", 0) or 0) == getattr(
+                            mt5, "POSITION_TYPE_BUY", 0)
+                        bucket[asset] = {
+                            "untilSec": int(now + cooldown_min * 60),
+                            "direction": "long" if is_buy_pos else "short",
+                            "reason": str(reason)[:60],
+                        }
             else:
                 try:
                     _maybe_trail_stop(cfg, pos, meta)
