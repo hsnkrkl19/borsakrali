@@ -1,0 +1,1484 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""BORSA KRALI central account brain.
+
+This is the only account-wide, continuously running control loop.  Entry
+bridges still own signal translation, but every one of them is expected to use
+``account_brain`` for the same pre-trade decision.  This daemon owns the other
+half of the contract:
+
+* a fresh health heartbeat (entry bridges fail closed when it is stale),
+* account/day drawdown and +10% profit-stop enforcement,
+* deterministic profit give-back / fast adverse-move exits,
+* broker-confirmed open/close lifecycle reporting to the backend.
+
+No LLM is allowed in the live order path.  The rules are deterministic,
+bounded and replayable; an external model outage or a creative response can
+therefore never create/resize an order.
+"""
+
+import json
+import logging
+import math
+import os
+import sys
+import time
+from datetime import datetime, timedelta, timezone
+
+try:
+    import MetaTrader5 as mt5
+except ImportError:
+    print("MetaTrader5 paketi yok. Kur: pip install MetaTrader5", file=sys.stderr)
+    sys.exit(1)
+
+try:
+    import requests
+except ImportError:
+    print("requests paketi yok. Kur: pip install requests", file=sys.stderr)
+    sys.exit(1)
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, HERE)
+
+import trade_guard
+import account_brain
+import mt5_brain_adapter
+
+CONFIG_PATH = sys.argv[1] if len(sys.argv) > 1 else os.path.join(HERE, "config_brain.json")
+STATE_PATH = os.path.join(HERE, "account_brain_runtime.json")
+HEARTBEAT_PATH = os.path.join(HERE, "account_brain_heartbeat.json")
+STOP_MASTER = os.path.join(HERE, "STOP_MASTER")
+
+VERSION = "2026-07-29-central-brain-v3"
+
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s",
+                    handlers=[logging.StreamHandler()])
+log = logging.getLogger("bk-account-brain")
+
+DEFAULTS = {
+    "backend_url": "https://borsakrali.com",
+    "exec_token": "",
+    "terminal_path": "",
+    "allowed_account": 0,
+    "account_server": "",
+    "enabled": True,
+    "dry_run": True,
+    "poll_seconds": 1,
+    "deviation_points": 30,
+    "risk_fail_closed": True,
+    "manage_magic_zero": False,
+    "daily_entry_brake_pct": 1.50,
+    "max_open_risk_pct": 1.50,
+    "hard_max_open_risk_pct": 2.00,
+    "max_symbol_side_risk_pct": 0.50,
+    "max_bot_risk_pct": 0.50,
+    # Buffer thresholds intentionally precede the user's absolute ceilings.
+    # A market gap/slippage can jump a threshold, so no software can promise a
+    # mathematically exact cap; the buffers make best execution effort early.
+    "daily_flatten_warning_pct": 4.00,
+    "daily_flatten_pct": 4.25,
+    "daily_hard_limit_pct": 4.50,
+    "total_flatten_warning_pct": 9.00,
+    "total_flatten_pct": 9.25,
+    "total_hard_limit_pct": 9.50,
+    "profit_stop_pct": 10.0,
+    "min_expected_pnl_usd": 15.0,
+    "min_initial_risk_usd": 15.0,
+    "profit_lock_arm_usd": 20.0,
+    "profit_lock_floor_usd": 15.0,
+    "profit_giveback_pct": 20.0,
+    "hype_window_seconds": 20,
+    "hype_giveback_pct": 12.0,
+    "adverse_exit_r": 0.55,
+    "adverse_acceleration_r": 0.20,
+    "adverse_window_seconds": 12,
+    "trail_start_r": 3.0,
+    "trail_distance_r": 1.0,
+    "min_discretionary_exit_usd": 15.0,
+    "report_interval_seconds": 2,
+    "closed_history_hours": 48,
+    "llm_live_order_authority": False,
+}
+
+
+def load_config():
+    merged = dict(DEFAULTS)
+    if os.path.exists(CONFIG_PATH):
+        with open(CONFIG_PATH, "r", encoding="utf-8-sig") as fh:
+            value = json.load(fh)
+        if not isinstance(value, dict):
+            raise ValueError("config_brain.json JSON object olmali")
+        merged.update(value)
+    # This switch is deliberately non-configurable in practice.  Refuse to
+    # start instead of silently granting a language model live order authority.
+    if merged.get("llm_live_order_authority"):
+        raise ValueError("llm_live_order_authority desteklenmez; canli emir yolu deterministik kalmalidir")
+    if not isinstance(merged.get("dry_run"), bool):
+        raise ValueError("config_brain dry_run JSON boolean (true/false) olmali")
+    if not isinstance(merged.get("enabled"), bool):
+        raise ValueError("config_brain enabled JSON boolean (true/false) olmali")
+    for key in ("risk_fail_closed", "manage_magic_zero"):
+        if not isinstance(merged.get(key), bool):
+            raise ValueError("config_brain %s JSON boolean olmali" % key)
+    if "aggressive_opt_in" in merged and not isinstance(
+            merged.get("aggressive_opt_in"), bool):
+        raise ValueError("config_brain aggressive_opt_in JSON boolean olmali")
+    if str(merged.get("risk_profile", "balanced")).lower() not in (
+            "balanced", "aggressive"):
+        raise ValueError("config_brain risk_profile balanced/aggressive olmali")
+    for key in ("backend_url", "exec_token", "terminal_path"):
+        if not isinstance(merged.get(key), str):
+            raise ValueError("config_brain %s string olmali" % key)
+    if "account_server" in merged and not isinstance(merged.get("account_server"), str):
+        raise ValueError("config_brain account_server string olmali")
+    merged["allowed_account"] = _validated_allowed_account(
+        merged.get("allowed_account"))
+    if merged.get("dry_run") is not True and (
+            merged["allowed_account"] <= 0
+            or not merged.get("account_server", "").strip()):
+        raise ValueError(
+            "canli config_brain allowed_account + account_server kilidi gerektirir")
+    _validate_numeric_config(merged)
+    return merged
+
+
+def _validated_allowed_account(value):
+    """Return a literal non-negative MT5 login; reject coercible lookalikes."""
+    if type(value) is not int or value < 0:
+        raise ValueError("config_brain allowed_account negatif olmayan JSON integer olmali")
+    return value
+
+
+def _finite_config_number(cfg, key, low, high, *, integer=False):
+    value = cfg.get(key)
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        raise ValueError("config_brain %s sonlu JSON number olmali" % key)
+    number = float(value)
+    if not math.isfinite(number) or number < low or number > high:
+        raise ValueError(
+            "config_brain %s %.4g..%.4g araliginda olmali" % (key, low, high))
+    if integer and type(value) is not int:
+        raise ValueError("config_brain %s JSON integer olmali" % key)
+    return value
+
+
+def _validate_numeric_config(cfg):
+    ranges = {
+        "poll_seconds": (0.2, 60.0),
+        "daily_entry_brake_pct": (0.01, 1.5),
+        "max_open_risk_pct": (0.01, 1.5),
+        "hard_max_open_risk_pct": (0.01, 2.0),
+        "max_symbol_side_risk_pct": (0.01, 0.5),
+        "max_bot_risk_pct": (0.01, 0.5),
+        "daily_flatten_warning_pct": (0.01, 4.0),
+        "daily_flatten_pct": (0.01, 4.25),
+        "daily_hard_limit_pct": (0.01, 4.5),
+        "total_flatten_warning_pct": (0.01, 9.0),
+        "total_flatten_pct": (0.01, 9.25),
+        "total_hard_limit_pct": (0.01, 9.5),
+        "profit_stop_pct": (10.0, 10.0),
+        "min_expected_pnl_usd": (15.0, 1e9),
+        "min_initial_risk_usd": (15.0, 1e9),
+        "profit_lock_arm_usd": (15.0, 1e9),
+        "profit_lock_floor_usd": (15.0, 1e9),
+        "profit_giveback_pct": (0.1, 100.0),
+        "hype_window_seconds": (1.0, 3600.0),
+        "hype_giveback_pct": (0.1, 100.0),
+        "adverse_exit_r": (0.01, 1.0),
+        "adverse_acceleration_r": (0.0, 1.0),
+        "adverse_window_seconds": (1.0, 3600.0),
+        "trail_start_r": (0.5, 10.0),
+        "trail_distance_r": (0.25, 5.0),
+        "min_discretionary_exit_usd": (15.0, 1e9),
+        "report_interval_seconds": (0.2, 5.0),
+        "closed_history_hours": (24.0, 720.0),
+    }
+    for key, (low, high) in ranges.items():
+        _finite_config_number(cfg, key, low, high)
+    aliases = {
+        "daily_loss_warning_pct_account": (0.01, 4.0),
+        "daily_loss_flatten_pct_account": (0.01, 4.25),
+        "total_drawdown_warning_pct_account": (0.01, 9.0),
+        "total_drawdown_flatten_pct_account": (0.01, 9.25),
+    }
+    for key, (low, high) in aliases.items():
+        if key in cfg:
+            _finite_config_number(cfg, key, low, high)
+    _finite_config_number(cfg, "deviation_points", 0, 10000, integer=True)
+    if float(cfg["daily_flatten_warning_pct"]) > float(cfg["daily_flatten_pct"]):
+        raise ValueError("daily warning flatten'dan buyuk olamaz")
+    if float(cfg["daily_flatten_pct"]) > float(cfg["daily_hard_limit_pct"]):
+        raise ValueError("daily flatten hard limitten buyuk olamaz")
+    if float(cfg["total_flatten_warning_pct"]) > float(cfg["total_flatten_pct"]):
+        raise ValueError("total warning flatten'dan buyuk olamaz")
+    if float(cfg["total_flatten_pct"]) > float(cfg["total_hard_limit_pct"]):
+        raise ValueError("total flatten hard limitten buyuk olamaz")
+    if float(cfg["profit_lock_floor_usd"]) > float(cfg["profit_lock_arm_usd"]):
+        raise ValueError("profit lock floor arm seviyesinden buyuk olamaz")
+    if float(cfg["trail_distance_r"]) >= float(cfg["trail_start_r"]):
+        raise ValueError("trail_distance_r trail_start_r degerinden kucuk olmali")
+
+
+def _startup_recovery_config():
+    """Build a narrow config used only to supervise after config corruption.
+
+    Live account authority is never inferred here.  ``main`` subsequently
+    requires the connected login to match the durable state login before it
+    permits close-only recovery.
+    """
+    raw = {}
+    try:
+        with open(CONFIG_PATH, "r", encoding="utf-8-sig") as fh:
+            candidate = json.load(fh)
+        if isinstance(candidate, dict):
+            raw = candidate
+    except (OSError, ValueError, TypeError, json.JSONDecodeError):
+        pass
+    cfg = dict(DEFAULTS)
+    for key in ("terminal_path", "backend_url", "exec_token", "account_server"):
+        if isinstance(raw.get(key), str):
+            cfg[key] = raw[key]
+    # A literal true is the only value allowed to prove this was paper mode.
+    # Missing/malformed values are treated as potentially live and fail closed.
+    cfg["dry_run"] = raw.get("dry_run") is True
+    cfg["enabled"] = False
+    cfg["allowed_account"] = 0
+    return cfg
+
+
+def _atomic_json(path, value):
+    tmp = "%s.%s.tmp" % (path, os.getpid())
+    with open(tmp, "w", encoding="utf-8") as fh:
+        json.dump(value, fh, ensure_ascii=False, indent=2, sort_keys=True)
+        fh.flush()
+        os.fsync(fh.fileno())
+    os.replace(tmp, path)
+
+
+def _load_state():
+    try:
+        with open(STATE_PATH, "r", encoding="utf-8-sig") as fh:
+            value = json.load(fh)
+        if not isinstance(value, dict):
+            raise RuntimeError("account brain state JSON object olmali")
+        return value
+    except FileNotFoundError:
+        return None
+    except (json.JSONDecodeError, OSError) as exc:
+        raise RuntimeError("account brain state okunamadi/bozuk") from exc
+
+
+def _save_state(state):
+    _atomic_json(STATE_PATH, state)
+
+
+def _stop_mode(path=None):
+    """Return (mode, reason) without treating a manual STOP as close authority."""
+    path = path or STOP_MASTER
+    if not os.path.exists(path):
+        return "none", None
+    try:
+        with open(path, "r", encoding="utf-8-sig") as fh:
+            value = json.load(fh)
+        if isinstance(value, dict):
+            close_only = value.get("closeOnly") is True
+            flatten = value.get("emergencyFlatten") is True
+            if close_only and flatten:
+                return "close-only", str(value.get("reason") or "risk-stop-master")[:240]
+            if close_only or flatten:
+                return "risk-incomplete", str(
+                    value.get("reason") or "incomplete-risk-stop-master")[:240]
+    except (OSError, ValueError, TypeError, json.JSONDecodeError):
+        pass
+    return "manual", "manual-stop-master"
+
+
+def _live_state_error(state, cfg, ai):
+    """Validate live baselines before they can influence a risk decision."""
+    if not isinstance(state, dict) or not state:
+        return "live-state-missing"
+    raw_version = state.get("version")
+    if type(raw_version) is not int:
+        return "live-state-version-invalid"
+    version = raw_version
+    if version != 3:
+        return "live-state-version-invalid"
+    try:
+        login = int(getattr(ai, "login", 0) or 0)
+        raw_login = state.get("login")
+        if type(raw_login) is not int:
+            return "live-state-account-mismatch"
+        state_login = raw_login
+    except (TypeError, ValueError, OverflowError):
+        return "live-state-account-mismatch"
+    if login <= 0 or state_login <= 0 or state_login != login:
+        return "live-state-account-mismatch"
+    connected_server = str(getattr(ai, "server", "") or "").strip().lower()
+    state_server = state.get("server")
+    if (not isinstance(state_server, str) or not state_server.strip()
+            or not connected_server
+            or state_server.strip().lower() != connected_server):
+        return "live-state-server-mismatch"
+    try:
+        wanted = int(cfg.get("allowed_account") or 0)
+    except (TypeError, ValueError, OverflowError):
+        return "allowed-account-invalid"
+    if wanted and login != wanted:
+        return "allowed-account-mismatch"
+    for key in ("initialEquity", "dayStartEquity", "peakEquity"):
+        if isinstance(state.get(key), bool):
+            return "live-state-%s-invalid" % key
+        try:
+            value = float(state.get(key))
+        except (TypeError, ValueError):
+            return "live-state-%s-invalid" % key
+        if not math.isfinite(value) or value <= 0:
+            return "live-state-%s-invalid" % key
+    day_value = state.get("day")
+    if not isinstance(day_value, str) or not day_value.strip():
+        return "live-state-day-invalid"
+    try:
+        datetime.strptime(day_value, "%Y-%m-%d")
+    except (TypeError, ValueError):
+        return "live-state-day-invalid"
+    if day_value > _trading_day():
+        return "live-state-day-in-future"
+    if not isinstance(state.get("tickets"), dict):
+        return "live-state-tickets-invalid"
+    if not isinstance(state.get("close_reasons"), dict):
+        return "live-state-close-reasons-invalid"
+    return None
+
+
+def _mt5_init(cfg):
+    path = str(cfg.get("terminal_path") or "").strip()
+    return mt5.initialize(path=path) if path else mt5.initialize()
+
+
+def _account_allowed(cfg, ai):
+    try:
+        wanted = _validated_allowed_account(cfg.get("allowed_account"))
+        login = int(getattr(ai, "login", 0) or 0)
+    except (TypeError, ValueError, OverflowError):
+        return False
+    if not (bool(ai) and login > 0 and (not wanted or login == wanted)):
+        return False
+    wanted_server = str(cfg.get("account_server") or "").strip().lower()
+    connected_server = str(getattr(ai, "server", "") or "").strip().lower()
+    return not wanted_server or (
+        bool(connected_server) and connected_server == wanted_server)
+
+
+def _trading_day(now=None):
+    now = now or datetime.now(timezone.utc)
+    return (now + timedelta(hours=3)).strftime("%Y-%m-%d")
+
+
+def _tr_midnight_epoch(now=None):
+    now = now or datetime.now(timezone.utc)
+    tr = now + timedelta(hours=3)
+    midnight_tr = tr.replace(hour=0, minute=0, second=0, microsecond=0)
+    return int((midnight_tr - timedelta(hours=3)).timestamp())
+
+
+def _managed_positions(cfg, raw):
+    include_manual = bool(cfg.get("manage_magic_zero", False))
+    return [p for p in raw if include_manual or int(getattr(p, "magic", 0) or 0) > 0]
+
+
+def _net_position_pnl(pos):
+    return float(getattr(pos, "profit", 0) or 0) + float(getattr(pos, "swap", 0) or 0)
+
+
+def _is_close_deal(deal):
+    entry = getattr(deal, "entry", None)
+    close_values = {
+        getattr(mt5, "DEAL_ENTRY_OUT", 1),
+        getattr(mt5, "DEAL_ENTRY_OUT_BY", 3),
+        getattr(mt5, "DEAL_ENTRY_INOUT", 2),
+    }
+    return entry in close_values
+
+
+def _realized_today(deals):
+    start = _tr_midnight_epoch()
+    total = 0.0
+    for deal in deals:
+        if int(getattr(deal, "time", 0) or 0) < start or not _is_close_deal(deal):
+            continue
+        # Deposits/credits have no trading close entry and are already excluded.
+        total += (float(getattr(deal, "profit", 0) or 0)
+                  + float(getattr(deal, "commission", 0) or 0)
+                  + float(getattr(deal, "swap", 0) or 0)
+                  + float(getattr(deal, "fee", 0) or 0))
+    return total
+
+
+def _initial_risk_usd(pos):
+    sl = float(getattr(pos, "sl", 0) or 0)
+    opened = float(getattr(pos, "price_open", 0) or 0)
+    volume = float(getattr(pos, "volume", 0) or 0)
+    if sl <= 0 or opened <= 0 or volume <= 0:
+        return None
+    is_buy = int(getattr(pos, "type", 0) or 0) == getattr(
+        mt5, "POSITION_TYPE_BUY", 0)
+    adverse = sl < opened if is_buy else sl > opened
+    if not adverse:
+        return 0.0
+    calc = getattr(mt5, "order_calc_profit", None)
+    if callable(calc):
+        try:
+            order_type = (getattr(mt5, "ORDER_TYPE_BUY", 0) if is_buy
+                          else getattr(mt5, "ORDER_TYPE_SELL", 1))
+            at_stop = calc(order_type, getattr(pos, "symbol", ""),
+                           volume, opened, sl)
+            if (at_stop is not None and math.isfinite(float(at_stop))
+                    and float(at_stop) < 0):
+                return -float(at_stop)
+        except Exception:
+            pass
+    info = mt5.symbol_info(getattr(pos, "symbol", ""))
+    if info is None:
+        return None
+    risk = trade_guard.per_lot_risk_usd(info, abs(opened - sl)) * volume
+    return risk if math.isfinite(risk) and risk > 0 else None
+
+
+def _send_with_filling(req):
+    last = None
+    for fill in (mt5.ORDER_FILLING_IOC, mt5.ORDER_FILLING_FOK, mt5.ORDER_FILLING_RETURN):
+        req["type_filling"] = fill
+        last = mt5.order_send(req)
+        if last is None:
+            return None
+        if last.retcode in (getattr(mt5, "TRADE_RETCODE_DONE", 10009),
+                            getattr(mt5, "TRADE_RETCODE_DONE_PARTIAL", 10010)):
+            return last
+        if last.retcode != 10030:
+            return last
+    return last
+
+
+def _close_position(cfg, pos, reason, state):
+    ai = mt5.account_info()
+    if not _account_allowed(cfg, ai):
+        log.error("KAPATMA RED: hesap kilidi/eslesmesi yok (%s)", reason)
+        return False
+    is_buy = int(getattr(pos, "type", 0)) == getattr(mt5, "POSITION_TYPE_BUY", 0)
+    tick = mt5.symbol_info_tick(pos.symbol)
+    price = 0.0
+    if tick is not None:
+        price = float(tick.bid if is_buy else tick.ask)
+    if price <= 0:
+        price = float(getattr(pos, "price_current", 0) or 0)
+    if price <= 0:
+        log.error("KAPATMA RED: %s ticket=%s fiyat yok", pos.symbol, pos.ticket)
+        return False
+    if cfg.get("dry_run", True):
+        log.info("[DRY] BEYIN KAPAT %s ticket=%s pnl=%.2f neden=%s",
+                 pos.symbol, pos.ticket, _net_position_pnl(pos), reason)
+        return False
+    req = {
+        "action": mt5.TRADE_ACTION_DEAL,
+        "symbol": pos.symbol,
+        "volume": float(pos.volume),
+        "type": mt5.ORDER_TYPE_SELL if is_buy else mt5.ORDER_TYPE_BUY,
+        "position": int(pos.ticket),
+        "price": price,
+        "deviation": int(cfg.get("deviation_points", 30)),
+        "magic": int(getattr(pos, "magic", 0) or 0),
+        "comment": ("brain:" + str(reason))[:31],
+        "type_time": mt5.ORDER_TIME_GTC,
+    }
+    result = _send_with_filling(req)
+    ok = bool(result and result.retcode in (
+        getattr(mt5, "TRADE_RETCODE_DONE", 10009),
+        getattr(mt5, "TRADE_RETCODE_DONE_PARTIAL", 10010),
+    ))
+    if ok:
+        ticket = str(getattr(pos, "ticket", ""))
+        identifier = str(getattr(pos, "identifier", "") or ticket)
+        close_meta = {
+            "reason": reason, "requestedSec": int(time.time()), "requestedPrice": price,
+        }
+        reasons = state.setdefault("close_reasons", {})
+        reasons[ticket] = close_meta
+        reasons[identifier] = close_meta
+        partial = int(getattr(result, "retcode", 0) or 0) == getattr(
+            mt5, "TRADE_RETCODE_DONE_PARTIAL", 10010)
+        if partial:
+            log.warning(
+                "BEYIN KISMI KAPATMA DOLUMU %s ticket=%s dolan=%s/%s; kalan sonraki turda tekrar denenecek neden=%s",
+                pos.symbol, ticket, getattr(result, "volume", "?"),
+                getattr(pos, "volume", "?"), reason)
+        else:
+            log.warning("BEYIN KAPATMA DOLUMU %s ticket=%s pnl=%.2f neden=%s",
+                        pos.symbol, ticket, _net_position_pnl(pos), reason)
+    else:
+        log.error("BEYIN KAPATAMADI %s ticket=%s neden=%s sonuc=%s hata=%s",
+                  pos.symbol, pos.ticket, reason,
+                  getattr(result, "retcode", None), mt5.last_error())
+    return ok
+
+
+def _write_stop(reason, snapshot):
+    mode, _ = _stop_mode()
+    if mode == "manual":
+        # A human-created plaintext STOP is never overwritten or reinterpreted.
+        return False
+    if mode == "close-only":
+        return True
+    value = {
+        "createdSec": int(time.time()),
+        "reason": reason,
+        "source": "central-account-brain",
+        "closeOnly": True,
+        "emergencyFlatten": True,
+        "snapshot": snapshot,
+        "resume": "Pozisyonlar sifirlandiktan ve insan incelemesinden sonra DEVAM kullanin.",
+    }
+    if mode == "risk-incomplete":
+        # Migrate only an unmistakable risk JSON.  Plaintext/manual STOPs stay
+        # untouched, while a legacy half-latch cannot strand the daemon after
+        # a reboot.
+        try:
+            with open(STOP_MASTER, "r", encoding="utf-8-sig") as fh:
+                existing = json.load(fh)
+            if isinstance(existing, dict):
+                value = dict(existing, **value)
+        except (OSError, ValueError, TypeError, json.JSONDecodeError):
+            return False
+    _atomic_json(STOP_MASTER, value)
+    return True
+
+
+def _snapshot(cfg, ai, positions, deals, state, telemetry_ok=True,
+              managed_count=None):
+    balance = float(getattr(ai, "balance", 0) or 0)
+    equity = float(getattr(ai, "equity", 0) or 0)
+    login = int(getattr(ai, "login", 0) or 0)
+    realized = _realized_today(deals)
+    floating = sum(_net_position_pnl(p) for p in positions)
+    day = _trading_day()
+
+    server = str(getattr(ai, "server", "") or "")
+    state_server = str(state.get("server") or "")
+    if int(state.get("login", 0) or 0) != login or (
+            state_server and state_server.lower() != server.lower()):
+        if int(state.get("login", 0) or 0) and not cfg.get("dry_run", True):
+            raise RuntimeError("live state hesap degisimi: explicit bootstrap gerekli")
+        state.clear()
+        state.update({
+            "version": 3,
+            "login": login,
+            "server": server,
+            "initialBalance": balance,
+            "initialEquity": equity,
+            "peakEquity": max(balance, equity),
+            "day": day,
+            "dayStartEquity": max(0.01, equity),
+            "tickets": {},
+            "close_reasons": {},
+        })
+    if state.get("day") != day:
+        state["day"] = day
+        state["dayStartEquity"] = max(0.01, equity)
+    state["peakEquity"] = max(float(state.get("peakEquity", equity) or equity), equity)
+    state["version"] = 3
+    state["server"] = server
+
+    if "initialEquity" not in state:
+        state["initialEquity"] = max(
+            0.01, float(state.get("initialBalance", equity) or equity))
+    if "dayStartEquity" not in state:
+        # One-time conservative migration from the old balance baseline.  It
+        # never lets carried floating profit offset future losses.
+        old_day = float(state.get("dayStartBalance", equity) or equity)
+        state["dayStartEquity"] = max(0.01, equity, old_day)
+
+    day_start = max(0.01, float(state.get("dayStartEquity", equity) or equity))
+    initial = max(0.01, float(state.get("initialEquity", equity) or equity))
+    peak = max(0.01, float(state.get("peakEquity", equity) or equity))
+    daily_loss_pct = max(0.0, (day_start - equity) / day_start * 100.0)
+    total_dd_pct = max(0.0, (peak - equity) / peak * 100.0)
+    profit_pct = (equity - initial) / initial * 100.0
+
+    open_risk = 0.0
+    unbounded = []
+    by_bot = {}
+    by_symbol_side = {}
+    for pos in positions:
+        risk = _initial_risk_usd(pos)
+        if risk is None or not math.isfinite(float(risk)) or risk < 0:
+            unbounded.append(str(pos.ticket))
+        else:
+            open_risk += risk
+            magic = int(getattr(pos, "magic", 0) or 0)
+            bot_key = str(magic) if magic > 0 else "manual-or-unknown"
+            side = "buy" if int(getattr(pos, "type", 0) or 0) == getattr(
+                mt5, "POSITION_TYPE_BUY", 0) else "sell"
+            symbol_key = "%s|%s" % (
+                account_brain.canonical_underlying(getattr(pos, "symbol", "")), side)
+            by_bot[bot_key] = by_bot.get(bot_key, 0.0) + risk
+            by_symbol_side[symbol_key] = by_symbol_side.get(symbol_key, 0.0) + risk
+    open_risk_pct = open_risk / equity * 100.0 if equity > 0 else 999.0
+    max_bot_pct = (max(by_bot.values(), default=0.0) / equity * 100.0
+                   if equity > 0 else 999.0)
+    max_symbol_side_pct = (max(by_symbol_side.values(), default=0.0) / equity * 100.0
+                           if equity > 0 else 999.0)
+    return {
+        "version": VERSION,
+        "timeSec": int(time.time()),
+        "ok": bool(telemetry_ok),
+        "dryRun": bool(cfg.get("dry_run", True)),
+        "login": login,
+        "server": server,
+        "balance": round(balance, 2),
+        "equity": round(equity, 2),
+        "initialBalance": round(initial, 2),
+        "initialEquity": round(initial, 2),
+        "peakEquity": round(peak, 2),
+        "dayStartBalance": round(day_start, 2),
+        "dayStartEquity": round(day_start, 2),
+        "realizedToday": round(realized, 2),
+        "floatingPnl": round(floating, 2),
+        "dailyLossPct": round(daily_loss_pct, 4),
+        "totalDrawdownPct": round(total_dd_pct, 4),
+        "profitPct": round(profit_pct, 4),
+        "openRiskUsd": round(open_risk, 2),
+        "openRiskPct": round(open_risk_pct, 4),
+        "maxBotRiskPct": round(max_bot_pct, 4),
+        "maxSymbolSideRiskPct": round(max_symbol_side_pct, 4),
+        "unboundedTickets": unbounded,
+        "openPositions": len(positions),
+        "managedOpenPositions": len(positions) if managed_count is None else int(managed_count),
+        "lastReportSuccessSec": int(state.get("lastReportSuccessSec", 0) or 0),
+        "telemetryOk": bool(telemetry_ok),
+        "stopMaster": os.path.exists(STOP_MASTER),
+    }
+
+
+def _cfg_float(cfg, names, default):
+    for name in names:
+        value = cfg.get(name)
+        if value is not None:
+            try:
+                return float(value)
+            except (TypeError, ValueError):
+                continue
+    return float(default)
+
+
+def _global_exit_reason(cfg, snap):
+    # User hard ceilings cannot be widened by local config. Lower values remain
+    # allowed as an intentionally safer policy.
+    profit_stop = 10.0
+    daily_flatten = min(4.25, max(0.01, _cfg_float(
+        cfg, ("daily_loss_flatten_pct_account", "daily_flatten_pct"), 4.25)))
+    total_flatten = min(9.25, max(0.01, _cfg_float(
+        cfg, ("total_drawdown_flatten_pct_account", "total_flatten_pct"), 9.25)))
+    open_hard = min(2.0, max(0.01, _cfg_float(
+        cfg, ("hard_max_open_risk_pct",), 2.0)))
+    symbol_hard = min(0.5, max(0.01, _cfg_float(
+        cfg, ("max_symbol_side_risk_pct",), 0.5)))
+    bot_hard = min(0.5, max(0.01, _cfg_float(
+        cfg, ("max_bot_risk_pct",), 0.5)))
+    if snap.get("unboundedTickets"):
+        return "unbounded-open-risk"
+    if snap.get("openRiskPct", 0) > open_hard + 1e-9:
+        return "open-risk-hard-%s" % open_hard
+    if snap.get("maxSymbolSideRiskPct", 0) > symbol_hard + 1e-9:
+        return "symbol-side-risk-hard-%s" % symbol_hard
+    if snap.get("maxBotRiskPct", 0) > bot_hard + 1e-9:
+        return "bot-risk-hard-%s" % bot_hard
+    if snap["profitPct"] >= profit_stop:
+        return "profit-target-%s" % profit_stop
+    if snap["dailyLossPct"] >= daily_flatten:
+        return "daily-loss-buffer-%s" % daily_flatten
+    if snap["totalDrawdownPct"] >= total_flatten:
+        return "total-drawdown-buffer-%s" % total_flatten
+    return None
+
+
+def _dynamic_exit_reason(cfg, pos, meta, now):
+    pnl = _net_position_pnl(pos)
+    peak_raw = meta.get("peakPnl", pnl)
+    peak = max(float(pnl if peak_raw is None else peak_raw), pnl)
+    if pnl >= peak:
+        meta["peakPnl"] = pnl
+        meta["peakSec"] = now
+        peak = pnl
+    else:
+        meta["peakPnl"] = peak
+    risk = float(meta.get("initialRiskUsd", 0) or 0)
+    if risk <= 0:
+        risk = _initial_risk_usd(pos)
+        meta["initialRiskUsd"] = risk
+
+    arm = max(float(cfg.get("profit_lock_arm_usd", 20.0)),
+              float(cfg.get("min_discretionary_exit_usd", 15.0)))
+    floor = float(cfg.get("profit_lock_floor_usd", 15.0))
+    giveback = float(cfg.get("profit_giveback_pct", 20.0)) / 100.0
+    if peak >= arm:
+        locked = max(floor, peak * (1.0 - giveback))
+        if pnl <= locked:
+            return "profit-giveback-peak-%.2f-now-%.2f" % (peak, pnl)
+        peak_age = now - float(meta.get("peakSec", now) or now)
+        hype_drop = peak - pnl
+        hype_pct = float(cfg.get("hype_giveback_pct", 12.0)) / 100.0
+        if (peak_age <= float(cfg.get("hype_window_seconds", 20))
+                and hype_drop >= peak * hype_pct and pnl >= floor):
+            return "fast-hype-reversal-peak-%.2f-now-%.2f" % (peak, pnl)
+
+    prev_raw = meta.get("lastPnl", pnl)
+    prev_sec_raw = meta.get("lastSec", now)
+    prev_pnl = float(pnl if prev_raw is None else prev_raw)
+    prev_sec = float(now if prev_sec_raw is None else prev_sec_raw)
+    meta["lastPnl"] = pnl
+    meta["lastSec"] = now
+    min_exit = float(cfg.get("min_discretionary_exit_usd", 15.0))
+    if risk > 0 and pnl <= -max(min_exit, risk * float(cfg.get("adverse_exit_r", 0.55))):
+        deterioration = prev_pnl - pnl
+        if (now - prev_sec <= float(cfg.get("adverse_window_seconds", 12))
+                and deterioration >= risk * float(cfg.get("adverse_acceleration_r", 0.20))):
+            return "fast-adverse-move-%.2fR" % (abs(pnl) / risk)
+    return None
+
+
+def _maybe_trail_stop(cfg, pos, meta):
+    """+3R sonrasi broker SL'ini tepe R'nin trail_distance_r gerisinde tut.
+
+    Fiyat-R hesabi ilk gorulen SL mesafesine baglanir (restart sonrasi
+    trail'lenmis SL baz alinir -> daha muhafazakar).  SL yalniz LEHTE tasinir;
+    broker minimum stop mesafesine uyulur, TP'ye dokunulmaz.
+    """
+    entry = float(getattr(pos, "price_open", 0) or 0)
+    sl = float(getattr(pos, "sl", 0) or 0)
+    if entry <= 0 or sl <= 0:
+        return  # SL'siz pozisyon zaten unbounded-risk frenine takilir
+    is_buy = int(getattr(pos, "type", 0) or 0) == getattr(
+        mt5, "POSITION_TYPE_BUY", 0)
+    now = time.time()
+    retry_after = meta.get("trailRetryAfterSec")
+    if isinstance(retry_after, (int, float)) and not isinstance(retry_after, bool) \
+            and math.isfinite(float(retry_after)) and now < float(retry_after):
+        return
+    baseline = meta.get("initialSlPrice")
+    if (isinstance(baseline, bool) or not isinstance(baseline, (int, float))
+            or not math.isfinite(float(baseline)) or float(baseline) <= 0):
+        meta["initialSlPrice"] = sl
+        baseline = sl
+    baseline = float(baseline)
+    adverse = baseline < entry if is_buy else baseline > entry
+    if not adverse:
+        # Baseline zaten kar bolgesinde (onceki trail'den devralindi); mesafe
+        # olarak giris-SL yerine mevcut SL-fiyat R'si kullanilamaz, cik.
+        return
+    risk_dist = abs(entry - baseline)
+    if risk_dist <= 0:
+        return
+    price = float(getattr(pos, "price_current", 0) or 0)
+    tick = mt5.symbol_info_tick(getattr(pos, "symbol", ""))
+    if tick is not None:
+        side_price = float(getattr(tick, "bid" if is_buy else "ask", 0) or 0)
+        if side_price > 0:
+            price = side_price
+    if price <= 0:
+        return
+    favorable = (price - entry) if is_buy else (entry - price)
+    r_now = favorable / risk_dist
+    if not math.isfinite(r_now):
+        return
+    peak_raw = meta.get("peakR")
+    peak_r = r_now if (isinstance(peak_raw, bool)
+                       or not isinstance(peak_raw, (int, float))
+                       or not math.isfinite(float(peak_raw))) else \
+        max(float(peak_raw), r_now)
+    meta["peakR"] = peak_r
+    if peak_r < float(cfg.get("trail_start_r", 3.0)):
+        return
+    lock_r = peak_r - float(cfg.get("trail_distance_r", 1.0))
+    desired = entry + lock_r * risk_dist if is_buy else entry - lock_r * risk_dist
+    info = mt5.symbol_info(getattr(pos, "symbol", ""))
+    if info is None:
+        return
+    point = float(getattr(info, "point", 0) or 0)
+    digits = int(getattr(info, "digits", 5) or 5)
+    stops_level = int(getattr(info, "trade_stops_level", 0) or 0)
+    freeze_level = int(getattr(info, "trade_freeze_level", 0) or 0)
+    spread = int(getattr(info, "spread", 0) or 0)
+    min_dist = max(stops_level, freeze_level, spread + 1, 10) * point
+    desired = round(desired, digits)
+    if not math.isfinite(desired) or desired <= 0:
+        return
+    eps = point / 2 if point > 0 else 1e-9
+    if is_buy:
+        if desired <= sl + eps or desired >= price - min_dist:
+            return
+    else:
+        if desired >= sl - eps or desired <= price + min_dist:
+            return
+    if cfg.get("dry_run", True):
+        log.info("[DRY] TRAIL %.2fR %s ticket=%s SL %s -> %s",
+                 peak_r, getattr(pos, "symbol", "?"),
+                 getattr(pos, "ticket", "?"), sl, desired)
+        return
+    req = {
+        "action": mt5.TRADE_ACTION_SLTP,
+        "position": int(getattr(pos, "ticket", 0) or 0),
+        "symbol": getattr(pos, "symbol", ""),
+        "sl": desired,
+        "tp": float(getattr(pos, "tp", 0) or 0),
+    }
+    result = mt5.order_send(req)
+    if result is not None and int(getattr(result, "retcode", 0) or 0) == getattr(
+            mt5, "TRADE_RETCODE_DONE", 10009):
+        meta.pop("trailRetryAfterSec", None)
+        meta.pop("trailFailCount", None)
+        log.info("TRAIL %.2fR %s ticket=%s SL -> %s",
+                 peak_r, getattr(pos, "symbol", "?"),
+                 getattr(pos, "ticket", "?"), desired)
+    else:
+        # Ustel geri cekilme: kapali piyasa/baglanti kesintisinde saniyelik
+        # modify yagmuru olmasin (15sn -> ... -> 15dk tavani).
+        fails = int(meta.get("trailFailCount", 0) or 0) + 1
+        meta["trailFailCount"] = fails
+        meta["trailRetryAfterSec"] = now + min(900.0, 15.0 * (2 ** min(fails, 6)))
+        log.error("TRAIL basarisiz %s ticket=%s retcode=%s hata=%s (tekrar %ss sonra)",
+                  getattr(pos, "symbol", "?"), getattr(pos, "ticket", "?"),
+                  getattr(result, "retcode", None), mt5.last_error(),
+                  int(meta["trailRetryAfterSec"] - now))
+
+
+def _parse_code(comment):
+    value = str(comment or "").strip()
+    for prefix in ("A#", "BK#", "BKG#"):
+        if value.startswith(prefix):
+            return value[len(prefix):]
+    return value or None
+
+
+def _open_rows(positions, account=None, server=None):
+    rows = []
+    buy = getattr(mt5, "POSITION_TYPE_BUY", 0)
+    for pos in positions:
+        ticket = str(getattr(pos, "ticket", ""))
+        identifier = str(getattr(pos, "identifier", "") or ticket)
+        rows.append({
+            "ticket": ticket,
+            "positionTicket": ticket,
+            "positionIdentifier": identifier,
+            "account": int(account or 0),
+            "server": str(server or ""),
+            "magic": int(getattr(pos, "magic", 0) or 0),
+            "code": _parse_code(getattr(pos, "comment", "")),
+            "comment": str(getattr(pos, "comment", "") or ""),
+            "symbol": str(getattr(pos, "symbol", "") or ""),
+            "direction": "long" if getattr(pos, "type", 0) == buy else "short",
+            "lot": float(getattr(pos, "volume", 0) or 0),
+            "price": float(getattr(pos, "price_open", 0) or 0),
+            "entryPrice": float(getattr(pos, "price_open", 0) or 0),
+            "sl": float(getattr(pos, "sl", 0) or 0),
+            "tp": float(getattr(pos, "tp", 0) or 0),
+            "openedSec": int(getattr(pos, "time", 0) or 0),
+        })
+    return rows
+
+
+def _deal_sort_key(deal):
+    return (int(getattr(deal, "time_msc", 0) or 0),
+            int(getattr(deal, "time", 0) or 0),
+            int(getattr(deal, "ticket", 0) or 0))
+
+
+def _position_history(position_ticket):
+    """Fetch the complete broker lifecycle so entry commission is included."""
+    try:
+        rows = mt5.history_deals_get(position=int(position_ticket))
+    except Exception as exc:
+        log.error("position deal gecmisi alinamadi ticket=%s: %s",
+                  position_ticket, exc)
+        return None
+    if rows is None:
+        log.error("position deal gecmisi None ticket=%s: %s",
+                  position_ticket, mt5.last_error())
+        return None
+    return list(rows)
+
+
+def _closed_rows(deals, state, min_closed_sec=0, live_position_tickets=(),
+                 account=None, server=None, return_status=False):
+    """Emit one exact net row only when a broker position is fully closed.
+
+    Partial exit deals remain silent while their position ticket is live.  On
+    final closure every deal in that position lifecycle is aggregated, so the
+    result includes entry and exit commission, swap and fee exactly once.
+    """
+    rows = []
+    blocked_position_ids = []
+    reasons = state.get("close_reasons", {})
+    live = {str(ticket) for ticket in live_position_tickets}
+    candidates = {}
+    boundary = int(min_closed_sec or 0)
+    for deal in deals:
+        if not _is_close_deal(deal) or int(getattr(deal, "magic", 0) or 0) <= 0:
+            continue
+        if int(getattr(deal, "time", 0) or 0) < boundary:
+            continue
+        position_ticket = str(getattr(deal, "position_id", "") or "")
+        if not position_ticket:
+            continue
+        candidates.setdefault(position_ticket, []).append(deal)
+
+    for position_ticket, recent_closes in candidates.items():
+        if position_ticket in live:
+            continue
+        lifecycle = _position_history(position_ticket)
+        if lifecycle is None:
+            # Do not advance the notification cursor with an incomplete net
+            # amount. A later successful poll will retry the same close.
+            blocked_position_ids.append(position_ticket)
+            continue
+        close_deals = [deal for deal in lifecycle if _is_close_deal(deal)]
+        if not close_deals:
+            continue
+        latest = max(close_deals, key=_deal_sort_key)
+        if int(getattr(latest, "time", 0) or 0) < boundary:
+            continue
+
+        profit = sum(float(getattr(d, "profit", 0) or 0) for d in lifecycle)
+        commission = sum(float(getattr(d, "commission", 0) or 0) for d in lifecycle)
+        swap = sum(float(getattr(d, "swap", 0) or 0) for d in lifecycle)
+        fee = sum(float(getattr(d, "fee", 0) or 0) for d in lifecycle)
+        volume = sum(float(getattr(d, "volume", 0) or 0) for d in close_deals)
+        magic = int(getattr(latest, "magic", 0) or 0)
+        if magic <= 0:
+            magic = next((int(getattr(d, "magic", 0) or 0)
+                          for d in lifecycle
+                          if int(getattr(d, "magic", 0) or 0) > 0), 0)
+        if magic <= 0:
+            continue
+
+        comment = str(getattr(latest, "comment", "") or "")
+        code = None
+        for item in sorted(lifecycle, key=_deal_sort_key):
+            item_comment = str(getattr(item, "comment", "") or "")
+            if item_comment.startswith(("A#", "BK#", "BKG#")):
+                code = _parse_code(item_comment)
+                comment = item_comment
+                break
+        local_reason = reasons.get(position_ticket, {})
+        rows.append({
+            "id": str(getattr(latest, "ticket", "")),
+            "dealTicket": str(getattr(latest, "ticket", "")),
+            "positionTicket": position_ticket,
+            "positionIdentifier": position_ticket,
+            "account": int(account or 0),
+            "server": str(server or ""),
+            "magic": magic,
+            "code": code or _parse_code(comment),
+            "comment": comment,
+            "symbol": str(getattr(latest, "symbol", "") or next(
+                (getattr(d, "symbol", "") for d in lifecycle
+                 if getattr(d, "symbol", "")), "")),
+            "lot": round(volume, 8),
+            "price": float(getattr(latest, "price", 0) or 0),
+            "exitPrice": float(getattr(latest, "price", 0) or 0),
+            "profit": round(profit, 2),
+            "commission": round(commission, 2),
+            "swap": round(swap, 2),
+            "fee": round(fee, 2),
+            "pnl": round(profit + commission + swap + fee, 2),
+            "componentsExact": True,
+            "closedSec": int(getattr(latest, "time", 0) or 0),
+            "reason": local_reason.get("reason") or str(
+                getattr(latest, "reason", "broker")),
+            "reasonCode": int(getattr(latest, "reason", 0) or 0),
+        })
+    rows = sorted(rows, key=lambda row: (row["closedSec"], row["dealTicket"]))
+    if return_status:
+        return rows, bool(blocked_position_ids), tuple(blocked_position_ids)
+    return rows
+
+
+def _backend_base(cfg):
+    base = str(cfg.get("backend_url") or "").rstrip("/")
+    if "://borsakrali.com" in base:
+        base = base.replace("://borsakrali.com", "://www.borsakrali.com", 1)
+    return base
+
+
+def _report_state(cfg, positions, deals, state, snap, live_positions=None,
+                  history_cutoff_sec=None):
+    token = str(cfg.get("exec_token") or "")
+    if not token:
+        log.warning("exec_token bos: broker yasam dongusu backend'e raporlanamiyor")
+        return False
+    # Broker fills queued synchronously by the entry bridges must reach the
+    # backend before any later close. Keep close cursor unchanged on failure.
+    mt5_brain_adapter.flush_broker_event_outbox(cfg, logger=log)
+    pending_opens = mt5_brain_adapter.broker_event_outbox_count(cfg)
+    if pending_opens:
+        log.error("%s broker acilis olayi kuyrukta; kapanis raporu sirayi korumak icin beklendi",
+                  pending_opens)
+        return False
+    stored_cursor = int(state.get("notificationCursorSec", 0) or 0)
+    established_cursor = stored_cursor > 0
+    cursor = stored_cursor
+    if not established_cursor:
+        cursor = int(time.time()) - max(24, int(cfg.get("closed_history_hours", 48))) * 3600
+    live_source = positions if live_positions is None else live_positions
+    live_tickets = set()
+    for pos in live_source:
+        ticket = str(getattr(pos, "ticket", ""))
+        identifier = str(getattr(pos, "identifier", "") or ticket)
+        live_tickets.update((ticket, identifier))
+    account = int(snap.get("login", 0) or 0)
+    server = str(snap.get("server") or "")
+    closed_rows, cursor_blocked, blocked_ids = _closed_rows(
+        deals, state, cursor, live_tickets, account=account, server=server,
+        return_status=True)
+    if established_cursor:
+        for row in closed_rows:
+            # Once the durable cursor exists, even an outage older than the
+            # backend freshness window is a required lifecycle notification.
+            row["notificationRequired"] = True
+    payload = {
+        "source": "account-brain",
+        "account": account,
+        "server": server,
+        "open": _open_rows(positions, account=account, server=server),
+        "closed": closed_rows,
+        "snapshot": snap,
+    }
+    try:
+        response = requests.post(
+            _backend_base(cfg) + "/api/bridge/state",
+            json=payload,
+            headers={"Authorization": "Bearer " + token},
+            # 1sn'lik risk/trail dongusu ayni thread'de: uzun POST beklemesi
+            # trail/erken-cikis degerlendirmesini geciktirir, kisa tut.
+            timeout=8,
+            allow_redirects=False,
+        )
+        if response.status_code != 200:
+            log.error("broker durum POST %s: %s", response.status_code, response.text[:160])
+            return False
+        if cursor_blocked:
+            log.error(
+                "Kapanis lifecycle eksik (%s); cursor ilerletilmedi, basarili satirlar idempotent tekrar edilecek",
+                ",".join(blocked_ids))
+        else:
+            # Keep the boundary inclusive on the next POST. Deals sharing the same
+            # second are therefore never skipped; backend ticket idempotency removes
+            # the harmless replay at that one-second boundary.
+            observed = int(history_cutoff_sec or time.time())
+            latest_close = max(
+                (int(r.get("closedSec", 0) or 0) for r in closed_rows), default=0)
+            state["notificationCursorSec"] = max(stored_cursor, observed, latest_close)
+            for row in closed_rows:
+                reasons = state.get("close_reasons", {})
+                reasons.pop(row.get("positionTicket"), None)
+                reasons.pop(row.get("positionIdentifier"), None)
+        return True
+    except Exception as exc:
+        log.error("broker durum POST hatasi: %s", exc)
+        return False
+
+
+def _history(cfg, state):
+    hours = max(24, int(cfg.get("closed_history_hours", 48)))
+    now = datetime.now(timezone.utc)
+    cursor = int(state.get("notificationCursorSec", 0) or 0)
+    if cursor > 0:
+        start = datetime.fromtimestamp(max(0, cursor - 5), timezone.utc)
+    else:
+        start = now - timedelta(hours=hours)
+    return mt5.history_deals_get(start, now + timedelta(hours=6))
+
+
+def run_once(cfg, state, last_report=0.0, forced_stop_reason=None,
+             block_entries_reason=None, persist_state=True):
+    ai = mt5.account_info()
+    if not _account_allowed(cfg, ai):
+        raise RuntimeError("hesap bilgisi yok veya allowed_account eslesmiyor")
+    raw = mt5.positions_get()
+    if raw is None:
+        raise RuntimeError("positions_get None: %s" % (mt5.last_error(),))
+    risk_positions = list(raw)
+    positions = _managed_positions(cfg, risk_positions)
+    telemetry_ok = True
+    entry_blocks = []
+    report_every = max(1.0, float(cfg.get("report_interval_seconds", 2)))
+    report_due = time.time() - last_report >= report_every
+    # Never advertise a healthy live entry gate before this process has
+    # completed a current-boot authenticated lifecycle POST.  Mark a due
+    # report provisional before the network call; the next one-second cycle
+    # publishes success only after the POST was acknowledged.
+    if report_due:
+        state["lastReportOk"] = False
+    if block_entries_reason:
+        entry_blocks.append(str(block_entries_reason))
+    if state.get("lastReportOk") is not True:
+        telemetry_ok = False
+        entry_blocks.append(
+            "broker-lifecycle-report-pending" if report_due
+            else "broker-lifecycle-last-report-failed")
+
+    # A durable opening fact has strict priority over snapshots and closes.
+    # Pending delivery blocks new entries; a corrupt/unreadable outbox is a
+    # lifecycle-integrity emergency and therefore latches close-only mode.
+    outbox_fatal = False
+    pending_opens = mt5_brain_adapter.broker_event_outbox_count(cfg)
+    if pending_opens:
+        mt5_brain_adapter.flush_broker_event_outbox(cfg, logger=log)
+        pending_opens = mt5_brain_adapter.broker_event_outbox_count(cfg)
+    if pending_opens:
+        telemetry_ok = False
+        if pending_opens >= 10 ** 9:
+            entry_blocks.append("broker-event-outbox-unreadable")
+            outbox_fatal = not cfg.get("dry_run", True)
+        else:
+            entry_blocks.append("broker-event-outbox-pending-%s" % pending_opens)
+    if not cfg.get("dry_run", True) and (
+            not str(cfg.get("exec_token") or "").strip()
+            or not _backend_base(cfg)):
+        telemetry_ok = False
+        entry_blocks.append("broker-lifecycle-backend-not-configured")
+
+    history_cutoff_sec = int(time.time())
+    try:
+        history = _history(cfg, state)
+        if history is None:
+            raise RuntimeError("history_deals_get None: %s" % (mt5.last_error(),))
+        deals = list(history)
+    except Exception as exc:
+        # History/reporting loss blocks every new entry through ok=false, but it
+        # must never prevent equity/open-risk brakes from closing positions.
+        telemetry_ok = False
+        entry_blocks.append("deal-history-unavailable")
+        deals = []
+        log.error("deal history kullanilamiyor; girisler fail-closed, risk frenleri aktif: %s", exc)
+    snap = _snapshot(cfg, ai, risk_positions, deals, state,
+                     telemetry_ok=telemetry_ok, managed_count=len(positions))
+    latch = state.get("emergencyFlatten")
+    latched_reason = None
+    if isinstance(latch, dict) and latch.get("active") is True:
+        latched_reason = str(latch.get("reason") or "emergency-flatten-latched")
+    elif latch is True:
+        latched_reason = "emergency-flatten-latched"
+    global_reason = (str(forced_stop_reason) if forced_stop_reason else None)
+    global_reason = global_reason or latched_reason or _global_exit_reason(cfg, snap)
+    if not global_reason and outbox_fatal:
+        global_reason = "broker-event-outbox-unreadable"
+    if global_reason:
+        # Publish the brake in the same heartbeat used by every pre-send gate.
+        # This is written before the first close request to minimize races.
+        snap["ok"] = False
+        snap["stopMaster"] = True
+        snap["reason"] = global_reason
+    elif entry_blocks:
+        snap["ok"] = False
+        snap["reason"] = ",".join(dict.fromkeys(entry_blocks))[:240]
+    try:
+        _atomic_json(HEARTBEAT_PATH, snap)
+    except Exception as exc:
+        # A stale/missing heartbeat blocks bridges; continue to account exits.
+        log.critical("heartbeat yazilamadi; risk kapatmalari yine denenecek: %s", exc)
+
+    if global_reason:
+        log.critical("HESAP FRENI %s: hesaptaki tum pozisyonlar kapatiliyor", global_reason)
+        prior = latch if isinstance(latch, dict) else {}
+        if risk_positions:
+            state["emergencyFlatten"] = {
+                "active": True,
+                "reason": global_reason,
+                "createdSec": int(prior.get("createdSec") or time.time()),
+                "lastAttemptSec": int(time.time()),
+            }
+        else:
+            state["emergencyFlatten"] = {
+                "active": False,
+                "reason": global_reason,
+                "createdSec": int(prior.get("createdSec") or time.time()),
+                "flattenedSec": int(time.time()),
+            }
+        # Block every entry process first; otherwise a bridge could race a new
+        # order while the flatten loop is still sending closes.
+        if not cfg.get("dry_run", True):
+            try:
+                _write_stop(global_reason, snap)
+            except Exception as exc:
+                log.critical("STOP_MASTER yazilamadi; kapatma yine suruyor: %s", exc)
+        for pos in list(risk_positions):
+            try:
+                _close_position(cfg, pos, global_reason, state)
+            except Exception as exc:
+                log.exception("global kapatma ticket=%s hata=%s",
+                              getattr(pos, "ticket", "?"), exc)
+    else:
+        tickets = state.setdefault("tickets", {})
+        now = time.time()
+        live = set()
+        for pos in positions:
+            ticket = str(pos.ticket)
+            position_key = str(getattr(pos, "identifier", "") or ticket)
+            live.add(position_key)
+            meta = tickets.setdefault(position_key, {
+                "lastTicket": ticket,
+                "openedSec": int(getattr(pos, "time", now) or now),
+                "initialRiskUsd": _initial_risk_usd(pos),
+                "initialSlPrice": float(getattr(pos, "sl", 0) or 0),
+                "peakPnl": _net_position_pnl(pos),
+                "peakSec": now,
+                "lastPnl": _net_position_pnl(pos),
+                "lastSec": now,
+            })
+            meta["lastTicket"] = ticket
+            meta.pop("absentTurns", None)
+            reason = _dynamic_exit_reason(cfg, pos, meta, now)
+            if reason:
+                _close_position(cfg, pos, reason, state)
+            else:
+                try:
+                    _maybe_trail_stop(cfg, pos, meta)
+                except Exception as exc:
+                    log.error("trail hatasi ticket=%s: %s",
+                              getattr(pos, "ticket", "?"), exc)
+        # Bound persistent ticket metadata; closed lifecycle itself is durable
+        # on backend.  A transient empty positions_get() must not wipe the
+        # peakR/initialSlPrice baselines (R math would silently inflate), so a
+        # key is dropped only after three consecutive absent polls.
+        for position_key in list(tickets):
+            if position_key not in live:
+                absent_meta = tickets[position_key]
+                misses = (int(absent_meta.get("absentTurns", 0) or 0) + 1
+                          if isinstance(absent_meta, dict) else 3)
+                if misses >= 3:
+                    tickets.pop(position_key, None)
+                else:
+                    absent_meta["absentTurns"] = misses
+
+    if report_due:
+        report_ok = _report_state(
+            cfg, positions, deals, state, snap, live_positions=risk_positions,
+            history_cutoff_sec=history_cutoff_sec)
+        state["lastReportOk"] = bool(report_ok)
+        state["lastReportAttemptSec"] = int(time.time())
+        if report_ok:
+            state["lastReportSuccessSec"] = int(time.time())
+            last_report = time.time()
+            # Publish the acknowledged lifecycle result immediately. Without
+            # this second atomic write, poll>=report_interval would leave the
+            # gate permanently provisional even though every POST succeeded.
+            remaining_blocks = [
+                item for item in entry_blocks
+                if item != "broker-lifecycle-report-pending"
+            ]
+            snap["lastReportSuccessSec"] = state["lastReportSuccessSec"]
+            snap["timeSec"] = int(time.time())
+            if not global_reason:
+                snap["ok"] = not remaining_blocks
+                snap["telemetryOk"] = not remaining_blocks
+                if remaining_blocks:
+                    snap["reason"] = ",".join(
+                        dict.fromkeys(remaining_blocks))[:240]
+                else:
+                    snap.pop("reason", None)
+            try:
+                _atomic_json(HEARTBEAT_PATH, snap)
+            except Exception as exc:
+                log.critical(
+                    "basarili lifecycle sonrasi heartbeat yazilamadi; "
+                    "girisler stale fail-closed kalacak: %s", exc)
+    if persist_state:
+        _save_state(state)
+    return last_report, snap
+
+
+def main():
+    fh = logging.FileHandler(os.path.join(HERE, "account_brain.log"), encoding="utf-8")
+    fh.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(message)s"))
+    log.addHandler(fh)
+    config_recovery_reason = None
+    try:
+        cfg = load_config()
+    except Exception as exc:
+        # A corrupt live config must not turn the supervisor into a crash loop.
+        # Keep entries stopped, then use only durable state identity to decide
+        # whether close-only recovery may safely touch the connected account.
+        config_recovery_reason = "invalid-brain-config-startup"
+        cfg = _startup_recovery_config()
+        log.critical("CONFIG GUVENSIZ: close-only kurtarma deneniyor: %s", exc)
+        try:
+            _write_stop(config_recovery_reason, {"statePersisted": False})
+        except Exception as stop_exc:
+            log.critical("Config kurtarma STOP'u yazilamadi: %s", stop_exc)
+    initial_stop_mode, initial_stop_reason = _stop_mode()
+    if initial_stop_mode == "risk-incomplete":
+        try:
+            _write_stop(initial_stop_reason or "incomplete-risk-stop-master", {})
+        except Exception as exc:
+            log.critical("Eksik risk STOP kontrati tamamlanamadi: %s", exc)
+        initial_stop_mode, initial_stop_reason = _stop_mode()
+    if initial_stop_mode == "manual":
+        log.critical("Manuel STOP_MASTER mevcut; merkez beyin baslatilmayacak")
+        return 2
+    if not _mt5_init(cfg):
+        log.error("MT5 initialize basarisiz: %s", mt5.last_error())
+        return 1
+    state_load_error = None
+    try:
+        state = _load_state()
+    except RuntimeError as exc:
+        state = None
+        state_load_error = "brain-state-corrupt"
+        log.critical("Kalici risk state bozuk; baseline sifirlanmayacak: %s", exc)
+
+    ai = mt5.account_info()
+    if config_recovery_reason:
+        if cfg.get("dry_run") is True:
+            log.critical("Bozuk dry-run config duzeltilmeden merkez beyin baslatilmayacak")
+            mt5.shutdown()
+            return 2
+        state_login = state.get("login") if isinstance(state, dict) else None
+        state_server = state.get("server") if isinstance(state, dict) else None
+        connected_login = getattr(ai, "login", None) if ai is not None else None
+        connected_server = str(getattr(ai, "server", "") or "").strip().lower()
+        if (type(state_login) is not int or state_login <= 0
+                or type(connected_login) is not int
+                or connected_login != state_login
+                or not isinstance(state_server, str) or not state_server.strip()
+                or not connected_server
+                or state_server.strip().lower() != connected_server):
+            log.critical(
+                "CONFIG GUVENSIZ ve kalici state hesap kimligi dogrulanamadi; "
+                "STOP korundu, yanlis hesabi kapatma riski alinmadi")
+            mt5.shutdown()
+            return 2
+        cfg["allowed_account"] = state_login
+        cfg["account_server"] = state_server
+    if not _account_allowed(cfg, ai):
+        log.critical("Hesap bilgisi yok veya allowed_account eslesmiyor")
+        mt5.shutdown()
+        return 2
+
+    persist_state = True
+    recovery_reason = None
+    if cfg.get("dry_run", True):
+        if state_load_error:
+            log.warning("Dry-run bozuk state yerine gecici bootstrap kullanacak")
+        state = state if isinstance(state, dict) else {}
+    else:
+        recovery_reason = (
+            config_recovery_reason or state_load_error
+            or _live_state_error(state, cfg, ai))
+        if recovery_reason:
+            # Never overwrite or silently repair a live baseline.  Use an
+            # ephemeral state only to keep account supervision/flatten alive.
+            log.critical(
+                "CANLI STATE GUVENSIZ (%s): close-only kurtarma, state dosyasina yazilmayacak",
+                recovery_reason)
+            state = {}
+            persist_state = False
+            try:
+                _write_stop(recovery_reason, {
+                    "login": int(getattr(ai, "login", 0) or 0),
+                    "equity": float(getattr(ai, "equity", 0) or 0),
+                    "statePersisted": False,
+                })
+            except Exception as exc:
+                log.critical("State kurtarma STOP'u yazilamadi; kapatma yine denenecek: %s", exc)
+
+    if initial_stop_mode == "close-only":
+        log.critical("Risk STOP_MASTER mevcut: yalniz kapatma/uzlastirma modu (%s)",
+                     initial_stop_reason)
+    last_report = 0.0
+    log.info("Merkezi hesap beyni %s basladi; dry_run=%s poll=%ss",
+             VERSION, cfg.get("dry_run"), cfg.get("poll_seconds"))
+    try:
+        while True:
+            started = time.time()
+            try:
+                reload_reason = None
+                try:
+                    cfg = load_config()
+                except Exception as config_exc:
+                    # Retain the last validated config and its account lock.
+                    # This lets live supervision flatten existing exposure
+                    # while every entry process sees a persistent STOP.
+                    reload_reason = "invalid-brain-config-runtime"
+                    log.critical(
+                        "CONFIG YENILEME BASARISIZ; son gecerli config ile "
+                        "close-only denetim suruyor: %s", config_exc)
+                    try:
+                        _write_stop(reload_reason, {
+                            "login": int(getattr(mt5.account_info(), "login", 0) or 0),
+                            "statePersisted": bool(persist_state),
+                        })
+                    except Exception as stop_exc:
+                        log.critical("Runtime config STOP'u yazilamadi: %s", stop_exc)
+                stop_mode, stop_reason = _stop_mode()
+                if stop_mode == "risk-incomplete":
+                    try:
+                        _write_stop(stop_reason or "incomplete-risk-stop-master", {})
+                    except Exception as stop_exc:
+                        log.critical("Eksik risk STOP tamamlanamadi: %s", stop_exc)
+                    stop_mode, stop_reason = _stop_mode()
+                if stop_mode == "manual":
+                    log.critical("Manuel STOP_MASTER algilandi; merkez beyin cikiyor")
+                    break
+                live_monitor_only = (
+                    not cfg.get("dry_run", True) and not cfg.get("enabled", True))
+                if cfg.get("enabled", True) or live_monitor_only or reload_reason:
+                    forced_reason = recovery_reason or reload_reason
+                    if stop_mode == "close-only":
+                        forced_reason = forced_reason or stop_reason or "risk-stop-master"
+                    block_reason = (
+                        "brain-disabled-live-monitor-only" if live_monitor_only else None)
+                    last_report, snap = run_once(
+                        cfg, state, last_report,
+                        forced_stop_reason=forced_reason,
+                        block_entries_reason=block_reason,
+                        persist_state=persist_state)
+                    daily_warning = _cfg_float(
+                        cfg, ("daily_loss_warning_pct_account", "daily_flatten_warning_pct"), 4.0)
+                    total_warning = _cfg_float(
+                        cfg, ("total_drawdown_warning_pct_account", "total_flatten_warning_pct"), 9.0)
+                    open_warning = min(1.5, max(0.01, _cfg_float(
+                        cfg, ("max_open_risk_pct",), 1.5)))
+                    if (snap["dailyLossPct"] >= daily_warning
+                            or snap["totalDrawdownPct"] >= total_warning
+                            or snap["openRiskPct"] >= open_warning):
+                        log.warning(
+                            "LIMIT YAKIN: acikRisk=%%%s gunluk=%%%s toplamDD=%%%s",
+                            snap["openRiskPct"], snap["dailyLossPct"],
+                            snap["totalDrawdownPct"])
+                else:
+                    _atomic_json(HEARTBEAT_PATH, {
+                        "version": VERSION, "timeSec": int(time.time()), "ok": False,
+                        "dryRun": True,
+                        "reason": "brain disabled in dry-run",
+                    })
+            except KeyboardInterrupt:
+                raise
+            except Exception as exc:
+                log.exception("beyin turu fail-closed: %s", exc)
+                try:
+                    _atomic_json(HEARTBEAT_PATH, {
+                        "version": VERSION, "timeSec": int(time.time()), "ok": False,
+                        "reason": str(exc)[:240],
+                    })
+                except Exception as heartbeat_exc:
+                    log.critical("fail-closed heartbeat de yazilamadi: %s", heartbeat_exc)
+            delay = max(0.2, float(cfg.get("poll_seconds", 1)) - (time.time() - started))
+            time.sleep(delay)
+    except KeyboardInterrupt:
+        log.info("Merkezi beyin durduruldu")
+    finally:
+        mt5.shutdown()
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
