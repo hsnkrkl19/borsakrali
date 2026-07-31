@@ -128,10 +128,30 @@ C fazı A1'e, D fazı A6'ya bağlı.
 | **B1** işlem başı 250 $ tavan | ✅ bitti | `40b901d` · dolar riski enstrümanlar arası eşitlendi |
 | **B2** enstrüman-normalize lot | ✅ özü bitti | B1 ile geldi; sınıf-bazlı ikinci tavan opsiyonel kaldı |
 | **B4** kâğıt yarışma kapatamaz | ✅ bitti | `4083759` · `trade_guard.paper_close_allowed` |
-| A1..A7 | ⬜ başlamadı | |
-| B1..B5 | ⬜ başlamadı | |
-| C1..C5 | ⬜ başlamadı | |
-| D1g..D4g | ⬜ başlamadı | |
+| **C1** bot hunisi | ✅ bitti | `a442619` · kalıcı sayaç + `GET /api/bot/funnel` |
+| **C2** raporda sebep | ✅ bitti | `8f8d115` · "işlem yok" yerine hangi kademede tıkandığı |
+| **C3** kapanış toplama | ✅ bitti | `8f8d115` · 20 sn pencere, ≥2'de anında; açılışı bloke edeni toplamaz |
+| **C4** kapanış sebebi mesajda | ⛔ iptal | Kullanıcı "kapanışlarda kâr/zarar yeter" dedi; sebep deftere+panele |
+| **C5** site paneli | ✅ bitti | `6f86254` · /bot → "Sağlık & Huni" sekmesi |
+| **D1g** bot karnesi | ✅ bitti | `d318f4e` · yedek adayı (20+ işlem, %40 altı, net −) |
+| **D2g** rejim kısıcısı | ✅ bitti | `d318f4e` · gün içi −%0,75'te risk 250 → 125 $ |
+| **D3g** enstrüman karnesi | ✅ bitti | `d318f4e` · en çok zarar ettiren sembol+yön |
+| **D4g** canlı gerekçe akışı | ⬜ ertelendi | `/api/bot/funnel` sebepleri kısmen karşılıyor |
+
+### 2026-08-01 düşman incelemesi (21 ajan) — onaylanan 11 hatanın durumu
+
+| # | Bulgu | Durum |
+|---|---|---|
+| F1 | Telegram seli: "hız sınırlı" iddiası geçersiz (tek POST'ta 120 mesaj) | ✅ `b86b721` jeton kovası |
+| F1b | `attempts` yazılıyor ama hiç okunmuyor → geri çekilme yok | ✅ `b86b721` üstel backoff |
+| F2 | Kapanış açılıştan ÖNCE gidiyor; ölü işleme canlı giriş sinyali | ✅ `b86b721` |
+| F2c | Heuristik eşleşme canlı pozisyonu "kapalı" işaretliyor | ✅ `b86b721` |
+| F3 | Kısmi kapanış imleci KALICI donduruyor (saniyede ~210 MT5 çağrısı) | ✅ `569ed74` |
+| F4 | Mutabakat TERS: boş defter "Mutabakat OK" onayı alıyor | ✅ `569ed74` |
+| F5 | Yarış modunda birleşik köprüde hiç çıkış yolu yok | ✅ `02a4393` |
+| F6 | in-flight penceresi < timeout → mükerrer bildirim | ✅ `b86b721` |
+| — | Çürütülen 7 iddia (B1/B3 eleştirileri, prune kaybı, persistDurable) | ⛔ gerçek değil |
+| — | 11 "küçük" bulgu | ⬜ triyaj bekliyor |
 
 Durum işaretleri: ⬜ başlamadı · 🔄 sürüyor · ✅ bitti + test yeşil · ⚠️ engellendi
 
