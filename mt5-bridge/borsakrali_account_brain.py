@@ -108,7 +108,8 @@ DEFAULTS = {
     "herd_min_positions": 5,
     "herd_losing_fraction": 0.70,
     "herd_window_seconds": 90.0,
-    "herd_drawdown_r": 1.5,
+    # Pozisyon BASINA ortalama geri verme (toplam degil): 0.8R = gercek donus.
+    "herd_drawdown_r": 0.8,
     "herd_cut_loss_r": 0.10,
     "herd_cooldown_seconds": 300.0,
     # KAR TASIYICI (runner): tepe bu R'yi gorunce broker TP'si cok uzaga tasinir;
@@ -239,6 +240,7 @@ def _validate_numeric_config(cfg):
         if key in cfg:
             _finite_config_number(cfg, key, low, high)
     _finite_config_number(cfg, "deviation_points", 0, 10000, integer=True)
+    _finite_config_number(cfg, "herd_min_positions", 2, 100, integer=True)
     if float(cfg["daily_flatten_warning_pct"]) > float(cfg["daily_flatten_pct"]):
         raise ValueError("daily warning flatten'dan buyuk olamaz")
     if float(cfg["daily_flatten_pct"]) > float(cfg["daily_hard_limit_pct"]):
@@ -830,17 +832,19 @@ def herd_reversal_cuts(cfg, positions, tickets, now):
     """Ani ters donuste SURU halinde zarara giden yonu kes.
 
     Ayni yonde >= herd_min_positions pozisyon varken, bunlarin en az
-    herd_losing_fraction kadari zararda VE yonun toplam R'si son
-    herd_window_seconds icindeki tepesinden herd_drawdown_r kadar dustuyse:
+    herd_losing_fraction kadari zararda VE pozisyon basina ORTALAMA geri verme
+    (her pozisyonun son herd_window_seconds icindeki kendi tepesinden) en az
+    herd_drawdown_r ise:
     o yonun ZARARDAKI pozisyonlari kapatilir (kazananlar korunur, kar
     tasima/trail onlara devam eder).  Fonksiyon SAF: hangi ticketlarin
     kapatilacagini ve hangi yonlerin sogumaya alinacagini dondurur.
 
-    Donen: (cut_list, cooled_assets, reason_text) — cut_list: (pos, meta) ciftleri.
+    Donen: (cut_list, reason_text) — cut_list: (pos, meta, side) uclusu.
+    Sogutma yazimi CAGIRANA aittir ve yalniz kapatma BASARILI olursa yapilir.
     """
     min_count = int(cfg.get("herd_min_positions", 5) or 0)
     if min_count <= 0 or len(positions) < min_count:
-        return [], [], None
+        return [], None
     frac = float(cfg.get("herd_losing_fraction", 0.70))
     window = float(cfg.get("herd_window_seconds", 90.0))
     drop_r = float(cfg.get("herd_drawdown_r", 1.5))
@@ -854,40 +858,49 @@ def herd_reversal_cuts(cfg, positions, tickets, now):
         side = "long" if int(getattr(pos, "type", 0) or 0) == buy_type else "short"
         sides[side].append((pos, meta if isinstance(meta, dict) else {}))
 
-    cuts, cooled, reasons = [], [], []
-    herd_state = tickets.setdefault("_herd", {}) if isinstance(tickets, dict) else {}
+    cuts, reasons = [], []
     for side, rows in sides.items():
         if len(rows) < min_count:
-            herd_state.pop(side, None)
             continue
-        r_values = [(_position_r(p, m), p, m) for p, m in rows]
-        known = [(r, p, m) for r, p, m in r_values if r is not None]
+        # POZISYON-BASINA tepe: her pozisyon kendi tepesinden ne kadar geri
+        # verdi? Toplam-R kullanmak KUME KOMPOZISYONUNA duyarliydi — bir
+        # kazanan TP'de kapaninca toplam ziplayarak duser ve fiyat hic
+        # oynamasa bile "geri verme" sanilirdi (kardes pozisyonlari infaz
+        # eden deterministik tetik). Pozisyon-basina olcum bundan bagimsizdir.
+        known = []
+        for p, m in rows:
+            r = _position_r(p, m)
+            if r is None or not math.isfinite(r):
+                continue
+            prev = m.get("herdPeakR")
+            prev_sec = m.get("herdPeakSec")
+            try:
+                prev = float(prev)
+                prev_sec = float(prev_sec)
+            except (TypeError, ValueError):
+                prev, prev_sec = None, 0.0
+            if (prev is None or not math.isfinite(prev)
+                    or now - prev_sec > window or r >= prev):
+                prev = r
+                m["herdPeakR"] = r
+                m["herdPeakSec"] = now
+            known.append((r, prev, p, m))
         if len(known) < min_count:
             continue
-        total_r = sum(r for r, _, _ in known)
-        losing = [(r, p, m) for r, p, m in known if r < 0]
-        # Yonun toplam-R tepesini kayan pencerede tut.
-        row = herd_state.get(side)
-        if not isinstance(row, dict) or now - float(row.get("peakSec", 0) or 0) > window:
-            row = {"peakR": total_r, "peakSec": now}
-        elif total_r >= float(row.get("peakR", total_r)):
-            row = {"peakR": total_r, "peakSec": now}
-        herd_state[side] = row
-        give_back = float(row.get("peakR", total_r)) - total_r
+        losing = [row for row in known if row[0] < 0]
+        # Ortalama geri verme: pozisyon sayisi arttikca esik kaymaz.
+        give_back = sum(max(0.0, pk - r) for r, pk, _, _ in known) / len(known)
         if len(losing) < math.ceil(frac * len(known)) or give_back < drop_r:
             continue
         # TERS DONUS TEYIDI: zarardaki tarafi kes, kazananlari birak.
-        side_cuts = [(p, m) for r, p, m in losing if r <= -abs(cut_loss_r)]
+        side_cuts = [(p, m, side) for r, _pk, p, m in losing
+                     if r <= -abs(cut_loss_r)]
         if not side_cuts:
             continue
         cuts.extend(side_cuts)
         reasons.append("herd-reversal-%s-%d/%d-zarar-%.2fR-geri" % (
             side, len(losing), len(known), give_back))
-        for pos, _ in side_cuts:
-            asset = account_brain.canonical_underlying(getattr(pos, "symbol", ""))
-            cooled.append((asset, side))
-        herd_state.pop(side, None)
-    return cuts, cooled, (" | ".join(reasons) if reasons else None)
+    return cuts, (" | ".join(reasons) if reasons else None)
 
 
 def _maybe_extend_runner(cfg, pos, meta):
@@ -898,6 +911,11 @@ def _maybe_extend_runner(cfg, pos, meta):
     """
     arm_r = float(cfg.get("runner_arm_r", 0) or 0)
     if arm_r <= 0:
+        return
+    now_sec = time.time()
+    retry_after = meta.get("runnerRetryAfterSec") if isinstance(meta, dict) else None
+    if isinstance(retry_after, (int, float)) and not isinstance(retry_after, bool) \
+            and math.isfinite(float(retry_after)) and now_sec < float(retry_after):
         return
     entry = float(getattr(pos, "price_open", 0) or 0)
     baseline = meta.get("initialSlPrice") if isinstance(meta, dict) else None
@@ -952,11 +970,20 @@ def _maybe_extend_runner(cfg, pos, meta):
         if isinstance(meta, dict):
             meta["runnerArmed"] = True
         return
+    # SL'i TAZE oku: kopru/trail SL'i az once sikilastirmis olabilir; bayat
+    # pos.sl gonderilirse SLTP yazimi stopu GEVSETIR (kar korumasini bozar).
+    current_sl = float(getattr(pos, "sl", 0) or 0)
+    try:
+        fresh = mt5.positions_get(ticket=int(getattr(pos, "ticket", 0) or 0))
+        if fresh:
+            current_sl = float(getattr(fresh[0], "sl", current_sl) or current_sl)
+    except Exception:
+        pass
     req = {
         "action": mt5.TRADE_ACTION_SLTP,
         "position": int(getattr(pos, "ticket", 0) or 0),
         "symbol": getattr(pos, "symbol", ""),
-        "sl": float(getattr(pos, "sl", 0) or 0),
+        "sl": current_sl,
         "tp": desired,
     }
     result = mt5.order_send(req)
@@ -964,10 +991,17 @@ def _maybe_extend_runner(cfg, pos, meta):
             mt5, "TRADE_RETCODE_DONE", 10009):
         if isinstance(meta, dict):
             meta["runnerArmed"] = True
+            meta.pop("runnerRetryAfterSec", None)
+            meta.pop("runnerFailCount", None)
         log.info("RUNNER TP %.2fR %s ticket=%s TP -> %s (kazanan kosuyor)",
                  peak_r, getattr(pos, "symbol", "?"),
                  getattr(pos, "ticket", "?"), desired)
     else:
+        # Ustel geri cekilme: reddedilen istek saniyede bir tekrarlanmasin.
+        if isinstance(meta, dict):
+            fails = int(meta.get("runnerFailCount", 0) or 0) + 1
+            meta["runnerFailCount"] = fails
+            meta["runnerRetryAfterSec"] = now_sec + min(900.0, 15.0 * (2 ** min(fails, 6)))
         log.warning("RUNNER TP tasinamadi %s ticket=%s retcode=%s",
                     getattr(pos, "symbol", "?"), getattr(pos, "ticket", "?"),
                     getattr(result, "retcode", None))
@@ -1478,6 +1512,9 @@ def run_once(cfg, state, last_report=0.0, forced_stop_reason=None,
         tickets = state.setdefault("tickets", {})
         now = time.time()
         live = set()
+        # Bu turda tekil cikisla KAPATILANLAR: suru aritmetigine girmemeli;
+        # yoksa kapanmis bir kaydin hayaleti saglikli pozisyonlari infaz eder.
+        closed_this_turn = set()
         for pos in positions:
             ticket = str(pos.ticket)
             position_key = str(getattr(pos, "identifier", "") or ticket)
@@ -1497,6 +1534,7 @@ def run_once(cfg, state, last_report=0.0, forced_stop_reason=None,
             reason = _dynamic_exit_reason(cfg, pos, meta, now)
             if reason:
                 if _close_position(cfg, pos, reason, state):
+                    closed_this_turn.add(position_key)
                     # Kapan-ac dongusu kirici: beyin kapattigi enstrumanda
                     # AYNI YONDE yeni girisi bir sure engelle (ters yon
                     # serbest - gercek donusler kacirilmaz).
@@ -1531,30 +1569,52 @@ def run_once(cfg, state, last_report=0.0, forced_stop_reason=None,
         # zarara giden YONU topluca kes, ayni yonu sogumaya al, ters yonu ac
         # birak — botlar yeni trendi gorunce ters islemleri kendileri acar.
         try:
-            cuts, cooled, herd_reason = herd_reversal_cuts(
-                cfg, positions, tickets, now)
+            live_for_herd = [
+                p for p in positions
+                if str(getattr(p, "identifier", "") or getattr(p, "ticket", ""))
+                not in closed_this_turn
+            ]
+            cuts, herd_reason = herd_reversal_cuts(
+                cfg, live_for_herd, tickets, now)
             if cuts and herd_reason:
                 log.critical("SURU TERS-DONUS: %s — %d zarardaki pozisyon kesiliyor",
                              herd_reason, len(cuts))
-                for pos, _meta in cuts:
+                cool_sec = float(cfg.get("herd_cooldown_seconds", 300.0) or 0)
+                bucket = state.setdefault("reentryCooldowns", {})
+                for pos, _meta, side in cuts:
                     try:
-                        _close_position(cfg, pos, herd_reason[:60], state)
+                        # Sogutma YALNIZ gercekten kapatabildiysek yazilir;
+                        # aksi halde acik pozisyon dururken girisi kilitlerdik.
+                        if not _close_position(cfg, pos, herd_reason[:60], state):
+                            continue
                     except Exception as exc:
                         log.exception("suru kesme ticket=%s hata=%s",
                                       getattr(pos, "ticket", "?"), exc)
-                cool_sec = float(cfg.get("herd_cooldown_seconds", 300.0) or 0)
-                if cool_sec > 0:
-                    bucket = state.setdefault("reentryCooldowns", {})
-                    for asset, side in cooled:
-                        bucket[asset] = {
-                            "untilSec": int(now + cool_sec),
-                            "direction": side,
-                            "reason": "herd-reversal",
-                        }
+                        continue
+                    if cool_sec <= 0:
+                        continue
+                    asset = account_brain.canonical_underlying(
+                        getattr(pos, "symbol", ""))
+                    until = now + cool_sec
+                    prev_row = bucket.get(asset)
+                    if isinstance(prev_row, dict) and str(
+                            prev_row.get("direction") or "") == side:
+                        # Mevcut daha UZUN sogutmayi kisaltma (tekil cikis 45dk
+                        # yazmisken suru 5dk ile ezip erken yeniden acilmasina
+                        # yol aciyordu).
+                        try:
+                            until = max(until, float(prev_row.get("untilSec", 0) or 0))
+                        except (TypeError, ValueError):
+                            pass
+                    bucket[asset] = {
+                        "untilSec": int(until),
+                        "direction": side,
+                        "reason": "herd-reversal",
+                    }
         except Exception as exc:
             log.error("suru dedektoru hatasi: %s", exc)
         for position_key in list(tickets):
-            if position_key == "_herd" or position_key in live:
+            if position_key in live:
                 continue
             absent_meta = tickets[position_key]
             misses = (int(absent_meta.get("absentTurns", 0) or 0) + 1

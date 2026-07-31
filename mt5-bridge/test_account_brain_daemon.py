@@ -384,38 +384,92 @@ def t_herd_reversal_cuts_losers_keeps_winners():
         p.type = 0
         return p
 
-    # 8 long: 6'si zararda (>%70 degil ama ceil(0.7*8)=6 -> tam esik), toplam R duser.
-    positions = [longpos(i, -50.0) for i in range(1, 7)]        # 6 zararda (-0.5R)
-    positions += [longpos(7, 120.0), longpos(8, 80.0)]           # 2 kazancli
-    tickets = {str(p.identifier): {"initialRiskUsd": 100.0} for p in positions}
-    # Tepe: pencere icinde toplam R once yuksekti.
-    tickets["_herd"] = {"long": {"peakR": 3.0, "peakSec": now - 10}}
+    def meta_at(peak_r):
+        return {"initialRiskUsd": 100.0, "herdPeakR": peak_r, "herdPeakSec": now - 10}
 
-    cuts, cooled, reason = brain.herd_reversal_cuts(cfg, positions, tickets, now)
-    kesilen = sorted(int(p.ticket) for p, _ in cuts)
-    assert kesilen == [1, 2, 3, 4, 5, 6], kesilen          # yalniz zarardakiler
-    assert all(t not in kesilen for t in (7, 8)), "kazananlar korunmali"
+    # GERCEK TERS DONUS: 8 long, 6'si zararda, her biri kendi tepesinden
+    # ~1R geri verdi (tepe +0.5R -> simdi -0.5R).
+    positions = [longpos(i, -50.0) for i in range(1, 7)]
+    positions += [longpos(7, 120.0), longpos(8, 80.0)]
+    tickets = {str(p.identifier): meta_at(0.5) for p in positions[:6]}
+    tickets.update({str(p.identifier): meta_at(1.2) for p in positions[6:]})
+
+    cuts, reason = brain.herd_reversal_cuts(cfg, positions, tickets, now)
+    kesilen = sorted(int(p.ticket) for p, _m, _s in cuts)
+    assert kesilen == [1, 2, 3, 4, 5, 6], kesilen
+    assert all(side == "long" for _p, _m, side in cuts)
     assert reason and reason.startswith("herd-reversal-long"), reason
-    assert cooled and all(side == "long" for _, side in cooled)
 
-    # Ayni tablo ama toplam R tepesi dusukse (ani donus YOK) -> kesme yok.
-    tickets2 = {str(p.identifier): {"initialRiskUsd": 100.0} for p in positions}
-    tickets2["_herd"] = {"long": {"peakR": -1.0, "peakSec": now - 10}}
-    cuts2, _, reason2 = brain.herd_reversal_cuts(cfg, positions, tickets2, now)
-    assert cuts2 == [] and reason2 is None, "yavas zarar suru kesmesi tetiklememeli"
+    # KRITIK REGRESYON: bir KAZANAN kapaninca (kume kucuulur) kalanlarin
+    # fiyati hic degismemisken kesim OLMAMALI. Eski toplam-R mantiginda
+    # runner TP'si dolar dolmaz kardes pozisyonlar infaz ediliyordu.
+    kalanlar = [longpos(i, -13.0) for i in range(1, 6)]          # -0.13R, spread
+    t2 = {str(p.identifier): meta_at(-0.13) for p in kalanlar}   # tepesi de -0.13R
+    cuts2, reason2 = brain.herd_reversal_cuts(cfg, kalanlar, t2, now)
+    assert cuts2 == [] and reason2 is None,         "kazanan cikisi kume toplamini dusurup kesim tetiklememeli: %s" % reason2
 
-    # Az pozisyon (esigin altinda) -> hicbir sey yapilmaz.
-    few = positions[:3]
-    cuts3, _, _ = brain.herd_reversal_cuts(cfg, few, dict(tickets), now)
-    assert cuts3 == [], "min pozisyon esigi altinda kesme olmamali"
+    # Cogunluk zararda ama kimse tepesinden anlamli geri vermemis -> kesme yok.
+    t3 = {str(p.identifier): meta_at(-0.45) for p in positions[:6]}
+    t3.update({str(p.identifier): meta_at(1.2) for p in positions[6:]})
+    cuts3, _ = brain.herd_reversal_cuts(cfg, positions, t3, now)
+    assert cuts3 == [], "yavas zarar suru kesmesi tetiklememeli"
+
+    # Esik alti pozisyon sayisi -> hicbir sey yapilmaz.
+    cuts4, _ = brain.herd_reversal_cuts(cfg, positions[:3], dict(tickets), now)
+    assert cuts4 == [], "min pozisyon esigi altinda kesme olmamali"
 
     # Cogunluk kazancliyken (saglikli trend) kesme yok.
     healthy = [longpos(i, 90.0) for i in range(1, 8)] + [longpos(8, -40.0)]
-    t4 = {str(p.identifier): {"initialRiskUsd": 100.0} for p in healthy}
-    t4["_herd"] = {"long": {"peakR": 9.0, "peakSec": now - 10}}
-    cuts4, _, _ = brain.herd_reversal_cuts(cfg, healthy, t4, now)
-    assert cuts4 == [], "kazanan surude kesme olmamali"
-    print("OK suru ters-donus: zarardaki yon kesilir, kazananlar korunur")
+    t5 = {str(p.identifier): meta_at(1.5) for p in healthy}
+    cuts5, _ = brain.herd_reversal_cuts(cfg, healthy, t5, now)
+    assert cuts5 == [], "kazanan surude kesme olmamali"
+
+    # Tepe bilgisi YOKKEN ilk turda kesim olmaz (tepe o turda kurulur).
+    t6 = {str(p.identifier): {"initialRiskUsd": 100.0} for p in positions}
+    cuts6, _ = brain.herd_reversal_cuts(cfg, positions, t6, now)
+    assert cuts6 == [], "tepe kurulmadan kesim olmamali"
+    assert t6[str(positions[0].identifier)]["herdPeakR"] == -0.5
+    print("OK suru ters-donus: pozisyon-basina geri verme, kume degisimine bagisik")
+
+
+def t_herd_cooldown_only_after_successful_close():
+    """Kapatma basarisizsa sogutma YAZILMAZ; mevcut daha uzun sogutma KISALMAZ."""
+    now = time.time()
+    cfg = dict(brain.DEFAULTS, dry_run=False, allowed_account=1,
+               report_interval_seconds=999, herd_min_positions=5)
+    ai = SimpleNamespace(login=1, balance=10_000.0, equity=10_000.0, server="Demo")
+    safe = {"profitPct": 0, "dailyLossPct": 0, "totalDrawdownPct": 0,
+            "openRiskPct": 0, "maxBotRiskPct": 0, "maxSymbolSideRiskPct": 0,
+            "unboundedTickets": [], "ok": True}
+
+    def longpos(ticket, pnl, symbol):
+        p = pos(pnl, ticket=ticket)
+        p.type = 0
+        p.symbol = symbol
+        return p
+
+    syms = ["EURUSD", "GBPUSD", "AUDUSD", "NZDUSD", "USDCAD", "USDCHF"]
+    positions = [longpos(i + 1, -50.0, s) for i, s in enumerate(syms)]
+    state = {
+        "tickets": {str(p.identifier): {"initialRiskUsd": 100.0, "herdPeakR": 0.5,
+                                        "herdPeakSec": now - 10} for p in positions},
+        "close_reasons": {},
+        # EURUSD icin tekil cikistan kalan UZUN sogutma (45 dk).
+        "reentryCooldowns": {"EURUSD": {"untilSec": int(now + 2700),
+                                        "direction": "long", "reason": "eski"}},
+    }
+    # GBPUSD kapatilamiyor (broker reddi), digerleri kapaniyor.
+    def close(_c, p, _r, _s):
+        return p.symbol != "GBPUSD"
+
+    with patch.object(brain.mt5, "account_info", return_value=ai),             patch.object(brain.mt5, "positions_get", return_value=positions),             patch.object(brain, "_history", return_value=[]),             patch.object(brain, "_snapshot", return_value=safe.copy()),             patch.object(brain.mt5_brain_adapter, "broker_event_outbox_count", return_value=0),             patch.object(brain, "_atomic_json"), patch.object(brain, "_save_state"),             patch.object(brain, "_maybe_trail_stop"),             patch.object(brain, "_maybe_extend_runner"),             patch.object(brain, "_dynamic_exit_reason", return_value=None),             patch.object(brain, "_close_position", side_effect=close):
+        brain.run_once(cfg, state, last_report=time.time())
+
+    cd = state.get("reentryCooldowns", {})
+    assert "GBPUSD" not in cd, "kapatilamayan pozisyon icin sogutma yazilmamali"
+    assert "AUDUSD" in cd and cd["AUDUSD"]["direction"] == "long"
+    assert cd["EURUSD"]["untilSec"] >= int(now + 2699),         "mevcut 45dk sogutma 5dk ile ezilmemeli: %s" % cd["EURUSD"]
+    print("OK suru sogutmasi: yalniz basarili kapanista + uzun sogutma korunur")
 
 
 def t_runner_extends_tp_only_outward():
@@ -525,6 +579,7 @@ if __name__ == "__main__":
     t_discretionary_close_records_reentry_cooldown()
     t_trailing_stop_after_3r()
     t_herd_reversal_cuts_losers_keeps_winners()
+    t_herd_cooldown_only_after_successful_close()
     t_runner_extends_tp_only_outward()
     t_history_and_disk_failures_do_not_skip_global_flatten()
     print("\nTUM MERKEZI DAEMON TESTLERI GECTI - OK")
