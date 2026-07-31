@@ -80,6 +80,14 @@ class BrainConfig:
     profit_target_pct_account: float = 10.0
     min_expected_profit_usd: float = 15.0
     min_initial_risk_usd: float = 15.0
+    # ISLEM BASINA MUTLAK DOLAR RISK TAVANI (kullanici karari 2026-07-31: 250 $).
+    # Yuzde hesabi ne derse desin bu tavani ASAMAZ. Buyuk hesapta yuzde tek
+    # basina devasa lot uretiyordu: 197k x %0.25 = 492 $/islem -> lot surekli
+    # 1.00 tavanina dayaniyor, altin/kripto tek islemde -400 $ yaziyordu.
+    # Ayrica bu tavan enstrumanlar arasi dolar-riskini de esitler: lot,
+    # tavan/stop-mesafesi oraniyla kucultuldugu icin 1 lot altin ile 1 lot
+    # EURUSD ayni riski tasir.
+    max_trade_risk_usd: float = 250.0
     min_rr: float = 3.0
     min_feed_rr: float = 1.5
     target_strong_signal: float = 0.75
@@ -135,6 +143,10 @@ class BrainConfig:
             raise ValueError("profit target is fixed at 10%")
         if self.min_expected_profit_usd < 15 or self.min_initial_risk_usd < 15:
             raise ValueError("entry TP and initial-risk dollar floors cannot be below $15")
+        if not _finite_positive(self.max_trade_risk_usd):
+            raise ValueError("max_trade_risk_usd must be finite and positive")
+        if self.max_trade_risk_usd < self.min_initial_risk_usd:
+            raise ValueError("max_trade_risk_usd cannot be below min_initial_risk_usd")
         if float(self.min_rr) not in {3.0, 4.0, 5.0}:
             raise ValueError("min_rr must be 3, 4 or 5")
         if not 0.0 <= self.min_feed_rr <= 3.0:
@@ -468,6 +480,8 @@ def evaluate_pretrade(snapshot: AccountSnapshot | None,
     current_account = sum(p.risk_usd for p in retained)
     if config.race_mode:
         # Yarış: yalnız işlem-başı boyutlama; havuz/sembol/bot tavanı yok.
+        # Mutlak dolar tavanı yarışta da geçerlidir (giriş SAYISI serbest,
+        # işlem BÜYÜKLÜĞÜ değil).
         limits_usd = {"trade": equity * float(config.trade_risk_pct) / 100.0}
     else:
         limits_usd = {
@@ -478,6 +492,8 @@ def evaluate_pretrade(snapshot: AccountSnapshot | None,
             "account": equity * config.max_open_risk_pct / 100.0 - current_account,
             "hard_account": equity * config.hard_max_open_risk_pct / 100.0 - current_account,
         }
+    # Mutlak dolar tavanı her iki profilde de bağlayıcıdır.
+    limits_usd["trade_usd_cap"] = float(config.max_trade_risk_usd)
     risk_budget = min(limits_usd.values())
     if not _finite_positive(risk_budget):
         return _reject("no_remaining_risk_budget", tier)

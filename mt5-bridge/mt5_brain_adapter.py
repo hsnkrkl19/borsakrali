@@ -151,6 +151,9 @@ def build_config(cfg):
             cfg, "min_expected_profit_usd", "min_expected_pnl_usd", default=15.0))),
         min_initial_risk_usd=max(15.0, float(_value(
             cfg, "min_initial_risk_usd", default=15.0))),
+        # Islem basina mutlak dolar tavani: config yalniz DUSURebilir.
+        max_trade_risk_usd=_bounded(
+            _value(cfg, "max_trade_risk_usd", default=250.0), 250.0, 15.0, 250.0),
         min_rr=min_rr,
         min_feed_rr=_bounded(
             _value(cfg, "min_feed_rr", default=1.5), 1.5, 0.0, 3.0),

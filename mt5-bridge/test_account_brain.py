@@ -131,6 +131,46 @@ class PureDecisionTests(unittest.TestCase):
         self.assertGreaterEqual(third.risk_usd, 15.0)
         self.assertGreaterEqual(third.rr, 3.0)
 
+
+    def test_absolute_usd_cap_binds_on_large_accounts(self):
+        """B1: yuzde ne derse desin islem basi risk 250 $'i asamaz."""
+        # 197k hesap, %0.25 -> 492,5 $ isterdi; tavan 250 $'a kirpar.
+        big = snapshot(balance=197_000, equity=197_000, start_balance=197_000,
+                       day_start_equity=197_000, high_water_equity=197_000)
+        # tick_value 100, stop 1 birim -> 1 lot = 100 $ risk.
+        spec = SymbolSpec(tick_size=1, tick_value=100, volume_min=0.01,
+                          volume_step=0.01, volume_max=10)
+        capped = evaluate_pretrade(big, (), request(), spec, BrainConfig())
+        self.assertTrue(capped.allowed, capped.reasons)
+        self.assertLessEqual(capped.risk_usd, 250.0 + 1e-9)
+        self.assertAlmostEqual(capped.lot, 2.5)          # 250/100
+        # Tavan dusurulebilir, yukseltilemez.
+        low = evaluate_pretrade(big, (), request(), spec,
+                                BrainConfig(max_trade_risk_usd=60))
+        self.assertAlmostEqual(low.lot, 0.6)
+        with self.assertRaises(ValueError):
+            BrainConfig(max_trade_risk_usd=10)           # $15 tabaninin altinda
+        with self.assertRaises(ValueError):
+            BrainConfig(max_trade_risk_usd=0)
+
+    def test_usd_cap_equalises_dollar_risk_across_instruments(self):
+        """B2 ozu: 1 lot altin ile 1 lot EURUSD ayni dolar riskini tasir."""
+        big = snapshot(balance=197_000, equity=197_000, start_balance=197_000,
+                       day_start_equity=197_000, high_water_equity=197_000)
+        # ALTIN benzeri: 1 lot = 1000 $ risk (genis stop)
+        altin = SymbolSpec(tick_size=1, tick_value=1000, volume_min=0.01,
+                           volume_step=0.01, volume_max=10)
+        # FOREX benzeri: 1 lot = 200 $ risk (dar stop)
+        forex = SymbolSpec(tick_size=1, tick_value=200, volume_min=0.01,
+                           volume_step=0.01, volume_max=10)
+        a = evaluate_pretrade(big, (), request(), altin, BrainConfig())
+        f = evaluate_pretrade(big, (), request(), forex, BrainConfig())
+        self.assertAlmostEqual(a.lot, 0.25)              # 250/1000
+        self.assertAlmostEqual(f.lot, 1.25)              # 250/200
+        # Lotlar 5 kat farkli ama DOLAR RISKI ayni:
+        self.assertAlmostEqual(a.risk_usd, f.risk_usd)
+        self.assertLessEqual(a.risk_usd, 250.0 + 1e-9)
+
     def test_degenerate_feed_target_is_rejected_not_fabricated(self):
         # Price already ran / signal engine sees <1.5R of room: do not invent
         # a 3R target the analysis never predicted.
