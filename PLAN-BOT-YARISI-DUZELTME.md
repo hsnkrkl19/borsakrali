@@ -6,8 +6,9 @@
 > **Bu dosya çalışmanın tek gerçeğidir.** Her görev bittiğinde durumu burada güncelle.
 > Kesinti olursa "Sonraki adım" satırından devam et.
 
-**Sonraki adım:** A2 (beyin: kapanışları açılış kuyruğunun arkasında bekletme) + A2b (cursor `live` deliği).
-Biten: A1, R-rapor magic, B1, B2(öz), B4. Teşhis tamam → `TESHIS-BULGULARI-2026-07-31.md` (52 bulgu).
+**Sonraki adım:** C1 (bot hunisi — "işlem yok" yerine sebep). 
+**Faz A ve Faz B BİTTİ** (A4/A5 gereksiz çıktı: beyin zaten tüm magic'leri raporluyor).
+VPS'e ZIP: köprü işleri bitti, **tek ZIP verilmeye hazır** (A2/A2b/B1/B2/B3/B4).
 
 ---
 
@@ -118,6 +119,11 @@ C fazı A1'e, D fazı A6'ya bağlı.
 |---|---|---|
 | Teşhis workflow'u | ✅ bitti | 52 bulgu → `TESHIS-BULGULARI-2026-07-31.md` |
 | **A1** defter≠bildirim | ✅ bitti | `f656a2f` · 200+notifyPending, arka plan drenajı, kalıcılık hatası hâlâ 503 |
+| **A2** kapanış kuyrukta beklemez | ✅ bitti | `ca1033b` |
+| **A2b** cursor kalıcı satır kaybı | ✅ bitti | `ca1033b` |
+| **A4/A5** köprü raporlaması | ⛔ gereksiz | Beyin zaten tüm magic'leri raporluyor; eklemek çift kayıt riski |
+| **A6/A7** mutabakat | ✅ bitti | `b3fe98d` · defter vs broker farkı raporda görünür |
+| **B3** toplam açık risk %3 | ✅ bitti | `0b09c97` |
 | **RAPOR** dedicatedBridgeMagic | ✅ bitti | `f656a2f` · Bot 1/Bot 5 artık görünür + yetim magic bölümü |
 | **B1** işlem başı 250 $ tavan | ✅ bitti | `40b901d` · dolar riski enstrümanlar arası eşitlendi |
 | **B2** enstrüman-normalize lot | ✅ özü bitti | B1 ile geldi; sınıf-bazlı ikinci tavan opsiyonel kaldı |
