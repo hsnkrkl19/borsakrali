@@ -36,6 +36,40 @@ describe('brokerTruth mutabakatı', () => {
     expect(r.diff).toBeCloseTo(3160.37, 2);    // defter bu kadar EKSİK
   });
 
+  test('F4: iki taraf da SIFIR ise mutabakat ONAYLANMAZ', () => {
+    // 2026-08-01 düşman incelemesi: köprü `realizedToday`'i bildirim
+    // imlecinden üretiyordu; kararlı durumda değer neredeyse her zaman 0,00
+    // oluyordu. Defter TAMAMEN boşken (2026-07-31 olayının tam kendisi)
+    // |0−0| ≤ tolerans → "✅ Mutabakat OK" yeşil ışığı veriyordu. Emniyet ağı
+    // yakalamak için yazıldığı olayı ONAYLIYORDU.
+    brokerTruth.note({ realizedToday: 0, login: 1514083666 });
+    const r = brokerTruth.reconcile(0);
+    expect(r.ok).toBe(false);
+    expect(r.reason).toBe('iki-taraf-da-sifir-dogrulanamaz');
+  });
+
+  test('F4: broker 0 iken defter doluysa MUTABAKATSIZLIK (sessiz geçmez)', () => {
+    brokerTruth.note({ realizedToday: 0, login: 1514083666 });
+    expect(brokerTruth.reconcile(-3234.88).ok).toBe(false);
+  });
+
+  test('F4: hesap uyuşmuyorsa karşılaştırma yapılmaz', () => {
+    brokerTruth.note({ realizedToday: -100, login: 1513908484 });
+    const r = brokerTruth.reconcile(-100, { expectedAccount: 1514083666 });
+    expect(r.ok).toBe(false);
+    expect(r.reason).toBe('hesap-uyusmuyor');
+  });
+
+  test('F4: köprü realizedToday değerini imleçten BAĞIMSIZ pencereden üretir', () => {
+    const src = require('fs').readFileSync(
+      require.resolve('../../../mt5-bridge/borsakrali_account_brain.py'), 'utf8');
+    // Ayrı gün penceresi fonksiyonu olmalı ve snapshot onu kullanmalı.
+    expect(src).toContain('def _day_deals()');
+    expect(src).toContain('day_deals = _day_deals()');
+    // Eski hata: snapshot _history() çıktısını (imleç penceresi) kullanıyordu.
+    expect(src).not.toContain('realized = _realized_today(deals)');
+  });
+
   test('kuruşluk yuvarlama farkı uyarı üretmez', () => {
     brokerTruth.note({ realizedToday: -100.00 });
     expect(brokerTruth.reconcile(-100.4).ok).toBe(true);

@@ -63,6 +63,20 @@ function reconcile(ledgerNet, opts = {}) {
   if (!snap) return { ok: false, reason: 'broker-anlik-goruntusu-yok' };
   const ledger = Number(ledgerNet) || 0;
   const broker = snap.realizedToday;
+  // ⚠️ F4 (2026-08-01 düşman incelemesi): "iki taraf da 0" MUTABAKAT DEĞİLDİR.
+  // Köprü, bildirim imlecine bağlı 5 saniyelik bir pencereden `realizedToday`
+  // üretiyordu; kararlı durumda değer neredeyse her zaman 0,00 oluyordu. Bu
+  // haliyle emniyet ağı TERS çalışıyordu: defter tamamen boşken (2026-07-31
+  // olayının tam kendisi) |0−0| ≤ tolerans → "✅ Mutabakat OK" yeşil ışığı.
+  // Köprü tarafı düzeltildi; burada da yapısal koruma bırakılıyor.
+  if (broker === 0 && ledger === 0) {
+    return { ok: false, reason: 'iki-taraf-da-sifir-dogrulanamaz', brokerNet: 0, ledgerNet: 0, diff: 0 };
+  }
+  // Hesap uyumsuzsa karşılaştırma anlamsızdır (başka hesabın gerçeğiyle
+  // defterimizi doğrulamış olurduk).
+  if (opts.expectedAccount && snap.account && Number(opts.expectedAccount) !== Number(snap.account)) {
+    return { ok: false, reason: 'hesap-uyusmuyor', brokerAccount: snap.account, expectedAccount: Number(opts.expectedAccount) };
+  }
   const diff = Math.round((ledger - broker) * 100) / 100;
   // Eşik: küçük yuvarlama/zamanlama farkı uyarı üretmesin.
   const tolerance = Math.max(1, Number(opts.toleranceUsd) || 1);

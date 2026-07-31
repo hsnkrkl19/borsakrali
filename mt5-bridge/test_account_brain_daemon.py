@@ -174,7 +174,12 @@ def t_identifier_and_cursor_retry_are_lossless():
             cfg, [], [close_a, close_b], state,
             {"login": 123, "server": "Broker-Demo"},
             history_cutoff_sec=now)
-    assert state["notificationCursorSec"] == now - 10, state
+    # F3 (2026-08-01): eksik lifecycle artik cursor'u YERINDE DONDURMAZ; yalniz
+    # o kapanisin ONUNE gecmesini engeller. Boylece basarisiz satir yeniden
+    # denenir ama pencere sinirsiz buyumez (eskiden 48 saatlik gecmis her 2
+    # saniyede yeniden cekiliyordu).
+    assert state["notificationCursorSec"] < now - 2, state    # close_a tekrar denenir
+    assert state["notificationCursorSec"] > now - 10, state   # ama ileri tasindi
     assert len(sent["closed"]) == 1
     assert sent["closed"][0]["positionIdentifier"] == "8008"
     assert sent["closed"][0]["notificationRequired"] is True
@@ -563,7 +568,7 @@ def t_closed_ledger_not_blocked_by_pending_opens():
     print("OK A2: bekleyen acilis kuyrugu kapanis defterini durdurmuyor")
 
 
-def t_live_snapshot_skip_does_not_advance_cursor():
+def t_live_snapshot_skip_does_not_advance_cursor():   # F3: artik cursor'u DONDURMAZ, erteler
     """A2b: anlik goruntude hala acik gorunen kapanis cursor'u ilerletmemeli."""
     now = int(time.time())
     # A: erken kapandi ama positions_get'te HALA canli gorunuyor (bayat snapshot)
@@ -582,13 +587,46 @@ def t_live_snapshot_skip_does_not_advance_cursor():
         return [close_a] if str(position_id) == "7007" else [close_b]
 
     with patch.object(brain, "_position_history", side_effect=lifecycle):
-        rows, blocked, ids = brain._closed_rows(
+        rows, floor, blocked_ids, deferred_ids = brain._closed_rows(
             [close_a, close_b], state, min_closed_sec=now - 600,
             live_position_tickets=("7007",), return_status=True)
     assert [r["positionTicket"] for r in rows] == ["8008"], rows
-    assert blocked is True, "live yuzunden atlanan pozisyon BLOKE sayilmali"
-    assert "7007" in ids, ids
-    print("OK A2b: atlanan kapanis cursor'u ilerletmiyor (kalici kayip yok)")
+    # F3 (2026-08-01): kismi kapanis cursor'u BLOKE ETMEZ. Pozisyon tamamen
+    # kapandiginda FINAL deal cursor'un ilerisinde olur ve _position_history
+    # kismi cikis dahil tum yasam dongusunu toplar -> satir kaybi yok. Eski
+    # blokaj ise 3R iz suren stop / runner tasariminda cursor'u GUNLERCE
+    # dondurup her 2 saniyede 48 saatlik gecmisi yeniden POST ettiriyordu.
+    assert floor == 0, ("kismi kapanis cursor tabani koymamali", floor)
+    assert blocked_ids == (), blocked_ids
+    assert "7007" in deferred_ids, deferred_ids
+    print("OK F3: kismi kapanis cursor'u dondurmuyor, yalniz erteleniyor")
+
+
+def t_incomplete_lifecycle_holds_cursor_at_that_close_only():
+    """Lifecycle GERCEKTEN okunamadiginda cursor yalniz o kapanisa kadar geri
+    ceker; daha eski gecmisi tekrar tekrar cekmez."""
+    now = int(time.time())
+    bad = SimpleNamespace(
+        entry=1, magic=5702, ticket=921, position_id=7100, comment="BK#X",
+        symbol="XAUUSD", volume=0.1, price=4000, profit=-5, commission=0,
+        swap=0, fee=0, time=now - 300, time_msc=1, reason=4)
+    good = SimpleNamespace(
+        entry=1, magic=5702, ticket=922, position_id=8100, comment="BK#Y",
+        symbol="EURUSD", volume=0.1, price=1.15, profit=7, commission=0,
+        swap=0, fee=0, time=now - 10, time_msc=2, reason=5)
+    state = {"notificationCursorSec": now - 3600, "close_reasons": {}}
+
+    def lifecycle(position_id):
+        return None if str(position_id) == "7100" else [good]
+
+    with patch.object(brain, "_position_history", side_effect=lifecycle):
+        rows, floor, blocked_ids, deferred_ids = brain._closed_rows(
+            [bad, good], state, min_closed_sec=now - 3600, return_status=True)
+    assert [r["positionTicket"] for r in rows] == ["8100"], rows
+    assert floor == now - 300, (floor, now - 300)
+    assert "7100" in blocked_ids, blocked_ids
+    assert deferred_ids == (), deferred_ids
+    print("OK F3b: eksik lifecycle yalniz kendi zamanina kadar geri cekiyor")
 
 
 def t_history_and_disk_failures_do_not_skip_global_flatten():
@@ -638,6 +676,7 @@ if __name__ == "__main__":
     t_trailing_stop_after_3r()
     t_closed_ledger_not_blocked_by_pending_opens()
     t_live_snapshot_skip_does_not_advance_cursor()
+    t_incomplete_lifecycle_holds_cursor_at_that_close_only()
     t_herd_reversal_cuts_losers_keeps_winners()
     t_herd_cooldown_only_after_successful_close()
     t_runner_extends_tp_only_outward()

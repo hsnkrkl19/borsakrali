@@ -436,6 +436,29 @@ def _is_close_deal(deal):
     return entry in close_values
 
 
+def _day_deals():
+    """
+    Bugunun (TR) TUM kapanis deal'leri — BILDIRIM IMLECINDEN BAGIMSIZ.
+
+    ⚠️ F4 (2026-08-01 dusman incelemesi): `realizedToday` eskiden `_history()`
+    ciktisindan hesaplaniyordu. O pencere bildirim imlecine baglidir ve kararli
+    durumda yalnizca SON ~5 SANIYEDIR (imlec her basarili POST'ta "simdi"ye
+    cekilir, POST araligi 2 sn). Sonuc: gunun neti -3.234 $ iken snapshot
+    0.00 gonderiyordu. Backend mutabakati bu degeri "broker gercegi" saydigi
+    icin emniyet agi TERS calisiyordu:
+      · defter DOGRU calistigi her gun sahte "MUTABAKATSIZLIK" (alarm korlugu),
+      · defter TAMAMEN BOS oldugunda |0-0| <= tolerans -> "Mutabakat OK".
+    Yani yakalamak icin yazildigi olayi ONAYLIYORDU. Bagimsiz dogrulama ancak
+    BAGIMSIZ pencereyle mumkundur.
+    """
+    start = datetime.fromtimestamp(_tr_midnight_epoch(), timezone.utc)
+    try:
+        rows = mt5.history_deals_get(start, datetime.now(timezone.utc) + timedelta(hours=6))
+    except Exception:
+        return None
+    return None if rows is None else list(rows)
+
+
 def _realized_today(deals):
     start = _tr_midnight_epoch()
     total = 0.0
@@ -593,7 +616,10 @@ def _snapshot(cfg, ai, positions, deals, state, telemetry_ok=True,
     balance = float(getattr(ai, "balance", 0) or 0)
     equity = float(getattr(ai, "equity", 0) or 0)
     login = int(getattr(ai, "login", 0) or 0)
-    realized = _realized_today(deals)
+    # F4: gunun neti imlecten BAGIMSIZ pencereden okunur. Okunamazsa None
+    # gonderilir -> backend "mutabakat yapilamadi" der; sahte 0.00 ASLA yollanmaz.
+    day_deals = _day_deals()
+    realized = None if day_deals is None else _realized_today(day_deals)
     floating = sum(_net_position_pnl(p) for p in positions)
     day = _trading_day()
 
@@ -697,7 +723,7 @@ def _snapshot(cfg, ai, positions, deals, state, telemetry_ok=True,
         "peakEquity": round(peak, 2),
         "dayStartBalance": round(day_start, 2),
         "dayStartEquity": round(day_start, 2),
-        "realizedToday": round(realized, 2),
+        "realizedToday": None if realized is None else round(realized, 2),
         "floatingPnl": round(floating, 2),
         "dailyLossPct": round(daily_loss_pct, 4),
         "totalDrawdownPct": round(total_dd_pct, 4),
@@ -1187,6 +1213,8 @@ def _closed_rows(deals, state, min_closed_sec=0, live_position_tickets=(),
     """
     rows = []
     blocked_position_ids = []
+    blocked_floor_sec = []          # bloke edilen en eski kapanis zamanlari
+    deferred_position_ids = []      # kismi kapanis: bloke DEGIL, yalniz ertelendi
     reasons = state.get("close_reasons", {})
     live = {str(ticket) for ticket in live_position_tickets}
     candidates = {}
@@ -1203,17 +1231,32 @@ def _closed_rows(deals, state, min_closed_sec=0, live_position_tickets=(),
 
     for position_ticket, recent_closes in candidates.items():
         if position_ticket in live:
-            # A2b: Bu pozisyon anlik goruntude HALA acik gorunuyor; kapanisi
-            # bu turda raporlanamaz. Bloke listesine YAZILMALI, yoksa cursor
-            # daha yeni bir kapanisla ileri kayar ve bu deal bir daha ASLA
-            # raporlanmaz (toplu kapanislarda kalici satir kaybi).
-            blocked_position_ids.append(position_ticket)
+            # F3 (2026-08-01 dusman incelemesi): burada eskiden cursor BLOKE
+            # ediliyordu (A2b). Bu YANLISTI ve kalici kilitlenme uretiyordu:
+            #   - Kismi kapanis (3R iz suren stop / kar tasiyici runner tasarimi
+            #     bunu ZATEN yapar) pozisyonu acik birakir ama OUT deal'i tarihe
+            #     yazar -> cursor GUNLERCE cakili kalir.
+            #   - Cakili cursor = her 2 saniyede 48 saatlik tum kapanis gecmisi
+            #     yeniden cekilir ve POST edilir. Olculen: cursor 7 gun takili
+            #     iken her raporda 420 MT5 IPC cagrisi, saniyede ~210. Bu, 1
+            #     saniyelik trail/erken-cikis dongusuyle AYNI thread'de kosar ->
+            #     iz suren stop ve acil cikis saniyelerce gecikir. Defter hatasi
+            #     trading guvenligi hatasina donusur.
+            #
+            # Blokaj GEREKSIZDIR: pozisyon tamamen kapandiginda FINAL deal
+            # cursor'un ILERISINDE olur ve _position_history() kismi cikis dahil
+            # TUM yasam dongusunu toplar. Yani satir kaybi olmaz.
+            deferred_position_ids.append(position_ticket)
             continue
         lifecycle = _position_history(position_ticket)
         if lifecycle is None:
-            # Do not advance the notification cursor with an incomplete net
-            # amount. A later successful poll will retry the same close.
+            # Net tutar eksikken cursor ILERLEMEZ (gecici MT5 hatasi; bir
+            # sonraki tur ayni kapanisi yeniden dener). Bu dal GERCEKTEN blokaj
+            # gerektirir cunku deal artik gecmiste kalir. Blokaj yalniz bu
+            # kapanisin zamanina kadar geri ceker, tum gecmisi degil.
             blocked_position_ids.append(position_ticket)
+            blocked_floor_sec.append(
+                min(int(getattr(d, "time", 0) or 0) for d in recent_closes))
             continue
         close_deals = [deal for deal in lifecycle if _is_close_deal(deal)]
         if not close_deals:
@@ -1273,7 +1316,9 @@ def _closed_rows(deals, state, min_closed_sec=0, live_position_tickets=(),
         })
     rows = sorted(rows, key=lambda row: (row["closedSec"], row["dealTicket"]))
     if return_status:
-        return rows, bool(blocked_position_ids), tuple(blocked_position_ids)
+        # floor: cursor bu degerin ONUNE gecmemeli (0 = sinir yok).
+        floor = min(blocked_floor_sec) if blocked_floor_sec else 0
+        return rows, floor, tuple(blocked_position_ids), tuple(deferred_position_ids)
     return rows
 
 
@@ -1317,7 +1362,7 @@ def _report_state(cfg, positions, deals, state, snap, live_positions=None,
         live_tickets.update((ticket, identifier))
     account = int(snap.get("login", 0) or 0)
     server = str(snap.get("server") or "")
-    closed_rows, cursor_blocked, blocked_ids = _closed_rows(
+    closed_rows, cursor_floor_sec, blocked_ids, deferred_ids = _closed_rows(
         deals, state, cursor, live_tickets, account=account, server=server,
         return_status=True)
     if established_cursor:
@@ -1348,22 +1393,31 @@ def _report_state(cfg, positions, deals, state, snap, live_positions=None,
         if response.status_code != 200:
             log.error("broker durum POST %s: %s", response.status_code, response.text[:160])
             return False
-        if cursor_blocked:
-            log.error(
-                "Kapanis lifecycle eksik (%s); cursor ilerletilmedi, basarili satirlar idempotent tekrar edilecek",
-                ",".join(blocked_ids))
-        else:
-            # Keep the boundary inclusive on the next POST. Deals sharing the same
-            # second are therefore never skipped; backend ticket idempotency removes
-            # the harmless replay at that one-second boundary.
-            observed = int(history_cutoff_sec or time.time())
-            latest_close = max(
-                (int(r.get("closedSec", 0) or 0) for r in closed_rows), default=0)
-            state["notificationCursorSec"] = max(stored_cursor, observed, latest_close)
-            for row in closed_rows:
-                reasons = state.get("close_reasons", {})
-                reasons.pop(row.get("positionTicket"), None)
-                reasons.pop(row.get("positionIdentifier"), None)
+        # Keep the boundary inclusive on the next POST. Deals sharing the same
+        # second are therefore never skipped; backend ticket idempotency removes
+        # the harmless replay at that one-second boundary.
+        observed = int(history_cutoff_sec or time.time())
+        latest_close = max(
+            (int(r.get("closedSec", 0) or 0) for r in closed_rows), default=0)
+        target = max(stored_cursor, observed, latest_close)
+        if cursor_floor_sec:
+            # F3: eskiden TEK bir eksik lifecycle TUM cursor'u dondururdu.
+            # Artik yalniz o kapanisin zamanina kadar geri cekilir; daha yeni
+            # satirlar normal ilerler ve pencere sinirsiz buyumez.
+            target = max(stored_cursor, min(target, int(cursor_floor_sec) - 1))
+            log.warning(
+                "Kapanis lifecycle eksik (%s); cursor %s saniyesinde tutuldu, "
+                "yeni satirlar normal ilerliyor",
+                ",".join(blocked_ids), target)
+        state["notificationCursorSec"] = target
+        # Kismi kapanisi olan (hala acik) pozisyonlar cursor'u DONDURMAZ; final
+        # kapanislari geldiginde _position_history tum yasam dongusunu toplar.
+        if deferred_ids:
+            log.debug("kismi kapanis ertelendi: %s", ",".join(deferred_ids))
+        for row in closed_rows:
+            reasons = state.get("close_reasons", {})
+            reasons.pop(row.get("positionTicket"), None)
+            reasons.pop(row.get("positionIdentifier"), None)
         return True
     except Exception as exc:
         log.error("broker durum POST hatasi: %s", exc)
