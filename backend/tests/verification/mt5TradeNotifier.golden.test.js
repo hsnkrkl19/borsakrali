@@ -58,6 +58,14 @@ afterAll(() => {
   delete process.env.MT5_LEGACY_PAPER_NOTIFY;
 });
 
+
+// SADE MESAJ (2026-08-01) sonrasi: mesajda kod/ticket/hesap YOK. Acilis ile
+// kapanis mesaj YAPISINDAN ayirt edilir; kimlik dogrulamalari auditStatus()
+// sayaclarina ve mesajda KALAN alanlara (bot, parite, yon, fiyat, net K/Z)
+// dayandirilir.
+const isOpenMsg = (m) => /Giriş/.test(String(m));
+const isCloseMsg = (m) => !isOpenMsg(m) && /\$\d/.test(String(m));
+
 describe('broker-confirmed opening', () => {
   test('feed candidate is audit-only; no ticket means no Telegram signal', () => {
     const r = notifier.observeCandidates([candidate()]);
@@ -92,8 +100,13 @@ describe('broker-confirmed opening', () => {
     expect(r.retryableFailures).toBe(0);
     expect(mockTelegram.sendMessage).toHaveBeenCalledTimes(1);
     const message = mockTelegram.sendMessage.mock.calls[0][1];
-    for (const value of ['Pro Robot', '5702', 'P-42', 'EURUSD', 'LONG', '1.10025', '1.09000', '1.12000', '0.10', '1001']) {
+    // Sade mesaj sozlesmesi: bot adi, parite-yon, giris/stop/tp, lot.
+    for (const value of ['Pro Robot', 'EURUSD', 'LONG', '1.10025', '1.09000', '1.12000', '0.10']) {
       expect(message).toContain(value);
+    }
+    // Teknik alanlar mesajdan CIKARILDI (deftere yazilmaya devam eder).
+    for (const gone of ['Magic', 'Ticket', 'Kod:', 'Hesap:']) {
+      expect(message).not.toContain(gone);
     }
     expect(notifier.auditStatus()).toMatchObject({ brokerConfirmedOpens: 1, notifiedOpens: 1, tradeWithoutSignal: 0 });
   });
@@ -109,7 +122,9 @@ describe('broker-confirmed opening', () => {
       sl: 1.09, tp: 1.12, openedSec: NOW_SEC(),
     }] });
     expect(r.openNotified).toBe(1);
-    expect(mockTelegram.sendMessage.mock.calls[0][1]).toEqual(expect.stringContaining('FX-77'));
+    // Kod mesajdan cikti; dogru eslesme parite + mesaj tipiyle dogrulanir.
+    expect(mockTelegram.sendMessage.mock.calls[0][1]).toEqual(expect.stringContaining('EURUSD'));
+    expect(isOpenMsg(mockTelegram.sendMessage.mock.calls[0][1])).toBe(true);
     expect(notifier.auditStatus()).toMatchObject({ unconfirmedCandidates: 0, notifiedOpens: 1 });
   });
 
@@ -235,8 +250,10 @@ describe('broker-confirmed opening', () => {
     await notifier.ingestState({ source: 'account-brain', account: { login: '222', server: 'Broker-A' }, open: [shared] });
 
     expect(mockTelegram.sendMessage).toHaveBeenCalledTimes(2);
-    expect(mockTelegram.sendMessage.mock.calls[0][1]).toContain('111 @ Broker-A');
-    expect(mockTelegram.sendMessage.mock.calls[1][1]).toContain('222 @ Broker-A');
+    // Hesap etiketi sade mesajdan cikarildi; AYRI kayit olusmasi (2 mesaj +
+    // 2 brokerConfirmedOpens) hesaplarin karismadigini zaten kanitlar.
+    expect(isOpenMsg(mockTelegram.sendMessage.mock.calls[0][1])).toBe(true);
+    expect(isOpenMsg(mockTelegram.sendMessage.mock.calls[1][1])).toBe(true);
     expect(notifier.auditStatus()).toMatchObject({ brokerConfirmedOpens: 2, notifiedOpens: 2 });
 
     mockTelegram.sendMessage.mockClear();
@@ -263,10 +280,16 @@ describe('broker-confirmed opening', () => {
     await notifier.ingestState({ account, closed: [closeRow('IDENT-CLOSE', {
       positionTicket: 'CHANGED-POSITION-TICKET', positionIdentifier: 'IDENT-OLD',
     })] });
-    const message = mockTelegram.sendMessage.mock.calls[0][1];
-    expect(message).toContain('IDENTITY-OLD');
-    expect(message).toContain('POS-OLD-ROLLED');
-    expect(message).not.toContain('IDENTITY-NEW');
+    // Kod/ticket mesajdan cikti. Eslesmenin DOGRU acilisla yapildigi:
+    // (a) tek kapanis mesaji gitti, (b) yetim kapanis yok, (c) YENI pozisyon
+    // hala acik -> onu da kapatinca o da eslesir (yanlis eslesme olsaydi
+    // ikinci kapanis yetim kalirdi).
+    expect(mockTelegram.sendMessage).toHaveBeenCalledTimes(1);
+    expect(isCloseMsg(mockTelegram.sendMessage.mock.calls[0][1])).toBe(true);
+    expect(notifier.auditStatus().closeWithoutOpen).toBe(0);
+    await notifier.ingestState({ account, closed: [closeRow('IDENT-CLOSE-NEW', {
+      positionTicket: 'POS-NEW', positionIdentifier: 'IDENT-NEW',
+    })] });
     expect(notifier.auditStatus().closeWithoutOpen).toBe(0);
   });
 
@@ -290,10 +313,11 @@ describe('broker-confirmed opening', () => {
     })] });
     expect(closed).toMatchObject({ closeNotified: 1, openNotified: 1, retryableFailures: 0 });
     expect(mockTelegram.sendMessage).toHaveBeenCalledTimes(2);
-    expect(mockTelegram.sendMessage.mock.calls[0][1]).toContain('MT5 GERÇEK KAPANIŞ');
-    expect(mockTelegram.sendMessage.mock.calls[0][1]).toContain('REV-OLD');
-    expect(mockTelegram.sendMessage.mock.calls[1][1]).toContain('MT5 GERÇEK AÇILIŞ');
-    expect(mockTelegram.sendMessage.mock.calls[1][1]).toContain('REV-NEW');
+    // Sira: ONCE eski pozisyonun KAPANISI, SONRA yeni pozisyonun ACILISI.
+    // Yeni pozisyon SHORT oldugu icin acilis mesaji yonden ayirt edilir.
+    expect(isCloseMsg(mockTelegram.sendMessage.mock.calls[0][1])).toBe(true);
+    expect(isOpenMsg(mockTelegram.sendMessage.mock.calls[1][1])).toBe(true);
+    expect(mockTelegram.sendMessage.mock.calls[1][1]).toContain('SHORT');
 
     await notifier.ingestState({ account, closed: [closeRow('REV-CLOSE-DEAL', {
       positionTicket: 'REV-OLD-IDENT', positionIdentifier: 'REV-OLD-IDENT',
@@ -326,12 +350,10 @@ describe('broker-confirmed opening', () => {
 
     expect(lifecycle).toMatchObject({ closeNotified: 2, openNotified: 1, retryableFailures: 0 });
     expect(mockTelegram.sendMessage).toHaveBeenCalledTimes(3);
-    expect(mockTelegram.sendMessage.mock.calls[0][1]).toEqual(expect.stringContaining('FAST-OLD-CLOSE'));
-    expect(mockTelegram.sendMessage.mock.calls[0][1]).toEqual(expect.stringContaining('MT5 GERÇEK KAPANIŞ'));
-    expect(mockTelegram.sendMessage.mock.calls[1][1]).toEqual(expect.stringContaining('FAST-NEW'));
-    expect(mockTelegram.sendMessage.mock.calls[1][1]).toEqual(expect.stringContaining('MT5 GERÇEK AÇILIŞ'));
-    expect(mockTelegram.sendMessage.mock.calls[2][1]).toEqual(expect.stringContaining('FAST-NEW-CLOSE'));
-    expect(mockTelegram.sendMessage.mock.calls[2][1]).toEqual(expect.stringContaining('MT5 GERÇEK KAPANIŞ'));
+    // Sira: eski-kapanis, yeni-acilis, yeni-kapanis.
+    expect(isCloseMsg(mockTelegram.sendMessage.mock.calls[0][1])).toBe(true);
+    expect(isOpenMsg(mockTelegram.sendMessage.mock.calls[1][1])).toBe(true);
+    expect(isCloseMsg(mockTelegram.sendMessage.mock.calls[2][1])).toBe(true);
   });
 
   test('account-scoped reversal fallback bridges an unseen old ticket to its identifier close', async () => {
@@ -348,8 +370,8 @@ describe('broker-confirmed opening', () => {
     })] });
     expect(lifecycle).toMatchObject({ closeNotified: 1, openNotified: 1, retryableFailures: 0 });
     expect(mockTelegram.sendMessage).toHaveBeenCalledTimes(2);
-    expect(mockTelegram.sendMessage.mock.calls[0][1]).toContain('UNSEEN-OLD-CLOSE');
-    expect(mockTelegram.sendMessage.mock.calls[1][1]).toContain('UNSEEN-REVERSAL');
+    expect(isCloseMsg(mockTelegram.sendMessage.mock.calls[0][1])).toBe(true);
+    expect(isOpenMsg(mockTelegram.sendMessage.mock.calls[1][1])).toBe(true);
   });
 
   test('Telegram failure is retryable and is never marked sent', async () => {
@@ -383,9 +405,11 @@ describe('broker exit deal closing', () => {
       dealId: 'D-MISSING', magic: 5702, symbol: 'EURUSD', netPnl: 1,
       reason: 'broker-exit', profit: 1, commission: null, swap: null, fee: null,
     });
-    expect(message).toContain('Çıkış: <b>—</b>');
-    expect(message).toContain('Komisyon: —');
-    expect(message).toContain('Swap: —');
+    // Sade kapanis: kalem dokumu mesajdan cikti, NET rakam yeter.
+    expect(isCloseMsg(message)).toBe(true);
+    for (const gone of ['Çıkış:', 'Komisyon', 'Swap', 'Ücret']) {
+      expect(message).not.toContain(gone);
+    }
   });
 
   test('real exit deal announces exact net components, exit, reason and tickets', async () => {
@@ -395,9 +419,16 @@ describe('broker exit deal closing', () => {
     expect(r.closeNotified).toBe(1);
     expect(mockTelegram.sendMessage).toHaveBeenCalledTimes(1);
     const message = mockTelegram.sendMessage.mock.calls[0][1];
-    for (const value of ['MT5 GERÇEK KAPANIŞ', '9001', '1001', '1.11980', 'take-profit', '+$13.25', '15.00', '-1.25', '-0.50']) {
-      expect(message).toContain(value);
-    }
+    // Sade kapanis: sadece bot / parite / NET kar-zarar. Asil degismez, duyurulan
+    // rakamin BRUT degil NET olmasi: 15.00 - 1.25 - 0.50 = 13.25.
+    expect(isCloseMsg(message)).toBe(true);
+    expect(message).toContain('EURUSD');
+    expect(message).toContain('+$13.25');
+    expect(message).not.toContain('15.00');   // brut kar asla duyurulmaz
+    // Netleme dogrudan mesaj kurucusundan da dogrulanir (kalem -> tek net).
+    expect(notifier.closeMessage({
+      magic: 5702, symbol: 'EURUSD', netPnl: 15 - 1.25 - 0.5,
+    })).toContain('+$13.25');
     expect(notifier.auditStatus()).toMatchObject({ brokerConfirmedCloses: 1, notifiedCloses: 1, closeWithoutOpen: 0 });
   });
 
@@ -431,8 +462,7 @@ describe('broker exit deal closing', () => {
     const retriedMessage = mockTelegram.sendMessage.mock.calls[1][1];
     expect(retriedMessage).toContain('+$13.25');
     expect(retriedMessage).not.toContain('+$999.00');
-    expect(retriedMessage).toContain('1.11980');
-    expect(retriedMessage).toContain('Komisyon: -1.25');
+    expect(retriedMessage).not.toContain('Komisyon');
   });
 
   test('historical seven-day replay is recorded silently', async () => {
@@ -453,7 +483,7 @@ describe('broker exit deal closing', () => {
     })] });
     expect(lifecycle).toMatchObject({ closeNotified: 1, retryableFailures: 0 });
     expect(mockTelegram.sendMessage).toHaveBeenCalledTimes(1);
-    expect(mockTelegram.sendMessage.mock.calls[0][1]).toContain('OLD-EXACT-CLOSE');
+    expect(isCloseMsg(mockTelegram.sendMessage.mock.calls[0][1])).toBe(true);
     expect(notifier.auditStatus()).toMatchObject({ historicalCloses: 0, notifiedCloses: 1 });
   });
 
@@ -495,8 +525,8 @@ describe('notification kill switch does not control execution', () => {
     const recovered = await notifier.ingestState({ open: [openRow('5001')] });
     expect(recovered).toMatchObject({ openNotified: 1, closeNotified: 1, retryableFailures: 0 });
     expect(mockTelegram.sendMessage).toHaveBeenCalledTimes(2);
-    expect(mockTelegram.sendMessage.mock.calls[0][1]).toContain('MT5 GERÇEK AÇILIŞ');
-    expect(mockTelegram.sendMessage.mock.calls[1][1]).toContain('MT5 GERÇEK KAPANIŞ');
+    expect(isOpenMsg(mockTelegram.sendMessage.mock.calls[0][1])).toBe(true);
+    expect(isCloseMsg(mockTelegram.sendMessage.mock.calls[1][1])).toBe(true);
   });
 
   test('all MT5-tradeable bots suppress paper alerts; paper-only/BIST keep their owner', () => {

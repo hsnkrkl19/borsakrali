@@ -511,34 +511,28 @@ function unresolvedCloseDependencies(record) {
   });
 }
 
+// SADE MESAJ (kullanici istegi 2026-08-01): bot adi, parite-yon, giris/stop/tp, lot.
+// Magic, hesap, kod, ticket gibi teknik alanlar mesajdan cikarildi - hepsi zaten
+// deftere ve /api/bridge/audit'e yaziliyor, mesajda gurultu yapiyorlardi.
 function openMessage(p) {
   const bot = botFor(p.magic, p.botName);
   return [
     `🤖 <b>${html(bot.label)}</b>`,
-    '✅ <b>MT5 GERÇEK AÇILIŞ</b>',
-    `Bot: <b>${html(bot.label)}</b> · Magic: <code>${html(p.magic)}</code>`,
-    `Hesap: <code>${html(accountDisplay(p))}</code>`,
-    `Kod: <code>${html(p.code)}</code> · Ticket: <code>${html(p.ticket)}</code>`,
-    `Sembol: <b>${html(p.symbol)}</b> · Yön: <b>${dirWord(p.direction)}</b>`,
-    `Gerçek giriş: <b>${fmt(p.entry)}</b> · Lot: <b>${fmt(p.lot, 2)}</b>`,
-    `SL: <b>${fmt(p.sl)}</b> · TP: <b>${fmt(p.tp)}</b>`,
+    `<b>${html(p.symbol)}</b> · <b>${dirWord(p.direction)}</b>`,
+    `Giriş <b>${fmt(p.entry)}</b> · Stop <b>${fmt(p.sl)}</b> · TP <b>${fmt(p.tp)}</b>`,
+    `Lot <b>${fmt(p.lot, 2)}</b>`,
   ].join('\n');
 }
 
+// SADE KAPANIS: bot adi, parite ve NET kar/zarar. Net rakam zaten komisyon,
+// swap ve ucreti icerir; kalemleri ayri ayri yazmaya gerek yok.
 function closeMessage(d) {
   const bot = botFor(d.magic, d.botName);
   const pnl = finite(d.netPnl) || 0;
   const icon = pnl > 0 ? '✅' : pnl < 0 ? '🛑' : '⚪';
   return [
-    `🤖 <b>${html(bot.label)}</b>`,
-    `${icon} <b>MT5 GERÇEK KAPANIŞ</b> · <b>${html(d.symbol)}</b>`,
-    `Bot: <b>${html(bot.label)}</b> · Magic: <code>${html(d.magic)}</code>`,
-    `Hesap: <code>${html(accountDisplay(d))}</code>`,
-    `Kod: <code>${html(d.code || '—')}</code> · Pozisyon ticket: <code>${html(d.positionTicket || 'eşleşmedi')}</code>`,
-    `Çıkış deal: <code>${html(d.dealId)}</code> · Çıkış: <b>${fmt(d.exitPrice)}</b> · Lot: <b>${fmt(d.volume, 2)}</b>`,
-    `Sebep: <b>${html(d.reason)}</b>`,
-    `Net K/Z: <b>${pnl >= 0 ? '+' : ''}$${pnl.toFixed(2)}</b>`,
-    `Kâr/Zarar: ${fmt(d.profit, 2)} · Komisyon: ${fmt(d.commission, 2)} · Swap: ${fmt(d.swap, 2)} · Ücret: ${fmt(d.fee, 2)}`,
+    `${icon} <b>${html(bot.label)}</b>`,
+    `<b>${html(d.symbol)}</b> · <b>${pnl >= 0 ? '+' : '-'}$${Math.abs(pnl).toFixed(2)}</b>`,
   ].join('\n');
 }
 

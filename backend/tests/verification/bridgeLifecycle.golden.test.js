@@ -125,7 +125,9 @@ test('POST state emits one broker-confirmed opening and exposes reconciliation s
   expect(first.status).toBe(200);
   expect(first.body.lifecycle).toMatchObject({ openNotified: 1, retryableFailures: 0 });
   expect(first.body.audit).toMatchObject({ notifiedOpens: 1, tradeWithoutSignal: 0 });
-  expect(mockTelegram.sendMessage.mock.calls[0][1]).toContain('PRO-9');
+  // Sade mesaj (2026-08-01): kod/ticket duyurulmaz; kimlik defterde tutulur.
+  expect(mockTelegram.sendMessage.mock.calls[0][1]).toContain('EURUSD');
+  expect(mockTelegram.sendMessage.mock.calls[0][1]).toContain('Giriş');
 
   const duplicate = await request(app).post('/api/bridge/state').set(auth).send({ open: [openRow()] });
   expect(duplicate.status).toBe(200);
@@ -204,11 +206,12 @@ test('POST results accepts only real exit deal and announces exact net broker P/
   expect(res.body.results).toMatchObject({ ingested: 1, invalid: 0 });
   expect(res.body.lifecycle.closeNotified).toBe(1);
   const message = mockTelegram.sendMessage.mock.calls[0][1];
+  // Sade kapanis (2026-08-01): bot / parite / NET kar-zarar. Degismez, duyurulan
+  // rakamin BRUT (10) degil komisyon+swap+ucret dusulmus NET (8,25) olmasi.
+  expect(message).toContain('EURUSD');
   expect(message).toContain('+$8.25');
-  expect(message).toContain('1.11990');
-  expect(message).toContain('8001');
-  expect(message).toContain('Lot: <b>0.10</b>');
-  expect(message).toContain('Ücret: -0.50');
+  expect(message).not.toContain('$10');    // brut kar asla duyurulmaz
+  expect(message).not.toContain('Ücret');  // kalem dokumu mesajdan cikti
 });
 
 test('audit endpoint is token-protected and never echoes the token', async () => {
