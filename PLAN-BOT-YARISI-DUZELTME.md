@@ -6,7 +6,7 @@
 > **Bu dosya çalışmanın tek gerçeğidir.** Her görev bittiğinde durumu burada güncelle.
 > Kesinti olursa "Sonraki adım" satırından devam et.
 
-**Sonraki adım:** F1 (teşhis workflow'u sürüyor, bulgular geldikçe kök nedenler doğrulanacak)
+**Sonraki adım:** A1 (bildirim–muhasebe ayrımı). B1/B2/B4 bitti ve push'landı; teşhis workflow'u sürüyor.
 
 ---
 
@@ -114,6 +114,9 @@ C fazı A1'e, D fazı A6'ya bağlı.
 | Görev | Durum | Not |
 |---|---|---|
 | Teşhis workflow'u | 🔄 sürüyor | 5 ajan + sentez; kök nedenleri doğrulayacak |
+| **B1** işlem başı 250 $ tavan | ✅ bitti | `40b901d` · dolar riski enstrümanlar arası eşitlendi |
+| **B2** enstrüman-normalize lot | ✅ özü bitti | B1 ile geldi; sınıf-bazlı ikinci tavan opsiyonel kaldı |
+| **B4** kâğıt yarışma kapatamaz | ✅ bitti | `4083759` · `trade_guard.paper_close_allowed` |
 | A1..A7 | ⬜ başlamadı | |
 | B1..B5 | ⬜ başlamadı | |
 | C1..C5 | ⬜ başlamadı | |
