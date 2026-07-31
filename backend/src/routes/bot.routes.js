@@ -317,7 +317,19 @@ router.get('/funnel', (req, res) => {
         category: 'Eşlenmemiş', magics: [Number(magic)],
         durum: botFunnel.explain(part),
       }));
-    res.json({ ok: true, days: data.days, totals: data.totals, bots: rows, orphans });
+    // A7 MUTABAKAT: defterin bugünkü neti ile brokerın kendi rakamı. Panel
+    // "defter sağlıklı mı" rozetini buradan basar — fark gizlenemez.
+    let reconciliation = null;
+    try {
+      const store = require('../services/realResults/store');
+      const sinceSec = Math.floor(
+        require('../services/botDailyReport').trDayStartMs(Date.now()) / 1000);
+      const agg = store.hasData() ? store.aggregate(sinceSec) : [];
+      const ledgerNet = agg.reduce((s, r) => s + (Number(r.net) || 0), 0);
+      reconciliation = require('../services/realResults/brokerTruth').reconcile(ledgerNet);
+    } catch (_) { reconciliation = null; }
+
+    res.json({ ok: true, days: data.days, totals: data.totals, bots: rows, orphans, reconciliation });
   } catch (e) {
     res.status(500).json({ ok: false, error: e.message });
   }

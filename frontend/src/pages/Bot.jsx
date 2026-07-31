@@ -63,6 +63,7 @@ export default function BotPage() {
     { id: 'botlar', label: 'Botlar', icon: '🤖' },
     { id: 'olustur', label: 'Bot Oluştur', icon: '➕' },
     { id: 'yaris', label: 'Yarış', icon: '🏆' },
+    { id: 'huni', label: 'Sağlık & Huni', icon: '🔎' },
     { id: 'altin', label: 'Altın Botu', icon: '🥇' },
   ]
 
@@ -87,6 +88,7 @@ export default function BotPage() {
       {tab === 'botlar' && <BotlarTab />}
       {tab === 'olustur' && <OlusturTab />}
       {tab === 'yaris' && <YarisTab />}
+      {tab === 'huni' && <HuniTab />}
       {tab === 'altin' && <AltinTab />}
     </div>
   )
@@ -319,6 +321,123 @@ function Stat({ label, value, tone }) {
 }
 
 // ── SEKME 3: YARIŞ ────────────────────────────────────────────────────────────
+// ── SEKME 4: SAĞLIK & HUNİ ────────────────────────────────────────────────────
+/**
+ * C5 — "bu bot neden sessiz?" sorusunun tek ekranda cevabı.
+ *
+ * 2026-07-31: rapor 18 işlem / −74,51 $ derken hesapta 60+ işlem / −3.234,88 $
+ * vardı ve 36 bot için yalnızca "işlem yok" yazıyordu. Bu ekran hem defterin
+ * brokerla uyuşup uyuşmadığını (mutabakat rozeti) hem de her botun hangi
+ * kademede tıkandığını gösterir.
+ */
+function HuniTab() {
+  const [data, setData] = useState(null)
+  const [days, setDays] = useState(1)
+  const [err, setErr] = useState('')
+
+  const load = useCallback(async () => {
+    try { const { data } = await api.get(`/bot/funnel?days=${days}`); setData(data); setErr('') }
+    catch { setErr('Huni verisi alınamıyor…') }
+  }, [days])
+  useEffect(() => { load(); const t = setInterval(load, 20000); return () => clearInterval(t) }, [load])
+
+  if (err && !data) return <Msg kind="warn">{err}</Msg>
+  if (!data) return <Spinner />
+
+  const t = data.totals || {}
+  const rec = data.reconciliation
+  const rows = [...(data.bots || []), ...(data.orphans || [])]
+  const topReasons = Object.entries(t.reasons || {}).sort((a, b) => b[1] - a[1]).slice(0, 6)
+  const net = (v) => <span className={cls('font-bold', (v || 0) > 0 ? 'text-emerald-600' : (v || 0) < 0 ? 'text-rose-600' : 'text-gray-400')}>{(v || 0) >= 0 ? '+' : '−'}${fmt(Math.abs(v || 0))}</span>
+
+  return (
+    <div className="space-y-5">
+      {/* MUTABAKAT ROZETİ — defter brokerla uyuşuyor mu? */}
+      {rec && (
+        <div className={cls('rounded-2xl border-2 p-4',
+          rec.ok ? 'border-emerald-200 bg-emerald-50' : 'border-rose-300 bg-rose-50')}>
+          <div className="font-bold text-sm mb-1">
+            {rec.ok ? '✅ Defter sağlıklı' : rec.reason === 'broker-anlik-goruntusu-yok'
+              ? '⚠️ Mutabakat yapılamıyor' : '🚨 MUTABAKATSIZLIK'}
+          </div>
+          {rec.reason === 'broker-anlik-goruntusu-yok' ? (
+            <p className="text-sm text-gray-600">Brokerdan taze anlık görüntü yok — merkez beyin çalışmıyor olabilir.</p>
+          ) : (
+            <p className="text-sm text-gray-700">
+              Defter {net(rec.ledgerNet)} · Broker {net(rec.brokerNet)}
+              {!rec.ok && <> · <b className="text-rose-700">fark {net(rec.diff)}</b> — kayıt hattı eksik satır içeriyor.</>}
+              {rec.ageSec != null && <span className="text-gray-400"> · {rec.ageSec} sn önce</span>}
+            </p>
+          )}
+        </div>
+      )}
+
+      {/* GÜNÜN HUNİSİ */}
+      <div className="rounded-2xl border border-gray-200 bg-white p-5">
+        <div className="flex items-center justify-between gap-3 flex-wrap mb-3">
+          <div className="text-xs font-bold uppercase tracking-wider text-emerald-600">🔎 HUNİ · sinyalden kapanışa</div>
+          <div className="flex gap-2">
+            {[1, 7, 14].map((d) => (
+              <Chip key={d} active={days === d} onClick={() => setDays(d)}>{d === 1 ? 'Bugün' : `${d} gün`}</Chip>
+            ))}
+          </div>
+        </div>
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 mb-3">
+          {[['Sinyal', t.signals], ['Onay', t.accepted], ['Ret', t.rejected], ['Dolum', t.filled], ['Kapanış', t.closed]].map(([k, v]) => (
+            <div key={k} className="rounded-xl bg-gray-50 border border-gray-100 px-3 py-2 text-center">
+              <div className="text-xs text-gray-400">{k}</div>
+              <div className="text-lg font-extrabold text-gray-800">{v || 0}</div>
+            </div>
+          ))}
+        </div>
+        {topReasons.length > 0 && (
+          <div className="flex flex-wrap gap-2">
+            <span className="text-xs text-gray-400 self-center">En sık ret sebepleri:</span>
+            {topReasons.map(([r, c]) => <Tag key={r}>{r} ×{c}</Tag>)}
+          </div>
+        )}
+      </div>
+
+      {/* BOT BAZINDA */}
+      <div className="rounded-2xl border border-gray-200 bg-white p-5">
+        <div className="text-xs font-bold uppercase tracking-wider text-emerald-600 mb-3">BOT BAZINDA · sessizse neden</div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="text-gray-400 text-xs uppercase tracking-wide">
+              <tr>
+                <th className="text-left py-2">Bot</th>
+                <th className="text-right">Sinyal</th><th className="text-right">Onay</th><th className="text-right">Ret</th>
+                <th className="text-right">Dolum</th><th className="text-right">Kapanış</th>
+                <th className="text-right">Net</th><th className="text-left pl-3">Durum</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((b) => (
+                <tr key={b.botId || `orphan-${b.magics?.[0]}`} className="border-t border-gray-100">
+                  <td className="py-2 font-medium text-gray-700">
+                    <span className="mr-1">{CAT_ICON[b.category] || '❔'}</span>
+                    {b.no ? `Bot ${b.no} · ` : ''}{b.name}
+                  </td>
+                  <td className="text-right text-gray-600">{b.signals || 0}</td>
+                  <td className="text-right text-gray-600">{b.accepted || 0}</td>
+                  <td className="text-right text-gray-600">{b.rejected || 0}</td>
+                  <td className="text-right text-gray-600">{b.filled || 0}</td>
+                  <td className="text-right text-gray-600">{b.closed || 0}</td>
+                  <td className="text-right">{b.closed ? net(b.netUsd) : <span className="text-gray-300">—</span>}</td>
+                  <td className="pl-3 text-gray-500 text-xs">{b.durum}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <p className="text-xs text-gray-400 mt-3">
+          Sayaçlar borsakrali.com tarafında tutulur — VPS silinse de kaybolmaz.
+        </p>
+      </div>
+    </div>
+  )
+}
+
 function YarisTab() {
   const [comp, setComp] = useState(null)
   const [custom, setCustom] = useState([])
