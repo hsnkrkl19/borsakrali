@@ -154,6 +154,8 @@ def build_config(cfg):
         # Islem basina mutlak dolar tavani: config yalniz DUSURebilir.
         max_trade_risk_usd=_bounded(
             _value(cfg, "max_trade_risk_usd", default=250.0), 250.0, 15.0, 250.0),
+        race_max_open_risk_pct=_bounded(
+            _value(cfg, "race_max_open_risk_pct", default=3.0), 3.0, 0.5, 3.0),
         min_rr=min_rr,
         min_feed_rr=_bounded(
             _value(cfg, "min_feed_rr", default=1.5), 1.5, 0.0, 3.0),

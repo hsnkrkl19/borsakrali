@@ -88,6 +88,12 @@ class BrainConfig:
     # tavan/stop-mesafesi oraniyla kucultuldugu icin 1 lot altin ile 1 lot
     # EURUSD ayni riski tasir.
     max_trade_risk_usd: float = 250.0
+    # YARIS MODU TOPLAM ACIK RISK TAVANI (kullanici karari D3, 2026-07-31).
+    # Yaris giris SAYISINI serbest birakir ama hesabin toplam acik riskini
+    # sinirsiz birakamaz: 2026-07-31'de 20+ pozisyon neredeyse tamami ayni
+    # yondeydi; piyasa donunce hepsi birden kaybetti. Tavana gelince yeni
+    # girisler BEKLEMEYE alinir (mevcutlar yonetilmeye devam eder).
+    race_max_open_risk_pct: float = 3.0
     min_rr: float = 3.0
     min_feed_rr: float = 1.5
     target_strong_signal: float = 0.75
@@ -147,6 +153,8 @@ class BrainConfig:
             raise ValueError("max_trade_risk_usd must be finite and positive")
         if self.max_trade_risk_usd < self.min_initial_risk_usd:
             raise ValueError("max_trade_risk_usd cannot be below min_initial_risk_usd")
+        if not 0 < self.race_max_open_risk_pct <= 10.0:
+            raise ValueError("race_max_open_risk_pct must be in (0, 10]")
         if float(self.min_rr) not in {3.0, 4.0, 5.0}:
             raise ValueError("min_rr must be 3, 4 or 5")
         if not 0.0 <= self.min_feed_rr <= 3.0:
@@ -482,7 +490,11 @@ def evaluate_pretrade(snapshot: AccountSnapshot | None,
         # Yarış: yalnız işlem-başı boyutlama; havuz/sembol/bot tavanı yok.
         # Mutlak dolar tavanı yarışta da geçerlidir (giriş SAYISI serbest,
         # işlem BÜYÜKLÜĞÜ değil).
-        limits_usd = {"trade": equity * float(config.trade_risk_pct) / 100.0}
+        limits_usd = {
+            "trade": equity * float(config.trade_risk_pct) / 100.0,
+            "race_total_open": (equity * config.race_max_open_risk_pct / 100.0
+                                - current_account),
+        }
     else:
         limits_usd = {
             "trade": equity * float(config.trade_risk_pct) / 100.0,
@@ -520,6 +532,9 @@ def evaluate_pretrade(snapshot: AccountSnapshot | None,
         "account_open_risk_pct": projected_account / equity * 100.0,
     }
     violations = []
+    if config.race_mode:
+        if projected["account_open_risk_pct"] > config.race_max_open_risk_pct + 1e-9:
+            violations.append("race_total_open_risk_ceiling")
     if not config.race_mode:
         if projected["symbol_side_risk_pct"] > config.max_symbol_side_risk_pct + 1e-9:
             violations.append("symbol_side_hard_cap")

@@ -132,6 +132,34 @@ class PureDecisionTests(unittest.TestCase):
         self.assertGreaterEqual(third.rr, 3.0)
 
 
+
+    def test_race_mode_still_caps_total_open_risk(self):
+        """B3: yaris giris SAYISINI serbest birakir, toplam hesap riskini degil.
+
+        2026-07-31: 20+ pozisyon neredeyse tamami ayni yondeydi; piyasa
+        donunce hepsi birden kaybetti. Tavan bunu yapisal olarak onler.
+        """
+        cfg = BrainConfig(race_mode=True)          # tavan %3
+        # 10k equity -> %3 = 300 $ toplam acik risk butcesi.
+        # 290 $ dolu: kalan 10 $ < 15 $ tabani -> yeni giris ACILMAZ.
+        dolu = tuple(
+            OpenRisk(str(i), "bot-%d" % i, "SYM%d" % i, "buy", "M15", 29.0, 0.5)
+            for i in range(10))
+        red = evaluate_pretrade(snapshot(), dolu, request(), SPEC, cfg)
+        self.assertFalse(red.allowed, red.reasons)
+        # 100 $ dolu -> 200 $ yer var, giris SERBEST (yaris bozulmaz).
+        az = tuple(
+            OpenRisk(str(i), "bot-%d" % i, "SYM%d" % i, "buy", "M15", 25.0, 0.5)
+            for i in range(4))
+        kabul = evaluate_pretrade(snapshot(), az, request(), SPEC, cfg)
+        self.assertTrue(kabul.allowed, kabul.reasons)
+        self.assertLessEqual(kabul.projected["account_open_risk_pct"], 3.0 + 1e-9)
+        # Tavan config'ten DUSURULEBILIR ama 10%'u asamaz.
+        with self.assertRaises(ValueError):
+            BrainConfig(race_mode=True, race_max_open_risk_pct=0)
+        with self.assertRaises(ValueError):
+            BrainConfig(race_mode=True, race_max_open_risk_pct=11)
+
     def test_absolute_usd_cap_binds_on_large_accounts(self):
         """B1: yuzde ne derse desin islem basi risk 250 $'i asamaz."""
         # 197k hesap, %0.25 -> 492,5 $ isterdi; tavan 250 $'a kirpar.
