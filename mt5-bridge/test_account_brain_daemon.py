@@ -533,6 +533,64 @@ def t_runner_extends_tp_only_outward():
     print("OK runner TP: kazanan kosar, TP yalniz uzaga tasinir")
 
 
+def t_closed_ledger_not_blocked_by_pending_opens():
+    """A2: acilis kuyrugu doluyken bile KAPANIS satirlari POST edilir.
+
+    2026-07-31 regresyonu: tek bir Telegram hiz-limiti acilisi kuyrukta
+    biraktiginda `_report_state` erken donuyor, kapanislar deftere HIC
+    yazilamiyordu (gercek -3.234,88 $ iken rapor -74,51 $ dedi).
+    """
+    now = int(time.time())
+    close = SimpleNamespace(
+        entry=1, magic=550055, ticket=901, position_id=5001, comment="BK#A1",
+        symbol="EURUSD", volume=1.0, price=1.15, profit=-19.0, commission=-2.0,
+        swap=0.0, fee=0.0, time=now - 5, time_msc=1, reason=4)
+    state = {"notificationCursorSec": now - 600, "close_reasons": {}}
+    sent = {}
+
+    def post(_url, **kwargs):
+        sent.update(kwargs["json"])
+        return SimpleNamespace(status_code=200, text="ok")
+
+    cfg = dict(brain.DEFAULTS, exec_token="x", backend_url="https://example.test")
+    with patch.object(brain, "_position_history", return_value=[close]),             patch.object(brain.mt5_brain_adapter, "flush_broker_event_outbox", return_value=False),             patch.object(brain.mt5_brain_adapter, "broker_event_outbox_count", return_value=7),             patch.object(brain.requests, "post", side_effect=post):
+        ok = brain._report_state(cfg, [], [close], state,
+                                 {"login": 1, "server": "Demo"},
+                                 history_cutoff_sec=now)
+    assert ok is True, "acilis kuyrugu kapanis raporunu engellememeli"
+    assert len(sent.get("closed", [])) == 1, sent
+    assert sent["closed"][0]["pnl"] == -21.0
+    print("OK A2: bekleyen acilis kuyrugu kapanis defterini durdurmuyor")
+
+
+def t_live_snapshot_skip_does_not_advance_cursor():
+    """A2b: anlik goruntude hala acik gorunen kapanis cursor'u ilerletmemeli."""
+    now = int(time.time())
+    # A: erken kapandi ama positions_get'te HALA canli gorunuyor (bayat snapshot)
+    close_a = SimpleNamespace(
+        entry=1, magic=5702, ticket=911, position_id=7007, comment="BK#A",
+        symbol="XAUUSD", volume=0.1, price=4000, profit=-50, commission=-1,
+        swap=0, fee=0, time=now - 60, time_msc=1, reason=4)
+    # B: sonra kapandi ve raporlanabilir
+    close_b = SimpleNamespace(
+        entry=1, magic=5702, ticket=912, position_id=8008, comment="BK#B",
+        symbol="EURUSD", volume=0.1, price=1.15, profit=20, commission=-1,
+        swap=0, fee=0, time=now - 10, time_msc=2, reason=5)
+    state = {"notificationCursorSec": now - 600, "close_reasons": {}}
+
+    def lifecycle(position_id):
+        return [close_a] if str(position_id) == "7007" else [close_b]
+
+    with patch.object(brain, "_position_history", side_effect=lifecycle):
+        rows, blocked, ids = brain._closed_rows(
+            [close_a, close_b], state, min_closed_sec=now - 600,
+            live_position_tickets=("7007",), return_status=True)
+    assert [r["positionTicket"] for r in rows] == ["8008"], rows
+    assert blocked is True, "live yuzunden atlanan pozisyon BLOKE sayilmali"
+    assert "7007" in ids, ids
+    print("OK A2b: atlanan kapanis cursor'u ilerletmiyor (kalici kayip yok)")
+
+
 def t_history_and_disk_failures_do_not_skip_global_flatten():
     manual = pos(-50.0, ticket=11)
     manual.magic = 0
@@ -578,6 +636,8 @@ if __name__ == "__main__":
     t_order_calc_profit_measures_loss_and_trailing_stop_zero_risk()
     t_discretionary_close_records_reentry_cooldown()
     t_trailing_stop_after_3r()
+    t_closed_ledger_not_blocked_by_pending_opens()
+    t_live_snapshot_skip_does_not_advance_cursor()
     t_herd_reversal_cuts_losers_keeps_winners()
     t_herd_cooldown_only_after_successful_close()
     t_runner_extends_tp_only_outward()

@@ -1203,6 +1203,11 @@ def _closed_rows(deals, state, min_closed_sec=0, live_position_tickets=(),
 
     for position_ticket, recent_closes in candidates.items():
         if position_ticket in live:
+            # A2b: Bu pozisyon anlik goruntude HALA acik gorunuyor; kapanisi
+            # bu turda raporlanamaz. Bloke listesine YAZILMALI, yoksa cursor
+            # daha yeni bir kapanisla ileri kayar ve bu deal bir daha ASLA
+            # raporlanmaz (toplu kapanislarda kalici satir kaybi).
+            blocked_position_ids.append(position_ticket)
             continue
         lifecycle = _position_history(position_ticket)
         if lifecycle is None:
@@ -1289,10 +1294,16 @@ def _report_state(cfg, positions, deals, state, snap, live_positions=None,
     # backend before any later close. Keep close cursor unchanged on failure.
     mt5_brain_adapter.flush_broker_event_outbox(cfg, logger=log)
     pending_opens = mt5_brain_adapter.broker_event_outbox_count(cfg)
+    # A2 (2026-07-31): Eskiden burada `return False` vardi -> acilis kuyrugu
+    # doluyken KAPANIS satirlari hic POST edilmiyordu. Telegram hiz limitine
+    # takilan tek bir acilis, tum hesap defterini durduruyordu (gercek
+    # -3.234,88 $ iken rapor -74,51 $). Mesaj SIRASI artik backend tarafinda
+    # korunuyor (kapanis, acilisi gonderilmemis pozisyon icin "waiting-open"
+    # olarak bekletilir), bu yuzden kapanis satirlarini gondermek guvenlidir.
+    # Kayit gecikirse defter delinir; sira zaten karsi tarafta garanti altinda.
     if pending_opens:
-        log.error("%s broker acilis olayi kuyrukta; kapanis raporu sirayi korumak icin beklendi",
-                  pending_opens)
-        return False
+        log.warning("%s broker acilis olayi kuyrukta; kapanis defteri yine de "
+                    "gonderiliyor (sira backend tarafinda korunur)", pending_opens)
     stored_cursor = int(state.get("notificationCursorSec", 0) or 0)
     established_cursor = stored_cursor > 0
     cursor = stored_cursor

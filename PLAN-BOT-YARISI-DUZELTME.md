@@ -6,7 +6,8 @@
 > **Bu dosya çalışmanın tek gerçeğidir.** Her görev bittiğinde durumu burada güncelle.
 > Kesinti olursa "Sonraki adım" satırından devam et.
 
-**Sonraki adım:** A1 (bildirim–muhasebe ayrımı). B1/B2/B4 bitti ve push'landı; teşhis workflow'u sürüyor.
+**Sonraki adım:** A2 (beyin: kapanışları açılış kuyruğunun arkasında bekletme) + A2b (cursor `live` deliği).
+Biten: A1, R-rapor magic, B1, B2(öz), B4. Teşhis tamam → `TESHIS-BULGULARI-2026-07-31.md` (52 bulgu).
 
 ---
 
@@ -37,6 +38,8 @@
 | R5 | `account_tier_max_lot = 1.0` **tüm enstrümanlarda aynı** | 1 lot altın ≈ 10× 1 lot EURUSD riski → −414,90 $ | `mt5_brain_adapter.py` `_symbol_spec` |
 | R6 | Forex (550055) ve tarayıcı (550066) köprüleri **sonuç raporlamıyor** | Bot 1 ve Bot 5 hep "işlem yok" | `borsakrali_mt5.py`/`_scanner.py` içinde `/bridge/results` yok |
 | R7 | `close_on_feed_drift` / `close_on_backend_close`: kâğıt yarışma gerçek pozisyonu kapatıyor | 3R hedef ve trail devreye giremiyor → kuruşluk kapanışlar | Gece logu `competition-kapatti` |
+| **R9** | **Günlük rapor `dedicatedBridgeMagic` okumuyordu** → Bot 1 (550055) ve Bot 5 (550066) işlemleri hem listeden hem GÜN TOPLAMI'ndan düşüyordu | 18 vs 60 farkının **doğrudan sebebi** | ✅ düzeltildi `f656a2f` |
+| **R10** | Cursor, `live` anlık görüntüsü yüzünden atlanan pozisyonların **üzerinden atlıyor** → toplu kapanışta kalıcı satır kaybı | Kapanış bir daha asla raporlanmaz | ⏳ A2b |
 | R8 | ⏳ Bot bazlı sinyal→emir hunisi kaydı yok | 36 bot "işlem yok" mu, "sinyal verdi ama açılamadı" mı ayırt edilemiyor | teşhis bekliyor |
 
 ---
@@ -113,7 +116,9 @@ C fazı A1'e, D fazı A6'ya bağlı.
 
 | Görev | Durum | Not |
 |---|---|---|
-| Teşhis workflow'u | 🔄 sürüyor | 5 ajan + sentez; kök nedenleri doğrulayacak |
+| Teşhis workflow'u | ✅ bitti | 52 bulgu → `TESHIS-BULGULARI-2026-07-31.md` |
+| **A1** defter≠bildirim | ✅ bitti | `f656a2f` · 200+notifyPending, arka plan drenajı, kalıcılık hatası hâlâ 503 |
+| **RAPOR** dedicatedBridgeMagic | ✅ bitti | `f656a2f` · Bot 1/Bot 5 artık görünür + yetim magic bölümü |
 | **B1** işlem başı 250 $ tavan | ✅ bitti | `40b901d` · dolar riski enstrümanlar arası eşitlendi |
 | **B2** enstrüman-normalize lot | ✅ özü bitti | B1 ile geldi; sınıf-bazlı ikinci tavan opsiyonel kaldı |
 | **B4** kâğıt yarışma kapatamaz | ✅ bitti | `4083759` · `trade_guard.paper_close_allowed` |
