@@ -269,6 +269,60 @@ router.get('/race/leaderboard', (req, res) => {
   }
 });
 
+// C1 HUNİ: her bot için sinyal → onay/ret(sebep) → dolum → kapanış sayaçları.
+// Sessiz botlar da listelenir — "işlem yok"un NEDENİ burada görünür.
+router.get('/funnel', (req, res) => {
+  try {
+    const botFunnel = require('../services/botFunnel');
+    const catalog = require('../services/botCompetition/catalog');
+    const days = Math.max(1, Math.min(14, Number(req.query.days) || 1));
+    const data = botFunnel.funnel({ days });
+    const seen = new Set();
+    const rows = [];
+    for (const entry of catalog) {
+      if (entry.competitionEligible === false) continue;
+      // Bir bot birden çok magic taşıyabilir (adanmış köprü + alt motorlar);
+      // hepsi tek satırda toplanır, yoksa Bot 1/Bot 5 yine kaybolurdu.
+      const magics = [...new Set([
+        Number(entry.magic),
+        Number(entry.dedicatedBridgeMagic),
+        ...Object.values(entry.magicByStrategy || {}).map(Number),
+      ].filter((m) => Number.isFinite(m) && m > 0))];
+      const row = {
+        botId: entry.id, no: entry.no, name: entry.name, category: entry.category,
+        magics, signals: 0, accepted: 0, rejected: 0, reasons: {},
+        filled: 0, closed: 0, wins: 0, losses: 0, netUsd: 0,
+      };
+      for (const m of magics) {
+        seen.add(String(m));
+        const part = data.bots[String(m)];
+        if (!part) continue;
+        row.signals += part.signals; row.accepted += part.accepted;
+        row.rejected += part.rejected; row.filled += part.filled;
+        row.closed += part.closed; row.wins += part.wins; row.losses += part.losses;
+        row.netUsd = Math.round((row.netUsd + part.netUsd) * 100) / 100;
+        for (const [reason, count] of Object.entries(part.reasons || {})) {
+          row.reasons[reason] = (row.reasons[reason] || 0) + count;
+        }
+      }
+      row.durum = botFunnel.explain(row);
+      rows.push(row);
+    }
+    // Kataloğa eşlenmeyen magic'ler (özel botlar, harici EA) sessizce düşmesin.
+    const orphans = Object.entries(data.bots)
+      .filter(([magic]) => !seen.has(magic))
+      .map(([magic, part]) => ({
+        ...part, botId: null, no: null,
+        name: require('../services/realResults/store').magicToBot(magic).name,
+        category: 'Eşlenmemiş', magics: [Number(magic)],
+        durum: botFunnel.explain(part),
+      }));
+    res.json({ ok: true, days: data.days, totals: data.totals, bots: rows, orphans });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
 // YARIŞ: günlük Telegram raporunu elle tetikle (cron 23:55 TR'de zaten atar).
 router.post('/race/daily-report', async (req, res) => {
   try {

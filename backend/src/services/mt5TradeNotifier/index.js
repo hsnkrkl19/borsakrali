@@ -16,6 +16,7 @@ const fs = require('fs');
 const path = require('path');
 const botPersistence = require('../botPersistence');
 const realResults = require('../realResults/store');
+const botFunnel = require('../botFunnel');
 const { magicToBot, normalizeExitDeal } = realResults;
 const { botLabel } = require('../botCompetition/botLabels');
 const competitionCatalog = require('../botCompetition/catalog');
@@ -51,6 +52,14 @@ let loaded = false;
 
 function nowISO() { return new Date().toISOString(); }
 function nowMs() { return Date.now(); }
+/**
+ * Broker olay zamanı (saniye) -> ms. C1 hunisi olguları GERÇEK gününe yazar;
+ * köprünün 7 günlük geçmiş tekrarı aksi halde hepsini BUGÜNE yığardı.
+ */
+function secToMs(sec) {
+  const n = Number(sec);
+  return Number.isFinite(n) && n > 0 ? n * 1000 : nowMs();
+}
 function notificationsDisabled() { return process.env.MT5_TRADE_NOTIFY_DISABLED === '1'; }
 /**
  * Every MT5-tradeable bot has one Telegram owner: central broker-state ingest.
@@ -293,6 +302,8 @@ function observeCandidates(rows = []) {
       old.lastSeenMs = nowMs();
       continue;
     }
+    // C1 huni: aynı aday her turda yeniden görülür; sayaç YALNIZ ilk görüşte artar.
+    if (!old) botFunnel.noteSignal(c.magic);
     state.candidates[key] = {
       ...old, ...c, status: old && old.status === 'unconfirmed' ? 'unconfirmed' : 'candidate',
       firstSeenMs: Number(old && old.firstSeenMs) || nowMs(), lastSeenMs: nowMs(), updatedAt: nowISO(),
@@ -330,6 +341,8 @@ function observeDecisions(rows = [], context = {}) {
       ...account,
     };
     state.decisions[decisionKey] = row;
+    // C1 huni: aynı karar tekrar POST edilebilir; sayaç YALNIZ ilk görüşte artar.
+    if (!previous) botFunnel.noteDecision(row.magic, ok, reason);
     const candidate = state.candidates[key] || (row.code ? state.candidates[row.code] : null);
     if (candidate && !ok) {
       candidate.status = 'rejected'; candidate.reason = reason; candidate.lastSeenMs = nowMs();
@@ -746,6 +759,9 @@ async function ingestState(payload = {}) {
         state.openAliases[incomingKey] = key;
       }
     }
+    // C1 huni: emir bileti ile pozisyon bileti AYNI dolumun iki yüzü; takma ad
+    // çözümlemesinden SONRA bakılır, yoksa tek işlem iki dolum sayılırdı.
+    if (!old) botFunnel.noteFill(normalized.magic, secToMs(normalized.openedSec));
     const incomingOutbox = normalized.source === 'broker-fill-outbox';
     const incomingSnapshot = normalized.source === 'account-brain';
     const brokerFillSeen = !!(old && old.brokerFillSeen) || incomingOutbox;
@@ -842,6 +858,9 @@ async function ingestState(payload = {}) {
     const openRecord = findOpenForClose(deal);
     const dealKey = brokerStateKey(deal.id, deal);
     const old = state.closes[dealKey];
+    // C1 huni: köprü 7 GÜNLÜK kapanış penceresini tekrar tekrar POST eder;
+    // sayaç YALNIZ ilk görüşte artar.
+    if (!old) botFunnel.noteClose(deal.magic, deal.netPnl ?? deal.pnl, secToMs(deal.closedSec));
     const exactComponents = old && old.componentsExact && !deal.componentsExact ? old : deal;
     const incoming = {
       dealId: deal.id,

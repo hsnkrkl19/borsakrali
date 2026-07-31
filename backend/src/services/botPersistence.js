@@ -24,7 +24,7 @@ const DATA_ROOT = process.env.BOT_DATA_DIR || path.join(__dirname, '..', 'data')
 // Sabit botlar + kullanıcı-tanımlı botların kayıt defteri ('custom-bots/registry.json').
 // Kullanıcı botlarının portföyleri ise dinamik 'custom-<id>' alt-dizinlerinde yaşar
 // (loadAll, registry.json'ı okuyup bunları runtime'da keşfeder).
-const SUBDIRS = ['bot', 'crypto-bot', 'tema34-bot', 'custom-bots', 'crossover-alerts', 'tema34-scanner', 'bist-al-scanner', 'pro-signals', 'altin', 'mt5-scanner', 'news-warning', 'bot-center', 'bot-competition', 'ict-fvg', 'bot-builder', 'bist-al-portfolio', 'bist-portfolio', 'real-results', 'mt5-bots', 'mt5-notify'];
+const SUBDIRS = ['bot', 'crypto-bot', 'tema34-bot', 'custom-bots', 'crossover-alerts', 'tema34-scanner', 'bist-al-scanner', 'pro-signals', 'altin', 'mt5-scanner', 'news-warning', 'bot-center', 'bot-competition', 'ict-fvg', 'bot-builder', 'bist-al-portfolio', 'bist-portfolio', 'real-results', 'mt5-bots', 'mt5-notify', 'bot-funnel'];
 // signal-log.json → BIST/kripto botları; runs.json → TEMA34 botu + EMA34/TEMA34
 // kırılım bildirimcisi (state); registry.json → custom bot tanım defteri;
 // learning.json → mt5-scanner öğrenme katmanı (kombo istatistik + mod kararları).
@@ -44,7 +44,7 @@ const SUBDIRS = ['bot', 'crypto-bot', 'tema34-bot', 'custom-bots', 'crossover-al
 // işlemini de kapatıyordu (close_on_backend_close) → deploy = zorla kapanış.
 //   state.json  → botBuilder/store (özel bot tanımları + 15 botun TF filtresi)
 //   runner.json → botBuilder/customBotRunner (açık kağıt pozisyonlar + geçmiş)
-const FILES = ['portfolio.json', 'positions.json', 'trades.json', 'signal-log.json', 'runs.json', 'registry.json', 'learning.json', 'backtest.json', 'notified.json', 'deals.json', 'consensus-alerts.json', 'state.json', 'runner.json'];
+const FILES = ['portfolio.json', 'positions.json', 'trades.json', 'signal-log.json', 'runs.json', 'registry.json', 'learning.json', 'backtest.json', 'notified.json', 'deals.json', 'consensus-alerts.json', 'state.json', 'runner.json', 'funnel.json'];
 const DEBOUNCE_MS = 2500;
 
 // Bir custom bot portföy alt-dizini mi? ('custom-<id>', registry'nin 'custom-bots'u hariç)
