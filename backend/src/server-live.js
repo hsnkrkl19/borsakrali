@@ -6196,16 +6196,32 @@ setInterval(warmupCryptoCache, 8 * 60 * 1000);
 // kopruden BAGIMSIZ olarak, hiz sinirli sekilde yeniden dener. Boylece defter
 // (realResults) bildirimden ayrisir: kopru 200 alip ilerler, mesajlar arkadan
 // yetisir ve "gerceklesen her islem bildirilir" garantisi korunur.
+// ⚠️ F6 (2026-08-01): setInterval onceki turu BEKLEMEZ. Bir tur 8 kayit x 15 sn
+// Telegram timeout'u = 120 sn surebilir; kilit olmadan 3-4 tur ust uste ayni
+// state uzerinde calisip AYNI islemi iki kez duyuruyordu.
+let tradeNotifyDraining = false;
 setInterval(async () => {
+  if (tradeNotifyDraining) return;
+  tradeNotifyDraining = true;
   try {
     if (!lifecycleReadiness.isReady()) return;
-    const r = await require('./services/mt5TradeNotifier').retryPending();
+    const notifier = require('./services/mt5TradeNotifier');
+    const r = await notifier.retryPending();
     if (r && (r.openNotified || r.closeNotified)) {
       console.log(`[TradeNotify] gecikmis teslimat: ${r.openNotified} acilis, `
         + `${r.closeNotified} kapanis · bekleyen ${r.pending}`);
     }
+    // Takilmis bildirim SESSIZ kalmamali: kullanicinin kirmizi cizgisi
+    // "gerceklesen hicbir islem duyurulmadan gecmesin".
+    const audit = notifier.auditStatus();
+    if (audit.stuckNotifications > 0) {
+      console.error(`[TradeNotify] ⚠️ TAKILMIS BILDIRIM: ${audit.stuckNotifications} kayit `
+        + `8+ denemede gonderilemedi (hiz limiti: ${audit.rateLimited}).`);
+    }
   } catch (e) {
     console.error('[TradeNotify] tekrar dongusu hatasi:', e.message);
+  } finally {
+    tradeNotifyDraining = false;
   }
 }, 30 * 1000);
 

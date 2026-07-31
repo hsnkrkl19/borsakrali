@@ -45,6 +45,10 @@ beforeEach(() => {
   // Kapanış toplama (C3) burada kapatılır ki tek kapanış anında gitsin;
   // toplama davranışının kendisi mt5CloseBatch.golden.test.js'te sınanır.
   process.env.MT5_CLOSE_BATCH_MS = '0';
+  // F1/F2 (2026-08-01) davranislari BU dosyada kapali tutulur; her biri kendi
+  // ozel dosyasinda sinanir. Burada korunan sey KIMLIK ve SIRA degismezleri.
+  process.env.MT5_NOTIFY_BACKOFF_BASE_MS = '0';   // -> mt5NotifyBackoff.golden
+  process.env.MT5_CLOSE_WAIT_OPEN_MS = '0';       // -> mt5CloseOrder.golden
   notifier.resetForTest();
   mockTelegram.sendMessage.mockReset().mockResolvedValue({ success: true, messageId: 1 });
   delete process.env.MT5_TRADE_NOTIFY_DISABLED;

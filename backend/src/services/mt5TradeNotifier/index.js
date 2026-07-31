@@ -35,9 +35,13 @@ const RECORD_TTL_MS = 60 * 24 * 3600 * 1000;
 const OPEN_ALIAS_WINDOW_SEC = 60;
 const CLOSE_FRESH_MS = () => Math.max(1, Number(process.env.MT5_CLOSE_FRESH_MIN || 90)) * 60 * 1000;
 const CANDIDATE_GRACE_MS = () => Math.max(1, Number(process.env.MT5_RECONCILE_GRACE_MIN || 5)) * 60 * 1000;
+// F6 (dusman incelemesi): 20 sn, Telegram axios timeout'unun (15 sn) yalnizca
+// 5 sn ustundeydi. persistDurable + yavas ag ile pencere DOLABILIYOR ve ayni
+// islem IKINCI kez duyuruluyordu (kanitli: 1 islem, 2 mesaj). Pencere artik
+// timeout'un 4 kati.
 const DELIVERY_INFLIGHT_MS = () => {
-  const configured = Number(process.env.MT5_NOTIFY_INFLIGHT_MS || 20000);
-  return Number.isFinite(configured) ? Math.max(1000, configured) : 20000;
+  const configured = Number(process.env.MT5_NOTIFY_INFLIGHT_MS || 60000);
+  return Number.isFinite(configured) ? Math.max(1000, configured) : 60000;
 };
 
 function freshState() {
@@ -467,18 +471,59 @@ function findOpenAlias(incoming) {
   return matches.length === 1 ? { key: matches[0][0], record: matches[0][1] } : null;
 }
 
-function findOpenForClose(deal) {
+/**
+ * Kapanisin ait oldugu acilis kaydi.
+ *
+ * @returns {{record:Object|null, exact:boolean}} `exact` yalniz ticket /
+ *   positionIdentifier ile KESIN eslesmede true olur.
+ *
+ * ⚠️ F2 (2026-08-01 dusman incelemesi): eskiden ticket tutmayinca
+ * magic+sembol+yon ile "en yeni acik pozisyona" geri dusuluyordu ve donen kayit
+ * KESIN eslesmeymis gibi kullaniliyordu. Iki kanitli sonuc:
+ *   1. Kapanis, HALA ACIK olan baska bir pozisyona baglaniyor ve o pozisyon
+ *      defterde `closedDealId` ile KAPALI isaretleniyordu.
+ *   2. Yon suzgeci fiilen calismiyordu: koprunun urettigi kapanis satirinda
+ *      `direction` alani YOK -> SHORT kapanisi acik LONG'a baglanabiliyordu.
+ * Heuristik dal artik yalniz TEK aday varken calisir ve `exact:false` doner;
+ * cagiran taraf bu kaydi kimlik olarak KULLANMAZ.
+ */
+function findOpenMatch(deal) {
   for (const identifier of [deal.positionIdentifier, deal.positionTicket]) {
     const exactKey = resolveOpenKey(identifier, deal);
-    if (exactKey) return state.opens[exactKey];
+    if (exactKey) return { record: state.opens[exactKey], exact: true };
   }
   const rows = Object.values(state.opens).filter((o) => o && o.magic === deal.magic
     && sameAccount(o, deal) && symbolKey(o.symbol) === symbolKey(deal.symbol)
     && (!directionOf(deal.direction) || !directionOf(o.direction)
       || directionOf(o.direction) === directionOf(deal.direction))
     && !o.closedDealId);
-  rows.sort((a, b) => Number(b.firstSeenMs || 0) - Number(a.firstSeenMs || 0));
-  return rows[0] || null;
+  // Birden fazla aday varsa hangisinin kapandigini BILEMEYIZ; tahmin etmektense
+  // "eslenmedi" demek dogrudur (yanlis eslesme canli pozisyonu kapali gosterir).
+  if (rows.length !== 1) return { record: null, exact: false };
+  return { record: rows[0], exact: false };
+}
+
+function findOpenForClose(deal) { return findOpenMatch(deal).record; }
+
+/** Acilis kaydi hic gorunmeyen kapanis en fazla bu kadar bekler. */
+const CLOSE_WAIT_FOR_OPEN_MS = () =>
+  Math.max(0, Number(process.env.MT5_CLOSE_WAIT_OPEN_MS || 15 * 60 * 1000));
+
+/** Bu acilisin pozisyonu icin duyurulmus (veya kuyruktaki) bir kapanis var mi? */
+function closeAlreadyAnnouncedFor(openRecord) {
+  const announced = (row) => !!row && ['sent', 'batched'].includes(row.notification);
+  // ⚠️ `closedDealId` YALNIZ "hangi deal kapatti" bilgisidir; o kapanis daha
+  // gonderilmemis olabilir (Telegram kapaliyken defter yine yazilir). Duyuru
+  // yapilip yapilmadigina KAPANIS KAYDININ durumundan bakilir.
+  if (openRecord.closedDealId
+    && announced(state.closes[brokerStateKey(openRecord.closedDealId, openRecord)])) return true;
+  const ids = [openRecord.ticket, openRecord.positionTicket, openRecord.orderTicket,
+    openRecord.positionIdentifier, ...(Array.isArray(openRecord.aliases) ? openRecord.aliases : [])]
+    .map(text).filter(Boolean);
+  if (!ids.length) return false;
+  return Object.values(state.closes).some((row) => row && sameAccount(row, openRecord)
+    && announced(row)
+    && [row.positionTicket, row.positionIdentifier].some((v) => ids.includes(text(v))));
 }
 
 function closeRecordForDependency(identifier, identity) {
@@ -563,6 +608,65 @@ async function send(message) {
   return true;
 }
 
+/**
+ * F1 (2026-08-01 düşman incelemesi) — TEK BOĞAZ: Telegram hız sınırı.
+ *
+ * Bulgu: `RETRY_BATCH=8` bütçesi yalnız retryPending'in ilk iki döngüsüne
+ * uygulanıyordu. `releaseOrderedLifecycle()` bütçesiz çalışıyor, asıl akış olan
+ * `ingestState` ise hiç bütçe uygulamıyordu. Kanıtlanan sonuç: TEK HTTP
+ * isteğinde 120 Telegram mesajı; 15 dakikalık kesintide 3.784 API çağrısı.
+ * Telegram kanal limiti ~20 msg/dk — bu tempoda 429 gelir, tekrarında ban
+ * süresi UZAR ve bildirimler GERÇEKTEN kaybolur. Yani A1'in çözdüğü sorunu
+ * geri getirir.
+ *
+ * Çözüm mimariyi ters çevirmeden: gönderim yollarının HEPSİ tek bir jeton
+ * kovasından geçer. Jeton yoksa kayıt 'failed' + geri çekilme ile kuyrukta
+ * kalır; hiçbir bildirim düşmez, yalnız yavaşlar.
+ */
+const RATE_PER_MIN = () => Math.max(1, Number(process.env.MT5_NOTIFY_RATE_PER_MIN || 18));
+const RATE_WINDOW_MS = 60000;
+let rateTokens = null;      // kalan jeton
+let rateWindowStartMs = 0;
+
+function takeRateToken() {
+  const now = nowMs();
+  if (rateTokens === null || now - rateWindowStartMs >= RATE_WINDOW_MS) {
+    rateWindowStartMs = now;
+    rateTokens = RATE_PER_MIN();
+  }
+  if (rateTokens <= 0) return false;
+  rateTokens--;
+  return true;
+}
+
+/**
+ * F1b — ÜSTEL GERİ ÇEKİLME. `record.attempts` yazılıyordu ama hiçbir yerde
+ * OKUNMUYORDU: 429 sonrası köprünün 2 sn'lik POST'u aynı kaydı hemen yeniden
+ * deniyordu. Artık her başarısızlık bir sonraki denemeyi geciktirir.
+ */
+const BACKOFF_MAX_MS = 5 * 60 * 1000;
+const BACKOFF_BASE_MS = () => {
+  const v = Number(process.env.MT5_NOTIFY_BACKOFF_BASE_MS);
+  return Number.isFinite(v) && v >= 0 ? v : 1000;
+};
+function scheduleBackoff(record) {
+  const base = BACKOFF_BASE_MS();
+  if (base <= 0) { delete record.nextAttemptMs; return; }   // testler icin kapatilabilir
+  const attempts = Math.max(1, Number(record.attempts || 1));
+  const delay = Math.min(BACKOFF_MAX_MS, base * Math.pow(2, Math.min(attempts, 12)));
+  record.nextAttemptMs = nowMs() + delay;
+}
+function backoffActive(record) {
+  const next = Number(record && record.nextAttemptMs);
+  return Number.isFinite(next) && next > nowMs();
+}
+/** Denemesi sürekli başarısız olan kayıt: sessizce kaybolmasın, GÖRÜNSÜN. */
+const STUCK_ATTEMPTS = 8;
+function isStuck(record) {
+  return Number(record && record.attempts || 0) >= STUCK_ATTEMPTS
+    && record.notification !== 'sent' && record.notification !== 'historical';
+}
+
 function deliveryInFlight(record) {
   if (!record || record.notification !== 'pending') return false;
   const startedMs = Date.parse(text(record.lastAttemptAt));
@@ -572,12 +676,23 @@ function deliveryInFlight(record) {
 }
 
 async function deliver(kind, record, message) {
+  // F1: tek boğaz. Jeton yoksa gönderme — kayıt kuyrukta kalır, kaybolmaz.
+  if (!takeRateToken()) {
+    record.notification = 'failed';
+    record.lastError = 'telegram-rate-limited';
+    record.attempts = Number(record.attempts || 0) + 1;
+    scheduleBackoff(record);
+    addEvent(`${kind}_rate_limited`, { ticket: record.ticket, dealId: record.dealId });
+    persist();
+    return false;
+  }
   record.notification = 'pending';
   record.attempts = Number(record.attempts || 0) + 1;
   record.lastAttemptAt = nowISO();
   if (!(await persistDurable())) {
     record.notification = 'failed';
     record.lastError = 'notification-state-not-durable';
+    scheduleBackoff(record);
     addEvent(`${kind}_notify_failed`, {
       ticket: record.ticket, dealId: record.dealId, code: record.code, reason: record.lastError,
     });
@@ -586,7 +701,8 @@ async function deliver(kind, record, message) {
   }
   try {
     await send(message);
-    record.notification = 'sent'; record.notifiedAt = nowISO(); delete record.lastError;
+    record.notification = 'sent'; record.notifiedAt = nowISO();
+    delete record.lastError; delete record.nextAttemptMs;
     addEvent(`${kind}_notified`, { ticket: record.ticket, dealId: record.dealId, code: record.code });
     if (await persistDurable()) return true;
     record.lastError = 'notification-sent-state-not-durable';
@@ -597,6 +713,12 @@ async function deliver(kind, record, message) {
     return false;
   } catch (error) {
     record.notification = 'failed'; record.lastError = cleanError(error);
+    scheduleBackoff(record);
+    if (isStuck(record)) {
+      addEvent(`${kind}_notify_stuck`, {
+        ticket: record.ticket, dealId: record.dealId, attempts: record.attempts, reason: record.lastError,
+      });
+    }
     addEvent(`${kind}_notify_failed`, { ticket: record.ticket, dealId: record.dealId, code: record.code, reason: record.lastError });
     await persistDurable();
     return false;
@@ -671,12 +793,25 @@ async function deliverBatch(records, message) {
       if (lastError) r.lastError = lastError; else delete r.lastError;
     }
   };
+  // F1: toplu mesaj da TEK jeton harcar (asil kazanc burada: 12 kapanis = 1 jeton).
+  if (!takeRateToken()) {
+    for (const r of records) {
+      r.notification = 'failed';
+      r.lastError = 'telegram-rate-limited';
+      r.attempts = Number(r.attempts || 0) + 1;
+      scheduleBackoff(r);
+    }
+    addEvent('close_batch_rate_limited', { count: records.length });
+    persist();
+    return false;
+  }
   for (const r of records) {
     r.notification = 'pending';
     r.attempts = Number(r.attempts || 0) + 1;
     r.lastAttemptAt = nowISO();
   }
   if (!(await persistDurable())) {
+    for (const r of records) scheduleBackoff(r);
     markAll('failed', 'notification-state-not-durable');
     addEvent('close_batch_notify_failed', { count: records.length, reason: 'not-durable' });
     persist();
@@ -684,7 +819,10 @@ async function deliverBatch(records, message) {
   }
   try {
     await send(message);
-    for (const r of records) { r.notification = 'sent'; r.notifiedAt = nowISO(); delete r.lastError; }
+    for (const r of records) {
+      r.notification = 'sent'; r.notifiedAt = nowISO();
+      delete r.lastError; delete r.nextAttemptMs;
+    }
     addEvent('close_batch_notified', { count: records.length });
     if (await persistDurable()) return true;
     for (const r of records) r.lastError = 'notification-sent-state-not-durable';
@@ -693,6 +831,7 @@ async function deliverBatch(records, message) {
     return false;
   } catch (error) {
     markAll('failed', cleanError(error));
+    for (const r of records) scheduleBackoff(r);
     addEvent('close_batch_notify_failed', { count: records.length, reason: cleanError(error) });
     await persistDurable();
     return false;
@@ -757,7 +896,7 @@ async function releaseWaitingOpens() {
       retryableFailures++;
       continue;
     }
-    if (deliveryInFlight(record)) { skipped++; continue; }
+    if (deliveryInFlight(record) || backoffActive(record)) { skipped++; continue; }
     if (await deliver('open', record, openMessage(record))) notified++;
     else retryableFailures++;
   }
@@ -770,8 +909,19 @@ async function releaseWaitingCloses() {
     if (!record || record.notification !== 'waiting-open') continue;
     const openRecord = findOpenForClose(record);
     if (!openRecord || openRecord.notification !== 'sent') {
-      if (notificationsDisabled()) retryableFailures++;
-      continue;
+      // F2: acilis hic gelmeyebilir (kayip POST). Tavan dolunca kapanis yine de
+      // birakilir — bildirim kaybi, sira bozuklugundan daha agir bir ihlaldir.
+      // Bilinen ama henuz gonderilmemis acilis icin tavan YOKTUR.
+      const waitedMs = nowMs() - (Number(record.waitingSinceMs) || nowMs());
+      if (openRecord || waitedMs < CLOSE_WAIT_FOR_OPEN_MS()) {
+        if (notificationsDisabled()) retryableFailures++;
+        continue;
+      }
+      record.openNeverSeen = true;
+      addEvent('close_released_without_open', {
+        dealId: record.dealId, ticket: record.positionTicket,
+        waitedSec: Math.round(waitedMs / 1000),
+      });
     }
     delete record.notification;
     delete record.lastError;
@@ -783,7 +933,7 @@ async function releaseWaitingCloses() {
       retryableFailures++;
       continue;
     }
-    if (deliveryInFlight(record)) { skipped++; continue; }
+    if (deliveryInFlight(record) || backoffActive(record)) { skipped++; continue; }
     if (await deliver('close', record, closeMessage(record))) notified++;
     else retryableFailures++;
   }
@@ -842,7 +992,7 @@ async function retryPending() {
   for (const record of Object.values(state.opens)) {
     if (budget <= 0) break;
     if (!record || record.notification !== 'failed') continue;
-    if (deliveryInFlight(record)) continue;
+    if (deliveryInFlight(record) || backoffActive(record)) continue;
     if (unresolvedCloseDependencies(record).length) continue;
     budget--;
     if (await deliver('open', record, openMessage(record))) out.openNotified++;
@@ -852,7 +1002,7 @@ async function retryPending() {
   for (const record of Object.values(state.closes)) {
     if (budget <= 0) break;
     if (!record || record.notification !== 'failed') continue;
-    if (deliveryInFlight(record)) continue;
+    if (deliveryInFlight(record) || backoffActive(record)) continue;
     const openRecord = findOpenForClose(record);
     if (openRecord && openRecord.notification !== 'sent') continue;
     budget--;
@@ -953,6 +1103,18 @@ async function ingestState(payload = {}) {
     }
     addEvent(old ? 'broker_open_seen_again' : 'broker_open_confirmed', { ticket: record.ticket, code: record.code, magic: record.magic });
     if (record.notification === 'sent' || record.notification === 'historical') { skipped++; continue; }
+    // F2b: bu pozisyonun KAPANISI zaten duyurulduysa acilis mesaji ARTIK bir
+    // giris sinyali degildir — sade mesaj bicimi onu canli girisden ayirt
+    // edilemez kilardi. Sessizce deftere yazilir, Telegram'a gitmez.
+    if (closeAlreadyAnnouncedFor(record)) {
+      record.notification = 'historical';
+      record.lastError = 'position-already-closed-before-open-notification';
+      skipped++;
+      addEvent('open_suppressed_position_closed', {
+        ticket: record.ticket, code: record.code, magic: record.magic,
+      });
+      continue;
+    }
     const closeBlockers = unresolvedCloseDependencies(record);
     if (closeBlockers.length) {
       record.notification = 'waiting-close';
@@ -970,8 +1132,10 @@ async function ingestState(payload = {}) {
       delete record.lastError;
       record.pendingCloseTickets = [];
     }
-    if (deliveryInFlight(record)) {
-      skipped++;
+    // F1: geri cekilme suresi dolmadan yeniden denenmez (kopru 2 sn'de bir
+    // POST ettigi icin 429 sonrasi aksi halde ani tekrar olurdu).
+    if (deliveryInFlight(record) || backoffActive(record)) {
+      skipped++; retryableFailures++;
       addEvent('open_notification_in_flight', { ticket: record.ticket, code: record.code });
       continue;
     }
@@ -998,7 +1162,8 @@ async function ingestState(payload = {}) {
     deal.accountLogin = rawAccount.accountLogin || payloadAccount.accountLogin;
     deal.accountServer = rawAccount.accountServer || payloadAccount.accountServer;
     const notificationRequired = raw.notificationRequired === true;
-    const openRecord = findOpenForClose(deal);
+    const openMatch = findOpenMatch(deal);
+    const openRecord = openMatch.record;
     const dealKey = brokerStateKey(deal.id, deal);
     const old = state.closes[dealKey];
     // C1 huni: köprü 7 GÜNLÜK kapanış penceresini tekrar tekrar POST eder;
@@ -1007,8 +1172,12 @@ async function ingestState(payload = {}) {
     const exactComponents = old && old.componentsExact && !deal.componentsExact ? old : deal;
     const incoming = {
       dealId: deal.id,
-      positionTicket: (openRecord && (openRecord.positionTicket || openRecord.ticket)) || deal.positionTicket || '',
-      positionIdentifier: deal.positionIdentifier || (openRecord && openRecord.positionIdentifier) || '',
+      // F2: kimlik alanlari YALNIZ kesin eslesmede acilistan devralinir.
+      // Heuristik eslesmede baska bir pozisyonun bileti yaziliyordu.
+      positionTicket: (openMatch.exact && openRecord
+        && (openRecord.positionTicket || openRecord.ticket)) || deal.positionTicket || '',
+      positionIdentifier: deal.positionIdentifier
+        || (openMatch.exact && openRecord && openRecord.positionIdentifier) || '',
       code: deal.code || (openRecord && openRecord.code) || '',
       botName: openRecord && openRecord.botName,
       magic: deal.magic, symbol: deal.symbol, direction: deal.direction || (openRecord && openRecord.direction) || '',
@@ -1021,6 +1190,7 @@ async function ingestState(payload = {}) {
       reasonCode: deal.reasonCode, reason: deal.reason,
       firstSeenMs: Number(old && old.firstSeenMs) || nowMs(), lastSeenMs: nowMs(), brokerConfirmed: true,
       openMatched: !!openRecord || !!(old && old.openMatched),
+      openMatchExact: openMatch.exact || !!(old && old.openMatchExact),
       notificationRequired: notificationRequired || !!(old && old.notificationRequired),
       accountLogin: deal.accountLogin, accountServer: deal.accountServer,
     };
@@ -1029,7 +1199,16 @@ async function ingestState(payload = {}) {
     for (const [field, value] of Object.entries(incoming)) {
       if (value !== undefined && value !== null && value !== '') record[field] = value;
     }
-    if (openRecord) { openRecord.closedDealId = deal.id; openRecord.closedAt = new Date(deal.closedSec * 1000).toISOString(); }
+    // F2: acik pozisyonu "kapali" isaretlemek GERI ALINAMAZ bir defter olgusudur;
+    // yalniz KESIN eslesmede yapilir. Heuristik eslesme sayilir ama isaretlemez.
+    if (openRecord && openMatch.exact) {
+      openRecord.closedDealId = deal.id;
+      openRecord.closedAt = new Date(deal.closedSec * 1000).toISOString();
+    } else if (openRecord) {
+      addEvent('close_matched_heuristically', {
+        dealId: deal.id, ticket: openRecord.ticket, magic: deal.magic, symbol: deal.symbol,
+      });
+    }
     addEvent(old ? 'exit_deal_seen_again' : 'exit_deal_confirmed', {
       dealId: deal.id, ticket: record.positionTicket, code: record.code, magic: record.magic,
       ...(openRecord ? {} : { reason: 'open-ticket-not-reconciled' }),
@@ -1041,8 +1220,8 @@ async function ingestState(payload = {}) {
       delete record.lastError;
       addEvent('historical_close_promoted', { dealId: deal.id, reason: 'notification-required' });
     }
-    if (deliveryInFlight(record)) {
-      skipped++;
+    if (deliveryInFlight(record) || backoffActive(record)) {
+      skipped++; retryableFailures++;
       addEvent('close_notification_in_flight', { dealId: deal.id, ticket: record.positionTicket });
       continue;
     }
@@ -1055,16 +1234,36 @@ async function ingestState(payload = {}) {
       record.notification = 'historical'; record.lastError = 'outside-notification-freshness-window'; skipped++;
       continue;
     }
-    if (openRecord && openRecord.notification !== 'sent') {
-      record.notification = 'waiting-open';
-      record.pendingOpenTicket = openRecord.ticket || openRecord.positionTicket;
-      record.lastError = 'waiting-for-open-notification';
-      skipped++;
-      if (notificationsDisabled()) retryableFailures++;
-      addEvent('close_waiting_for_open', {
-        dealId: deal.id, ticket: record.positionTicket, openTicket: record.pendingOpenTicket,
+    // F2 (2026-08-01 dusman incelemesi): eski kosul `openRecord &&` idi. Acilis
+    // koprunun outbox'inda takiliyken backend o kaydi HIC gormemis olur ->
+    // openRecord null -> bekletme ATLANIYOR -> KAPANIS ACILISTAN ONCE gidiyordu.
+    // Sade mesajlarda (2026-08-01) acilis mesaji ticket/kod tasimadigi icin,
+    // gecikmis acilis CANLI YENI GIRIS sinyalinden ayirt edilemiyordu: kullanici
+    // olu bir isleme girebilirdi. Artik acilis kaydi YOKSA da beklenir.
+    if (!openRecord || openRecord.notification !== 'sent') {
+      const waitingSinceMs = Number(record.waitingSinceMs) || nowMs();
+      record.waitingSinceMs = waitingSinceMs;
+      // Tavan YALNIZ acilis kaydi HIC gorulmemisken isler. Kayit varsa ve
+      // henuz gonderilmemisse SINIRSIZ beklenir — o bekleyis mutlaka cozulur
+      // (ters donus sirasi bu garantiye dayanir).
+      if (openRecord || nowMs() - waitingSinceMs < CLOSE_WAIT_FOR_OPEN_MS()) {
+        record.notification = 'waiting-open';
+        record.pendingOpenTicket = (openRecord && (openRecord.ticket || openRecord.positionTicket))
+          || record.positionTicket || record.positionIdentifier || '';
+        record.lastError = openRecord ? 'waiting-for-open-notification' : 'waiting-for-unseen-open';
+        skipped++;
+        if (notificationsDisabled()) retryableFailures++;
+        addEvent('close_waiting_for_open', {
+          dealId: deal.id, ticket: record.positionTicket, openTicket: record.pendingOpenTicket,
+          reason: record.lastError,
+        });
+        continue;
+      }
+      addEvent('close_released_without_open', {
+        dealId: deal.id, ticket: record.positionTicket,
+        waitedSec: Math.round((nowMs() - waitingSinceMs) / 1000),
       });
-      continue;
+      record.openNeverSeen = true;
     }
     if (record.notification === 'waiting-open') {
       delete record.notification;
@@ -1140,6 +1339,9 @@ function auditStatus(options = {}) {
     && !['sent', 'historical'].includes(r.notification));
   const closeWithoutOpen = closes.filter((r) => r.brokerConfirmed && !r.openMatched);
   const pendingNotifications = [...opens, ...closes].filter((r) => ['pending', 'failed'].includes(r.notification));
+  const batched = closes.filter((r) => r.notification === 'batched');
+  const rateLimited = [...opens, ...closes].filter((r) => r.lastError === 'telegram-rate-limited');
+  const stuck = [...opens, ...closes].filter(isStuck);
   const summary = {
     candidates: candidates.length,
     brokerConfirmedOpens: opens.filter((r) => r.brokerConfirmed).length,
@@ -1154,9 +1356,14 @@ function auditStatus(options = {}) {
     historicalCloses: closes.filter((r) => r.notification === 'historical').length,
     closeWithoutOpen: closeWithoutOpen.length,
     pendingNotifications: pendingNotifications.length,
+    // F1/C3 gorunurluk: toplanmis kapanis normal bir gecis durumudur (saglikli
+    // sayilir), ama TAKILMIS bildirim (>=8 deneme) asla sessiz kalmamali.
+    batchedCloses: batched.length,
+    rateLimited: rateLimited.length,
+    stuckNotifications: stuck.length,
     healthy: unconfirmedCandidates.length === 0 && tradeWithoutSignal.length === 0
       && closeWithoutSignal.length === 0 && closeWithoutOpen.length === 0
-      && pendingNotifications.length === 0,
+      && pendingNotifications.length === 0 && stuck.length === 0,
     updatedAt: state.updatedAt,
   };
   if (!options.details) return summary;
@@ -1185,6 +1392,7 @@ function auditStatus(options = {}) {
 function stats() { return auditStatus(); }
 function resetForTest() {
   state = freshState(); loaded = true;
+  rateTokens = null; rateWindowStartMs = 0;
   if (batchTimer) { clearTimeout(batchTimer); batchTimer = null; }
 }
 function reloadForTest() { state = freshState(); loaded = false; return load(); }

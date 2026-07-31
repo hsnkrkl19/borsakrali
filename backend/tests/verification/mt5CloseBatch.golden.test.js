@@ -23,6 +23,8 @@ const nowSec = () => Math.floor(Date.now() / 1000);
 
 beforeEach(() => {
   process.env.MT5_CLOSE_BATCH_MS = '20000';
+  process.env.MT5_NOTIFY_BACKOFF_BASE_MS = '0';   // geri cekilme ayri dosyada
+  process.env.MT5_CLOSE_WAIT_OPEN_MS = '0';
   notifier.resetForTest();
   mockTelegram.sendMessage.mockReset().mockResolvedValue({ success: true, messageId: 1 });
   delete process.env.MT5_TRADE_NOTIFY_DISABLED;
