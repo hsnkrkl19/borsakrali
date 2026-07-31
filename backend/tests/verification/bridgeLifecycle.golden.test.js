@@ -49,6 +49,9 @@ function openRow(ticket = '7001') {
 }
 
 beforeEach(() => {
+  // Uctan uca kopru sozlesmesi sinanir; kapanis toplama (C3) burada kapali —
+  // toplamanin kendisi mt5CloseBatch.golden.test.js'te sinanir.
+  process.env.MT5_CLOSE_BATCH_MS = '0';
   lifecycleReadiness.resetForTest(true);
   notifier.resetForTest();
   realResults._dangerouslyResetForTest();

@@ -41,6 +41,10 @@ function closeRow(id = '9001', overrides = {}) {
 }
 
 beforeEach(() => {
+  // Bu dosya KİMLİK ve SIRA değişmezlerini korur, gecikme davranışını değil.
+  // Kapanış toplama (C3) burada kapatılır ki tek kapanış anında gitsin;
+  // toplama davranışının kendisi mt5CloseBatch.golden.test.js'te sınanır.
+  process.env.MT5_CLOSE_BATCH_MS = '0';
   notifier.resetForTest();
   mockTelegram.sendMessage.mockReset().mockResolvedValue({ success: true, messageId: 1 });
   delete process.env.MT5_TRADE_NOTIFY_DISABLED;

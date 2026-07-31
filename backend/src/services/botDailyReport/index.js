@@ -56,15 +56,47 @@ function build(nowMs = Date.now(), goldStats = null, realAgg = null) {
   // -74,51 $ demisti).
   const seenMagics = new Set();
 
-  function realFor(entry) {
-    // ⚠️ dedicatedBridgeMagic ZORUNLU: Bot 1 (forex 550055) ve Bot 5 (tarayici
-    // 550066) kendi adanmis koprulerinde islem acar. Bu magic okunmadigi icin
-    // o iki botun TUM islemleri hem listeden hem gun toplamindan dusuyordu.
-    const magics = [...new Set([
+  // ⚠️ dedicatedBridgeMagic ZORUNLU: Bot 1 (forex 550055) ve Bot 5 (tarayici
+  // 550066) kendi adanmis koprulerinde islem acar. Bu magic okunmadigi icin
+  // o iki botun TUM islemleri hem listeden hem gun toplamindan dusuyordu.
+  function magicsOf(entry) {
+    return [...new Set([
       Number(entry.magic),
       Number(entry.dedicatedBridgeMagic),
       ...Object.values(entry.magicByStrategy || {}).map(Number),
     ].filter((m) => Number.isFinite(m) && m > 0))];
+  }
+
+  // C2: "islem yok" tek basina bir sey anlatmiyordu — sinyal mi cikmadi, beyin
+  // mi reddetti, emir mi doldurulmadi belli degildi. Huni sayaclari (C1) bunu
+  // tek cumleye cevirir. Huni okunamazsa rapor DUSMEZ, eski metne doner.
+  let funnelSvc = null; let funnelData = null;
+  try {
+    funnelSvc = require('../botFunnel');
+    funnelData = funnelSvc.funnel({ days: 1 });
+  } catch (_) { funnelSvc = null; funnelData = null; }
+
+  function sessizlikNedeni(entry) {
+    if (!funnelSvc || !funnelData) return 'işlem yok';
+    const row = {
+      signals: 0, accepted: 0, rejected: 0, reasons: {},
+      filled: 0, closed: 0, wins: 0, losses: 0, netUsd: 0,
+    };
+    for (const m of magicsOf(entry)) {
+      const part = funnelData.bots[String(m)];
+      if (!part) continue;
+      row.signals += part.signals; row.accepted += part.accepted;
+      row.rejected += part.rejected; row.filled += part.filled;
+      row.closed += part.closed; row.wins += part.wins; row.losses += part.losses;
+      for (const [reason, count] of Object.entries(part.reasons || {})) {
+        row.reasons[reason] = (row.reasons[reason] || 0) + count;
+      }
+    }
+    return funnelSvc.explain(row);
+  }
+
+  function realFor(entry) {
+    const magics = magicsOf(entry);
     const rows = [];
     for (const m of magics) {
       const row = realByMagic.get(m);
@@ -85,7 +117,7 @@ function build(nowMs = Date.now(), goldStats = null, realAgg = null) {
         lines.push(`<b>Bot ${e.no}</b> · ${esc(e.name)}`);
         lines.push(`   ${r.trades} işlem · ${r.tp} TP · ${r.sl} SL · net <b>${usd(r.net)}</b>`);
       } else {
-        lines.push(`<b>Bot ${e.no}</b> · ${esc(e.name)} — <i>işlem yok</i>`);
+        lines.push(`<b>Bot ${e.no}</b> · ${esc(e.name)} — <i>${esc(sessizlikNedeni(e))}</i>`);
       }
     }
     // Özel botlar (gerçek, magic ile)
@@ -149,6 +181,20 @@ function build(nowMs = Date.now(), goldStats = null, realAgg = null) {
 
   lines.push('');
   lines.push(`📈 <b>GÜN TOPLAMI:</b> ${dTrades} işlem · ${dTp} TP · ${dSl} SL · net <b>${usd(dNet)}</b>`);
+
+  // C2: gunun HUNISI — kac sinyal uretildi, kaci reddedildi, neden. Islem
+  // sayisi tek basina "botlar calisti mi?" sorusunu cevaplamiyordu.
+  if (funnelData && funnelData.totals.signals > 0) {
+    const t = funnelData.totals;
+    lines.push(`🔎 <b>Huni:</b> ${t.signals} sinyal → ${t.accepted} onay / ${t.rejected} ret`
+      + ` · ${t.filled} dolum · ${t.closed} kapanış`);
+    const topReasons = Object.entries(t.reasons || {})
+      .sort((a, b) => b[1] - a[1]).slice(0, 3);
+    if (topReasons.length) {
+      lines.push('   En sık ret sebepleri: '
+        + topReasons.map(([r, c]) => `${esc(r)} ×${c}`).join(' · '));
+    }
+  }
 
   // MUTABAKAT (2026-07-31): defter toplami ile brokerin gercek gunluk neti
   // karsilastirilir. Fark varsa rapor bunu GIZLEMEZ — "rapor az gosteriyor"

@@ -155,7 +155,9 @@ function migrateBag(bag, kind) {
 function recoverInterruptedDeliveries(bag, kind) {
   let recovered = 0;
   for (const row of Object.values(bag || {})) {
-    if (!row || row.notification !== 'pending') continue;
+    // 'batched' (C3) da kurtarılır: yeniden başlayan süreç o toplu mesajı
+    // gönderecek zamanlayıcıya sahip değildir; tek tek yeniden denenir.
+    if (!row || (row.notification !== 'pending' && row.notification !== 'batched')) continue;
     // A freshly loaded process cannot own the promise that created this
     // persisted `pending` marker.  Make it retryable immediately instead of
     // suppressing delivery for an arbitrary lease window after a restart.
@@ -601,6 +603,141 @@ async function deliver(kind, record, message) {
   }
 }
 
+/**
+ * C3 — KAPANIŞ TOPLAMA (kullanıcı kararı D6: açılışlar anlık ve 1:1, kapanışlar
+ * toplanabilir). Yoğun bir dakikada 10 ayrı kapanış bildirimi yerine tek mesaj.
+ *
+ * ⚠️ Bir kapanış, kendisinden sonra gelecek bir AÇILIŞI bekletiyorsa (ters
+ * dönüş) ASLA toplanmaz — yoksa 60 sn'lik pencere açılış bildirimini de
+ * geciktirirdi ve "önce kapanış sonra açılış" sırası kullanıcıya 1 dakika
+ * gecikmeli görünürdü.
+ *
+ * Toplanan satır diskte `notification:'batched'` olarak durur; ayrı bir bellek
+ * kuyruğu YOKTUR. Süreç yeniden başlarsa kayıt kaybolmaz, `failed`e çevrilip
+ * tek tek yeniden gönderilir.
+ */
+const CLOSE_BATCH_MS = () => {
+  const v = Number(process.env.MT5_CLOSE_BATCH_MS);
+  return Number.isFinite(v) && v >= 0 ? v : 20000;
+};
+const CLOSE_BATCH_MAX = 12;          // tek mesajda en çok kaç kapanış
+// Toplu kesim (sürü dönüşü, gün sonu süpürmesi) aynı beyin turunda birden çok
+// kapanış üretir; bunlar TEK POST'ta gelir ve pencere beklenmeden birleşir.
+// Tek başına gelen kapanış ise en fazla pencere kadar (20 sn) bekler — arkadan
+// bir tane daha gelirse ona katılır, gelmezse yalnız gider.
+const CLOSE_BATCH_MIN = 2;
+let batchTimer = null;
+
+function batchingEnabled() { return CLOSE_BATCH_MS() > 0; }
+
+/** Bu kapanışın gönderilmesini bekleyen bir açılış var mı? */
+function closeBlocksAnOpen(record) {
+  const identifiers = [record.positionTicket, record.positionIdentifier, record.dealId]
+    .map(text).filter(Boolean);
+  if (!identifiers.length) return false;
+  for (const open of Object.values(state.opens)) {
+    if (!open || open.notification === 'sent') continue;
+    const deps = Array.isArray(open.closeBeforeOpenTickets) ? open.closeBeforeOpenTickets : [];
+    if (deps.some((d) => identifiers.includes(text(d)))) return true;
+  }
+  return false;
+}
+
+function batchedCloses() {
+  return Object.values(state.closes).filter((r) => r && r.notification === 'batched')
+    .sort((a, b) => (Date.parse(a.batchedAt) || 0) - (Date.parse(b.batchedAt) || 0));
+}
+
+function closeBatchMessage(records) {
+  if (records.length === 1) return closeMessage(records[0]);
+  const lines = [`📕 <b>KAPANIŞLAR (${records.length})</b>`];
+  let net = 0;
+  for (const d of records) {
+    const pnl = finite(d.netPnl) || 0;
+    net += pnl;
+    const icon = pnl > 0 ? '✅' : pnl < 0 ? '🛑' : '⚪';
+    lines.push(`${icon} <b>${html(botFor(d.magic, d.botName).label)}</b> · ${html(d.symbol)} · `
+      + `<b>${pnl >= 0 ? '+' : '-'}$${Math.abs(pnl).toFixed(2)}</b>`);
+  }
+  lines.push(`━ Net: <b>${net >= 0 ? '+' : '-'}$${Math.abs(net).toFixed(2)}</b>`);
+  return lines.join('\n');
+}
+
+/** Tek mesaj, çok kayıt: hepsi birlikte 'sent' ya da hepsi birlikte 'failed'. */
+async function deliverBatch(records, message) {
+  const markAll = (notification, lastError) => {
+    for (const r of records) {
+      r.notification = notification;
+      if (lastError) r.lastError = lastError; else delete r.lastError;
+    }
+  };
+  for (const r of records) {
+    r.notification = 'pending';
+    r.attempts = Number(r.attempts || 0) + 1;
+    r.lastAttemptAt = nowISO();
+  }
+  if (!(await persistDurable())) {
+    markAll('failed', 'notification-state-not-durable');
+    addEvent('close_batch_notify_failed', { count: records.length, reason: 'not-durable' });
+    persist();
+    return false;
+  }
+  try {
+    await send(message);
+    for (const r of records) { r.notification = 'sent'; r.notifiedAt = nowISO(); delete r.lastError; }
+    addEvent('close_batch_notified', { count: records.length });
+    if (await persistDurable()) return true;
+    for (const r of records) r.lastError = 'notification-sent-state-not-durable';
+    addEvent('close_batch_notify_state_failed', { count: records.length });
+    persist();
+    return false;
+  } catch (error) {
+    markAll('failed', cleanError(error));
+    addEvent('close_batch_notify_failed', { count: records.length, reason: cleanError(error) });
+    await persistDurable();
+    return false;
+  }
+}
+
+function batchDue(batched) {
+  if (!batched.length) return false;
+  if (batched.length >= CLOSE_BATCH_MIN) return true;
+  const oldest = Date.parse(batched[0].batchedAt);
+  return !Number.isFinite(oldest) || nowMs() - oldest >= CLOSE_BATCH_MS();
+}
+
+/** Toplanmış kapanışları tek mesajda gönder. `force` pencereyi beklemez. */
+async function flushCloseBatch(options = {}) {
+  load();
+  const out = { closeNotified: 0, retryableFailures: 0, batched: 0 };
+  let batched = batchedCloses();
+  if (!batched.length) return out;
+  if (!options.force && !batchDue(batched)) { out.batched = batched.length; return out; }
+  if (notificationsDisabled()) {
+    for (const r of batched) { r.notification = 'failed'; r.lastError = 'MT5_TRADE_NOTIFY_DISABLED'; }
+    out.retryableFailures = batched.length;
+    persist();
+    return out;
+  }
+  const chunk = batched.slice(0, CLOSE_BATCH_MAX);
+  if (await deliverBatch(chunk, closeBatchMessage(chunk))) out.closeNotified = chunk.length;
+  else out.retryableFailures = chunk.length;
+  out.batched = batchedCloses().length;
+  if (out.batched) scheduleBatchFlush();
+  return out;
+}
+
+function scheduleBatchFlush() {
+  // Testlerde zamanlayıcı kurulmaz: akış açıkça flushCloseBatch() ile sürülür,
+  // yoksa gecikmeli bir tetik sonraki testin durumunu bozardı.
+  if (batchTimer || process.env.NODE_ENV === 'test' || !batchingEnabled()) return;
+  batchTimer = setTimeout(() => {
+    batchTimer = null;
+    flushCloseBatch({ force: true }).catch(() => {});
+  }, Math.max(250, CLOSE_BATCH_MS()));
+  if (typeof batchTimer.unref === 'function') batchTimer.unref();
+}
+
 async function releaseWaitingOpens() {
   let notified = 0; let skipped = 0; let retryableFailures = 0;
   for (const record of Object.values(state.opens)) {
@@ -694,6 +831,11 @@ async function retryPending() {
   load();
   const out = { openNotified: 0, closeNotified: 0, retryableFailures: 0, pending: 0 };
   if (notificationsDisabled()) { out.pending = pendingCount(); return out; }
+  // C3: penceresi dolmuş toplu kapanış varsa once o gitsin — zamanlayici
+  // yeniden baslatmada kaybolsa bile bu drenaj onu kurtarir.
+  const flushed = await flushCloseBatch();
+  out.closeNotified += flushed.closeNotified;
+  out.retryableFailures += flushed.retryableFailures;
   let budget = RETRY_BATCH();   // Telegram hiz limiti: tur basina tavan
 
   // 1) Basarisiz ACILISLAR once — kapanis acilistan once gidemez.
@@ -737,6 +879,7 @@ async function ingestState(payload = {}) {
   const payloadAccount = accountFields(payload);
   const decisionResult = observeDecisions(payload.decisions, payloadAccount);
   let openNotified = 0, closeNotified = 0, skipped = 0, invalid = 0, retryableFailures = 0;
+  let batchedCount = 0;
 
   for (const raw of open) {
     const normalized = normalizeOpen(raw, { source: payload.source, ...payloadAccount });
@@ -934,8 +1077,25 @@ async function ingestState(payload = {}) {
       addEvent('close_notification_blocked', { dealId: deal.id, reason: record.lastError });
       continue;
     }
+    // C3: bekleyen bir açılışı bloke etmiyorsa 60 sn'lik pencerede toplanır.
+    if (batchingEnabled() && !closeBlocksAnOpen(record)) {
+      record.notification = 'batched';
+      record.batchedAt = nowISO();
+      delete record.lastError;
+      batchedCount++;
+      persist();
+      scheduleBatchFlush();
+      continue;
+    }
     if (await deliver('close', record, closeMessage(record))) closeNotified++;
     else retryableFailures++;
+  }
+  // Pencere dolduysa (ya da tavan aşıldıysa) aynı turda gönder — bir sonraki
+  // POST'u beklemeye gerek yok.
+  if (batchedCount) {
+    const flushed = await flushCloseBatch();
+    closeNotified += flushed.closeNotified;
+    retryableFailures += flushed.retryableFailures;
   }
 
   // Reversal opens are announced only after every dependent close Telegram is
@@ -1023,12 +1183,15 @@ function auditStatus(options = {}) {
 }
 
 function stats() { return auditStatus(); }
-function resetForTest() { state = freshState(); loaded = true; }
+function resetForTest() {
+  state = freshState(); loaded = true;
+  if (batchTimer) { clearTimeout(batchTimer); batchTimer = null; }
+}
 function reloadForTest() { state = freshState(); loaded = false; return load(); }
 
 module.exports = {
   ingestState, observeCandidates, observeDecisions, auditStatus, stats,
-  retryPending, pendingCount,
+  retryPending, pendingCount, flushCloseBatch, closeBatchMessage,
   openMessage, closeMessage, normalizeOpen, paperNotificationSuppressed,
   notificationsDisabled, resetForTest, reloadForTest,
 };
