@@ -122,8 +122,28 @@ def t_recent_loss_symbols():
     assert trade_guard.symbols_with_recent_loss(m, 550055, 0) == set(), "0 dk = kapali"
     print("OK symbols_with_recent_loss (zarar/kar/IN-deal/magic ayrimi)")
 
+def t_paper_close_allowed():
+    """YARIS MODU: kagit yarisma GERCEK pozisyonu kapatamaz (kullanici karari)."""
+    assert trade_guard.paper_close_allowed(
+        {"race_mode": True, "close_on_feed_drift": True}) is False
+    assert trade_guard.paper_close_allowed(
+        {"race_mode": True, "close_on_backend_close": True}) is False
+    # Yaris kapaliyken eski davranis AYNEN korunur (geri uyumluluk).
+    assert trade_guard.paper_close_allowed({"close_on_feed_drift": True}) is True
+    assert trade_guard.paper_close_allowed({"close_on_backend_close": True}) is True
+    assert trade_guard.paper_close_allowed({"close_on_feed_drift": False}) is False
+    assert trade_guard.paper_close_allowed({"close_on_backend_close": False}) is False
+    # race_mode yalniz LITERAL true ise kapatir; "true"/1 gibi degerler ezmez.
+    assert trade_guard.paper_close_allowed(
+        {"race_mode": "true", "close_on_feed_drift": True}) is True
+    assert trade_guard.paper_close_allowed(
+        {"race_mode": 1, "close_on_feed_drift": True}) is True
+    assert trade_guard.paper_close_allowed({}) is True
+    assert trade_guard.paper_close_allowed(None) is True
+    print("OK yaris modunda kagit yarisma gercek pozisyonu kapatamaz")
 
 if __name__ == "__main__":
+    t_paper_close_allowed()
     t_daily_pnl()
     t_balance_deals_excluded()
     t_bot_layer_trips()

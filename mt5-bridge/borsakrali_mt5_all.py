@@ -156,6 +156,18 @@ _BUILTIN_ALIASES = {
 }
 
 
+_authority_logged = False
+
+
+def _log_authority_once():
+    """Yaris modunda kapatma yetkisinin beyinde oldugunu bir kez duyur."""
+    global _authority_logged
+    if not _authority_logged:
+        _authority_logged = True
+        log.info("KAPATMA YETKISI BEYINDE: kagit yarisma gercek pozisyonu kapatmaz "
+                 "(TP/SL/trail/kar-kilidi/suru-donusu haric).")
+
+
 def load_config():
     if not os.path.exists(CONFIG_PATH):
         log.warning("config_all.json yok, varsayılanlarla (dry_run) çalışıyor: %s", CONFIG_PATH)
@@ -925,7 +937,14 @@ def run_once(cfg):
     min_hold = float(cfg.get("min_hold_minutes", 20)) * 60
     confirm = int(cfg.get("drift_confirm_turns", 3))
     BUY = getattr(mt5, "POSITION_TYPE_BUY", 0)
-    if feed_healthy and not suspicious and bool(cfg.get("close_on_feed_drift", True)):
+    # YARIS MODU (kullanici karari 2026-07-31): GERCEK pozisyonu yalniz beyin ya da
+    # broker kapatir (TP / SL / iz suren stop / kar kilidi / suru donusu). Kagit
+    # yarismanin sinyali bitti diye gercek islemi kapatmak, beynin 3R hedefini ve
+    # trail'ini devreye giremeden oldururdu -> kurusluk kapanislar.
+    drift_close_ok = trade_guard.paper_close_allowed(cfg)
+    if not drift_close_ok:
+        _log_authority_once()
+    if feed_healthy and not suspicious and drift_close_ok:
         for p in open_pos:
             code = parse_code(p.comment)
             if not code:

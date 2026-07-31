@@ -974,7 +974,8 @@ def main():
             # Backend bir sinyali kapatınca (telefona STOP/TP gider, feed'den düşer) MT5
             # pozisyonunu da kapat → bot = telefon; aynı paritede yeni sinyale yer açılır.
             # ⚠️ Boş feed = backend geçici arızası → toplu kapatma YAPMA (güvenlik).
-            if cfg["close_on_backend_close"] and feed:
+            # YARIS MODU: gercek pozisyonu yalniz beyin/broker kapatir.
+            if feed and trade_guard.paper_close_allowed(cfg):
                 for code, p in list(open_by_code.items()):
                     if code not in feed_codes:
                         log.info("#%s %s: backend kapattı (feed'den düştü) — MT5 kapatılıyor.", code, p.symbol)

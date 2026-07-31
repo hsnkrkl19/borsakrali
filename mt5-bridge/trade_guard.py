@@ -505,3 +505,26 @@ class NewsGuard:
             except Exception:  # noqa — bozuk pencere satırını atla
                 continue
         return (False, None)
+
+
+def paper_close_allowed(cfg):
+    """Kagit yarisma GERCEK pozisyonu kapatabilir mi?
+
+    Kullanici karari (2026-07-31): yaris modunda gercek pozisyonu yalniz beyin
+    ya da broker kapatir (TP / SL / iz suren stop / kar kilidi / suru donusu).
+    Sitedeki kagit yarismanin sinyali bitti diye gercek islemi kapatmak, beynin
+    3R hedefini ve trail'ini devreye giremeden olduruyordu -> kurusluk kapanislar.
+
+    Bu kapi YALNIZ "feed'den dustu, kapat" yolunu etkiler. Gun-sonu supurmesi,
+    hafta sonu tahliyesi, haber molasi ve yasakli enstruman tahliyesi AYRI
+    risk katmanlaridir ve her zaman calisir.
+    """
+    cfg = cfg or {}
+    if cfg.get("race_mode") is True:
+        return False
+    # Eski anahtar adlari korunur: birlesik kopru close_on_feed_drift,
+    # forex/tarayici close_on_backend_close kullanir.
+    for key in ("close_on_feed_drift", "close_on_backend_close"):
+        if key in cfg:
+            return bool(cfg.get(key))
+    return True

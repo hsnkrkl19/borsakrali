@@ -980,7 +980,9 @@ def main():
             # Backend kapattı (TP/SL/gün-sonu tespiti, feed'den düştü) → MT5'i de kapat.
             # ⚠️ Boş feed = olası backend arızası → toplu kapatma YAPMA; gün-sonu
             #    1. katmanı saklanan vakitle yine de kapatır.
-            if cfg["close_on_backend_close"] and feed:
+            # YARIS MODU: gercek pozisyonu yalniz beyin/broker kapatir.
+            # (Gun-sonu 23:45 supurmesi AYRI katmandir ve aynen calisir.)
+            if feed and trade_guard.paper_close_allowed(cfg):
                 for code, p in list(by_code.items()):
                     if code not in feed_codes:
                         log.info("#%s %s: backend kapattı (feed'den düştü) — MT5 kapatılıyor.", code, p.symbol)
