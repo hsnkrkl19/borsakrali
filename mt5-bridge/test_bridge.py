@@ -277,6 +277,58 @@ def t_wrong_account_no_order():
     print("OK yanlis hesapta emir yok / dogru hesapta emir var")
 
 
+def t_race_mode_still_has_risk_window_exits():
+    """F5 (2026-08-01 dusman incelemesi): yaris modu kagit-yarisma kapatmasini
+    devre disi birakir. Bu, birlesik kopruyu HICBIR cikis yolu olmadan
+    birakiyordu: haber/hafta sonu yalnizca YENI EMRI engelliyordu.
+    Artik feed'den BAGIMSIZ tahliye katmani var."""
+    cfg = dict(CFG, race_mode=True, news_blackout=True, weekend_flatten=True)
+    # Yaris modu kagit-kapatmayi kapatir (B4 davranisi korunuyor).
+    assert trade_guard.paper_close_allowed(cfg) is False
+
+    eur = SimpleNamespace(ticket=1, symbol="EURUSD", magic=550055, type=0,
+                          volume=0.1, comment="BK#A", time=0, price_open=1.1)
+    btc = SimpleNamespace(ticket=2, symbol="BTCUSD", magic=550055, type=0,
+                          volume=0.1, comment="BK#B", time=0, price_open=60000.0)
+    kapatilan = []
+
+    def fake_close(_cfg, pos, reason):
+        kapatilan.append((pos.symbol, reason))
+        return True
+
+    _pos, _close, _news, _weekend = (all_bk.our_positions, all_bk.close_position,
+                                     all_bk.news_blackout_active,
+                                     trade_guard.in_weekend_closed)
+    try:
+        all_bk.our_positions = lambda _c: [eur, btc]
+        all_bk.close_position = fake_close
+
+        # 1) Haber molasi -> kripto-disi pozisyon kapanir.
+        all_bk.news_blackout_active = lambda _c: True
+        trade_guard.in_weekend_closed = lambda *a, **k: False
+        all_bk._flatten_for_risk_windows(cfg)
+        assert kapatilan == [("EURUSD", "haber molasi")], kapatilan
+
+        # 2) Hafta sonu -> kripto-disi pozisyon kapanir, kripto DOKUNULMAZ
+        #    (bu koprude girise de izin verilir; asimetri olmasin).
+        kapatilan.clear()
+        all_bk.news_blackout_active = lambda _c: False
+        trade_guard.in_weekend_closed = lambda *a, **k: True
+        all_bk._flatten_for_risk_windows(cfg)
+        assert kapatilan == [("EURUSD", "hafta sonu tahliyesi")], kapatilan
+
+        # 3) Normal pencere -> hicbir sey kapanmaz.
+        kapatilan.clear()
+        trade_guard.in_weekend_closed = lambda *a, **k: False
+        all_bk._flatten_for_risk_windows(cfg)
+        assert kapatilan == [], kapatilan
+    finally:
+        all_bk.our_positions, all_bk.close_position = _pos, _close
+        all_bk.news_blackout_active = _news
+        trade_guard.in_weekend_closed = _weekend
+    print("OK F5: yaris modunda bile haber/hafta sonu tahliyesi calisiyor")
+
+
 def t_autotrading_button():
     # 'AutoTrading disabled by client' = terminal_info().trade_allowed (buton),
     # account_info().trade_allowed DEGIL. Dogru alani okumali.
@@ -297,4 +349,5 @@ if __name__ == "__main__":
     t_finalize_failure_is_critical()
     t_close_requires_position_absence()
     t_account_lock(); t_wrong_account_no_order(); t_autotrading_button()
+    t_race_mode_still_has_risk_window_exits()
     print("\nTUM TESTLER GECTI - OK")

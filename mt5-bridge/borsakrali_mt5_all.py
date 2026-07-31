@@ -604,6 +604,36 @@ def news_blackout_active(cfg):
         return False
 
 
+def _flatten_for_risk_windows(cfg):
+    """
+    Haber molasi / hafta sonu penceresinde ACIK pozisyonlari kapat.
+
+    Kripto MUAFTIR — bu dosyadaki symbol_guarded() ile AYNI ayrim. Girise izin
+    verilen bir enstrumani cikista zorla kapatmak asimetrik olurdu (acamiyorum
+    ama kapatiyorum). Gun-ici tarayici (borsakrali_mt5_scanner.py) haberde
+    kriptoyu da kapatir; o bot gun-ici, bu kopru cok gunluk pozisyon tasir.
+    """
+    news = news_blackout_active(cfg)
+    weekend = bool(cfg.get("weekend_flatten", True)) and trade_guard.in_weekend_closed()
+    if not news and not weekend:
+        return
+    try:
+        open_pos = our_positions(cfg)
+    except Exception as exc:
+        log.error("tahliye icin pozisyonlar okunamadi: %s", exc)
+        return
+    if not open_pos:
+        return
+    hedef = [pos for pos in open_pos if not trade_guard.is_crypto(getattr(pos, "symbol", ""))]
+    if not hedef:
+        return
+    sebep = "haber molasi" if news else "hafta sonu tahliyesi"
+    log.warning("%s — birlesik kopru: %d kripto-disi pozisyon kapatiliyor.",
+                "📰 HABER MOLASI" if news else "🌙 HAFTA SONU", len(hedef))
+    for pos in hedef:
+        close_position(cfg, pos, sebep)
+
+
 def symbol_guarded(cfg, feed_sym, weekend, news):
     """Hafta sonu (kripto-dışı) + ABD haber molası (kripto-dışı) kapısı."""
     crypto = trade_guard.is_crypto(feed_sym)
@@ -899,6 +929,22 @@ def run_once(cfg):
     new_orders_allowed = not stop and not blocked
     if blocked:
         log.warning("🛑 Günlük zarar freni AKTİF (%s) — yeni emir yok.", why)
+
+    # ── F5 (2026-08-01 dusman incelemesi): FEED'DEN BAGIMSIZ TAHLIYE ──────────
+    # Bulgu: B4 yaris modunda tek kapatma cagrisini (feed-drift) devre disi
+    # birakti ve `paper_close_allowed()` docstring'i "gun-sonu supurmesi, hafta
+    # sonu tahliyesi, haber molasi AYRI risk katmanlaridir ve her zaman calisir"
+    # diyordu. Bu ifade BU DOSYA icin YANLISTI: all.py'de haber/hafta sonu
+    # yalnizca YENI EMRI engelliyordu, acik pozisyona hic dokunmuyordu. Yaris
+    # modunda birlesik kopruden hicbir cikis yolu kalmiyordu.
+    #
+    # Bu katmanlar KAGIT YARISMADAN bagimsizdir: sinyal feed'ine, race_mode'a ve
+    # paper_close_allowed()'a BAKMAZ. Kullanicinin risk kurallari (haber ±30 dk,
+    # hafta sonu tahliyesi) bunlari zaten sart kosuyor.
+    try:
+        _flatten_for_risk_windows(cfg)
+    except Exception as exc:
+        log.error("risk penceresi tahliyesi hatasi: %s", exc)
 
     global _prev_feed_count
     try:

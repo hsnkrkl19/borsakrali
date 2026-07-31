@@ -515,9 +515,20 @@ def paper_close_allowed(cfg):
     Sitedeki kagit yarismanin sinyali bitti diye gercek islemi kapatmak, beynin
     3R hedefini ve trail'ini devreye giremeden olduruyordu -> kurusluk kapanislar.
 
-    Bu kapi YALNIZ "feed'den dustu, kapat" yolunu etkiler. Gun-sonu supurmesi,
-    hafta sonu tahliyesi, haber molasi ve yasakli enstruman tahliyesi AYRI
-    risk katmanlaridir ve her zaman calisir.
+    Bu kapi YALNIZ "feed'den dustu, kapat" yolunu etkiler.
+
+    ⚠️ 2026-08-01 duzeltmesi: bu docstring eskiden "gun-sonu supurmesi, hafta
+    sonu tahliyesi, haber molasi ... her zaman calisir" diyordu. Dusman
+    incelemesi bunun BIRLESIK KOPRUDE (borsakrali_mt5_all.py) YANLIS oldugunu
+    kanitladi: orada haber/hafta sonu yalnizca YENI EMRI engelliyordu, acik
+    pozisyona hic dokunmuyordu ve yaris modunda hicbir kopru-tarafi cikis yolu
+    kalmiyordu. Eksik katmanlar `_flatten_for_risk_windows()` ile eklendi.
+
+    Kopru basina gercek durum:
+      · borsakrali_mt5.py        — haber + hafta sonu TAHLIYESI var
+      · borsakrali_mt5_scanner.py— haber tahliyesi + 23:45 EOD supurmesi var
+      · borsakrali_mt5_all.py    — haber + hafta sonu tahliyesi (2026-08-01);
+                                   EOD supurmesi YOK (cok gunluk pozisyon tasir)
     """
     cfg = cfg or {}
     if cfg.get("race_mode") is True:
