@@ -133,6 +133,50 @@ class PureDecisionTests(unittest.TestCase):
 
 
 
+    def test_d2g_regime_halves_new_entry_risk_after_daily_loss(self):
+        """D2g: kotu bir gunde ayni boyutta israr etmek cukuru derinlestirir.
+
+        Esik asilinca YENI girislerin riski yariya iner. Bu bir FREN degil
+        KISICI'dir: acik pozisyonlara dokunmaz, mutlak %4,5 gunluk fren ve
+        %1,5 giris freni aynen yerinde kalir.
+        """
+        cfg = BrainConfig(race_mode=True, max_trade_risk_usd=250.0)
+        # Gercek hesap olcegi (FTMO ~197k): kucuk sentetik hesapta yarilanan
+        # butce $15 tabanina takilir ve test rejimi degil tabani olcerdi.
+        buyuk = dict(balance=200_000, equity=200_000, start_balance=200_000,
+                     day_start_equity=200_000, high_water_equity=200_000)
+        ince = SymbolSpec(tick_size=1, tick_value=1, volume_min=0.1,
+                          volume_step=0.1, volume_max=1000)
+
+        normal = evaluate_pretrade(snapshot(**buyuk), (), request(), ince, cfg)
+        self.assertTrue(normal.allowed, normal.reasons)
+        self.assertEqual(normal.projected["risk_scale"], 1.0)
+        self.assertAlmostEqual(normal.risk_usd, 250.0, places=6)   # dolar tavani
+
+        # Gun ici -%1,0 (esik 0,75) -> kisici aktif, giris HALA serbest.
+        kisik = evaluate_pretrade(
+            snapshot(**dict(buyuk, equity=198_000)), (), request(), ince, cfg)
+        self.assertTrue(kisik.allowed, kisik.reasons)
+        self.assertEqual(kisik.projected["risk_scale"], 0.5)
+        self.assertAlmostEqual(kisik.risk_usd, 125.0, places=6)    # 250 -> 125
+
+        # Mutlak giris freni (%1,5) hala TAM olarak devrede — kisici onu
+        # yumusatmaz.
+        fren = evaluate_pretrade(
+            snapshot(**dict(buyuk, equity=196_800)), (), request(), ince, cfg)
+        self.assertFalse(fren.allowed)
+        self.assertIn("daily_entry_brake_block_new", fren.reasons)
+
+    def test_d2g_threshold_must_precede_the_entry_brake(self):
+        """Kisici, giris freninden SONRA devreye girerse hicbir ise yaramaz:
+        o noktada zaten hicbir yeni giris yoktur."""
+        with self.assertRaises(ValueError):
+            BrainConfig(risk_halving_daily_loss_pct=1.5)   # == daily_entry_brake_pct
+        with self.assertRaises(ValueError):
+            BrainConfig(risk_halving_daily_loss_pct=0.0)
+        with self.assertRaises(ValueError):
+            BrainConfig(risk_halving_factor=1.0)
+
     def test_race_mode_still_caps_total_open_risk(self):
         """B3: yaris giris SAYISINI serbest birakir, toplam hesap riskini degil.
 

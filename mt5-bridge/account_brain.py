@@ -94,6 +94,12 @@ class BrainConfig:
     # yondeydi; piyasa donunce hepsi birden kaybetti. Tavana gelince yeni
     # girisler BEKLEMEYE alinir (mevcutlar yonetilmeye devam eder).
     race_max_open_risk_pct: float = 3.0
+    # D2g — REJIM FARKINDALIGI: gun ici gerceklesen zarar bu esigi asinca YENI
+    # girislerin riski YARIYA iner. Bu bir FREN degil KISICI'dir; mutlak %4,5
+    # gunluk fren ve %1,5 giris freni aynen yerinde kalir. Amac: kotu bir gunde
+    # sistemin kendini kucultmesi, ayni boyutta israr edip cukuru derinlestirmemesi.
+    risk_halving_daily_loss_pct: float = 0.75
+    risk_halving_factor: float = 0.5
     min_rr: float = 3.0
     min_feed_rr: float = 1.5
     target_strong_signal: float = 0.75
@@ -155,6 +161,12 @@ class BrainConfig:
             raise ValueError("max_trade_risk_usd cannot be below min_initial_risk_usd")
         if not 0 < self.race_max_open_risk_pct <= 10.0:
             raise ValueError("race_max_open_risk_pct must be in (0, 10]")
+        # Kisici, giris freninden ONCE devreye girmeli; sonra girerse hicbir ise
+        # yaramaz (o noktada zaten hicbir yeni giris yok).
+        if not 0 < self.risk_halving_daily_loss_pct < self.daily_entry_brake_pct:
+            raise ValueError("risk_halving_daily_loss_pct must be in (0, daily_entry_brake_pct)")
+        if not 0 < self.risk_halving_factor < 1.0:
+            raise ValueError("risk_halving_factor must be in (0, 1)")
         if float(self.min_rr) not in {3.0, 4.0, 5.0}:
             raise ValueError("min_rr must be 3, 4 or 5")
         if not 0.0 <= self.min_feed_rr <= 3.0:
@@ -506,6 +518,13 @@ def evaluate_pretrade(snapshot: AccountSnapshot | None,
         }
     # Mutlak dolar tavanı her iki profilde de bağlayıcıdır.
     limits_usd["trade_usd_cap"] = float(config.max_trade_risk_usd)
+    # D2g — REJİM KISICISI: kötü bir günde aynı boyutta ısrar etmek çukuru
+    # derinleştirir. Günlük zarar eşiği aşılınca YENİ girişlerin riski yarıya
+    # iner. Açık pozisyonlara dokunmaz; mutlak frenler aynen yerinde kalır.
+    scale = risk_scale(snapshot, config)
+    if scale < 1.0:
+        limits_usd["trade"] *= scale
+        limits_usd["trade_usd_cap"] *= scale
     risk_budget = min(limits_usd.values())
     if not _finite_positive(risk_budget):
         return _reject("no_remaining_risk_budget", tier)
@@ -530,6 +549,8 @@ def evaluate_pretrade(snapshot: AccountSnapshot | None,
         "symbol_side_risk_pct": projected_symbol / equity * 100.0,
         "bot_risk_pct": projected_bot / equity * 100.0,
         "account_open_risk_pct": projected_account / equity * 100.0,
+        "risk_scale": scale,                 # D2g: 1.0 normal, 0.5 kisici aktif
+        "daily_loss_pct": daily_loss_pct(snapshot),
     }
     violations = []
     if config.race_mode:
@@ -573,10 +594,24 @@ def _safe_lot(request: TradeRequest, spec: SymbolSpec,
     return lot, loss_per_lot * lot, reward_per_lot * lot, "ok"
 
 
+def daily_loss_pct(snapshot: AccountSnapshot) -> float:
+    """Gun basi ozkaynagina gore gun ici kayip yuzdesi (negatif olmaz)."""
+    if not _finite_positive(snapshot.day_start_equity):
+        return 0.0
+    return max(0.0, (snapshot.day_start_equity - snapshot.equity)
+               / snapshot.day_start_equity * 100.0)
+
+
+def risk_scale(snapshot: AccountSnapshot, config: BrainConfig) -> float:
+    """D2g — gun ici zarara gore yeni giris riski carpani (1.0 veya 0.5)."""
+    if daily_loss_pct(snapshot) >= config.risk_halving_daily_loss_pct:
+        return float(config.risk_halving_factor)
+    return 1.0
+
+
 def _account_guard(snapshot: AccountSnapshot, config: BrainConfig,
                    tier: int) -> PreTradeDecision | None:
-    daily_loss = max(0.0, (snapshot.day_start_equity - snapshot.equity)
-                     / snapshot.day_start_equity * 100.0)
+    daily_loss = daily_loss_pct(snapshot)
     peak = max(snapshot.high_water_equity, snapshot.start_balance)
     drawdown = max(0.0, (peak - snapshot.equity) / peak * 100.0)
     profit = (snapshot.equity - snapshot.start_balance) / snapshot.start_balance * 100.0

@@ -175,6 +175,49 @@ function magicToBot(magic) {
   return { botId: `magic-${m}`, no: null, name: `Magic ${m}`, category: '—', kind: 'unknown' };
 }
 
+/**
+ * D3g — ENSTRÜMAN KARNESİ: sembol+yön çiftinin gerçek karnesi.
+ * Kesme yapmaz, yalnız görünürlük sağlar: "XAUUSD long −820 $ / 9 işlem".
+ * Kazanma sayısı `pnl > 0` ile ölçülür (reason koduna güvenilmez: beyin
+ * kapattığında MT5 sebebi 3 = expert-advisor döner, TP/SL değil).
+ */
+function aggregateBySymbol(sinceSec = 0) {
+  load();
+  const by = new Map();
+  for (const d of Object.values(state.deals)) {
+    if (d.closedSec < sinceSec) continue;
+    const symbol = d.symbol || '—';
+    const direction = d.direction === 'short' || d.direction === 'sell' ? 'short' : 'long';
+    const key = `${symbol}|${direction}`;
+    let b = by.get(key);
+    if (!b) { b = { symbol, direction, trades: 0, wins: 0, losses: 0, net: 0 }; by.set(key, b); }
+    b.trades++; b.net += d.pnl;
+    if (d.pnl > 0) b.wins++; else if (d.pnl < 0) b.losses++;
+  }
+  return [...by.values()].map((b) => ({ ...b, net: round(b.net) }));
+}
+
+/**
+ * D1g — BOT KARNESİ: yeterli örneklem biriktirmiş, net zararda ve isabeti
+ * düşük botlar. Otomatik eleme YOK (kullanıcı kararı D4: yalnız rapor).
+ */
+function scorecard(sinceSec = 0) {
+  load();
+  const by = new Map();
+  for (const d of Object.values(state.deals)) {
+    if (d.closedSec < sinceSec) continue;
+    let b = by.get(d.magic);
+    if (!b) { b = { magic: d.magic, trades: 0, wins: 0, losses: 0, net: 0 }; by.set(d.magic, b); }
+    b.trades++; b.net += d.pnl;
+    if (d.pnl > 0) b.wins++; else if (d.pnl < 0) b.losses++;
+  }
+  return [...by.values()].map((b) => ({
+    ...magicToBot(b.magic), magic: b.magic, trades: b.trades, wins: b.wins,
+    losses: b.losses, net: round(b.net),
+    winRate: b.trades ? Math.round((b.wins / b.trades) * 100) : 0,
+  }));
+}
+
 /** Köprüden gelen deal listesini içeri al (dedup + budama). */
 function ingest(deals, context = {}) {
   load();
@@ -238,7 +281,8 @@ function hasData() { load(); return Object.keys(state.deals).length > 0; }
 function summary() { load(); return { deals: Object.keys(state.deals).length, updatedAt: state.updatedAt }; }
 
 module.exports = {
-  ingest, aggregate, magicToBot, hasData, summary, normalizeExitDeal, reasonLabel,
+  ingest, aggregate, aggregateBySymbol, scorecard,
+  magicToBot, hasData, summary, normalizeExitDeal, reasonLabel,
   GOLD_MAGIC,
   _dangerouslyResetForTest() { state = { deals: {}, updatedAt: null }; loaded = true; },
 };
