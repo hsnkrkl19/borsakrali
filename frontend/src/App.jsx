@@ -2,6 +2,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'r
 import { useEffect } from 'react'
 import Layout from './components/Layout'
 import UpdatePopup from './components/UpdatePopup'
+import BotRehberiPopup from './components/BotRehberiPopup'
 import PushNotificationManager from './components/PushNotificationManager'
 import ErrorBoundary from './components/ErrorBoundary'
 import BackButtonHandler from './components/BackButtonHandler'
@@ -205,6 +206,7 @@ function App() {
       {isAuthenticated && <AnnouncementsManager />}
       {isAuthenticated && <AdminBroadcastFAB />}
       {isAuthenticated && <UpdatePopup />}
+      <BotRehberiPopup />
       <OnboardingTour />
       <ToastHost />
       <CookieConsent />
