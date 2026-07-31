@@ -87,13 +87,26 @@ router.post('/state', express.json({ limit: '2mb' }), async (req, res) => {
       results = realResults.ingest(req.body.closed, req.body);
     }
     const lifecycle = await mt5TradeNotifier.ingestState(req.body || {});
-    if (lifecycle.retryableFailures > 0 || lifecycle.invalid > 0
-        || (lifecycle.decisions && lifecycle.decisions.invalid > 0)
-        || results.invalid > 0) {
+    // DEFTER != BILDIRIM (2026-07-31): Telegram teslimati basarisiz diye 503
+    // donmek kopruyu kilitliyordu; kopru cursor'unu ilerletemedigi icin
+    // kapanislar deftere HIC yazilamiyordu. Artik yalniz GECERSIZ satir 503
+    // uretir; teslim edilememis bildirim 200 + notifyPending ile raporlanir ve
+    // backend'in kendi tekrar dongusunde (retryPending) gonderilir.
+    const invalidRow = lifecycle.invalid > 0 || results.invalid > 0
+      || (lifecycle.decisions && lifecycle.decisions.invalid > 0);
+    // Kalicilik hatasi (kayit diske/Supabase'e yazilamadi) 503 KALIR: bu olay
+    // tekrar edilemez, kabul edilirse tamamen kaybolur. Yalniz TESLIMAT
+    // (Telegram) hatasi 200'e dusurulur; onu arka plan dongusu tekrar dener.
+    if (invalidRow || lifecycle.durabilityFailures > 0) {
       return res.status(503).json({
         success: false, retryable: true,
-        error: lifecycle.invalid > 0 || results.invalid > 0
-          ? 'invalid-broker-lifecycle-row' : 'trade-notification-pending',
+        error: invalidRow ? 'invalid-broker-lifecycle-row' : 'trade-notification-pending',
+        ...lifecycle, results, lifecycle, audit: lifecycle.audit,
+      });
+    }
+    if (lifecycle.retryableFailures > 0) {
+      return res.json({
+        success: true, notifyPending: lifecycle.retryableFailures,
         ...lifecycle, results, lifecycle, audit: lifecycle.audit,
       });
     }
@@ -116,13 +129,18 @@ router.post('/results', express.json({ limit: '2mb' }), async (req, res) => {
       ...(req.body && typeof req.body === 'object' ? req.body : {}),
       closed: Array.isArray(deals) ? deals : [],
     });
-    if (lifecycle.retryableFailures > 0 || lifecycle.invalid > 0
-        || (lifecycle.decisions && lifecycle.decisions.invalid > 0)
-        || results.invalid > 0) {
+    const invalidRow2 = lifecycle.invalid > 0 || results.invalid > 0
+      || (lifecycle.decisions && lifecycle.decisions.invalid > 0);
+    if (invalidRow2 || lifecycle.durabilityFailures > 0) {
       return res.status(503).json({
         success: false, retryable: true,
-        error: lifecycle.invalid > 0 || results.invalid > 0
-          ? 'invalid-broker-lifecycle-row' : 'trade-notification-pending',
+        error: invalidRow2 ? 'invalid-broker-lifecycle-row' : 'trade-notification-pending',
+        ...results, ...lifecycle, results, lifecycle, audit: lifecycle.audit,
+      });
+    }
+    if (lifecycle.retryableFailures > 0) {
+      return res.json({
+        success: true, notifyPending: lifecycle.retryableFailures,
         ...results, ...lifecycle, results, lifecycle, audit: lifecycle.audit,
       });
     }

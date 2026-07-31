@@ -50,11 +50,26 @@ function build(nowMs = Date.now(), goldStats = null, realAgg = null) {
   // ÇOK-MOTORLU BOT: bir botun alt motorları MT5'te ayrı magic kullanabilir
   // (bkz. catalog magicByStrategy — Bot 38 Scalp/Swing). Gerçek sonucu tek
   // magic'ten okumak o botun diğer bacağını rapordan DÜŞÜRÜR; hepsi toplanır.
+  // Rapora giren her magic isaretlenir; sonda ESLENMEYENLER ayri baslikta
+  // gosterilir ve GUN TOPLAMI'na katilir -> rapor toplami ile hesap gercegi
+  // yapisal olarak ayrisamaz (2026-07-31: gercek -3.234,88 $ iken rapor
+  // -74,51 $ demisti).
+  const seenMagics = new Set();
+
   function realFor(entry) {
-    const magics = entry.magicByStrategy
-      ? [...new Set(Object.values(entry.magicByStrategy))]
-      : [Number(entry.magic)];
-    const rows = magics.map((m) => realByMagic.get(Number(m))).filter((x) => x && x.trades > 0);
+    // ⚠️ dedicatedBridgeMagic ZORUNLU: Bot 1 (forex 550055) ve Bot 5 (tarayici
+    // 550066) kendi adanmis koprulerinde islem acar. Bu magic okunmadigi icin
+    // o iki botun TUM islemleri hem listeden hem gun toplamindan dusuyordu.
+    const magics = [...new Set([
+      Number(entry.magic),
+      Number(entry.dedicatedBridgeMagic),
+      ...Object.values(entry.magicByStrategy || {}).map(Number),
+    ].filter((m) => Number.isFinite(m) && m > 0))];
+    const rows = [];
+    for (const m of magics) {
+      const row = realByMagic.get(m);
+      if (row && row.trades > 0) { rows.push(row); seenMagics.add(m); }
+    }
     if (!rows.length) return null;
     return rows.reduce((acc, r) => ({
       trades: acc.trades + r.trades, tp: acc.tp + r.tp,
@@ -76,6 +91,7 @@ function build(nowMs = Date.now(), goldStats = null, realAgg = null) {
     // Özel botlar (gerçek, magic ile)
     const customs = builderStore.listCustom();
     const customReal = customs.map((b) => ({ b, r: realByMagic.get(Number(b.magic)) })).filter((x) => x.r && x.r.trades > 0);
+    customReal.forEach(({ b }) => seenMagics.add(Number(b.magic)));
     if (customReal.length) {
       lines.push('');
       lines.push('<b>— Özel Botların —</b>');
@@ -87,10 +103,24 @@ function build(nowMs = Date.now(), goldStats = null, realAgg = null) {
     // Altın botu (gerçek, magic 20260707)
     const gr = realByMagic.get(realResults.GOLD_MAGIC);
     if (gr && gr.trades > 0) {
+      seenMagics.add(Number(realResults.GOLD_MAGIC));
       dTrades += gr.trades; dTp += gr.tp; dSl += gr.sl; dNet += gr.net;
       lines.push('');
       lines.push('<b>— Altın Botu (gerçek MT5) —</b>');
       lines.push(`🥇 ${gr.trades} işlem · ${gr.tp} TP · ${gr.sl} SL · net <b>${usd(gr.net)}</b>`);
+    }
+    // ESLENMEYEN MAGIC'LER: katalogda karsiligi olmayan ama hesapta GERCEKTEN
+    // islem yapmis magic'ler. Sessizce dusurmek yerine listelenir; boylece
+    // "rapor az gosteriyor" durumu bir daha gizlenemez.
+    const orphans = (realAgg || []).filter(
+      (r) => r && r.trades > 0 && !seenMagics.has(Number(r.magic)));
+    if (orphans.length) {
+      lines.push('');
+      lines.push('<b>— Eşlenmemiş Magic’ler (katalog dışı) —</b>');
+      for (const o of orphans) {
+        dTrades += o.trades; dTp += o.tp; dSl += o.sl; dNet += o.net;
+        lines.push(`❔ ${esc(o.name || `Magic ${o.magic}`)} — ${o.trades} işlem · net <b>${usd(o.net)}</b>`);
+      }
     }
   } else {
     // FALLBACK: kağıt/sanal competition

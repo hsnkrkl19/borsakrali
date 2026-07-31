@@ -661,6 +661,64 @@ async function releaseOrderedLifecycle() {
   return total;
 }
 
+
+// ── ARKA PLAN TEKRAR DONGUSU (A1) ───────────────────────────────────────────
+// Onceden bildirimin TEK tekrar yolu koprunun 503 alip ayni satirlari yeniden
+// POST etmesiydi. Bu, MUHASEBEYI BILDIRIME bagimli kiliyordu: Telegram hiz
+// limitine takilinca kopru cursor'unu ilerletemiyor, kapanislar deftere hic
+// yazilamiyordu (2026-07-31: gercek -3.234,88 $ iken rapor -74,51 $ dedi).
+// Artik teslimat burada, kendi temposunda ve hiz sinirli olarak yeniden denenir;
+// kopru 200 alip defterini ilerletebilir. Sira korunur: acilis once.
+const RETRY_BATCH = () => Math.max(1, Number(process.env.MT5_NOTIFY_RETRY_BATCH || 8));
+
+function pendingCount() {
+  let n = 0;
+  for (const bag of [state.opens, state.closes]) {
+    for (const r of Object.values(bag || {})) {
+      if (!r || !r.notification) continue;
+      if (r.notification === 'sent' || r.notification === 'historical') continue;
+      n++;
+    }
+  }
+  return n;
+}
+
+async function retryPending() {
+  load();
+  const out = { openNotified: 0, closeNotified: 0, retryableFailures: 0, pending: 0 };
+  if (notificationsDisabled()) { out.pending = pendingCount(); return out; }
+  let budget = RETRY_BATCH();   // Telegram hiz limiti: tur basina tavan
+
+  // 1) Basarisiz ACILISLAR once — kapanis acilistan once gidemez.
+  for (const record of Object.values(state.opens)) {
+    if (budget <= 0) break;
+    if (!record || record.notification !== 'failed') continue;
+    if (deliveryInFlight(record)) continue;
+    if (unresolvedCloseDependencies(record).length) continue;
+    budget--;
+    if (await deliver('open', record, openMessage(record))) out.openNotified++;
+    else out.retryableFailures++;
+  }
+  // 2) Basarisiz KAPANISLAR — yalniz kendi acilisi gonderilmisse.
+  for (const record of Object.values(state.closes)) {
+    if (budget <= 0) break;
+    if (!record || record.notification !== 'failed') continue;
+    if (deliveryInFlight(record)) continue;
+    const openRecord = findOpenForClose(record);
+    if (openRecord && openRecord.notification !== 'sent') continue;
+    budget--;
+    if (await deliver('close', record, closeMessage(record))) out.closeNotified++;
+    else out.retryableFailures++;
+  }
+  // 3) Sirali bekleyenler (waiting-open / waiting-close) cozulduyse birak.
+  const ordered = await releaseOrderedLifecycle();
+  out.openNotified += ordered.openNotified;
+  out.closeNotified += ordered.closeNotified;
+  out.retryableFailures += ordered.retryableFailures;
+  out.pending = pendingCount();
+  return out;
+}
+
 /**
  * Ingest broker facts posted by the bridge.
  * @param {{open:Array, closed:Array, decisions?:Array}} payload
@@ -957,6 +1015,7 @@ function reloadForTest() { state = freshState(); loaded = false; return load(); 
 
 module.exports = {
   ingestState, observeCandidates, observeDecisions, auditStatus, stats,
+  retryPending, pendingCount,
   openMessage, closeMessage, normalizeOpen, paperNotificationSuppressed,
   notificationsDisabled, resetForTest, reloadForTest,
 };

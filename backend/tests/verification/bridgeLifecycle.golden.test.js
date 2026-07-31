@@ -91,21 +91,24 @@ afterAll(() => {
   }
 });
 
-test('notification kill switch returns retryable 503 so broker outbox is not acknowledged', async () => {
+test('bildirim kill switch: defter yazilir, 200 doner, mesaj switch kalkinca gider', async () => {
   process.env.MT5_TRADE_NOTIFY_DISABLED = '1';
   const blocked = await request(app).post('/api/bridge/state').set(auth).send({ open: [openRow('7099')] });
-  expect(blocked.status).toBe(503);
+  // Kill switch bir TESLIMAT engelidir, defter engeli degil: 200 doner ki kopru
+  // ilerlesin; kayit "bekliyor" olarak tutulur ve switch kalkinca gonderilir.
+  expect(blocked.status).toBe(200);
   expect(blocked.body).toMatchObject({
-    success: false, retryable: true, error: 'trade-notification-pending',
-    lifecycle: { openNotified: 0 },
+    success: true, lifecycle: { openNotified: 0 },
   });
+  expect(blocked.body.notifyPending).toBeGreaterThan(0);
   expect(blocked.body.lifecycle.retryableFailures).toBeGreaterThan(0);
   expect(mockTelegram.sendMessage).not.toHaveBeenCalled();
 
+  // Kill switch kalkinca ARKA PLAN dongusu ayni kaydi teslim eder — koprunun
+  // yeniden POST etmesine gerek yoktur (defter/bildirim ayrimi).
   delete process.env.MT5_TRADE_NOTIFY_DISABLED;
-  const retried = await request(app).post('/api/bridge/state').set(auth).send({ open: [openRow('7099')] });
-  expect(retried.status).toBe(200);
-  expect(retried.body.lifecycle).toMatchObject({ openNotified: 1, retryableFailures: 0 });
+  const drained = await notifier.retryPending();
+  expect(drained.openNotified).toBe(1);
   expect(mockTelegram.sendMessage).toHaveBeenCalledTimes(1);
 });
 
@@ -130,16 +133,40 @@ test('POST state emits one broker-confirmed opening and exposes reconciliation s
   expect(mockTelegram.sendMessage).toHaveBeenCalledTimes(1);
 });
 
-test('delivery failure returns retryable 503 and same ticket succeeds on retry', async () => {
+test('teslimat hatasi kopruyu kilitlemez: 200 + notifyPending, mesaj arka planda gider', async () => {
+  // 2026-07-31 REGRESYONU: Telegram hatasinda 503 donuluyordu; kopru cursor'unu
+  // ilerletemedigi icin KAPANISLAR DEFTERE HIC YAZILAMIYORDU (gercek -3.234,88 $
+  // iken rapor -74,51 $ dedi). Artik defter yazilir, 200 doner, mesaj sonra gider.
   mockTelegram.sendMessage.mockResolvedValueOnce({ success: false, error: 'network' });
   const failed = await request(app).post('/api/bridge/state').set(auth).send({ open: [openRow('7002')] });
-  expect(failed.status).toBe(503);
-  expect(failed.body).toMatchObject({ success: false, retryable: true, error: 'trade-notification-pending' });
+  expect(failed.status).toBe(200);
+  expect(failed.body.success).toBe(true);
+  expect(failed.body.notifyPending).toBeGreaterThan(0);
   expect(failed.body.audit.tradeWithoutSignal).toBe(1);
 
-  const retried = await request(app).post('/api/bridge/state').set(auth).send({ open: [openRow('7002')] });
-  expect(retried.status).toBe(200);
-  expect(retried.body.lifecycle.openNotified).toBe(1);
+  // Kopru TEKRAR gondermeden, arka plan dongusu ayni kaydi teslim eder.
+  const drained = await notifier.retryPending();
+  expect(drained.openNotified).toBe(1);
+  expect(drained.pending).toBe(0);
+});
+
+test('kalicilik hatasi HALA 503 doner (kayit kaybolmasin)', async () => {
+  // Teslimat hatasi 200'e dusuruldu ama KALICILIK hatasi dusurulemez: kayit
+  // diske yazilamadiysa tekrar edilemez, kabul edilirse tamamen kaybolur.
+  const originalWrite = fs.writeFileSync;
+  const spy = jest.spyOn(fs, 'writeFileSync').mockImplementation((target, ...args) => {
+    if (String(target).startsWith(path.join(tempDir, 'notify'))) {
+      throw new Error('simulated-read-only-notifier-disk');
+    }
+    return originalWrite.call(fs, target, ...args);
+  });
+  try {
+    const res = await request(app).post('/api/bridge/state').set(auth).send({ open: [openRow('7009')] });
+    expect(res.status).toBe(503);
+    expect(res.body.retryable).toBe(true);
+  } finally {
+    spy.mockRestore();
+  }
 });
 
 test('POST state never acknowledges 200 when no lifecycle persistence target succeeds', async () => {

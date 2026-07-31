@@ -6192,6 +6192,23 @@ async function warmupCryptoCache() {
 setTimeout(warmupCryptoCache, 5000);
 setInterval(warmupCryptoCache, 8 * 60 * 1000);
 
+// BILDIRIM TEKRAR DONGUSU (A1): teslim edilememis acilis/kapanis mesajlarini
+// kopruden BAGIMSIZ olarak, hiz sinirli sekilde yeniden dener. Boylece defter
+// (realResults) bildirimden ayrisir: kopru 200 alip ilerler, mesajlar arkadan
+// yetisir ve "gerceklesen her islem bildirilir" garantisi korunur.
+setInterval(async () => {
+  try {
+    if (!lifecycleReadiness.isReady()) return;
+    const r = await require('./services/mt5TradeNotifier').retryPending();
+    if (r && (r.openNotified || r.closeNotified)) {
+      console.log(`[TradeNotify] gecikmis teslimat: ${r.openNotified} acilis, `
+        + `${r.closeNotified} kapanis · bekleyen ${r.pending}`);
+    }
+  } catch (e) {
+    console.error('[TradeNotify] tekrar dongusu hatasi:', e.message);
+  }
+}, 30 * 1000);
+
 // ============ NOTES ROUTES ============
 const notesStore = new Map(); // userId -> notes[]
 
