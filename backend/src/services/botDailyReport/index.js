@@ -149,6 +149,22 @@ function build(nowMs = Date.now(), goldStats = null, realAgg = null) {
 
   lines.push('');
   lines.push(`📈 <b>GÜN TOPLAMI:</b> ${dTrades} işlem · ${dTp} TP · ${dSl} SL · net <b>${usd(dNet)}</b>`);
+
+  // MUTABAKAT (2026-07-31): defter toplami ile brokerin gercek gunluk neti
+  // karsilastirilir. Fark varsa rapor bunu GIZLEMEZ — "rapor az gosteriyor"
+  // durumu bir daha sessizce yasanamaz.
+  try {
+    const rec = require('../realResults/brokerTruth').reconcile(dNet);
+    if (rec.reason === 'broker-anlik-goruntusu-yok') {
+      lines.push('⚠️ Mutabakat yapılamadı: brokerdan taze anlık görüntü yok.');
+    } else if (rec.ok) {
+      lines.push(`✅ Mutabakat: defter ${usd(rec.ledgerNet)} = broker ${usd(rec.brokerNet)}`);
+    } else {
+      lines.push(`⚠️ <b>MUTABAKATSIZLIK</b> · defter ${usd(rec.ledgerNet)} · `
+        + `broker <b>${usd(rec.brokerNet)}</b> · fark ${usd(rec.diff)}`);
+      lines.push('   Defter eksik kayıt içeriyor; kayıt hattı incelenmeli.');
+    }
+  } catch (e) { /* mutabakat raporu dusurmesin */ }
   lines.push('<i>Her akşam güncellenir; sonuçlar günden güne birikir.</i>');
 
   return { text: lines.join('\n'), useReal, summary: { trades: dTrades, tp: dTp, sl: dSl, net: Number(dNet.toFixed(2)) } };

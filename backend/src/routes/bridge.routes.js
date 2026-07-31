@@ -16,6 +16,7 @@ const builderStore = require('../services/botBuilder/store');
 const customBotRunner = require('../services/botBuilder/customBotRunner');
 const mt5TradeNotifier = require('../services/mt5TradeNotifier');
 const realResults = require('../services/realResults/store');
+const brokerTruth = require('../services/realResults/brokerTruth');
 const lifecycleReadiness = require('../services/lifecycleReadiness');
 
 function checkExecToken(req) {
@@ -81,6 +82,9 @@ router.post('/state', express.json({ limit: '2mb' }), async (req, res) => {
   if (!auth.ok) return res.status(auth.code).json({ success: false, error: auth.error });
   if (!requireLifecycleReady(res)) return undefined;
   try {
+    // Broker gercegi: beynin anlik goruntusundeki realizedToday, gunluk raporun
+    // kendi defterini bagimsiz dogrulamasi icin saklanir (mutabakat).
+    brokerTruth.note(req.body && req.body.snapshot);
     let results = { ingested: 0, invalid: 0, total: realResults.summary().deals };
     // Kapananlar aynı yükte geldiyse gerçek-sonuç deposunu da besle (lider tablosu).
     if (Array.isArray(req.body && req.body.closed) && req.body.closed.length) {
