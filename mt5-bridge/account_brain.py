@@ -434,7 +434,8 @@ def heartbeat_ok(path: str | os.PathLike[str], max_age_seconds: float,
 def evaluate_pretrade(snapshot: AccountSnapshot | None,
                       positions: Sequence[OpenRisk], request: TradeRequest,
                       spec: SymbolSpec, config: BrainConfig,
-                      runtime: RuntimeState | None = None) -> PreTradeDecision:
+                      runtime: RuntimeState | None = None,
+                      advisory_scale: float = 1.0) -> PreTradeDecision:
     """Return one complete deterministic lot/risk/underlying entry decision."""
     runtime = runtime or RuntimeState()
     bad_health = _snapshot_error(snapshot)
@@ -525,6 +526,13 @@ def evaluate_pretrade(snapshot: AccountSnapshot | None,
     if scale < 1.0:
         limits_usd["trade"] *= scale
         limits_usd["trade_usd_cap"] *= scale
+    # AI KONSEYI: yalniz kisabilir. Kirpma BURADA da yapilir (cagiranin
+    # dogrulugu varsayilmaz); bozuk/asiri deger notr veya tabana oturur.
+    advisory = advisory_scale if math.isfinite(advisory_scale) else 1.0
+    advisory = min(1.0, max(ADVISORY_MIN_SCALE, advisory))
+    if advisory < 1.0:
+        limits_usd["trade"] *= advisory
+        limits_usd["trade_usd_cap"] *= advisory
     risk_budget = min(limits_usd.values())
     if not _finite_positive(risk_budget):
         return _reject("no_remaining_risk_budget", tier)
@@ -550,6 +558,7 @@ def evaluate_pretrade(snapshot: AccountSnapshot | None,
         "bot_risk_pct": projected_bot / equity * 100.0,
         "account_open_risk_pct": projected_account / equity * 100.0,
         "risk_scale": scale,                 # D2g: 1.0 normal, 0.5 kisici aktif
+        "advisory_scale": advisory,          # AI konseyi: 1.0 notr, <1.0 temkin
         "daily_loss_pct": daily_loss_pct(snapshot),
     }
     violations = []
@@ -592,6 +601,38 @@ def _safe_lot(request: TradeRequest, spec: SymbolSpec,
         return None, 0.0, 0.0, "no_safe_broker_lot"
     lot = round(lot, 10)
     return lot, loss_per_lot * lot, reward_per_lot * lot, "ok"
+
+
+# ── AI KONSEYI TAVSIYESI (2026-08-01) ────────────────────────────────────────
+# ai_council.py (Ollama + istege bagli Gemini) periyodik analiz yazar. Sozlesme:
+#   1. AI ASLA islem acmaz, yon secmez, kural gevsetemez.
+#   2. Tavsiye YALNIZ kisabilir: carpan (0, 1] araligina kirpilir; 1.0 ustu
+#      "riski artir" tavsiyesi SESSIZCE 1.0 olur.
+#   3. Dosya yok / bayat / bozuk => NOTR (1.0). Fail-open notr yondedir cunku
+#      olu bir AI sureci trade'i durduramamali (kullanici kurali: "tum botlar
+#      islem alsin"); AI yalniz temkin onerebilir, engel koyamaz.
+ADVISORY_MAX_AGE_SEC = 1800.0     # konsey 10 dk'da bir yazar; 3 tur kacarsa notr
+ADVISORY_MIN_SCALE = 0.25         # AI en fazla 4'te 1'e kisabilir
+
+
+def load_advisory_scale(path: str | os.PathLike[str], now_ts: float,
+                        max_age_seconds: float = ADVISORY_MAX_AGE_SEC) -> float:
+    """AI konseyi tavsiye carpani; HER hata durumunda notr 1.0."""
+    try:
+        raw = json.loads(Path(path).read_text(encoding="utf-8"))
+        if not isinstance(raw, dict):
+            return 1.0
+        generated = float(raw.get("generatedAtSec", 0) or 0)
+        age = now_ts - generated
+        # Gelecek tarihli dosya da bayat sayilir (saat oynamasi guvene donusmesin).
+        if age < -60 or age > max_age_seconds:
+            return 1.0
+        scale = float(raw.get("scale", 1.0))
+        if not math.isfinite(scale):
+            return 1.0
+        return min(1.0, max(ADVISORY_MIN_SCALE, scale))
+    except Exception:
+        return 1.0
 
 
 def daily_loss_pct(snapshot: AccountSnapshot) -> float:
@@ -813,7 +854,8 @@ class AccountBrain:
 
     def evaluate_and_reserve(self, snapshot: AccountSnapshot | None,
                              positions: Sequence[OpenRisk], request: TradeRequest,
-                             spec: SymbolSpec) -> PreTradeDecision:
+                             spec: SymbolSpec,
+                             advisory_scale: float = 1.0) -> PreTradeDecision:
         if self.require_fresh_heartbeat and not heartbeat_ok(
                 self.heartbeat_path, self.config.heartbeat_max_age_seconds,
                 request.now_ts):
@@ -868,7 +910,8 @@ class AccountBrain:
             }
             decision = evaluate_pretrade(snapshot, all_positions,
                                          effective_request, spec, self.config,
-                                         RuntimeState(reversals))
+                                         RuntimeState(reversals),
+                                         advisory_scale=advisory_scale)
             if decision.allowed:
                 reservation = {
                     "candidate_id": request.candidate_id,

@@ -68,6 +68,13 @@ if exist "altin-botu\main.py" if not exist "altin-botu\STOP" (
   if errorlevel 1 start "" "%~dp0_altin-dongu.bat"
 )
 
+REM AI KONSEYI (Ollama + istege bagli Gemini) - danisma katmani, emir ACMAZ.
+REM Yoklugu sistemi durdurmaz; beyin bayat tavsiyeyi notr sayar.
+if exist "mt5-bridgei_council.py" (
+  tasklist /v /fi "imagename eq cmd.exe" 2>nul | find /i "AI KONSEYI (oto-restart)" >nul
+  if errorlevel 1 start "" "%~dp0_konsey-dongu.bat"
+)
+
 REM Render'i uyanik tut (emir acmaz, ama master STOP'ta o da kapanir).
 tasklist /v /fi "imagename eq cmd.exe" 2>nul | find /i "Render uyanik tut" >nul
 if errorlevel 1 start "" "%~dp0_uyanik-tut.bat"

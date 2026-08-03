@@ -18,6 +18,8 @@ import requests
 HERE = os.path.dirname(os.path.abspath(__file__))
 STATE_PATH = os.path.join(HERE, "account_brain_pretrade_state.json")
 HEARTBEAT_PATH = os.path.join(HERE, "account_brain_heartbeat.json")
+# AI konseyi tavsiyesi (ai_council.py yazar; beyin YALNIZ kisma yonunde okur).
+ADVISORY_PATH = os.path.join(HERE, "ai_advisory.json")
 EVENT_OUTBOX_PATH = os.path.join(HERE, "account_brain_event_outbox.json")
 STOP_MASTER = os.path.join(HERE, "STOP_MASTER")
 
@@ -784,7 +786,13 @@ def evaluate(mt5mod, cfg, info, *, candidate_id, bot_id, symbol, direction,
         controller = account_brain.AccountBrain(
             policy, state_path, heartbeat_path,
             require_fresh_heartbeat=bool(cfg.get("brain_required", True)))
-        decision = controller.evaluate_and_reserve(snapshot, tuple(open_risks), request, spec)
+        # AI konseyi tavsiyesi: dosya yok/bayat/bozuk => 1.0 (notr). Carpan
+        # yalniz KISABILIR; kirpma hem burada (load) hem beyinde yapilir.
+        advisory_scale = account_brain.load_advisory_scale(
+            _runtime_path(cfg, "ai_advisory_path", ADVISORY_PATH), now)
+        decision = controller.evaluate_and_reserve(
+            snapshot, tuple(open_risks), request, spec,
+            advisory_scale=advisory_scale)
     except Exception as exc:
         if logger:
             logger.error("Merkezi beyin veri/karar RED: %s", exc)

@@ -25,7 +25,7 @@ if ($LASTEXITCODE -ge 8) { throw "robocopy altin-botu hatasi: $LASTEXITCODE" }
 
 # ADIM 3 - mt5-bridge BEYAZ LISTE (canli calisma dizininden yalniz bu dosyalar)
 $WHITELIST = @(
-  "account_brain.py", "borsakrali_account_brain.py", "borsakrali_mt5.py",
+  "account_brain.py", "ai_council.py", "borsakrali_account_brain.py", "borsakrali_mt5.py",
   "borsakrali_mt5_all.py", "borsakrali_mt5_scanner.py", "mt5_brain_adapter.py",
   "trade_guard.py", "hesap_guncelle.py", "pozisyon_temizle.py", "preflight.py", "diag.py",
   "diag_trail.py", "requirements.txt", "README.md", "configure-secrets.ps1",
@@ -51,6 +51,15 @@ if (Test-Path $localCfgPath) {
   if ($tok -and $tok -notmatch "(?i)BURAYA|ENV_VEYA|PLACEHOLDER|CHANGE_ME") {
     $all = Get-Content (Join-Path $SRC "config_all.example.json") -Raw -Encoding UTF8 | ConvertFrom-Json
     $all.exec_token = $tok
+    # Gemini anahtari da ayni duzenle gomulur: yalniz yerel git-disi config'ten
+    # okunur, yalniz ZIP icindeki config_all.json'a yazilir, repoya girmez.
+    $gemList = @()
+    if ($localCfg.gemini_api_keys) { $gemList = @($localCfg.gemini_api_keys | Where-Object { $_ -and ([string]$_).Length -ge 20 }) }
+    $gemTek = [string]$localCfg.gemini_api_key
+    if ($gemTek -and $gemTek.Length -ge 20 -and $gemList -notcontains $gemTek) { $gemList += $gemTek }
+    if ($gemList.Count -gt 0) {
+      $all | Add-Member -NotePropertyName gemini_api_keys -NotePropertyValue $gemList -Force
+    }
     $all.allowed_account = $HesapNo
     $all.account_server = ""
     $all.backend_url = "https://www.borsakrali.com"
@@ -79,12 +88,18 @@ $bad = Get-ChildItem $DST -Recurse -Force | Where-Object {
 }
 if ($bad) { $bad | ForEach-Object { Write-Host "IHLAL: $($_.FullName)" }; throw "Paket kural taramasi basarisiz" }
 
-# ADIM 5 - token taramasi: config_all.json DISINDA hicbir dosyada gercek token olamaz
+# ADIM 5 - sir taramasi: config_all.json DISINDA hicbir dosyada gercek sir olamaz
 $tokenHits = Get-ChildItem $DST -Recurse -File |
   Where-Object { $_.Name -ne "config_all.json" } |
-  Select-String -Pattern "exec_token.{0,10}[A-Za-z0-9]{24,}" -SimpleMatch:$false |
-  Where-Object { $_.Line -notmatch "ENV_VEYA|BURAYA|CHANGE_ME|PLACEHOLDER" }
-if ($tokenHits) { $tokenHits | ForEach-Object { Write-Host "TOKEN SIZINTISI: $($_.Path):$($_.LineNumber)" }; throw "Token taramasi basarisiz" }
+  Select-String -Pattern "exec_token.{0,10}[A-Za-z0-9]{24,}|gemini_api_key.{0,10}[A-Za-z0-9._-]{20,}" -SimpleMatch:$false |
+  Where-Object { $_.Line -notmatch "ENV_VEYA|BURAYA|CHANGE_ME|PLACEHOLDER|GEMINI_API_KEY|localCfg|Add-Member" }
+if ($tokenHits) { $tokenHits | ForEach-Object { Write-Host "SIR SIZINTISI: $($_.Path):$($_.LineNumber)" }; throw "Sir taramasi basarisiz" }
+# Gemini anahtarlarinin KENDISI (degerleri) baska dosyaya sizmis mi?
+foreach ($gemVal in $gemList) {
+  $leak = Get-ChildItem $DST -Recurse -File | Where-Object { $_.Name -ne "config_all.json" } |
+    Select-String -SimpleMatch ([string]$gemVal)
+  if ($leak) { throw "Gemini anahtari config_all.json disina sizdi" }
+}
 
 # ADIM 6 - Masaustune tek ZIP
 if (Test-Path $ZIP) { Remove-Item -Force $ZIP }
