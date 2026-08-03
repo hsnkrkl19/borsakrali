@@ -1209,10 +1209,15 @@ async function ingestState(payload = {}) {
         dealId: deal.id, ticket: openRecord.ticket, magic: deal.magic, symbol: deal.symbol,
       });
     }
-    addEvent(old ? 'exit_deal_seen_again' : 'exit_deal_confirmed', {
-      dealId: deal.id, ticket: record.positionTicket, code: record.code, magic: record.magic,
-      ...(openRecord ? {} : { reason: 'open-ticket-not-reconciled' }),
-    });
+    // Denetim halkasi (MAX_EVENTS=2000) korunur: zaten GONDERILMIS kaydin
+    // rutin tekrar POST'u olay uretmez — yoksa kopru tekrarlari kritik
+    // olaylari ~10 saniyede halkadan silip teshisi imkansiz kiliyordu.
+    if (!old || record.notification !== 'sent') {
+      addEvent(old ? 'exit_deal_seen_again' : 'exit_deal_confirmed', {
+        dealId: deal.id, ticket: record.positionTicket, code: record.code, magic: record.magic,
+        ...(openRecord ? {} : { reason: 'open-ticket-not-reconciled' }),
+      });
+    }
     if (record.notification === 'sent') { skipped++; continue; }
     if (record.notification === 'historical' && !notificationRequired) { skipped++; continue; }
     if (record.notification === 'historical' && notificationRequired) {

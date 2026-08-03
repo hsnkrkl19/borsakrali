@@ -335,6 +335,15 @@ router.get('/funnel', (req, res) => {
   }
 });
 
+// AI KONSEYİ: son karar (panel rozeti). Konsey 10 dk'da bir tazeler.
+router.get('/ai-council', (req, res) => {
+  try {
+    res.json({ ok: true, council: require('../services/aiCouncil').current() });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
 // YARIŞ: günlük Telegram raporunu elle tetikle (cron 23:55 TR'de zaten atar).
 router.post('/race/daily-report', async (req, res) => {
   try {

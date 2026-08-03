@@ -77,7 +77,7 @@ router.get('/positions', (req, res) => {
 // pozisyonlarını + yeni kapananları bildirir; daha önce duyurulmamış olanlar için
 // Telegram mesajı atılır. Kaynak MT5'in kendisi olduğundan sinyal/işlem sapması
 // yapısal olarak imkânsızdır.
-router.post('/state', express.json({ limit: '2mb' }), async (req, res) => {
+router.post('/state', express.json({ limit: '4mb' }), async (req, res) => {
   const auth = checkExecToken(req);
   if (!auth.ok) return res.status(auth.code).json({ success: false, error: auth.error });
   if (!requireLifecycleReady(res)) return undefined;
@@ -122,7 +122,7 @@ router.post('/state', express.json({ limit: '2mb' }), async (req, res) => {
   }
 });
 
-router.post('/results', express.json({ limit: '2mb' }), async (req, res) => {
+router.post('/results', express.json({ limit: '4mb' }), async (req, res) => {
   const auth = checkExecToken(req);
   if (!auth.ok) return res.status(auth.code).json({ success: false, error: auth.error });
   if (!requireLifecycleReady(res)) return undefined;
@@ -156,6 +156,17 @@ router.post('/results', express.json({ limit: '2mb' }), async (req, res) => {
 });
 
 // Broker lifecycle reconciliation. Rejected execution decisions are retained as
+// AI KONSEYI (2026-08-01): kopru ai_council.py karari POST eder. Ayni token.
+router.post('/ai-council', express.json({ limit: '256kb' }), async (req, res) => {
+  try {
+    const result = await require('../services/aiCouncil').note(req.body);
+    if (!result) return res.status(400).json({ success: false, error: 'invalid-council-payload' });
+    res.json({ success: true, ...result });
+  } catch (e) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
 // audit facts but never counted as Telegram signals.
 router.get('/audit', (req, res) => {
   const auth = checkExecToken(req);

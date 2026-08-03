@@ -211,6 +211,15 @@ function build(nowMs = Date.now(), goldStats = null, realAgg = null) {
       lines.push('   Defter eksik kayıt içeriyor; kayıt hattı incelenmeli.');
     }
   } catch (e) { /* mutabakat raporu dusurmesin */ }
+  // AI KONSEYI: gunun son karari (varsa). Tek satir, taze degilse yazilmaz.
+  try {
+    const council = require('../aiCouncil').current();
+    if (council) {
+      lines.push(council.caution
+        ? '🧠 AI Konseyi: <b>TEMKİN</b> — yeni giriş riski yarıda'
+        : '🧠 AI Konseyi: normal');
+    }
+  } catch (_) { /* konsey raporu dusurmesin */ }
   lines.push('<i>Her akşam güncellenir; sonuçlar günden güne birikir.</i>');
 
   return { text: lines.join('\n'), useReal, summary: { trades: dTrades, tp: dTp, sl: dSl, net: Number(dNet.toFixed(2)) } };
