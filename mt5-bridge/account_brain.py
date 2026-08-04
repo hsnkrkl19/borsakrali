@@ -145,8 +145,12 @@ class BrainConfig:
                 < self.daily_loss_flatten_pct_account
                 < self.max_daily_loss_pct_account <= 4.5):
             raise ValueError("daily warning < flatten < hard ceiling <= 4.5 required")
-        if not 0 < self.daily_entry_brake_pct <= 1.5:
-            raise ValueError("daily entry brake must be in (0, 1.5]")
+        # Yaris modu (2026-08-05): giris freni yukseltilebilir. Ust sinir
+        # hesap-yikici frenin ALTINDA kalmali, yoksa "giris dur" ile "hepsini
+        # kapat" ayni noktada tetiklenir ve fren kademesi anlamsizlasir.
+        if not 0 < self.daily_entry_brake_pct < self.daily_loss_flatten_pct_account:
+            raise ValueError(
+                "daily entry brake must be in (0, daily_loss_flatten_pct_account)")
         if not (0 < self.total_drawdown_warning_pct_account
                 < self.total_drawdown_flatten_pct_account
                 < self.max_total_drawdown_pct_account <= 9.5):
@@ -159,8 +163,10 @@ class BrainConfig:
             raise ValueError("max_trade_risk_usd must be finite and positive")
         if self.max_trade_risk_usd < self.min_initial_risk_usd:
             raise ValueError("max_trade_risk_usd cannot be below min_initial_risk_usd")
-        if not 0 < self.race_max_open_risk_pct <= 10.0:
-            raise ValueError("race_max_open_risk_pct must be in (0, 10]")
+        # Yaris modu: toplam acik risk tavani kullaniciya birakildi (0, 100].
+        # %100 = "tavan yok" demektir; hesap korumasi gunluk/toplam frenlerde.
+        if not 0 < self.race_max_open_risk_pct <= 100.0:
+            raise ValueError("race_max_open_risk_pct must be in (0, 100]")
         # Kisici, giris freninden ONCE devreye girmeli; sonra girerse hicbir ise
         # yaramaz (o noktada zaten hicbir yeni giris yok).
         if not 0 < self.risk_halving_daily_loss_pct < self.daily_entry_brake_pct:

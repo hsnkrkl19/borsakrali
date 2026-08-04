@@ -198,11 +198,16 @@ class PureDecisionTests(unittest.TestCase):
         kabul = evaluate_pretrade(snapshot(), az, request(), SPEC, cfg)
         self.assertTrue(kabul.allowed, kabul.reasons)
         self.assertLessEqual(kabul.projected["account_open_risk_pct"], 3.0 + 1e-9)
-        # Tavan config'ten DUSURULEBILIR ama 10%'u asamaz.
+        # 2026-08-05 kullanici karari ("islem ve risk limitini kaldir"):
+        # tavan artik (0, 100] araliginda serbestce ayarlanir; %100 = tavan yok.
+        # VARSAYILAN yine %3'tur — yani tavani kaldirmak BILINCLI bir config
+        # adimidir, kazara olmaz.
+        assert BrainConfig(race_mode=True).race_max_open_risk_pct == 3.0
+        BrainConfig(race_mode=True, race_max_open_risk_pct=100.0)   # gecerli
         with self.assertRaises(ValueError):
             BrainConfig(race_mode=True, race_max_open_risk_pct=0)
         with self.assertRaises(ValueError):
-            BrainConfig(race_mode=True, race_max_open_risk_pct=11)
+            BrainConfig(race_mode=True, race_max_open_risk_pct=101)
 
     def test_absolute_usd_cap_binds_on_large_accounts(self):
         """B1: yuzde ne derse desin islem basi risk 250 $'i asamaz."""

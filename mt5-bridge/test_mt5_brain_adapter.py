@@ -441,5 +441,84 @@ class AdapterTests(unittest.TestCase):
         self.assertIn("heartbeat_stale", payload["reason"])
 
 
+class TrendUyumuTests(unittest.TestCase):
+    """Trend uyumu kapisi (2026-08-05).
+
+    Kullanici: "islem ve risk limitini kaldir ama AI sacma islemlere izin
+    vermesin. mantikli ve trende uygun islemler acalim."
+    Limitler kalkinca kaliteyi FILTRE ayakta tutar; bu kapi deterministiktir.
+    """
+
+    @staticmethod
+    def _mt5(kapanislar):
+        class M:
+            TIMEFRAME_H4 = 16
+
+            @staticmethod
+            def copy_rates_from_pos(_sym, _tf, _start, _count):
+                return [{"close": c} for c in kapanislar]
+        return M
+
+    def test_yukselen_trendde_long_gecer_short_reddedilir(self):
+        # 80 bar duzenli yukselis -> EMA yukari egimli, fiyat EMA ustunde
+        bars = [100.0 + i * 0.5 for i in range(80)]
+        m = self._mt5(bars)
+        ok, _ = adapter.trend_uyumlu(m, {}, "EURUSD", "buy")
+        self.assertTrue(ok)
+        ok, neden = adapter.trend_uyumlu(m, {}, "EURUSD", "sell")
+        self.assertFalse(ok)
+        self.assertEqual(neden, "trend-asagi-degil")
+
+    def test_dusen_trendde_short_gecer_long_reddedilir(self):
+        bars = [140.0 - i * 0.5 for i in range(80)]
+        m = self._mt5(bars)
+        ok, _ = adapter.trend_uyumlu(m, {}, "EURUSD", "sell")
+        self.assertTrue(ok)
+        ok, neden = adapter.trend_uyumlu(m, {}, "EURUSD", "buy")
+        self.assertFalse(ok)
+        self.assertEqual(neden, "trend-yukari-degil")
+
+    def test_veri_yoksa_giris_ENGELLENMEZ(self):
+        # Kirmizi cizgi: "tum botlar islem alsin". Veri yoklugu trend gorusu
+        # DEGILDIR; fail-open notr yondedir.
+        class Bos:
+            TIMEFRAME_H4 = 16
+
+            @staticmethod
+            def copy_rates_from_pos(*_a):
+                return None
+        for yon in ("buy", "sell"):
+            ok, neden = adapter.trend_uyumlu(Bos, {}, "EURUSD", yon)
+            self.assertTrue(ok, yon)
+            self.assertEqual(neden, "trend-verisi-yok")
+
+        class Patlar:
+            TIMEFRAME_H4 = 16
+
+            @staticmethod
+            def copy_rates_from_pos(*_a):
+                raise RuntimeError("IPC hatasi")
+        self.assertTrue(adapter.trend_uyumlu(Patlar, {}, "EURUSD", "buy")[0])
+
+        # Yetersiz bar da fail-open
+        self.assertTrue(adapter.trend_uyumlu(
+            self._mt5([100.0] * 10), {}, "EURUSD", "buy")[0])
+
+    def test_config_ile_kapatilabilir(self):
+        bars = [140.0 - i * 0.5 for i in range(80)]
+        m = self._mt5(bars)
+        ok, neden = adapter.trend_uyumlu(
+            m, {"trend_filter_enabled": False}, "EURUSD", "buy")
+        self.assertTrue(ok)
+        self.assertEqual(neden, "trend-filtresi-kapali")
+
+    def test_olusmakta_olan_bar_HARIC_tutulur(self):
+        # 79 bar duzenli DUSUS + son (olusmakta olan) bar sert yukari sicrama.
+        # Yarim mum trendi ters gostermemeli: long HALA reddedilmeli.
+        bars = [140.0 - i * 0.5 for i in range(79)] + [999.0]
+        ok, _ = adapter.trend_uyumlu(self._mt5(bars), {}, "EURUSD", "buy")
+        self.assertFalse(ok, "olusmakta olan bar trendi cevirmemeli")
+
+
 if __name__ == "__main__":
     unittest.main()

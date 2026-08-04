@@ -595,11 +595,77 @@ def _position_risk(mt5mod, pos, equity):
     return risk if math.isfinite(risk) and risk > 0 else max(1.0, float(equity or 0))
 
 
+# ── TREND UYUMU KAPISI (2026-08-05) ──────────────────────────────────────────
+# Kullanici karari: "islem ve risk limitini kaldir ama AI sacma islemlere,
+# gereksiz islemlere izin vermesin. mantikli ve trende uygun islemler acalim."
+#
+# Limitler kalkinca giris sayisi artar; kaliteyi ayakta tutan sey artik
+# TAVAN degil FILTRE olmalidir. Bu kapi DETERMINISTIKtir (LLM'e bel baglamaz):
+# ust zaman diliminde (varsayilan H4) EMA egimi ve fiyatin EMA'ya gore konumu
+# sinyal yonuyle celisiyorsa giris reddedilir.
+#
+# FAIL-OPEN: mum verisi okunamazsa giris ENGELLENMEZ. Kullanicinin kirmizi
+# cizgisi "tum botlar islem alsin"; veri yoklugu bir trend gorusu DEGILDIR.
+TREND_TF_ADI = {
+    "M15": "TIMEFRAME_M15", "M30": "TIMEFRAME_M30", "H1": "TIMEFRAME_H1",
+    "H4": "TIMEFRAME_H4", "D1": "TIMEFRAME_D1",
+}
+
+
+def _ema(degerler, uzunluk):
+    if len(degerler) < uzunluk:
+        return None
+    k = 2.0 / (uzunluk + 1.0)
+    ema = sum(degerler[:uzunluk]) / float(uzunluk)
+    for v in degerler[uzunluk:]:
+        ema = v * k + ema * (1.0 - k)
+    return ema
+
+
+def trend_uyumlu(mt5mod, cfg, symbol, direction):
+    """(uyumlu, gerekce) — veri yoksa (True, "trend-verisi-yok").
+
+    Kapali barlarla calisir: son (olusmakta olan) bar HARIC tutulur, yoksa
+    yarim mum trendi anlik olarak ters gosterebilir.
+    """
+    if not bool(cfg.get("trend_filter_enabled", True)):
+        return True, "trend-filtresi-kapali"
+    tf_ad = str(cfg.get("trend_timeframe", "H4")).upper()
+    tf = getattr(mt5mod, TREND_TF_ADI.get(tf_ad, "TIMEFRAME_H4"), None)
+    if tf is None:
+        return True, "trend-verisi-yok"
+    uzunluk = max(5, int(cfg.get("trend_ema_length", 50) or 50))
+    try:
+        # +2: olusmakta olan barin atilmasi + egim icin bir onceki deger
+        bars = mt5mod.copy_rates_from_pos(symbol, tf, 0, uzunluk + 60)
+    except Exception:
+        return True, "trend-verisi-yok"
+    if bars is None or len(bars) < uzunluk + 3:
+        return True, "trend-verisi-yok"
+    kapanis = [float(b["close"]) for b in bars[:-1]]   # olusmakta olan bar HARIC
+    simdi = _ema(kapanis, uzunluk)
+    onceki = _ema(kapanis[:-1], uzunluk)
+    if simdi is None or onceki is None:
+        return True, "trend-verisi-yok"
+    fiyat = kapanis[-1]
+    yukari = fiyat > simdi and simdi >= onceki
+    asagi = fiyat < simdi and simdi <= onceki
+    yon = str(direction or "").lower()
+    if yon in ("buy", "long"):
+        return (True, "trend-yukari") if yukari else (False, "trend-yukari-degil")
+    if yon in ("sell", "short"):
+        return (True, "trend-asagi") if asagi else (False, "trend-asagi-degil")
+    return True, "yon-bilinmiyor"
+
+
 def _symbol_spec(info, cfg):
     tick_size = float(getattr(info, "trade_tick_size", 0) or getattr(info, "point", 0) or 0)
     tick_value = float(getattr(info, "trade_tick_value_loss", 0)
                        or getattr(info, "trade_tick_value", 0) or 0)
-    absolute_lot_cap = min(1.0, float(_value(
+    # Yaris modu (2026-08-05): lot tavani config'ten YUKSELTILEBILIR hale geldi.
+    # Kodda yine mutlak bir emniyet ağı var (10 lot): tek bir hesap/spec hatasi
+    # butun hesabi tek emirde silemesin. Config bunun ustune cikamaz.
+    absolute_lot_cap = min(10.0, float(_value(
         cfg, "account_tier_max_lot", "brain_max_lot", default=1.0)))
     return account_brain.SymbolSpec(
         tick_size=tick_size,
@@ -684,6 +750,13 @@ def evaluate(mt5mod, cfg, info, *, candidate_id, bot_id, symbol, direction,
         return _reject("fail_closed:central_brain_heartbeat_stale", candidate_id, cfg, metadata, True)
     if heartbeat is None:
         return _reject("fail_closed:central_brain_heartbeat_invalid", candidate_id, cfg, metadata, True)
+    # Trend uyumu: limitler kalkinca kaliteyi FILTRE ayakta tutar. Veri yoksa
+    # giris engellenmez (fail-open) — "tum botlar islem alsin" cizgisi korunur.
+    uyumlu, trend_gerekce = trend_uyumlu(mt5mod, cfg, symbol, direction)
+    if not uyumlu:
+        if logger:
+            logger.info("TREND RED %s %s (%s)", symbol, direction, trend_gerekce)
+        return _reject("trend_uyumsuz:" + trend_gerekce, candidate_id, cfg, metadata, True)
     # A live bridge may not rely on a dry-run manager: exits/reporting would be fake.
     if bool(heartbeat.get("dryRun", True)) != bool(cfg.get("dry_run", True)):
         return _reject("fail_closed:bridge_brain_dry_run_mismatch", candidate_id, cfg, metadata, True)

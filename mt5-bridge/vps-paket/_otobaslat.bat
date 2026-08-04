@@ -14,6 +14,14 @@ if exist "mt5-bridge\STOP_MASTER" (
   echo [ACIL] Risk STOP mevcut; yalniz merkez beyin close-only baslatilacak.
 )
 
+REM ── CLOUDFLARE TUNEL (2026-08-05) ────────────────────────────────────────────
+REM borsakrali.com -> bu bilgisayar. Tunel COKSE bile botlar calismaya devam
+REM eder (kopruler localhost:5000 kullanir); yalniz SITE erisilemez olur.
+if exist "%~dp0_tunel-dongu.bat" (
+  tasklist /v /fi "imagename eq cmd.exe" 2>nul | find /i "CLOUDFLARE TUNEL (oto-restart)" >nul
+  if errorlevel 1 start "" "%~dp0_tunel-dongu.bat"
+)
+
 REM ── BACKEND (2026-08-04) ─────────────────────────────────────────────────────
 REM Render askiya alindi; site/defter/Telegram bu bilgisayarda calisiyor.
 REM Beyinden ONCE kalkmali: beyin ilk turda lifecycle POST etmeye calisir ve
