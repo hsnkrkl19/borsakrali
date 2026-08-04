@@ -193,46 +193,13 @@ def _finite_config_number(cfg, key, low, high, *, integer=False):
 
 
 def _validate_numeric_config(cfg):
-    ranges = {
-        "poll_seconds": (0.2, 60.0),
-        "daily_entry_brake_pct": (0.01, 1.5),
-        "max_open_risk_pct": (0.01, 1.5),
-        "hard_max_open_risk_pct": (0.01, 2.0),
-        "max_symbol_side_risk_pct": (0.01, 0.5),
-        "max_bot_risk_pct": (0.01, 0.5),
-        "daily_flatten_warning_pct": (0.01, 4.0),
-        "daily_flatten_pct": (0.01, 4.25),
-        "daily_hard_limit_pct": (0.01, 4.5),
-        "total_flatten_warning_pct": (0.01, 9.0),
-        "total_flatten_pct": (0.01, 9.25),
-        "total_hard_limit_pct": (0.01, 9.5),
-        "profit_stop_pct": (10.0, 10.0),
-        "min_expected_pnl_usd": (15.0, 1e9),
-        "min_initial_risk_usd": (15.0, 1e9),
-        "profit_lock_arm_usd": (15.0, 1e9),
-        "profit_lock_floor_usd": (15.0, 1e9),
-        "profit_giveback_pct": (0.1, 100.0),
-        "hype_window_seconds": (1.0, 3600.0),
-        "hype_giveback_pct": (0.1, 100.0),
-        "adverse_exit_r": (0.01, 1.0),
-        "adverse_acceleration_r": (0.0, 1.0),
-        "adverse_window_seconds": (1.0, 3600.0),
-        "trail_start_r": (0.5, 10.0),
-        "trail_distance_r": (0.25, 5.0),
-        "profit_giveback_activation_r": (0.1, 5.0),
-        "reentry_cooldown_minutes": (0.0, 480.0),
-        "herd_losing_fraction": (0.5, 1.0),
-        "herd_window_seconds": (10.0, 3600.0),
-        "herd_drawdown_r": (0.2, 20.0),
-        "herd_cut_loss_r": (0.0, 5.0),
-        "herd_cooldown_seconds": (30.0, 3600.0),
-        "runner_arm_r": (0.0, 10.0),
-        "runner_target_r": (3.0, 50.0),
-        "min_discretionary_exit_usd": (15.0, 1e9),
-        "report_interval_seconds": (0.2, 5.0),
-        "lifecycle_report_max_age_seconds": (15.0, 300.0),
-        "closed_history_hours": (24.0, 720.0),
-    }
+    # Modul seviyesinde: testler bu araliklarin account_brain.BrainConfig
+    # dogrulamasiyla AYRISMADIGINI kontrol edebilsin (2026-08-05 olayi).
+    ranges = CONFIG_ARALIKLARI
+    return _aralik_dogrula(cfg, ranges)
+
+
+def _aralik_dogrula(cfg, ranges):
     for key, (low, high) in ranges.items():
         _finite_config_number(cfg, key, low, high)
     aliases = {
@@ -258,6 +225,59 @@ def _validate_numeric_config(cfg):
         raise ValueError("profit lock floor arm seviyesinden buyuk olamaz")
     if float(cfg["trail_distance_r"]) >= float(cfg["trail_start_r"]):
         raise ValueError("trail_distance_r trail_start_r degerinden kucuk olmali")
+
+
+CONFIG_ARALIKLARI = {
+    "poll_seconds": (0.2, 60.0),
+    # 2026-08-05 yaris modu: giris freni yukseltilebilir. Ust sinir
+    # hesap-yikici frenin (daily_hard_limit 4.5) ALTINDA tutulur ki
+    # "giris dur" ile "hepsini kapat" ayni noktada tetiklenmesin.
+    # ⚠️ Bu aralik account_brain.BrainConfig dogrulamasindan AYRIDIR.
+    # Ikisi ayrisirsa config REDDEDILIR, beyin "son gecerli config ile
+    # close-only" moda duser ve HESAP FRENI tum pozisyonlari kapatmaya
+    # baslar. 2026-08-05'te CANLI olarak yasandi: account_brain tarafi
+    # gevsetildi ama burasi 1.5'te kaldigi icin beyin cikti.
+    # Ust sinir = daily_flatten (4.25) ALTINDA. BrainConfig de aynisini
+    # sart kosuyor; bu iki deger AYRISIRSA config reddedilir ve beyin
+    # close-only'ye duser. test_iki_dogrulama_katmani_ayrisamaz bunu kilitler.
+    "daily_entry_brake_pct": (0.01, 4.24),
+    "max_open_risk_pct": (0.01, 1.5),
+    "hard_max_open_risk_pct": (0.01, 2.0),
+    "max_symbol_side_risk_pct": (0.01, 0.5),
+    "max_bot_risk_pct": (0.01, 0.5),
+    "daily_flatten_warning_pct": (0.01, 4.0),
+    "daily_flatten_pct": (0.01, 4.25),
+    "daily_hard_limit_pct": (0.01, 4.5),
+    "total_flatten_warning_pct": (0.01, 9.0),
+    "total_flatten_pct": (0.01, 9.25),
+    "total_hard_limit_pct": (0.01, 9.5),
+    "profit_stop_pct": (10.0, 10.0),
+    "min_expected_pnl_usd": (15.0, 1e9),
+    "min_initial_risk_usd": (15.0, 1e9),
+    "profit_lock_arm_usd": (15.0, 1e9),
+    "profit_lock_floor_usd": (15.0, 1e9),
+    "profit_giveback_pct": (0.1, 100.0),
+    "hype_window_seconds": (1.0, 3600.0),
+    "hype_giveback_pct": (0.1, 100.0),
+    "adverse_exit_r": (0.01, 1.0),
+    "adverse_acceleration_r": (0.0, 1.0),
+    "adverse_window_seconds": (1.0, 3600.0),
+    "trail_start_r": (0.5, 10.0),
+    "trail_distance_r": (0.25, 5.0),
+    "profit_giveback_activation_r": (0.1, 5.0),
+    "reentry_cooldown_minutes": (0.0, 480.0),
+    "herd_losing_fraction": (0.5, 1.0),
+    "herd_window_seconds": (10.0, 3600.0),
+    "herd_drawdown_r": (0.2, 20.0),
+    "herd_cut_loss_r": (0.0, 5.0),
+    "herd_cooldown_seconds": (30.0, 3600.0),
+    "runner_arm_r": (0.0, 10.0),
+    "runner_target_r": (3.0, 50.0),
+    "min_discretionary_exit_usd": (15.0, 1e9),
+    "report_interval_seconds": (0.2, 5.0),
+    "lifecycle_report_max_age_seconds": (15.0, 300.0),
+    "closed_history_hours": (24.0, 720.0),
+}
 
 
 def _startup_recovery_config():

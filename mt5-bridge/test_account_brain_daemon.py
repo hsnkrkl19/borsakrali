@@ -807,6 +807,33 @@ def t_atomic_json_retries_sharing_violation_and_cleans_temp():
     print("OK atomic JSON retries sharing violations and cleans UUID temp files")
 
 
+def t_iki_dogrulama_katmani_ayrisamaz():
+    """2026-08-05 CANLI OLAY: account_brain.BrainConfig dogrulamasi gevsetildi
+    ama borsakrali_account_brain._validate_numeric_config 1.5'te kaldi.
+
+    Sonuc: config REDDEDILDI -> "son gecerli config ile close-only" -> HESAP
+    FRENI tum pozisyonlari kapatmaya basladi ve beyin cikti. Kullanici ise
+    ayarin uygulandigini saniyordu.
+
+    Bu test iki katmanin ayrisamayacagini kilitler: daemon'un kabul ettigi HER
+    deger BrainConfig tarafindan da kabul edilmelidir.
+    """
+    import account_brain
+    alt, ust = brain.CONFIG_ARALIKLARI["daily_entry_brake_pct"]
+    # Daemon'un izin verdigi UST sinir BrainConfig'te de gecerli olmali.
+    cfg = account_brain.BrainConfig(daily_entry_brake_pct=ust)
+    assert cfg.daily_entry_brake_pct == ust
+    # ...ve hesap-yikici frenin altinda kalmali (fren kademesi anlamli olsun).
+    assert ust < cfg.daily_loss_flatten_pct_account, (ust, cfg.daily_loss_flatten_pct_account)
+    # Daemon'un reddettigi deger BrainConfig'te de reddedilmeli.
+    try:
+        account_brain.BrainConfig(daily_entry_brake_pct=cfg.daily_loss_flatten_pct_account)
+        raise AssertionError("flatten esigine esit giris freni kabul edilmemeli")
+    except ValueError:
+        pass
+    print("OK iki dogrulama katmani ayrisamaz (canli close-only olayinin regresyonu)")
+
+
 if __name__ == "__main__":
     t_global_buffers()
     t_equity_baselines_ignore_balance_offset()
@@ -822,6 +849,7 @@ if __name__ == "__main__":
     t_closed_ledger_not_blocked_by_pending_opens()
     t_live_snapshot_skip_does_not_advance_cursor()
     t_incomplete_lifecycle_holds_cursor_at_that_close_only()
+    t_iki_dogrulama_katmani_ayrisamaz()
     t_herd_reversal_cuts_losers_keeps_winners()
     t_herd_cooldown_only_after_successful_close()
     t_runner_extends_tp_only_outward()
