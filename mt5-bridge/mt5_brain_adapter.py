@@ -241,6 +241,13 @@ def _lifecycle_report_fresh(heartbeat, max_age, now=None):
     return math.isfinite(value) and 0 <= now - value <= float(max_age)
 
 
+def _lifecycle_report_max_age(cfg):
+    """Lifecycle delivery freshness is distinct from process heartbeat age."""
+    return _bounded(_value(
+        cfg or {}, "lifecycle_report_max_age_seconds", default=30),
+        30.0, 15.0, 300.0)
+
+
 def _stop_path(cfg):
     return str(_value(cfg or {}, "stop_master_path", default=STOP_MASTER))
 
@@ -682,7 +689,7 @@ def evaluate(mt5mod, cfg, info, *, candidate_id, bot_id, symbol, direction,
         return _reject("fail_closed:bridge_brain_dry_run_mismatch", candidate_id, cfg, metadata, True)
     if (cfg.get("dry_run") is not True
             and not _lifecycle_report_fresh(
-                heartbeat, policy.heartbeat_max_age_seconds, now)):
+                heartbeat, _lifecycle_report_max_age(cfg), now)):
         return _reject("fail_closed:broker_lifecycle_report_stale",
                        candidate_id, cfg, metadata, True)
     if (not cfg.get("dry_run", True)
@@ -867,7 +874,7 @@ def pre_send_check(mt5mod, cfg, plan=None, logger=None):
             reason = "bridge_brain_dry_run_mismatch"
         if (reason is None and cfg.get("dry_run") is not True
                 and not _lifecycle_report_fresh(
-                    heartbeat, policy.heartbeat_max_age_seconds, now)):
+                    heartbeat, _lifecycle_report_max_age(cfg), now)):
             reason = "broker_lifecycle_report_stale"
         ai = mt5mod.account_info() if reason is None else None
         wanted = _allowed_account(cfg)

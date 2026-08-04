@@ -2,6 +2,8 @@
 # -*- coding: utf-8 -*-
 """Central daemon rule tests; no terminal and no live order required."""
 
+import json
+import threading
 import time
 import tempfile
 from pathlib import Path
@@ -662,6 +664,123 @@ def t_history_and_disk_failures_do_not_skip_global_flatten():
     print("OK history/heartbeat/STOP disk failures cannot skip manual+bot flatten")
 
 
+def t_lifecycle_gate_requires_current_boot_then_uses_separate_ttl():
+    now = 10_000.0
+    cfg = dict(brain.DEFAULTS, lifecycle_report_max_age_seconds=30)
+    state = {"lastReportOk": True, "lastReportSuccessSec": now - 5}
+
+    # A persisted success from the previous process can never unlock boot.
+    fresh, reason = brain._lifecycle_report_gate(cfg, state, 0.0, now=now)
+    assert fresh is False and reason == "broker-lifecycle-report-pending"
+
+    # Once this process has succeeded, a transient failed/in-flight POST does
+    # not create a false heartbeat window while the last success is fresh.
+    fresh, reason = brain._lifecycle_report_gate(
+        cfg, dict(state, lastReportOk=False), now - 5, now=now + 20)
+    assert fresh is True and reason is None
+
+    # The tolerance is bounded; the same failure becomes fail-closed at TTL.
+    fresh, reason = brain._lifecycle_report_gate(
+        cfg, dict(state, lastReportOk=False), now - 5, now=now + 31)
+    assert fresh is False and reason == "broker-lifecycle-last-report-failed"
+    print("OK lifecycle gate requires current boot and fails closed after 30s TTL")
+
+
+def t_report_failure_does_not_preemptively_poison_fresh_heartbeat():
+    now = time.time()
+    ai = SimpleNamespace(
+        login=1, balance=10_000.0, equity=10_000.0, server="Demo")
+    cfg = dict(
+        brain.DEFAULTS, dry_run=True, allowed_account=1,
+        report_interval_seconds=1,
+        lifecycle_report_max_age_seconds=30)
+    state = {
+        "tickets": {}, "close_reasons": {}, "lastReportOk": True,
+        "lastReportSuccessSec": now - 5,
+    }
+    safe = {
+        "profitPct": 0, "dailyLossPct": 0, "totalDrawdownPct": 0,
+        "openRiskPct": 0, "maxBotRiskPct": 0,
+        "maxSymbolSideRiskPct": 0, "unboundedTickets": [],
+        "ok": True, "telemetryOk": True, "timeSec": int(now),
+        "lastReportSuccessSec": int(now - 5),
+    }
+    writes = []
+
+    def remember(path, value):
+        writes.append((path, dict(value)))
+
+    with patch.object(brain.mt5, "account_info", return_value=ai), \
+            patch.object(brain.mt5, "positions_get", return_value=[]), \
+            patch.object(brain, "_history", return_value=[]), \
+            patch.object(brain, "_snapshot", return_value=safe.copy()), \
+            patch.object(brain.mt5_brain_adapter,
+                         "broker_event_outbox_count", return_value=0), \
+            patch.object(brain, "_report_state_with_heartbeat",
+                         return_value=False), \
+            patch.object(brain, "_atomic_json", side_effect=remember), \
+            patch.object(brain, "_save_state"):
+        brain.run_once(cfg, state, last_report=now - 2)
+    assert writes and writes[0][1]["ok"] is True, writes
+    assert state["lastReportOk"] is False
+    print("OK due/failed lifecycle POST does not poison a still-fresh heartbeat")
+
+
+def t_slow_lifecycle_report_refreshes_process_heartbeat():
+    cfg = dict(brain.DEFAULTS, heartbeat_max_age_seconds=0.6)
+    writes = []
+
+    def slow_report(*_args, **_kwargs):
+        threading.Event().wait(0.45)
+        return True
+
+    with patch.object(brain, "_report_state", side_effect=slow_report), \
+            patch.object(brain, "_atomic_json",
+                         side_effect=lambda path, value: writes.append(
+                             (path, dict(value)))):
+        ok = brain._report_state_with_heartbeat(
+            cfg, [], [], {}, {"ok": True, "timeSec": 1})
+    assert ok is True
+    assert writes, "slow lifecycle I/O must refresh heartbeat before completion"
+    assert all(row[1]["timeSec"] > 1 for row in writes)
+    print("OK slow lifecycle POST keeps process heartbeat fresh")
+
+
+def t_atomic_json_retries_sharing_violation_and_cleans_temp():
+    with tempfile.TemporaryDirectory() as tmp:
+        target = Path(tmp) / "heartbeat.json"
+        target.write_text('{"old": true}', encoding="utf-8")
+        real_replace = brain.os.replace
+        calls = []
+
+        def flaky_replace(source, destination):
+            calls.append((source, destination))
+            if len(calls) < 3:
+                raise PermissionError(13, "simulated Windows sharing violation")
+            return real_replace(source, destination)
+
+        with patch.object(brain.os, "replace", side_effect=flaky_replace), \
+                patch.object(brain.time, "sleep") as sleeper:
+            brain._atomic_json(str(target), {"ok": True, "value": 7})
+        assert json.loads(target.read_text(encoding="utf-8")) == {
+            "ok": True, "value": 7}
+        assert len(calls) == 3 and sleeper.call_count == 2
+        assert not list(Path(tmp).glob("heartbeat.json.*.tmp"))
+
+        with patch.object(
+                brain.os, "replace",
+                side_effect=PermissionError(13, "persistent sharing violation")), \
+                patch.object(brain.time, "sleep"):
+            try:
+                brain._atomic_json(str(target), {"ok": False})
+            except PermissionError:
+                pass
+            else:
+                raise AssertionError("exhausted sharing violation must propagate")
+        assert not list(Path(tmp).glob("heartbeat.json.*.tmp"))
+    print("OK atomic JSON retries sharing violations and cleans UUID temp files")
+
+
 if __name__ == "__main__":
     t_global_buffers()
     t_equity_baselines_ignore_balance_offset()
@@ -681,4 +800,8 @@ if __name__ == "__main__":
     t_herd_cooldown_only_after_successful_close()
     t_runner_extends_tp_only_outward()
     t_history_and_disk_failures_do_not_skip_global_flatten()
+    t_lifecycle_gate_requires_current_boot_then_uses_separate_ttl()
+    t_report_failure_does_not_preemptively_poison_fresh_heartbeat()
+    t_slow_lifecycle_report_refreshes_process_heartbeat()
+    t_atomic_json_retries_sharing_violation_and_cleans_temp()
     print("\nTUM MERKEZI DAEMON TESTLERI GECTI - OK")

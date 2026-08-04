@@ -14,6 +14,19 @@ if exist "mt5-bridge\STOP_MASTER" (
   echo [ACIL] Risk STOP mevcut; yalniz merkez beyin close-only baslatilacak.
 )
 
+REM ── BACKEND (2026-08-04) ─────────────────────────────────────────────────────
+REM Render askiya alindi; site/defter/Telegram bu bilgisayarda calisiyor.
+REM Beyinden ONCE kalkmali: beyin ilk turda lifecycle POST etmeye calisir ve
+REM backend hazir degilse fail-closed baslar (girisler gecikir).
+if exist "%~dp0_backend-dongu.bat" (
+  tasklist /v /fi "imagename eq cmd.exe" 2>nul | find /i "BORSA KRALI BACKEND (oto-restart)" >nul
+  if errorlevel 1 (
+    start "" "%~dp0_backend-dongu.bat"
+    REM Sunucunun dinlemeye baslamasi icin kisa bekleme; kapi zaten 180 sn tolere eder.
+    timeout /t 12 /nobreak >nul
+  )
+)
+
 REM Merkez hesap beyni diger emir motorlarindan once ayaga kalkmalidir.
 if not exist "mt5-bridge\borsakrali_account_brain.py" (
   echo [HATA] mt5-bridge\borsakrali_account_brain.py yok; guvenli baslatma reddedildi.
@@ -70,7 +83,7 @@ if exist "altin-botu\main.py" if not exist "altin-botu\STOP" (
 
 REM AI KONSEYI (Ollama + istege bagli Gemini) - danisma katmani, emir ACMAZ.
 REM Yoklugu sistemi durdurmaz; beyin bayat tavsiyeyi notr sayar.
-if exist "mt5-bridgei_council.py" (
+if exist "mt5-bridge\ai_council.py" (
   tasklist /v /fi "imagename eq cmd.exe" 2>nul | find /i "AI KONSEYI (oto-restart)" >nul
   if errorlevel 1 start "" "%~dp0_konsey-dongu.bat"
 )

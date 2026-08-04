@@ -5,7 +5,7 @@ cd /d "%~dp0"
 echo ============================================================
 echo   CANLIYA GECIS - dry_run kapatilir, GERCEK EMIR ACILIR
 echo ============================================================
-if not exist "mt5-bridgeccount_brain_runtime.json" (
+if not exist "mt5-bridge\account_brain_runtime.json" (
   echo [!] Beyin hesap taban cizgisi henuz yok.
   echo     Once BASLAT.bat ile 1-2 dakika calistir, sonra bunu tekrar ac.
   pause

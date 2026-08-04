@@ -189,6 +189,70 @@ def t_all_bridge_open_modes_exclude_return():
     print("OK all-bots açılış filling zincirinde RETURN yok")
 
 
+def t_all_feed_rr_between_1_5_and_2_reaches_brain():
+    setup_stubs(ask=100.05, bid=100.04)
+    mt5.positions_get = lambda *a, **k: []
+    calls = []
+    plan = SimpleNamespace(
+        allowed=True,
+        lot=0.01,
+        decision=SimpleNamespace(
+            requires_atomic_execution=False,
+            target=130.0,
+            reasons=[],
+        ),
+        metadata={},
+    )
+    originals = (
+        all_bk.mt5_brain_adapter.enabled,
+        all_bk.mt5_brain_adapter.evaluate,
+        all_bk.mt5_brain_adapter.finalize,
+    )
+    cfg = dict(all_bk.DEFAULTS)
+    cfg.update({
+        "dry_run": True,
+        "min_rr": 2.0,
+        "min_feed_rr": 1.5,
+        "max_per_symbol_side": 1,
+    })
+    signal = {
+        "code": "RR170",
+        "botId": 7,
+        "botName": "RR test",
+        "magic": 550057,
+        "symbol": "EURUSD",
+        "direction": "long",
+        "entry": 100.0,
+        "stop": 90.0,
+        "target1": 117.0,
+        "confidence": 80,
+    }
+    try:
+        all_bk.mt5_brain_adapter.enabled = lambda _cfg: True
+
+        def capture(*args, **kwargs):
+            calls.append(kwargs)
+            return plan
+
+        all_bk.mt5_brain_adapter.evaluate = capture
+        all_bk.mt5_brain_adapter.finalize = lambda *a, **k: True
+        assert all_bk.open_from_feed(cfg, signal) == "dry"
+        assert len(calls) == 1, "1.7R feed merkezi beyne ulasmali"
+
+        too_low = dict(signal, code="RR149", target1=114.9)
+        assert all_bk.open_from_feed(cfg, too_low) == "dusuk_rr"
+        assert len(calls) == 1, "1.5R alti feed beyne ulasmamali"
+
+        # Beyin kapali paper yolunda eski min_rr=2 yerel tabani aynen kalir.
+        all_bk.mt5_brain_adapter.enabled = lambda _cfg: False
+        assert all_bk.open_from_feed(cfg, signal) == "dusuk_rr"
+    finally:
+        (all_bk.mt5_brain_adapter.enabled,
+         all_bk.mt5_brain_adapter.evaluate,
+         all_bk.mt5_brain_adapter.finalize) = originals
+    print("OK all-bots 1.5-2R feed beyne ulasiyor; legacy min_rr=2 korunuyor")
+
+
 def t_finalize_failure_is_critical():
     setup_stubs(ask=100.05, bid=100.04)
     plan = SimpleNamespace(
@@ -346,6 +410,7 @@ if __name__ == "__main__":
     t_skip_out_of_bracket(); t_trail_absolute(); t_trail_dir_mismatch()
     t_no_hedge_suppress(); t_dry_run_no_send()
     t_open_never_uses_return(); t_all_bridge_open_modes_exclude_return()
+    t_all_feed_rr_between_1_5_and_2_reaches_brain()
     t_finalize_failure_is_critical()
     t_close_requires_position_absence()
     t_account_lock(); t_wrong_account_no_order(); t_autotrading_button()

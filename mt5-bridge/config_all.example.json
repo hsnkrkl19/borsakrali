@@ -29,6 +29,7 @@
   "max_open_per_bot": 0,
   "max_per_symbol_side": 1,
   "min_rr": 2.0,
+  "min_feed_rr": 1.5,
   "min_confidence": 60,
   "deviation_points": 30,
 

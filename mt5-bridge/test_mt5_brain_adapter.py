@@ -149,6 +149,46 @@ class AdapterTests(unittest.TestCase):
         self.assertFalse(mismatch.allowed)
         self.assertIn("dry_run_mismatch", mismatch.decision.reasons[0])
 
+    def test_live_lifecycle_ttl_is_separate_from_heartbeat_liveness(self):
+        now = time.time()
+        live_cfg = dict(
+            self.cfg, dry_run=False, backend_url="https://example.test",
+            exec_token="secret", account_server="FTMO-Demo",
+            lifecycle_report_max_age_seconds=30)
+        heartbeat = {
+            "ok": True, "timeSec": now, "dryRun": False, "login": 1,
+            "server": "FTMO-Demo", "lastReportSuccessSec": now - 20,
+            "initialEquity": 10_000, "dayStartEquity": 10_000,
+            "peakEquity": 10_000,
+        }
+        self.live_heartbeat.write_text(
+            json.dumps(heartbeat), encoding="utf-8")
+        ready = SimpleNamespace(status_code=200, json=lambda: {"ready": True})
+        mt5 = FakeMT5()
+        with patch.object(adapter, "HEARTBEAT_PATH", str(self.live_heartbeat)), \
+                patch.object(adapter, "STATE_PATH", str(self.live_state)), \
+                patch.object(adapter, "EVENT_OUTBOX_PATH", str(self.live_outbox)), \
+                patch.object(adapter, "STOP_MASTER", str(self.stop)), \
+                patch.object(adapter.requests, "get", return_value=ready), \
+                patch.object(adapter.requests, "post",
+                             return_value=SimpleNamespace(status_code=200)):
+            plan = adapter.evaluate(
+                mt5, live_cfg, info(), candidate_id="separate-lifecycle-ttl",
+                bot_id="550055", symbol="EURUSD", direction="long",
+                timeframe="M15", entry=100.0, stop=99.0, target=102.0,
+                confidence=90, confirmations=1)
+            self.assertTrue(plan.allowed, plan.decision.reasons)
+            # A 20-second lifecycle age is valid even though process heartbeat
+            # liveness remains capped at 10 seconds.
+            self.assertTrue(adapter.pre_send_check(mt5, live_cfg, plan))
+
+            heartbeat["timeSec"] = time.time()
+            heartbeat["lastReportSuccessSec"] = time.time() - 31
+            self.live_heartbeat.write_text(
+                json.dumps(heartbeat), encoding="utf-8")
+            self.assertFalse(adapter.pre_send_check(mt5, live_cfg, plan))
+            self.assertTrue(adapter.finalize(plan, False))
+
     def test_reentry_cooldown_blocks_same_direction_only(self):
         self.heartbeat.write_text(json.dumps({
             "ok": True, "timeSec": time.time(), "dryRun": True, "login": 1,

@@ -43,6 +43,7 @@
   "reversal_confirmations": 2,
   "reversal_cooldown_seconds": 15,
   "heartbeat_max_age_seconds": 10,
+  "lifecycle_report_max_age_seconds": 30,
   "reservation_ttl_seconds": 120,
 
   "profit_lock_arm_usd": 20.0,
