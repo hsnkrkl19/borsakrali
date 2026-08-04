@@ -232,7 +232,8 @@ def ask_gemini(cfg, prompt):
     for idx, key in enumerate(keys, 1):
         try:
             r = requests.post(
-                url, params={"key": key},
+                url,
+                headers={"x-goog-api-key": key},
                 json={"contents": [{"parts": [{"text": prompt}]}],
                       "generationConfig": {"responseMimeType": "application/json",
                                            "temperature": 0.2}},
@@ -248,7 +249,10 @@ def ask_gemini(cfg, prompt):
             if opinion:
                 return opinion
         except Exception as exc:
-            log.warning("gemini anahtar#%d hatasi: %s", idx, exc)
+            # Ikinci savunma: kutuphane hangi metni uretirse uretsin anahtar
+            # degeri loga DUSMEZ.
+            log.warning("gemini anahtar#%d hatasi: %s", idx,
+                        str(exc).replace(key, "***"))
     return None
 
 

@@ -170,7 +170,11 @@ def t_gemini_key_fallback():
     calls = []
 
     def fake_post(url, **kw):
-        calls.append(kw.get("params", {}).get("key"))
+        # 2026-08-04: anahtar QUERY STRING yerine BASLIKTA gonderiliyor —
+        # requests istisna metni URL'i icerebiliyor ve anahtar duz metin
+        # olarak loga dusuyordu. Test bu sozlesmeyi de kilitler.
+        assert "key" not in (kw.get("params") or {}), "anahtar URL'e KOYULMAMALI"
+        calls.append((kw.get("headers") or {}).get("x-goog-api-key"))
         if len(calls) == 1:
             return SimpleNamespace(status_code=429, text="quota", json=lambda: {})
         return SimpleNamespace(status_code=200, text="", json=lambda: {
@@ -187,7 +191,12 @@ def t_gemini_key_fallback():
         keys = ai_council._gemini_keys(
             {"gemini_api_keys": ["ANAHTAR-1"], "gemini_api_key": "ANAHTAR-2"})
     assert keys == ["ANAHTAR-1", "ANAHTAR-2"], keys
-    print("OK gemini yedekleme: 429 atlanir, sonraki anahtar devralir")
+    # Sizinti korumasi: hata metninde anahtar gecse bile loga MASKELI duser.
+    kaynak = open(os.path.join(os.path.dirname(os.path.abspath(ai_council.__file__)),
+                               "ai_council.py"), encoding="utf-8").read()
+    assert 'headers={"x-goog-api-key": key}' in kaynak, "anahtar baslikta gitmeli"
+    assert 'str(exc).replace(key, "***")' in kaynak, "istisna metni maskelenmeli"
+    print("OK gemini yedekleme: 429 atlanir, sonraki anahtar devralir (anahtar loglanmaz)")
 
 
 def t_gemini_disabled_without_key():

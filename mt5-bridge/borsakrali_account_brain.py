@@ -21,8 +21,11 @@ import json
 import logging
 import math
 import os
+import random
 import sys
+import threading
 import time
+import uuid
 from datetime import datetime, timedelta, timezone
 
 try:
@@ -122,6 +125,7 @@ DEFAULTS = {
     "reentry_cooldown_minutes": 45.0,
     "min_discretionary_exit_usd": 15.0,
     "report_interval_seconds": 2,
+    "lifecycle_report_max_age_seconds": 30,
     "closed_history_hours": 48,
     "llm_live_order_authority": False,
 }
@@ -226,6 +230,7 @@ def _validate_numeric_config(cfg):
         "runner_target_r": (3.0, 50.0),
         "min_discretionary_exit_usd": (15.0, 1e9),
         "report_interval_seconds": (0.2, 5.0),
+        "lifecycle_report_max_age_seconds": (15.0, 300.0),
         "closed_history_hours": (24.0, 720.0),
     }
     for key, (low, high) in ranges.items():
@@ -283,12 +288,40 @@ def _startup_recovery_config():
 
 
 def _atomic_json(path, value):
-    tmp = "%s.%s.tmp" % (path, os.getpid())
-    with open(tmp, "w", encoding="utf-8") as fh:
-        json.dump(value, fh, ensure_ascii=False, indent=2, sort_keys=True)
-        fh.flush()
-        os.fsync(fh.fileno())
-    os.replace(tmp, path)
+    # A PID-only temp name can collide when two writes overlap.  More
+    # importantly, Windows readers may briefly hold the destination without
+    # FILE_SHARE_DELETE and make an otherwise atomic replace fail with
+    # WinError 5/32.  Keep the atomic contract, but retry that narrow sharing
+    # race with bounded exponential backoff and always remove an orphan temp.
+    tmp = "%s.%s.%s.tmp" % (path, os.getpid(), uuid.uuid4().hex)
+    try:
+        with open(tmp, "w", encoding="utf-8") as fh:
+            json.dump(value, fh, ensure_ascii=False, indent=2, sort_keys=True)
+            fh.flush()
+            os.fsync(fh.fileno())
+        attempts = 8
+        for attempt in range(attempts):
+            try:
+                os.replace(tmp, path)
+                return
+            except OSError as exc:
+                retryable = (
+                    isinstance(exc, PermissionError)
+                    or getattr(exc, "winerror", None) in (5, 32)
+                )
+                if not retryable or attempt + 1 >= attempts:
+                    raise
+                base = min(0.20, 0.01 * (2 ** attempt))
+                time.sleep(base + random.uniform(0.0, base * 0.25))
+    finally:
+        try:
+            os.remove(tmp)
+        except FileNotFoundError:
+            pass
+        except OSError:
+            # The original write/replace error is more useful than a cleanup
+            # race; a UUID temp cannot be mistaken for a later active write.
+            pass
 
 
 def _load_state():
@@ -546,7 +579,7 @@ def _close_position(cfg, pos, reason, state):
         "price": price,
         "deviation": int(cfg.get("deviation_points", 30)),
         "magic": int(getattr(pos, "magic", 0) or 0),
-        "comment": ("brain:" + str(reason))[:31],
+        "comment": ("brain:" + str(reason))[:29],
         "type_time": mt5.ORDER_TIME_GTC,
     }
     result = _send_with_filling(req)
@@ -1424,6 +1457,53 @@ def _report_state(cfg, positions, deals, state, snap, live_positions=None,
         return False
 
 
+def _report_state_with_heartbeat(cfg, positions, deals, state, snap,
+                                 live_positions=None,
+                                 history_cutoff_sec=None):
+    """Keep process-liveness heartbeat fresh while lifecycle I/O is pending.
+
+    The lifecycle request remains on the control-loop thread (including its
+    MT5 history reads) and is bounded by ``_report_state``'s network timeout.
+    Only a snapshot writer runs in the worker, so a slow backend cannot make
+    the otherwise healthy daemon heartbeat older than the bridge's 10-second
+    liveness gate.
+    """
+    try:
+        heartbeat_age = float(cfg.get("heartbeat_max_age_seconds", 10) or 10)
+    except (TypeError, ValueError):
+        heartbeat_age = 10.0
+    refresh_interval = max(0.2, min(1.0, heartbeat_age / 3.0))
+    stopped = threading.Event()
+
+    def heartbeat_worker():
+        while not stopped.wait(refresh_interval):
+            live_snap = dict(snap)
+            live_snap["timeSec"] = int(time.time())
+            try:
+                _atomic_json(HEARTBEAT_PATH, live_snap)
+            except Exception as exc:
+                # A missing/stale heartbeat is already fail-closed at every
+                # bridge. Keep the bounded lifecycle attempt running so
+                # account supervision can continue on the next turn.
+                log.critical(
+                    "lifecycle POST sirasinda heartbeat yenilenemedi: %s", exc)
+
+    worker = threading.Thread(
+        target=heartbeat_worker, name="bk-heartbeat-refresh", daemon=True)
+    worker.start()
+    try:
+        return bool(_report_state(
+            cfg, positions, deals, state, snap,
+            live_positions=live_positions,
+            history_cutoff_sec=history_cutoff_sec))
+    except Exception as exc:  # Defensive: _report_state normally catches.
+        log.error("broker durum beklenmeyen hata: %s", exc)
+        return False
+    finally:
+        stopped.set()
+        worker.join(timeout=max(0.5, refresh_interval * 2.0))
+
+
 def _history(cfg, state):
     hours = max(24, int(cfg.get("closed_history_hours", 48)))
     now = datetime.now(timezone.utc)
@@ -1433,6 +1513,46 @@ def _history(cfg, state):
     else:
         start = now - timedelta(hours=hours)
     return mt5.history_deals_get(start, now + timedelta(hours=6))
+
+
+def _lifecycle_report_gate(cfg, state, last_report, now=None):
+    """Return the live-entry lifecycle gate for this daemon boot.
+
+    A timestamp persisted by an older process is useful for audit only; it
+    cannot unlock a newly started process.  After one current-boot success,
+    transient POST failures are tolerated only until the separate lifecycle
+    freshness TTL expires.  Heartbeat process liveness remains a distinct,
+    shorter check in the bridges.
+    """
+    now = float(time.time() if now is None else now)
+    try:
+        boot_success = float(last_report)
+    except (TypeError, ValueError):
+        boot_success = 0.0
+    current_boot_reported = (
+        not isinstance(last_report, bool)
+        and math.isfinite(boot_success)
+        and boot_success > 0
+    )
+    if not current_boot_reported:
+        return False, "broker-lifecycle-report-pending"
+
+    value = state.get("lastReportSuccessSec") if isinstance(state, dict) else None
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        value = 0.0
+    try:
+        ttl = float(cfg.get("lifecycle_report_max_age_seconds", 30))
+    except (TypeError, ValueError):
+        ttl = 30.0
+    if not math.isfinite(ttl):
+        ttl = 30.0
+    ttl = max(15.0, min(300.0, ttl))
+    age = now - float(value)
+    if math.isfinite(age) and 0.0 <= age <= ttl:
+        return True, None
+    if state.get("lastReportOk") is False:
+        return False, "broker-lifecycle-last-report-failed"
+    return False, "broker-lifecycle-report-stale"
 
 
 def run_once(cfg, state, last_report=0.0, forced_stop_reason=None,
@@ -1447,21 +1567,16 @@ def run_once(cfg, state, last_report=0.0, forced_stop_reason=None,
     positions = _managed_positions(cfg, risk_positions)
     telemetry_ok = True
     entry_blocks = []
+    now_sec = time.time()
     report_every = max(1.0, float(cfg.get("report_interval_seconds", 2)))
-    report_due = time.time() - last_report >= report_every
-    # Never advertise a healthy live entry gate before this process has
-    # completed a current-boot authenticated lifecycle POST.  Mark a due
-    # report provisional before the network call; the next one-second cycle
-    # publishes success only after the POST was acknowledged.
-    if report_due:
-        state["lastReportOk"] = False
+    report_due = now_sec - last_report >= report_every
+    lifecycle_fresh, lifecycle_block = _lifecycle_report_gate(
+        cfg, state, last_report, now=now_sec)
     if block_entries_reason:
         entry_blocks.append(str(block_entries_reason))
-    if state.get("lastReportOk") is not True:
+    if not lifecycle_fresh:
         telemetry_ok = False
-        entry_blocks.append(
-            "broker-lifecycle-report-pending" if report_due
-            else "broker-lifecycle-last-report-failed")
+        entry_blocks.append(lifecycle_block)
 
     # A durable opening fact has strict priority over snapshots and closes.
     # Pending delivery blocks new entries; a corrupt/unreadable outbox is a
@@ -1690,7 +1805,7 @@ def run_once(cfg, state, last_report=0.0, forced_stop_reason=None,
                 absent_meta["absentTurns"] = misses
 
     if report_due:
-        report_ok = _report_state(
+        report_ok = _report_state_with_heartbeat(
             cfg, positions, deals, state, snap, live_positions=risk_positions,
             history_cutoff_sec=history_cutoff_sec)
         state["lastReportOk"] = bool(report_ok)
@@ -1703,7 +1818,7 @@ def run_once(cfg, state, last_report=0.0, forced_stop_reason=None,
             # gate permanently provisional even though every POST succeeded.
             remaining_blocks = [
                 item for item in entry_blocks
-                if item != "broker-lifecycle-report-pending"
+                if item != lifecycle_block
             ]
             snap["lastReportSuccessSec"] = state["lastReportSuccessSec"]
             snap["timeSec"] = int(time.time())

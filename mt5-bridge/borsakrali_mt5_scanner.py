@@ -173,7 +173,7 @@ def load_config():
 
 
 def code_comment(code):
-    return COMMENT_PREFIX + str(code)
+    return (COMMENT_PREFIX + str(code))[:29]
 
 
 def parse_code(comment):

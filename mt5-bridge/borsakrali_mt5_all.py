@@ -81,7 +81,10 @@ DEFAULTS = {
     "fixed_lot": 0.05,
     "risk_pct": 0.25,
     "max_lot": 1.0,
+    # Legacy/paper yolunda yerel nihai R:R tabani. Merkez beyin acikken
+    # feed'in uzatilabilir hedef tabani ayri min_feed_rr ile yonetilir.
     "min_rr": 2.0,
+    "min_feed_rr": 1.5,
     # TEK HESAP BEYNI: tum kopruler ayni risk/underlying/ters-donus kapisindan gecer.
     "central_brain_enabled": True,
     "brain_required": True,
@@ -188,7 +191,7 @@ def load_config():
 
 def code_comment(code):
     # MT5 comment ~31 karakter; kodu kısalt. Magic zaten botu ayırır.
-    return ("A#" + str(code))[:31]
+    return ("A#" + str(code))[:29]
 
 
 def parse_code(comment):
@@ -417,7 +420,13 @@ def open_from_feed(cfg, s):
     reward = abs(float(s["target1"]) - sig_entry) if s.get("target1") else risk * 2
     if risk <= 0:
         return "gecersiz_stop"
-    if reward / risk < float(cfg.get("min_rr", 0.5)):
+    brain_enabled = mt5_brain_adapter.enabled(cfg)
+    # Merkez beyin 1.5R+ feed hedefini en az 3R'ye uzatir. Bu adaylari eski
+    # yerel 2R filtresinde kesme; beyin kapali paper/dry-run yolunda ise
+    # mevcut min_rr semantigini koru.
+    rr_floor = float(cfg.get("min_feed_rr", 1.5) if brain_enabled
+                     else cfg.get("min_rr", 2.0))
+    if reward / risk < rr_floor:
         return "dusuk_rr"
     # Broker asgari stop mesafesi: çok dar stop reddedilmesin diye mesafeye çek
     # (R:R korunur; reward risk oraninca büyütülür).
@@ -431,7 +440,7 @@ def open_from_feed(cfg, s):
     d = info.digits
     sl, tp = round(sl, d), round(tp1, d)
     brain_plan = None
-    if mt5_brain_adapter.enabled(cfg):
+    if brain_enabled:
         brain_plan = mt5_brain_adapter.evaluate(
             mt5, cfg, info,
             candidate_id="all:%s:%s" % (magic, s["code"]),

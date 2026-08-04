@@ -163,7 +163,9 @@ def load_config():
 
 
 def code_comment(code):
-    return "BK#" + str(code)
+    # MetaTrader5 order_send yorumu en fazla 29 karakter kabul eder; 30+ -> -2
+    # "Invalid comment argument" (order_check ile CANLI olculdu 2026-08-04).
+    return ("BK#" + str(code))[:29]
 
 
 def parse_code(comment):
