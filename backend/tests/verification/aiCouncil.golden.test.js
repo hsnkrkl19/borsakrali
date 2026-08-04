@@ -97,6 +97,54 @@ describe('AI konseyi kararı', () => {
   });
 });
 
+describe('rota kimlik doğrulaması', () => {
+  // ⚠️ 2026-08-04 KRİTİK: /ai-council rotası eklenirken checkExecToken satırı
+  // UNUTULMUŞTU. Yorum "Ayni token." diyordu ama kod token'a hiç bakmıyordu →
+  // internetteki herkes tokensiz POST edip Telegram kanalına sahte "AI KONSEYİ"
+  // mesajı bastırabiliyordu. Bu test o kapıyı kalıcı kilitler.
+  const express = require('express');
+  const request = require('supertest');
+
+  function app() {
+    process.env.FOREX_EXEC_TOKEN = 'test-gizli-token';
+    jest.resetModules();
+    const a = express();
+    a.use('/api/bridge', require('../../src/routes/bridge.routes'));
+    return a;
+  }
+
+  test('tokensiz POST 401 döner ve Telegram ÇAĞRILMAZ', async () => {
+    mockTelegram.sendMessage.mockClear();
+    const res = await request(app()).post('/api/bridge/ai-council')
+      .send({ caution: true, providers: [{ name: 'saldirgan', yorum: 'SAHTE UYARI' }] });
+    expect(res.status).toBe(401);
+    expect(mockTelegram.sendMessage).not.toHaveBeenCalled();
+  });
+
+  test('yanlış token 401 döner', async () => {
+    const res = await request(app()).post('/api/bridge/ai-council')
+      .set('Authorization', 'Bearer yanlis-token')
+      .send({ caution: true, providers: [] });
+    expect(res.status).toBe(401);
+  });
+
+  test('doğru token geçer', async () => {
+    const res = await request(app()).post('/api/bridge/ai-council')
+      .set('Authorization', 'Bearer test-gizli-token')
+      .send({ caution: false, providers: [] });
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+  });
+
+  test('kaynak: rota kardeşleriyle aynı kapıyı kullanır', () => {
+    const src = require('fs').readFileSync(
+      require.resolve('../../src/routes/bridge.routes.js'), 'utf8');
+    const rota = src.slice(src.indexOf("router.post('/ai-council'"));
+    const govde = rota.slice(0, rota.indexOf('});'));
+    expect(govde).toContain('checkExecToken(req)');
+  });
+});
+
 describe('köprü sözleşmesi (kaynak taraması)', () => {
   const fs = require('fs');
 
