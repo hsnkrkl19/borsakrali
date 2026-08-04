@@ -673,17 +673,33 @@ def t_lifecycle_gate_requires_current_boot_then_uses_separate_ttl():
     fresh, reason = brain._lifecycle_report_gate(cfg, state, 0.0, now=now)
     assert fresh is False and reason == "broker-lifecycle-report-pending"
 
-    # Once this process has succeeded, a transient failed/in-flight POST does
-    # not create a false heartbeat window while the last success is fresh.
+    # 2026-08-04: GERCEK bir POST basarisizligi ANINDA fail-closed olur; TTL
+    # penceresi bunu MASKELEMEZ. Eskiden sira tersti (once TTL, sonra hata) ve
+    # report_interval 2 sn ile ~15 ARDISIK basarisiz POST boyunca kopruler yeni
+    # pozisyon acmaya devam ediyordu — defter ve Telegram o sure boyunca kor.
+    # Tam olarak 2026-07-31 olayinin kosulu (kayit disi islem) budur.
+    # Not: `lastReportOk` YALNIZCA POST SONUCUNDAN sonra yazilir (run_once
+    # icinde `state["lastReportOk"] = bool(report_ok)`), yani False degeri
+    # "ucusta" degil GERCEK basarisizliktir; erken poison riski yoktur.
     fresh, reason = brain._lifecycle_report_gate(
         cfg, dict(state, lastReportOk=False), now - 5, now=now + 20)
-    assert fresh is True and reason is None
+    assert fresh is False and reason == "broker-lifecycle-last-report-failed"
 
-    # The tolerance is bounded; the same failure becomes fail-closed at TTL.
+    # Yeni giris kapanir ama KAPATMA/risk frenleri bu bayraktan bagimsizdir:
+    # beyin acik pozisyonlari yonetmeye devam eder.
     fresh, reason = brain._lifecycle_report_gate(
         cfg, dict(state, lastReportOk=False), now - 5, now=now + 31)
     assert fresh is False and reason == "broker-lifecycle-last-report-failed"
-    print("OK lifecycle gate requires current boot and fails closed after 30s TTL")
+
+    # TTL yalnizca "POST vadesi gelmedi ama sonuncusu BASARILIYDI" halini
+    # tolere eder: basarili durumda pencere icinde kapi ACIK kalir...
+    fresh, reason = brain._lifecycle_report_gate(cfg, state, now - 5, now=now + 20)
+    assert fresh is True and reason is None
+    # ...ve pencere dolunca bayatlik gerekcesiyle kapanir.
+    fresh, reason = brain._lifecycle_report_gate(cfg, state, now - 5, now=now + 40)
+    assert fresh is False and reason == "broker-lifecycle-report-stale"
+    print("OK lifecycle gate: basarisiz POST ANINDA fail-closed, TTL yalniz "
+          "basarili-ama-vadesi-gelmemis hali tolere eder")
 
 
 def t_report_failure_does_not_preemptively_poison_fresh_heartbeat():
@@ -743,7 +759,17 @@ def t_slow_lifecycle_report_refreshes_process_heartbeat():
     assert ok is True
     assert writes, "slow lifecycle I/O must refresh heartbeat before completion"
     assert all(row[1]["timeSec"] > 1 for row in writes)
-    print("OK slow lifecycle POST keeps process heartbeat fresh")
+    # ⚠️ 2026-08-04: taze olmasi YETMEZ. run_once TEK thread'dir; POST bloke
+    # oldugu surece trail, kar-kilidi, erken cikis ve suru kesmesi HIC
+    # degerlendirilmez. Bu thread eskiden snap'i oldugu gibi kopyaladigi icin
+    # heartbeat "beyin canli VE saglikli" diyordu ve kopruler o sirada YENI
+    # POZISYON aciyordu — beyin ise hicbir pozisyonu yonetemiyordu.
+    # Artik bu kopya yalnizca "surec olmedi" der; giris yetkisi VERMEZ.
+    for _, value in writes:
+        assert value["ok"] is False, "POST bloke iken giris yetkisi verilemez"
+        assert value["telemetryOk"] is False
+        assert value["reason"] == "broker-lifecycle-post-in-flight"
+    print("OK slow lifecycle POST: heartbeat taze ama GIRIS YETKISI VERMEZ")
 
 
 def t_atomic_json_retries_sharing_violation_and_cleans_temp():

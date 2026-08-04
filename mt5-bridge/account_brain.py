@@ -530,13 +530,29 @@ def evaluate_pretrade(snapshot: AccountSnapshot | None,
     # dogrulugu varsayilmaz); bozuk/asiri deger notr veya tabana oturur.
     advisory = advisory_scale if math.isfinite(advisory_scale) else 1.0
     advisory = min(1.0, max(ADVISORY_MIN_SCALE, advisory))
+    advisory_limits = dict(limits_usd)
     if advisory < 1.0:
-        limits_usd["trade"] *= advisory
-        limits_usd["trade_usd_cap"] *= advisory
-    risk_budget = min(limits_usd.values())
+        advisory_limits["trade"] = limits_usd["trade"] * advisory
+        advisory_limits["trade_usd_cap"] = limits_usd["trade_usd_cap"] * advisory
+    risk_budget = min(advisory_limits.values())
     if not _finite_positive(risk_budget):
         return _reject("no_remaining_risk_budget", tier)
     sizing = _safe_lot(request, spec, risk_budget)
+    if sizing[0] is None and advisory < 1.0:
+        # ⚠️ 2026-08-04: AI sozlesmesi "yalniz KIS, asla ENGELLEME"dir. Ama
+        # kisilan butce brokerin MINIMUM lot riskinin altina duserse _safe_lot
+        # tamamen RED doner ve tavsiye fiilen VETO'ya donusur.
+        # Olculen ornek (canli FTMO): XAUUSD volume_min=0.01, tick_size=0.01,
+        # tick_value=1.0; 139 puanlik stopta min-lot riski 139,45 $. Tavan
+        # 250 $ iken giris GECER, temkin (x0.5 -> 125 $) ile TAMAMEN kapanir.
+        # Bu durumda tavsiye O ISLEM ICIN gecersiz sayilir: deterministik
+        # kurallar (D2g rejim kisicisi, dolar tavani, gunluk fren) aynen
+        # gecerlidir — yalnizca AI'nin ekstra kismasi geri alinir.
+        fallback = _safe_lot(request, spec, min(limits_usd.values()))
+        if fallback[0] is not None:
+            advisory = 1.0
+            risk_budget = min(limits_usd.values())
+            sizing = fallback
     if sizing[0] is None:
         return _reject(sizing[3], tier)
     lot, risk_usd, reward_usd, _ = sizing

@@ -80,6 +80,68 @@ def t_advisory_scales_entry_risk_but_cannot_block():
     print("OK advisory: temkin 250$->125$; giris engellenmez; 1.0 ustu buyutemez")
 
 
+def t_advisory_never_vetoes_entry_on_real_xauusd_spec():
+    """AI sozlesmesi: "yalniz KIS, asla ENGELLEME".
+
+    Eski test UYDURMA bir SymbolSpec kullaniyordu (tick_value=1, volume_min=0.1
+    -> min-lot riski 0.10 $) ve hangi carpanla carpilirsa carpilsin butceyi
+    asamiyordu; bu yuzden hatayi YAPISAL OLARAK goremiyordu.
+    Burada CANLI FTMO degerleri kullanilir (2026-08-04'te mt5.symbol_info ile
+    okundu): XAUUSD volume_min=0.01, volume_step=0.01, tick_size=0.01,
+    tick_value=1.0. 139 puanlik stopta min-lot riski 139,45 $ eder; islem
+    tavani 250 $ iken giris GECER, temkin (x0.5 -> 125 $) ile eskiden TAMAMEN
+    KAPANIYORDU.
+    """
+    cfg = account_brain.BrainConfig(race_mode=True, max_trade_risk_usd=250.0)
+    snap = account_brain.AccountSnapshot(
+        balance=198_000, equity=198_000, start_balance=198_000,
+        day_start_equity=198_000, high_water_equity=198_000, as_of=NOW)
+    xau = account_brain.SymbolSpec(tick_size=0.01, tick_value=1.0,
+                                   volume_min=0.01, volume_step=0.01,
+                                   volume_max=50.0)
+    # 139,45 puan stop -> min lot (0.01) riski 139,45 $
+    req = account_brain.TradeRequest(
+        candidate_id="xau1", bot_id="bot-a", symbol="XAUUSD", direction="buy",
+        timeframe="H1", entry=4000.00, stop=3860.55, target=4418.35,
+        signal_strength=0.6, confirmations=2, now_ts=NOW)
+
+    normal = account_brain.evaluate_pretrade(snap, (), req, xau, cfg)
+    assert normal.allowed, normal.reasons
+    min_lot_risk = normal.risk_usd
+    assert 130.0 < min_lot_risk < 145.0, min_lot_risk
+
+    temkin = account_brain.evaluate_pretrade(snap, (), req, xau, cfg,
+                                             advisory_scale=0.5)
+    # KRITIK: giris ENGELLENMEZ. Butce (125 $) min-lot riskinin altinda
+    # kaldigi icin tavsiye O ISLEM ICIN gecersiz sayilir.
+    assert temkin.allowed, ("AI tavsiyesi VETO'ya donusmus", temkin.reasons)
+    assert temkin.projected["advisory_scale"] == 1.0
+    print("OK advisory: gercek XAUUSD spec'inde bile giris ENGELLENMEZ")
+
+
+def t_advisory_still_shrinks_when_min_lot_fits():
+    """Kisma mumkun oldugunda tavsiye AYNEN uygulanir (muafiyet dar kapsamli)."""
+    cfg = account_brain.BrainConfig(race_mode=True, max_trade_risk_usd=250.0)
+    snap = account_brain.AccountSnapshot(
+        balance=198_000, equity=198_000, start_balance=198_000,
+        day_start_equity=198_000, high_water_equity=198_000, as_of=NOW)
+    # Dar stop: min-lot riski 10 $ -> 125 $ butceye rahat sigar.
+    eur = account_brain.SymbolSpec(tick_size=0.00001, tick_value=1.0,
+                                   volume_min=0.01, volume_step=0.01,
+                                   volume_max=50.0)
+    req = account_brain.TradeRequest(
+        candidate_id="eur1", bot_id="bot-a", symbol="EURUSD", direction="buy",
+        timeframe="H1", entry=1.10000, stop=1.09000, target=1.13000,
+        signal_strength=0.6, confirmations=2, now_ts=NOW)
+    normal = account_brain.evaluate_pretrade(snap, (), req, eur, cfg)
+    temkin = account_brain.evaluate_pretrade(snap, (), req, eur, cfg,
+                                             advisory_scale=0.5)
+    assert normal.allowed and temkin.allowed, (normal.reasons, temkin.reasons)
+    assert temkin.projected["advisory_scale"] == 0.5
+    assert temkin.risk_usd < normal.risk_usd, (temkin.risk_usd, normal.risk_usd)
+    print("OK advisory: kisma mumkunse AYNEN kisar (muafiyet dar kapsamli)")
+
+
 # ── konsey tarafi ────────────────────────────────────────────────────────────
 
 def t_consensus_majority_and_silence():
@@ -209,6 +271,8 @@ def t_gemini_disabled_without_key():
 if __name__ == "__main__":
     t_advisory_clamps_and_neutral_failures()
     t_advisory_scales_entry_risk_but_cannot_block()
+    t_advisory_never_vetoes_entry_on_real_xauusd_spec()
+    t_advisory_still_shrinks_when_min_lot_fits()
     t_consensus_majority_and_silence()
     t_parse_opinion_defensive()
     t_run_once_writes_atomic_advisory_and_posts()

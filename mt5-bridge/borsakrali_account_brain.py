@@ -1479,6 +1479,17 @@ def _report_state_with_heartbeat(cfg, positions, deals, state, snap,
         while not stopped.wait(refresh_interval):
             live_snap = dict(snap)
             live_snap["timeSec"] = int(time.time())
+            # ⚠️ 2026-08-04: heartbeat'in IKI anlami vardi ve bu thread onlari
+            # birlestirip kapiyi YALANLANAMAZ kiliyordu. run_once TEK
+            # thread'dir: trail, kar-kilidi, erken cikis, suru kesmesi ve hesap
+            # frenleri lifecycle POST'undan ONCE ayni thread'de kosar. POST
+            # bloke oldugu surece beyin HICBIR pozisyonu yonetemez — ama bu
+            # thread "taze + ok" heartbeat yazdigi icin kopruler "beyin canli
+            # ve saglikli" deyip YENI POZISYON aciyordu.
+            # Artik bu kopya yalnizca "surec olmedi" der; giris yetkisi VERMEZ.
+            live_snap["ok"] = False
+            live_snap["telemetryOk"] = False
+            live_snap["reason"] = "broker-lifecycle-post-in-flight"
             try:
                 _atomic_json(HEARTBEAT_PATH, live_snap)
             except Exception as exc:
@@ -1547,11 +1558,17 @@ def _lifecycle_report_gate(cfg, state, last_report, now=None):
     if not math.isfinite(ttl):
         ttl = 30.0
     ttl = max(15.0, min(300.0, ttl))
+    # ⚠️ 2026-08-04: bu iki kontrolun SIRASI onemli. TTL once bakilirsa, son
+    # POST BASARISIZ olsa bile lastReportSuccessSec 30 sn icinde oldugu icin
+    # kapi acik kalirdi -> report_interval 2 sn ile ~15 ARDISIK basarisiz
+    # POST boyunca kopruler yeni pozisyon acmaya devam ederdi (defter ve
+    # Telegram kor). Basarisizlik ANINDA fail-closed olmali; TTL yalnizca
+    # "POST vadesi henuz gelmedi ama sonuncusu BASARILIYDI" halini tolere eder.
+    if state.get("lastReportOk") is False:
+        return False, "broker-lifecycle-last-report-failed"
     age = now - float(value)
     if math.isfinite(age) and 0.0 <= age <= ttl:
         return True, None
-    if state.get("lastReportOk") is False:
-        return False, "broker-lifecycle-last-report-failed"
     return False, "broker-lifecycle-report-stale"
 
 
