@@ -135,8 +135,11 @@ def build_config(cfg):
         max_bot_risk_pct=_bounded(
             _value(cfg, "max_bot_risk_pct", "max_bot_open_risk_pct", default=0.5),
             0.5, 0.01, 0.5),
+        # ⚠️ 2026-08-05: bu ucuncu kirpma katmani, acilan tavanlari SESSIZCE
+        # eski degerlerine geri cekiyordu. Ust sinirlar artik hesap-yikici
+        # frenlere bagli; BrainConfig ve _validate_numeric_config ile AYNI kural.
         daily_entry_brake_pct=_bounded(
-            _value(cfg, "daily_entry_brake_pct", default=1.5), 1.5, 0.01, 1.5),
+            _value(cfg, "daily_entry_brake_pct", default=1.5), 1.5, 0.01, 4.24),
         daily_loss_warning_pct_account=daily_warning,
         daily_loss_flatten_pct_account=daily_flatten,
         max_daily_loss_pct_account=_bounded(
@@ -155,9 +158,11 @@ def build_config(cfg):
             cfg, "min_initial_risk_usd", default=15.0))),
         # Islem basina mutlak dolar tavani: config yalniz DUSURebilir.
         max_trade_risk_usd=_bounded(
-            _value(cfg, "max_trade_risk_usd", default=250.0), 250.0, 15.0, 250.0),
+            _value(cfg, "max_trade_risk_usd", default=250.0), 250.0, 15.0, 100_000.0),
+        risk_halving_daily_loss_pct=_bounded(
+            _value(cfg, "risk_halving_daily_loss_pct", default=0.75), 0.75, 0.05, 4.0),
         race_max_open_risk_pct=_bounded(
-            _value(cfg, "race_max_open_risk_pct", default=3.0), 3.0, 0.5, 3.0),
+            _value(cfg, "race_max_open_risk_pct", default=3.0), 3.0, 0.5, 100.0),
         min_rr=min_rr,
         min_feed_rr=_bounded(
             _value(cfg, "min_feed_rr", default=1.5), 1.5, 0.0, 3.0),
@@ -612,50 +617,81 @@ TREND_TF_ADI = {
 }
 
 
-def _ema(degerler, uzunluk):
+def _ema_serisi(degerler, uzunluk):
+    """EMA'nin TUM serisi. Egimi bagimsiz olcebilmek icin gerekli."""
     if len(degerler) < uzunluk:
-        return None
+        return []
     k = 2.0 / (uzunluk + 1.0)
     ema = sum(degerler[:uzunluk]) / float(uzunluk)
+    seri = [ema]
     for v in degerler[uzunluk:]:
         ema = v * k + ema * (1.0 - k)
-    return ema
+        seri.append(ema)
+    return seri
 
 
-def trend_uyumlu(mt5mod, cfg, symbol, direction):
-    """(uyumlu, gerekce) — veri yoksa (True, "trend-verisi-yok").
+def trend_carpani(mt5mod, cfg, symbol, direction):
+    """(carpan, gerekce) — trend uyumuna gore YENI GIRIS RISK carpani.
 
-    Kapali barlarla calisir: son (olusmakta olan) bar HARIC tutulur, yoksa
-    yarim mum trendi anlik olarak ters gosterebilir.
+    ⚠️ 2026-08-05 denetimi bu kapinin ilk halinde UC hata buldu:
+      1. TAUTOLOJI: "EMA egimi" kosulu hicbir sinyali elemiyordu. EMA tanimi
+         geregi simdi = fiyat*k + onceki*(1-k) oldugundan (simdi >= onceki)
+         ifadesi (fiyat > simdi) ile OZDESTIR. Iki-faktorlu sanilan filtre
+         aslinda tek faktorluydu. Egim artik N BAR ONCEKI EMA ile olculur.
+      2. TEK-YON ANAHTARI: kosullar birbirinin tumleyeni oldugu icin her
+         sembolde daima yonlerden biri tamamen kapaliydi; 38 bot ayni sembolde
+         ayni tarafa zorlaniyordu. Bu, 2026-07-06 "yalniz-LONG zarar gecesi"
+         desenidir. Artik NOTR BANT var: fiyat EMA'ya ATR'nin yarisindan yakinsa
+         trend gorusu YOKTUR, iki yon de tam boyut.
+      3. BOT SINIFI SUSTURMA: ICT/likidite-supurme/donus botlari TASARIMI GEREGI
+         trende karsi girer; kapi onlarin girislerinin %57-88'ini rediyordu ve
+         "yarista kim daha kazancli" olcumunu carpitiyordu.
+         Bu yuzden kapi artik ENGELLEMEZ, yalnizca KUCULTUR: uyumsuz girisler
+         yarim boyutta acilir. Her bot islem almaya devam eder.
     """
     if not bool(cfg.get("trend_filter_enabled", True)):
-        return True, "trend-filtresi-kapali"
+        return 1.0, "trend-filtresi-kapali"
     tf_ad = str(cfg.get("trend_timeframe", "H4")).upper()
     tf = getattr(mt5mod, TREND_TF_ADI.get(tf_ad, "TIMEFRAME_H4"), None)
     if tf is None:
-        return True, "trend-verisi-yok"
+        return 1.0, "trend-verisi-yok"
     uzunluk = max(5, int(cfg.get("trend_ema_length", 50) or 50))
+    egim_bar = max(2, int(cfg.get("trend_slope_bars", 5) or 5))
     try:
-        # +2: olusmakta olan barin atilmasi + egim icin bir onceki deger
-        bars = mt5mod.copy_rates_from_pos(symbol, tf, 0, uzunluk + 60)
+        bars = mt5mod.copy_rates_from_pos(symbol, tf, 0, uzunluk + 80)
     except Exception:
-        return True, "trend-verisi-yok"
-    if bars is None or len(bars) < uzunluk + 3:
-        return True, "trend-verisi-yok"
-    kapanis = [float(b["close"]) for b in bars[:-1]]   # olusmakta olan bar HARIC
-    simdi = _ema(kapanis, uzunluk)
-    onceki = _ema(kapanis[:-1], uzunluk)
-    if simdi is None or onceki is None:
-        return True, "trend-verisi-yok"
+        return 1.0, "trend-verisi-yok"
+    if bars is None or len(bars) < uzunluk + egim_bar + 3:
+        return 1.0, "trend-verisi-yok"
+    kapali = bars[:-1]                       # olusmakta olan bar HARIC
+    kapanis = [float(b["close"]) for b in kapali]
+    seri = _ema_serisi(kapanis, uzunluk)
+    if len(seri) < egim_bar + 1:
+        return 1.0, "trend-verisi-yok"
+    ema = seri[-1]
+    ema_gecmis = seri[-1 - egim_bar]         # BAGIMSIZ egim olcumu
     fiyat = kapanis[-1]
-    yukari = fiyat > simdi and simdi >= onceki
-    asagi = fiyat < simdi and simdi <= onceki
+
+    # Notr bant: ATR'nin yarisi kadar yakinsa "trend gorusu yok".
+    araliklar = [float(b["high"]) - float(b["low"]) for b in kapali[-20:]]
+    atr = (sum(araliklar) / len(araliklar)) if araliklar else 0.0
+    bant = atr * float(cfg.get("trend_neutral_atr", 0.5) or 0.5)
+    if bant > 0 and abs(fiyat - ema) < bant:
+        return 1.0, "trend-notr-bant"
+
+    yukari = fiyat > ema and ema > ema_gecmis
+    asagi = fiyat < ema and ema < ema_gecmis
     yon = str(direction or "").lower()
-    if yon in ("buy", "long"):
-        return (True, "trend-yukari") if yukari else (False, "trend-yukari-degil")
-    if yon in ("sell", "short"):
-        return (True, "trend-asagi") if asagi else (False, "trend-asagi-degil")
-    return True, "yon-bilinmiyor"
+    istenen = "buy" if yon in ("buy", "long") else ("sell" if yon in ("sell", "short") else "")
+    if not istenen:
+        return 1.0, "yon-bilinmiyor"
+    if (istenen == "buy" and yukari) or (istenen == "sell" and asagi):
+        return 1.0, "trend-uyumlu"
+    if not yukari and not asagi:
+        return 1.0, "trend-belirsiz"          # fiyat/egim celisiyor -> gorus yok
+    # Trende KARSI: engelleme YOK, yalnizca kucultme.
+    kucultme = min(1.0, max(0.1, float(cfg.get("trend_counter_scale", 0.5) or 0.5)))
+    return kucultme, "trend-karsi-kucultuldu"
 
 
 def _symbol_spec(info, cfg):
@@ -665,8 +701,12 @@ def _symbol_spec(info, cfg):
     # Yaris modu (2026-08-05): lot tavani config'ten YUKSELTILEBILIR hale geldi.
     # Kodda yine mutlak bir emniyet ağı var (10 lot): tek bir hesap/spec hatasi
     # butun hesabi tek emirde silemesin. Config bunun ustune cikamaz.
-    absolute_lot_cap = min(10.0, float(_value(
-        cfg, "account_tier_max_lot", "brain_max_lot", default=1.0)))
+    # ⚠️ _value() ILK bulunan anahtari alir: account_tier_max_lot config'te
+    # 1.0 olarak durdugu icin brain_max_lot=5.0 OLU AYARDI. Artik ikisinin
+    # BUYUGU alinir; kod emniyet agi (10 lot) yine ustte.
+    absolute_lot_cap = min(10.0, max(
+        float(_value(cfg, "account_tier_max_lot", default=1.0)),
+        float(_value(cfg, "brain_max_lot", default=1.0))))
     return account_brain.SymbolSpec(
         tick_size=tick_size,
         tick_value=tick_value,
@@ -752,11 +792,19 @@ def evaluate(mt5mod, cfg, info, *, candidate_id, bot_id, symbol, direction,
         return _reject("fail_closed:central_brain_heartbeat_invalid", candidate_id, cfg, metadata, True)
     # Trend uyumu: limitler kalkinca kaliteyi FILTRE ayakta tutar. Veri yoksa
     # giris engellenmez (fail-open) — "tum botlar islem alsin" cizgisi korunur.
-    uyumlu, trend_gerekce = trend_uyumlu(mt5mod, cfg, symbol, direction)
-    if not uyumlu:
+    # AI KONSEYI ENSTRUMAN KARARI: uc modelin (Ollama+Gemini+Claude) ortak
+    # gorusu. Karar onceden uretilir; burada disk okumasi kadar hizli uygulanir.
+    # Dosya yok/bayat/karar yoksa IZIN VAR (fail-open).
+    if not account_brain.load_instrument_verdict(
+            _runtime_path(cfg, "ai_advisory_path", ADVISORY_PATH),
+            symbol, direction, now):
         if logger:
-            logger.info("TREND RED %s %s (%s)", symbol, direction, trend_gerekce)
-        return _reject("trend_uyumsuz:" + trend_gerekce, candidate_id, cfg, metadata, True)
+            logger.info("KONSEY RED %s %s (uc-AI ortak karari)", symbol, direction)
+        return _reject("konsey_enstruman_reddi", candidate_id, cfg, metadata, True)
+    trend_scale, trend_gerekce = trend_carpani(mt5mod, cfg, symbol, direction)
+    if trend_scale < 1.0 and logger:
+        logger.info("TREND KUCULTME %s %s x%.2f (%s)",
+                    symbol, direction, trend_scale, trend_gerekce)
     # A live bridge may not rely on a dry-run manager: exits/reporting would be fake.
     if bool(heartbeat.get("dryRun", True)) != bool(cfg.get("dry_run", True)):
         return _reject("fail_closed:bridge_brain_dry_run_mismatch", candidate_id, cfg, metadata, True)
@@ -870,6 +918,8 @@ def evaluate(mt5mod, cfg, info, *, candidate_id, bot_id, symbol, direction,
         # yalniz KISABILIR; kirpma hem burada (load) hem beyinde yapilir.
         advisory_scale = account_brain.load_advisory_scale(
             _runtime_path(cfg, "ai_advisory_path", ADVISORY_PATH), now)
+        # Trend kapisi da "yalniz kisar" sozlesmesinde: iki carpan birlesir.
+        advisory_scale = float(advisory_scale) * float(trend_scale)
         decision = controller.evaluate_and_reserve(
             snapshot, tuple(open_risks), request, spec,
             advisory_scale=advisory_scale)

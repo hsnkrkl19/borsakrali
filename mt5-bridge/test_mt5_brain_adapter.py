@@ -441,83 +441,145 @@ class AdapterTests(unittest.TestCase):
         self.assertIn("heartbeat_stale", payload["reason"])
 
 
-class TrendUyumuTests(unittest.TestCase):
-    """Trend uyumu kapisi (2026-08-05).
+class TrendKapisiTests(unittest.TestCase):
+    """Trend kapisi: ENGELLEMEZ, KUCULTUR (2026-08-05 denetimi sonrasi).
 
-    Kullanici: "islem ve risk limitini kaldir ama AI sacma islemlere izin
-    vermesin. mantikli ve trende uygun islemler acalim."
-    Limitler kalkinca kaliteyi FILTRE ayakta tutar; bu kapi deterministiktir.
+    Kullanicinin iki istegi birlikte korunur:
+      - "mantikli ve trende uygun islemler acalim" -> trende karsi giris kucultulur
+      - "tum botlar islem alsin"                   -> hicbir bot susturulmaz
     """
 
     @staticmethod
-    def _mt5(kapanislar):
+    def _mt5(barlar):
         class M:
             TIMEFRAME_H4 = 16
 
             @staticmethod
-            def copy_rates_from_pos(_sym, _tf, _start, _count):
-                return [{"close": c} for c in kapanislar]
+            def copy_rates_from_pos(_s, _tf, _start, _n):
+                return barlar
         return M
 
-    def test_yukselen_trendde_long_gecer_short_reddedilir(self):
-        # 80 bar duzenli yukselis -> EMA yukari egimli, fiyat EMA ustunde
-        bars = [100.0 + i * 0.5 for i in range(80)]
-        m = self._mt5(bars)
-        ok, _ = adapter.trend_uyumlu(m, {}, "EURUSD", "buy")
-        self.assertTrue(ok)
-        ok, neden = adapter.trend_uyumlu(m, {}, "EURUSD", "sell")
-        self.assertFalse(ok)
-        self.assertEqual(neden, "trend-asagi-degil")
+    @staticmethod
+    def _bar(c, yayilim=0.2):
+        return {"close": c, "high": c + yayilim, "low": c - yayilim}
 
-    def test_dusen_trendde_short_gecer_long_reddedilir(self):
-        bars = [140.0 - i * 0.5 for i in range(80)]
-        m = self._mt5(bars)
-        ok, _ = adapter.trend_uyumlu(m, {}, "EURUSD", "sell")
-        self.assertTrue(ok)
-        ok, neden = adapter.trend_uyumlu(m, {}, "EURUSD", "buy")
-        self.assertFalse(ok)
-        self.assertEqual(neden, "trend-yukari-degil")
+    def test_trend_uyumlu_tam_boyut_karsi_yon_kucultulur(self):
+        barlar = [self._bar(100.0 + i * 0.5) for i in range(90)]
+        m = self._mt5(barlar)
+        c, _ = adapter.trend_carpani(m, {}, "EURUSD", "buy")
+        self.assertEqual(c, 1.0)
+        c, neden = adapter.trend_carpani(m, {}, "EURUSD", "sell")
+        self.assertEqual(c, 0.5)                       # ENGELLENMEZ, kucultulur
+        self.assertEqual(neden, "trend-karsi-kucultuldu")
 
-    def test_veri_yoksa_giris_ENGELLENMEZ(self):
-        # Kirmizi cizgi: "tum botlar islem alsin". Veri yoklugu trend gorusu
-        # DEGILDIR; fail-open notr yondedir.
+    def test_EGIM_TAUTOLOJISI_giderildi(self):
+        """DENETIM BULGUSU: eski kodda 'EMA egimi' kosulu hicbir sinyali
+        elemiyordu (simdi>=onceki ozdes olarak fiyat>simdi demekti).
+
+        Bu seri tam o bosluga nisan alir: EMA hala DUSUYOR ama fiyat EMA'yi
+        yeni yukari kesti. Eski kod long'a TAM BOYUT verirdi; artik egim
+        bagimsiz olculdugu icin 'trend-belirsiz' olur (gorus yok).
+        """
+        barlar = [self._bar(200.0 - i * 0.5) for i in range(85)]   # uzun dusus
+        barlar += [self._bar(160.0 + i * 3.0) for i in range(6)]   # sert sicrama
+        c, neden = adapter.trend_carpani(self._mt5(barlar), {}, "EURUSD", "buy")
+        self.assertNotEqual(neden, "trend-uyumlu",
+                            "EMA duserken fiyat kesisi 'trend uyumlu' sayilamaz")
+
+    def test_NOTR_BANT_iki_yonu_de_serbest_birakir(self):
+        """DENETIM BULGUSU: kosullar birbirinin tumleyeniydi, her sembolde
+        daima bir yon kapaliydi -> 38 bot ayni tarafa zorlaniyordu
+        (2026-07-06 'yalniz-LONG zarar gecesi' deseni)."""
+        barlar = [self._bar(100.0 + (0.05 if i % 2 else -0.05), yayilim=2.0)
+                  for i in range(90)]                    # yatay + genis ATR
+        m = self._mt5(barlar)
+        al, _ = adapter.trend_carpani(m, {}, "EURUSD", "buy")
+        sat, _ = adapter.trend_carpani(m, {}, "EURUSD", "sell")
+        self.assertEqual((al, sat), (1.0, 1.0),
+                         "notr bantta IKI yon de tam boyut olmali")
+
+    def test_hicbir_yon_TAMAMEN_engellenmez(self):
+        """Yaris olcumu bozulmasin: carpan asla 0 olmaz."""
+        for barlar in ([self._bar(100.0 + i * 0.5) for i in range(90)],
+                       [self._bar(150.0 - i * 0.5) for i in range(90)]):
+            for yon in ("buy", "sell"):
+                c, _ = adapter.trend_carpani(self._mt5(barlar), {}, "X", yon)
+                self.assertGreater(c, 0.0)
+
+    def test_veri_yoksa_TAM_BOYUT(self):
         class Bos:
             TIMEFRAME_H4 = 16
 
             @staticmethod
             def copy_rates_from_pos(*_a):
                 return None
-        for yon in ("buy", "sell"):
-            ok, neden = adapter.trend_uyumlu(Bos, {}, "EURUSD", yon)
-            self.assertTrue(ok, yon)
-            self.assertEqual(neden, "trend-verisi-yok")
 
         class Patlar:
             TIMEFRAME_H4 = 16
 
             @staticmethod
             def copy_rates_from_pos(*_a):
-                raise RuntimeError("IPC hatasi")
-        self.assertTrue(adapter.trend_uyumlu(Patlar, {}, "EURUSD", "buy")[0])
+                raise RuntimeError("IPC")
+        for m in (Bos, Patlar):
+            self.assertEqual(adapter.trend_carpani(m, {}, "X", "buy")[0], 1.0)
+        az = [self._bar(100.0) for _ in range(10)]
+        self.assertEqual(adapter.trend_carpani(self._mt5(az), {}, "X", "buy")[0], 1.0)
 
-        # Yetersiz bar da fail-open
-        self.assertTrue(adapter.trend_uyumlu(
-            self._mt5([100.0] * 10), {}, "EURUSD", "buy")[0])
+    def test_config_ile_kapatilabilir_ve_ayarlanabilir(self):
+        barlar = [self._bar(150.0 - i * 0.5) for i in range(90)]
+        m = self._mt5(barlar)
+        c, neden = adapter.trend_carpani(m, {"trend_filter_enabled": False}, "X", "buy")
+        self.assertEqual((c, neden), (1.0, "trend-filtresi-kapali"))
+        c, _ = adapter.trend_carpani(m, {"trend_counter_scale": 0.25}, "X", "buy")
+        self.assertEqual(c, 0.25)
 
-    def test_config_ile_kapatilabilir(self):
-        bars = [140.0 - i * 0.5 for i in range(80)]
-        m = self._mt5(bars)
-        ok, neden = adapter.trend_uyumlu(
-            m, {"trend_filter_enabled": False}, "EURUSD", "buy")
-        self.assertTrue(ok)
-        self.assertEqual(neden, "trend-filtresi-kapali")
 
-    def test_olusmakta_olan_bar_HARIC_tutulur(self):
-        # 79 bar duzenli DUSUS + son (olusmakta olan) bar sert yukari sicrama.
-        # Yarim mum trendi ters gostermemeli: long HALA reddedilmeli.
-        bars = [140.0 - i * 0.5 for i in range(79)] + [999.0]
-        ok, _ = adapter.trend_uyumlu(self._mt5(bars), {}, "EURUSD", "buy")
-        self.assertFalse(ok, "olusmakta olan bar trendi cevirmemeli")
+class ConfigYururlukteTests(unittest.TestCase):
+    """2026-08-05: UC ayri kirpma katmani vardi ve ucuncusu (build_config
+    _bounded klipleri) acilan tavanlari SESSIZCE eski degerlerine cekiyordu.
+
+    Sonuc: kullanici config'e 100 / 4.0 / 2000 yazdi, testler yesildi, ama
+    yururlukteki degerler 3.0 / 1.5 / 250 olarak kaldi. "Ayar uygulandi"
+    sanilan sey hic uygulanmamisti.
+
+    Bu test sozlesmeyi kilitler: config'e YAZILAN deger, BrainConfig'e
+    ULASMALIDIR.
+    """
+
+    def test_acilan_tavanlar_gercekten_yururlukte(self):
+        cfg = {
+            "race_mode": True,
+            "race_max_open_risk_pct": 100.0,
+            "daily_entry_brake_pct": 4.0,
+            "max_trade_risk_usd": 2000.0,
+            "risk_halving_daily_loss_pct": 2.0,
+        }
+        p = adapter.build_config(cfg)
+        self.assertEqual(p.race_max_open_risk_pct, 100.0)
+        self.assertEqual(p.daily_entry_brake_pct, 4.0)
+        self.assertEqual(p.max_trade_risk_usd, 2000.0)
+        self.assertEqual(p.risk_halving_daily_loss_pct, 2.0)
+
+    def test_varsayilanlar_KORUNUR(self):
+        """Tavani acmak BILINCLI bir config adimi olmali; bos config eski
+        (guvenli) degerleri vermeli."""
+        p = adapter.build_config({"race_mode": True})
+        self.assertEqual(p.race_max_open_risk_pct, 3.0)
+        self.assertEqual(p.daily_entry_brake_pct, 1.5)
+        self.assertEqual(p.max_trade_risk_usd, 250.0)
+
+    def test_brain_max_lot_olu_ayar_degil(self):
+        """account_tier_max_lot=1.0 config'te duruyordu ve _value() ilk bulunan
+        anahtari aldigi icin brain_max_lot=5.0 HIC OKUNMUYORDU."""
+        info = SimpleNamespace(trade_tick_size=0.01, trade_tick_value_loss=1.0,
+                               trade_tick_value=1.0, volume_min=0.01,
+                               volume_step=0.01, volume_max=50.0)
+        spec = adapter._symbol_spec(
+            info, {"account_tier_max_lot": 1.0, "brain_max_lot": 5.0})
+        self.assertEqual(spec.volume_max, 5.0)
+        # Kod emniyet agi: config ne derse desin 10 lotu asamaz.
+        spec = adapter._symbol_spec(info, {"brain_max_lot": 999.0})
+        self.assertEqual(spec.volume_max, 10.0)
 
 
 if __name__ == "__main__":

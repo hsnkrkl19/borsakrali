@@ -3,7 +3,7 @@
 """
 AI KONSEYI — cok-modelli danisma katmani (2026-08-01).
 
-Yerel Ollama (+ istege bagli Gemini) hesabin durumunu periyodik analiz eder ve
+Yerel Ollama + Gemini + Claude hesabin durumunu periyodik analiz eder ve
 tek bir TAVSIYE dosyasi yazar: ai_advisory.json. Merkez beyin bu dosyayi
 yalnizca KISMA yonunde okur (account_brain.load_advisory_scale).
 
@@ -47,6 +47,7 @@ CONFIG_PATHS = ("config_all.json", "config_brain.json", "config.json")
 CAUTION_SCALE = 0.5           # temkin karari yeni giris riskini yariya indirir
 OLLAMA_TIMEOUT = 180          # yerel kucuk model CPU'da yavas olabilir
 GEMINI_TIMEOUT = 45
+CLAUDE_TIMEOUT = 45
 BACKEND_TIMEOUT = 15
 
 log = logging.getLogger("ai-konsey")
@@ -119,6 +120,101 @@ def gather_context(cfg):
     return ctx
 
 
+def piyasa_baglami(cfg, semboller):
+    """Her sembol icin H4 trend + gunluk degisim + oynaklik ozeti.
+
+    MT5'e YALNIZ OKUMA icin baglanir (copy_rates_from_pos). Baglanamazsa bos
+    doner ve konsey enstruman karari uretmez -> beyin notr davranir.
+    """
+    try:
+        import MetaTrader5 as mt5
+    except Exception:
+        return {}
+    if not mt5.initialize():
+        return {}
+    ozet = {}
+    try:
+        for sym in semboller[:12]:          # prompt'u sisirmemek icin tavan
+            try:
+                bars = mt5.copy_rates_from_pos(sym, mt5.TIMEFRAME_H4, 0, 60)
+            except Exception:
+                continue
+            if bars is None or len(bars) < 25:
+                continue
+            kapanis = [float(b["close"]) for b in bars[:-1]]   # kapali barlar
+            ema20 = _basit_ema(kapanis, 20)
+            if ema20 is None:
+                continue
+            fiyat = kapanis[-1]
+            onceki = _basit_ema(kapanis[:-1], 20)
+            yon = "yukari" if fiyat > ema20 and ema20 >= onceki else (
+                "asagi" if fiyat < ema20 and ema20 <= onceki else "yatay")
+            gunluk = (fiyat / kapanis[-7] - 1.0) * 100.0 if len(kapanis) > 7 else 0.0
+            aralik = [float(b["high"]) - float(b["low"]) for b in bars[-20:-1]]
+            atr = sum(aralik) / len(aralik) if aralik else 0.0
+            ozet[sym] = {
+                "trend_h4": yon,
+                "sonGunDegisimPct": round(gunluk, 2),
+                "oynaklikPct": round((atr / fiyat * 100.0) if fiyat else 0.0, 3),
+            }
+    finally:
+        try:
+            mt5.shutdown()
+        except Exception:
+            pass
+    return ozet
+
+
+def _basit_ema(degerler, uzunluk):
+    if len(degerler) < uzunluk:
+        return None
+    k = 2.0 / (uzunluk + 1.0)
+    ema = sum(degerler[:uzunluk]) / float(uzunluk)
+    for v in degerler[uzunluk:]:
+        ema = v * k + ema * (1.0 - k)
+    return ema
+
+
+def _enstruman_gorusu(name, text):
+    """Konseyin enstruman kararlarini defansif cek: {"XAUUSD|buy": bool}."""
+    if not text:
+        return None
+    m = re.search(r"\{.*\}", text, re.DOTALL)
+    if not m:
+        return None
+    try:
+        raw = json.loads(m.group(0))
+    except Exception:
+        return None
+    kararlar = raw.get("kararlar") if isinstance(raw, dict) else None
+    if not isinstance(kararlar, dict):
+        return None
+    def _ekle(temiz, sym, yon, deger):
+        yon = str(yon).strip().lower()
+        if yon in ("long",):
+            yon = "buy"
+        elif yon in ("short",):
+            yon = "sell"
+        if yon in ("buy", "sell") and isinstance(deger, bool):
+            temiz["%s|%s" % (str(sym).strip().upper(), yon)] = deger
+
+    # Modeller iki bicimden birini uretiyor; IKISI de kabul edilir:
+    #   duz  : {"XAUUSD|buy": true}
+    #   ic-ice: {"XAUUSD": {"buy": true, "sell": false}}
+    # (Ollama canli olarak ic-ice bicimi dondurdu; yalniz duz bicimi kabul
+    #  etmek konseyin o modelin gorusunu SESSIZCE atmasina yol aciyordu.)
+    temiz = {}
+    for anahtar, deger in list(kararlar.items())[:40]:
+        if isinstance(deger, dict):
+            for yon, v in list(deger.items())[:4]:
+                _ekle(temiz, anahtar, yon, v)
+            continue
+        parcalar = str(anahtar).split("|")
+        if len(parcalar) == 2:
+            _ekle(temiz, parcalar[0], parcalar[1], deger)
+    return {"name": name, "kararlar": temiz} if temiz else None
+
+
 def _advisory_sibling(cfg, kind):
     if kind == "heartbeat":
         return str(cfg.get("brain_heartbeat_path") or HEARTBEAT_PATH)
@@ -141,6 +237,58 @@ HESAP DURUMU (JSON):
 
 YALNIZCA su JSON ile cevap ver, baska hicbir sey yazma:
 {"temkin": true|false, "guven": 0.0-1.0, "yorum": "tek cumle Turkce gerekce"}"""
+
+
+ENSTRUMAN_SABLON = """Sen bir prop-firm hesabinin islem kalite denetcisisin. Asagida her
+enstrumanin H4 trend yonu, son gunluk degisimi ve oynakligi var.
+
+Gorevin: HER enstruman+yon cifti icin o yonde YENI islem acmanin su piyasa
+kosullarinda MANTIKLI olup olmadigini soylemek.
+
+KURALLAR:
+- Trende KARSI yon genelde mantiksizdir; "yatay" trendde iki yon de temkinli.
+- Asiri oynaklikta (oynaklikPct yuksek) yon belirsizdir.
+- Supheye dustugunde true de. Amac SACMA islemleri elemek, islem sayisini
+  gereksiz kisitlamak DEGIL.
+
+PIYASA (JSON):
+<PIYASA>
+
+YALNIZCA su JSON ile cevap ver, baska hicbir sey yazma:
+{"kararlar": {"XAUUSD|buy": true, "XAUUSD|sell": false, ...}}"""
+
+
+def build_instrument_prompt(piyasa):
+    return ENSTRUMAN_SABLON.replace(
+        "<PIYASA>", json.dumps(piyasa, ensure_ascii=False, indent=1))
+
+
+# Enstruman kisitlamasi icin gereken EN AZ bagimsiz model sayisi.
+# ⚠️ 2026-08-05: canli turda YALNIZ Ollama cevap verdi ve 12 ciftin HEPSINI
+# kapatti. Tek modelin kaprisi 38 botu birden susturabilir; kullanicinin
+# "3 api ORTAK karar versin" istegi de zaten cogunluk demektir. Iki bagimsiz
+# gorus yoksa kisitlama URETILMEZ (beyin notr davranir).
+MIN_ENSTRUMAN_SAGLAYICI = 2
+
+
+def enstruman_konsensusu(gorusler, piyasa):
+    """Cogunluk: bir yon ancak cevap verenlerin YARISINDAN AZI reddettiyse
+    izinli kalir. Yeterli bagimsiz gorus yoksa None (kisitlama uretilmez)."""
+    gecerli = [g for g in gorusler if g and g.get("kararlar")]
+    if len(gecerli) < MIN_ENSTRUMAN_SAGLAYICI:
+        return None
+    sonuc = {}
+    for sym in piyasa:
+        for yon in ("buy", "sell"):
+            anahtar = "%s|%s" % (sym, yon)
+            oylar = [g["kararlar"].get(anahtar) for g in gecerli
+                     if anahtar in g["kararlar"]]
+            if not oylar:
+                continue                      # kimse konusmadiysa KISITLAMA YOK
+            ret = sum(1 for o in oylar if o is False)
+            # Yarisi+ reddettiyse kapat; esitlik KAPATMA yonune duser.
+            sonuc[anahtar] = not (ret * 2 >= len(oylar))
+    return sonuc or None
 
 
 def build_prompt(ctx):
@@ -256,6 +404,117 @@ def ask_gemini(cfg, prompt):
     return None
 
 
+def _ham_ollama(cfg, prompt):
+    url = str(cfg.get("ollama_url") or "http://localhost:11434").rstrip("/")
+    model = pick_ollama_model(cfg)
+    if not model:
+        return None
+    try:
+        r = requests.post(url + "/api/generate", json={
+            "model": model, "prompt": prompt, "stream": False,
+            "format": "json", "options": {"temperature": 0.2},
+        }, timeout=OLLAMA_TIMEOUT)
+        return (r.json() or {}).get("response") if r.status_code == 200 else None
+    except Exception:
+        return None
+
+
+def _ham_gemini(cfg, prompt):
+    keys = _gemini_keys(cfg)
+    model = str(cfg.get("gemini_model") or "gemini-flash-latest").strip()
+    url = ("https://generativelanguage.googleapis.com/v1beta/models/"
+           "%s:generateContent" % model)
+    for key in keys:
+        try:
+            r = requests.post(url, headers={"x-goog-api-key": key},
+                              json={"contents": [{"parts": [{"text": prompt}]}],
+                                    "generationConfig": {
+                                        "responseMimeType": "application/json",
+                                        "temperature": 0.2}},
+                              timeout=GEMINI_TIMEOUT)
+            if r.status_code != 200:
+                continue
+            parts = (((r.json().get("candidates") or [{}])[0].get("content") or {})
+                     .get("parts") or [{}])
+            return parts[0].get("text")
+        except Exception:
+            continue
+    return None
+
+
+def _ham_claude(cfg, prompt):
+    keys = _claude_keys(cfg)
+    model = str(cfg.get("anthropic_model") or "claude-sonnet-5").strip()
+    for key in keys:
+        try:
+            r = requests.post("https://api.anthropic.com/v1/messages",
+                              headers={"x-api-key": key,
+                                       "anthropic-version": "2023-06-01",
+                                       "content-type": "application/json"},
+                              json={"model": model, "max_tokens": 600,
+                                    "temperature": 0.2,
+                                    "messages": [{"role": "user", "content": prompt}]},
+                              timeout=CLAUDE_TIMEOUT)
+            if r.status_code != 200:
+                continue
+            return "".join(str(p.get("text") or "")
+                           for p in (r.json().get("content") or [{}]))
+        except Exception:
+            continue
+    return None
+
+
+def _claude_keys(cfg):
+    keys = []
+    raw = cfg.get("anthropic_api_keys")
+    if isinstance(raw, list):
+        keys.extend(str(k).strip() for k in raw if str(k or "").strip())
+    tek = str(cfg.get("anthropic_api_key") or "").strip()
+    if tek and tek not in keys:
+        keys.append(tek)
+    env = str(os.environ.get("ANTHROPIC_API_KEY") or "").strip()
+    if env and env not in keys:
+        keys.append(env)
+    return keys
+
+
+def ask_claude(cfg, prompt):
+    """Ucuncu gorus: Anthropic Claude. Anahtar yoksa SESSIZCE devre disi.
+
+    Anahtar BASLIKTA gider (URL'de degil) ve istisna metni maskelenir —
+    Gemini tarafinda yasanan log sizintisinin ayni sinifi burada olusmasin.
+    """
+    keys = _claude_keys(cfg)
+    if not keys:
+        return None
+    model = str(cfg.get("anthropic_model") or "claude-sonnet-5").strip()
+    for idx, key in enumerate(keys, 1):
+        try:
+            r = requests.post(
+                "https://api.anthropic.com/v1/messages",
+                headers={"x-api-key": key,
+                         "anthropic-version": "2023-06-01",
+                         "content-type": "application/json"},
+                json={"model": model, "max_tokens": 300,
+                      "temperature": 0.2,
+                      "messages": [{"role": "user", "content": prompt}]},
+                timeout=CLAUDE_TIMEOUT)
+            if r.status_code != 200:
+                log.warning("claude anahtar#%d: HTTP %s — sonraki denenecek",
+                            idx, r.status_code)
+                continue
+            data = r.json() or {}
+            parcalar = data.get("content") or [{}]
+            metin = "".join(str(p.get("text") or "") for p in parcalar)
+            gorus = _parse_opinion("claude:" + model, metin)
+            if gorus:
+                return gorus
+        except Exception as exc:
+            log.warning("claude anahtar#%d hatasi: %s", idx,
+                        str(exc).replace(key, "***"))
+    return None
+
+
 # ── karar + cikti ────────────────────────────────────────────────────────────
 
 def consensus(opinions):
@@ -268,7 +527,7 @@ def consensus(opinions):
     return {"caution": caution, "votes": caution_votes, "total": len(voters)}
 
 
-def write_advisory(path, caution, opinions, ctx):
+def write_advisory(path, caution, opinions, ctx, enstrumanlar=None):
     """Atomik yaz; beyin yarim dosya okumasin."""
     payload = {
         "generatedAtSec": int(time.time()),
@@ -278,6 +537,9 @@ def write_advisory(path, caution, opinions, ctx):
         "context": {k: ctx.get(k) for k in ("dailyLossPct", "openRiskUsd",
                                             "realizedToday", "bildirimSagligi")
                     if k in ctx},
+        # sembol|yon -> True (izinli) / False (bu yonde yeni giris yok).
+        # Yoksa/bossa beyin HICBIR enstrumani kisitlamaz (notr).
+        "instruments": enstrumanlar or {},
     }
     tmp = str(path) + ".tmp"
     Path(tmp).write_text(json.dumps(payload, ensure_ascii=False, indent=1),
@@ -307,15 +569,44 @@ def run_once(cfg):
         log.warning("baglam bos (heartbeat + backend yok); tavsiye guncellenmedi")
         return None
     prompt = build_prompt(ctx)
-    opinions = [ask_ollama(cfg, prompt), ask_gemini(cfg, prompt)]
+    # UC BAGIMSIZ GORUS: yerel Ollama + Gemini + Claude. Her biri AYNI
+    # soruyu gorur; karar cogunlukla alinir (esitlik temkin yonune duser).
+    opinions = [ask_ollama(cfg, prompt), ask_gemini(cfg, prompt),
+                ask_claude(cfg, prompt)]
     verdict = consensus(opinions)
     if verdict is None:
         # Cevapsizlik gorus degildir: dosya GUNCELLENMEZ, dogal bayatlamayla
         # beyin notr'e doner. Eski temkin karari sonsuza kadar yasamaz.
         log.warning("hicbir AI saglayici cevap vermedi; tavsiye bayatlamaya birakildi")
         return None
+    # ── ENSTRUMAN KARARLARI: "her islem 3 AI'nin ortak karariyla" ───────────
+    # Islem ANINDA LLM beklenmez (1 sn'lik beyin dongusu bloke olamaz).
+    # Konsey periyodik olarak sembol+yon tablosunu uretir; beyin girişte o
+    # tabloyu diskten okuyup ANINDA uygular.
+    enstrumanlar = None
+    try:
+        semboller = [str(x) for x in (cfg.get("council_symbols") or [
+            "XAUUSD", "BTCUSD", "EURUSD", "GBPUSD", "USDJPY", "ETHUSD"])]
+        piyasa = piyasa_baglami(cfg, semboller)
+        if piyasa:
+            ep = build_instrument_prompt(piyasa)
+            enstruman_gorusleri = [
+                _enstruman_gorusu("ollama", _ham_ollama(cfg, ep)),
+                _enstruman_gorusu("gemini", _ham_gemini(cfg, ep)),
+                _enstruman_gorusu("claude", _ham_claude(cfg, ep)),
+            ]
+            enstrumanlar = enstruman_konsensusu(enstruman_gorusleri, piyasa)
+            if enstrumanlar:
+                kapali = [k for k, v in enstrumanlar.items() if not v]
+                log.info("konsey enstruman karari: %d cift, %d kapali%s",
+                         len(enstrumanlar), len(kapali),
+                         (" -> " + ", ".join(kapali[:6])) if kapali else "")
+    except Exception as exc:
+        log.warning("enstruman karari uretilemedi (notr devam): %s", exc)
+
     payload = write_advisory(_advisory_sibling(cfg, "advisory"),
-                             verdict["caution"], opinions, ctx)
+                             verdict["caution"], opinions, ctx,
+                             enstrumanlar=enstrumanlar)
     payload["votes"] = verdict
     post_backend(cfg, payload)
     log.info("konsey karari: %s (%d/%d oy) — %s",

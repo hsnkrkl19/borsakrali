@@ -142,6 +142,99 @@ def t_advisory_still_shrinks_when_min_lot_fits():
     print("OK advisory: kisma mumkunse AYNEN kisar (muafiyet dar kapsamli)")
 
 
+def t_uc_ai_ortak_karari_ve_fail_open():
+    """Kullanici: "3 api kullansin ollama gemini ve claude, hepsi ortak karar
+    versin islemlere". Karar COGUNLUKLA alinir; kimse konusmazsa KISITLAMA YOK.
+    """
+    piyasa = {"XAUUSD": {}, "EURUSD": {}}
+    g = lambda ad, kararlar: {"name": ad, "kararlar": kararlar}
+
+    # 3 model: 2 red -> kapali; 1 red -> acik
+    sonuc = ai_council.enstruman_konsensusu([
+        g("ollama", {"XAUUSD|buy": False, "EURUSD|buy": True}),
+        g("gemini", {"XAUUSD|buy": False, "EURUSD|buy": True}),
+        g("claude", {"XAUUSD|buy": True, "EURUSD|buy": False}),
+    ], piyasa)
+    assert sonuc["XAUUSD|buy"] is False, sonuc     # 2/3 red
+    assert sonuc["EURUSD|buy"] is True, sonuc      # 1/3 red
+
+    # Esitlik KAPATMA yonune duser (guvenli taraf)
+    sonuc = ai_council.enstruman_konsensusu([
+        g("a", {"XAUUSD|sell": False}), g("b", {"XAUUSD|sell": True}),
+    ], piyasa)
+    assert sonuc["XAUUSD|sell"] is False, sonuc
+
+    # Hic gorus yok -> None (beyin notr davranir, kisitlama uretilmez)
+    assert ai_council.enstruman_konsensusu([None, None, None], piyasa) is None
+    # ⚠️ TEK model 38 botu birden susturamaz: canli turda yalniz Ollama cevap
+    # verdi ve 12 ciftin HEPSINI kapatmisti. En az 2 bagimsiz gorus sart.
+    tek = ai_council.enstruman_konsensusu(
+        [g("ollama", {"XAUUSD|buy": False, "XAUUSD|sell": False}), None, None], piyasa)
+    assert tek is None, ("tek saglayici kisitlama uretmemeli", tek)
+    iki = ai_council.enstruman_konsensusu(
+        [g("a", {"XAUUSD|buy": False}), g("b", {"XAUUSD|buy": False})], piyasa)
+    assert iki["XAUUSD|buy"] is False, iki
+    # Bir cift hakkinda kimse konusmadiysa o cift TABLOYA GIRMEZ
+    sonuc = ai_council.enstruman_konsensusu(
+        [g("a", {"XAUUSD|buy": True}), g("b", {"XAUUSD|buy": True})], piyasa)
+    assert "EURUSD|sell" not in sonuc, sonuc
+    # Modeller IKI bicimden birini dondurur; ikisi de kabul edilmeli.
+    # (Ollama canli olarak ic-ice bicimi dondurdu ve gorusu sessizce atiliyordu.)
+    duz = ai_council._enstruman_gorusu("m", '{"kararlar": {"XAUUSD|buy": true}}')
+    icice = ai_council._enstruman_gorusu(
+        "m", '{"kararlar": {"XAUUSD": {"buy": true, "sell": false}}}')
+    assert duz["kararlar"] == {"XAUUSD|buy": True}, duz
+    assert icice["kararlar"] == {"XAUUSD|buy": True, "XAUUSD|sell": False}, icice
+    print("OK uc-AI ortak karari: cogunluk + esitlikte kapat + sessizlik kisitlamaz")
+
+
+def t_beyin_enstruman_kararini_fail_open_okur():
+    """Beyin tarafi: dosya yok/bayat/bozuk/karar yok -> IZIN VAR."""
+    import time as _t
+    now = _t.time()
+    with tempfile.TemporaryDirectory() as tmp:
+        yol = os.path.join(tmp, "ai_advisory.json")
+
+        def yaz(veri):
+            with open(yol, "w", encoding="utf-8") as fh:
+                json.dump(veri, fh)
+
+        # Taze RED
+        yaz({"generatedAtSec": now, "instruments": {"XAUUSD|buy": False}})
+        assert account_brain.load_instrument_verdict(yol, "XAUUSD", "buy", now) is False
+        # long/buy es anlamli
+        assert account_brain.load_instrument_verdict(yol, "XAUUSD", "long", now) is False
+        # Karari olmayan cift -> IZIN
+        assert account_brain.load_instrument_verdict(yol, "EURUSD", "sell", now) is True
+        # Ters yon -> IZIN
+        assert account_brain.load_instrument_verdict(yol, "XAUUSD", "sell", now) is True
+        # BAYAT dosya -> IZIN (olu konsey islemleri durduramaz)
+        yaz({"generatedAtSec": now - 7200, "instruments": {"XAUUSD|buy": False}})
+        assert account_brain.load_instrument_verdict(yol, "XAUUSD", "buy", now) is True
+        # Bozuk / olmayan dosya -> IZIN
+        with open(yol, "w", encoding="utf-8") as fh:
+            fh.write("{yarim")
+        assert account_brain.load_instrument_verdict(yol, "XAUUSD", "buy", now) is True
+        assert account_brain.load_instrument_verdict(
+            os.path.join(tmp, "yok.json"), "XAUUSD", "buy", now) is True
+        # Bos tablo -> IZIN
+        yaz({"generatedAtSec": now, "instruments": {}})
+        assert account_brain.load_instrument_verdict(yol, "XAUUSD", "buy", now) is True
+    print("OK beyin enstruman karari: her hata durumunda IZIN (fail-open)")
+
+
+def t_claude_anahtar_yoksa_sessizce_devre_disi():
+    with patch.dict(os.environ, {}, clear=False):
+        os.environ.pop("ANTHROPIC_API_KEY", None)
+        assert ai_council.ask_claude({}, "p") is None
+    # Anahtar BASLIKTA gider, URL'de DEGIL (log sizintisi olmasin)
+    kaynak = open(os.path.join(os.path.dirname(os.path.abspath(ai_council.__file__)),
+                               "ai_council.py"), encoding="utf-8").read()
+    assert '"x-api-key": key' in kaynak
+    assert 'str(exc).replace(key, "***")' in kaynak
+    print("OK claude: anahtar yoksa devre disi, anahtar loglanmaz")
+
+
 # ── konsey tarafi ────────────────────────────────────────────────────────────
 
 def t_consensus_majority_and_silence():
@@ -273,6 +366,9 @@ if __name__ == "__main__":
     t_advisory_scales_entry_risk_but_cannot_block()
     t_advisory_never_vetoes_entry_on_real_xauusd_spec()
     t_advisory_still_shrinks_when_min_lot_fits()
+    t_uc_ai_ortak_karari_ve_fail_open()
+    t_beyin_enstruman_kararini_fail_open_okur()
+    t_claude_anahtar_yoksa_sessizce_devre_disi()
     t_consensus_majority_and_silence()
     t_parse_opinion_defensive()
     t_run_once_writes_atomic_advisory_and_posts()
