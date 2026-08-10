@@ -13,7 +13,6 @@
   "brain_required": true,
   "risk_fail_closed": true,
   "deviation_points": 30,
-
   "risk_profile": "balanced",
   "aggressive_opt_in": false,
   "trade_risk_pct": 0.25,
@@ -27,7 +26,6 @@
   "min_rr": 3.0,
   "max_lot": 1.0,
   "account_tier_max_lot": 1.0,
-
   "daily_entry_brake_pct": 1.5,
   "daily_loss_warning_pct_account": 4.0,
   "daily_loss_flatten_pct_account": 4.25,
@@ -36,7 +34,6 @@
   "total_drawdown_flatten_pct_account": 9.25,
   "max_total_drawdown_pct_account": 9.5,
   "profit_target_pct_account": 10.0,
-
   "same_underlying_one_position": true,
   "reversal_confirmation_min": 0.85,
   "reversal_hysteresis": 0.15,
@@ -45,23 +42,27 @@
   "heartbeat_max_age_seconds": 10,
   "lifecycle_report_max_age_seconds": 30,
   "reservation_ttl_seconds": 120,
-
   "profit_lock_arm_usd": 20.0,
   "profit_lock_floor_usd": 15.0,
   "profit_giveback_pct": 20.0,
   "hype_window_seconds": 20,
   "hype_giveback_pct": 12.0,
   "adverse_exit_r": 0.55,
-  "adverse_acceleration_r": 0.20,
+  "adverse_acceleration_r": 0.2,
   "adverse_window_seconds": 12,
   "trail_start_r": 3.0,
   "trail_distance_r": 1.0,
   "profit_giveback_activation_r": 1.0,
   "reentry_cooldown_minutes": 45.0,
   "min_discretionary_exit_usd": 15.0,
-
   "report_interval_seconds": 2,
   "closed_history_hours": 48,
   "manage_magic_zero": false,
-  "llm_live_order_authority": false
+  "llm_live_order_authority": false,
+  "brain_min_rr": 3.0,
+  "risk_usd_per_100k_min": 500.0,
+  "risk_usd_per_100k_max": 2000.0,
+  "max_trade_risk_usd": 1000000.0,
+  "min_giveback_peak_usd": 100.0,
+  "est_commission_per_lot": 5.0
 }

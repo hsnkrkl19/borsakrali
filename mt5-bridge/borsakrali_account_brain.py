@@ -102,7 +102,7 @@ DEFAULTS = {
     "trail_distance_r": 1.0,
     # Kar kilidi dolarla degil R ile silahlanir: tepe en az bu kadar R olmadan
     # erken kar-alma kapanisi yapilmaz (kurus-islem/churn onlemi).
-    "profit_giveback_activation_r": 2.5,
+    "profit_giveback_activation_r": 1.0,
     # SURU / TERS-DONUS DEDEKTORU (kullanici 2026-07-30): ayni yonde >=N pozisyon
     # varken cogunlugu zarardaysa VE yonun toplam R'si pencere tepesinden hizla
     # dusuyorsa, o yonun ZARARDAKI pozisyonlari topluca kesilir; ayni yone

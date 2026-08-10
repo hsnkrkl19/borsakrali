@@ -570,7 +570,7 @@ class ConfigYururlukteTests(unittest.TestCase):
         p = adapter.build_config({"race_mode": True})
         self.assertEqual(p.race_max_open_risk_pct, 3.0)
         self.assertEqual(p.daily_entry_brake_pct, 1.5)
-        self.assertEqual(p.max_trade_risk_usd, 250.0)
+        self.assertEqual(p.max_trade_risk_usd, 1_000_000.0)  # mutlak emniyet; olcekli tavan asil
 
     def test_brain_max_lot_olu_ayar_degil(self):
         """account_tier_max_lot=1.0 config'te duruyordu ve _value() ilk bulunan

@@ -87,7 +87,10 @@ class BrainConfig:
     # Ayrica bu tavan enstrumanlar arasi dolar-riskini de esitler: lot,
     # tavan/stop-mesafesi oraniyla kucultuldugu icin 1 lot altin ile 1 lot
     # EURUSD ayni riski tasir.
-    max_trade_risk_usd: float = 250.0
+    # ⚠️ Default YUKSEK: max_trade_risk_usd artik hesap-olcekli tavani (per_100k)
+    # ezmemeli. Yalniz asiri yuksek config'e karsi MUTLAK emniyet. 2026-08-08
+    # denetimi: default 250 iken hesap-olcekli 985-3940 SESSIZCE 250'ye cokuyordu.
+    max_trade_risk_usd: float = 1_000_000.0
     # Kullanici karari (2026-08-08): islem basi risk HESAP BOYUTUNA olcekli.
     # 100K hesap icin 500-2000 $; equity ile lineer olcekler (200K -> 1000-4000).
     # Bu, "gereksiz buyuk pozisyon acip kucuk karla kapatma" + asiri komisyon
@@ -121,7 +124,9 @@ class BrainConfig:
     reversal_cooldown_seconds: float = 15.0
     heartbeat_max_age_seconds: float = 10.0
     reservation_ttl_seconds: float = 120.0
-    profit_giveback_activation_r: float = 2.5
+    # 1.0: mutlak esik (min_giveback_peak_usd=100 $) mikro-kari zaten onler;
+    # 2.5R gereksizce yuksekti ve 1-2.5R bandini korumasiz birakiyordu (denetim).
+    profit_giveback_activation_r: float = 1.0
     max_profit_giveback_fraction: float = 0.25
     volatility_exit_multiple: float = 2.0
     volatility_adverse_r: float = 0.25

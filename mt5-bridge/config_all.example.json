@@ -6,11 +6,9 @@
   "account_server": "",
   "terminal_path": "",
   "poll_seconds": 10,
-
   "risk_profile": "balanced",
   "aggressive_opt_in": false,
   "_AGRESIF": "Agresif profil otomatik acilmaz. Ayri bir yerel config kopyasinda risk_profile=aggressive ve aggressive_opt_in=true birlikte verilmeden kullanilmaz; hesap hard-limitleri yine yukseltilmez.",
-
   "_GUVENLIK": "Ilk kurulum ve her degisiklikten sonra dry_run=true ile dogrula. Canli emir yalniz kullanici dry_run=false yaptiginda acilir.",
   "dry_run": true,
   "race_mode": false,
@@ -18,13 +16,11 @@
   "central_brain_enabled": true,
   "brain_required": true,
   "risk_fail_closed": true,
-
   "lot_mode": "risk",
   "fixed_lot": 0.01,
   "risk_pct": 0.25,
   "max_lot": 1.0,
   "account_tier_max_lot": 1.0,
-
   "max_open_total": 0,
   "max_open_per_bot": 0,
   "max_per_symbol_side": 1,
@@ -32,7 +28,6 @@
   "min_feed_rr": 1.5,
   "min_confidence": 60,
   "deviation_points": 30,
-
   "max_portfolio_risk_pct": 1.5,
   "max_open_risk_pct": 1.5,
   "hard_max_open_risk_pct": 2.0,
@@ -40,7 +35,6 @@
   "max_bot_risk_pct": 0.5,
   "min_expected_profit_usd": 15.0,
   "min_initial_risk_usd": 15.0,
-
   "weekend_flatten": true,
   "news_blackout": true,
   "max_daily_loss_pct": 1.5,
@@ -53,14 +47,19 @@
   "profit_target_pct_account": 10.0,
   "loss_reopen_cooldown_min": 45,
   "close_on_feed_drift": true,
-
   "drift_confirm_turns": 3,
   "min_hold_minutes": 20,
   "reopen_cooldown_minutes": 30,
   "feed_drop_guard_pct": 40,
-
   "shadow_journal": true,
   "allow_categories": [],
   "category_lot_mult": {},
-  "symbol_aliases": {}
+  "symbol_aliases": {},
+  "brain_min_rr": 3.0,
+  "risk_usd_per_100k_min": 500.0,
+  "risk_usd_per_100k_max": 2000.0,
+  "max_trade_risk_usd": 1000000.0,
+  "min_giveback_peak_usd": 100.0,
+  "est_commission_per_lot": 5.0,
+  "profit_giveback_activation_r": 1.0
 }

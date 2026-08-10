@@ -157,8 +157,11 @@ def build_config(cfg):
         min_initial_risk_usd=max(15.0, float(_value(
             cfg, "min_initial_risk_usd", default=15.0))),
         # Islem basina mutlak dolar tavani: config yalniz DUSURebilir.
+        # Default 1e6: hesap-olcekli tavan (per_100k) baglayici kalsin; bu yalniz
+        # asiri config'e karsi mutlak emniyet (2026-08-08 denetimi: 250 default
+        # olcekli tavani sessizce oldururuyordu).
         max_trade_risk_usd=_bounded(
-            _value(cfg, "max_trade_risk_usd", default=250.0), 250.0, 15.0, 100_000.0),
+            _value(cfg, "max_trade_risk_usd", default=1_000_000.0), 1_000_000.0, 15.0, 1e9),
         risk_halving_daily_loss_pct=_bounded(
             _value(cfg, "risk_halving_daily_loss_pct", default=0.75), 0.75, 0.05, 4.0),
         race_max_open_risk_pct=_bounded(
@@ -181,7 +184,7 @@ def build_config(cfg):
         reservation_ttl_seconds=max(10.0, float(_value(
             cfg, "reservation_ttl_seconds", default=120))),
         profit_giveback_activation_r=max(0.1, float(_value(
-            cfg, "profit_giveback_activation_r", default=2.5))),
+            cfg, "profit_giveback_activation_r", default=1.0))),
         # Hesap-olcekli risk (kullanici karari 2026-08-08): 100K icin 500-2000 $.
         risk_usd_per_100k_min=_bounded(
             _value(cfg, "risk_usd_per_100k_min", default=500.0), 500.0, 1.0, 100_000.0),

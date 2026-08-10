@@ -101,6 +101,25 @@ class HesapOlcekliRiskTests(unittest.TestCase):
             self.assertGreaterEqual(r.risk_usd, beklenen_taban - 1.0, equity)
             self.assertLessEqual(r.risk_usd, beklenen_taban + 1.0, equity)
 
+    def test_DEFAULT_cap_ile_taban_yururlukte_5inci_katman_regresyonu(self):
+        """⚠️ 2026-08-08 denetim bulgusu: max_trade_risk_usd default 250 iken
+        hesap-olcekli tavan SESSIZCE 250'ye cokuyordu. Ozellik yalniz elle
+        duzenlenmis canli config sayesinde calisiyordu (5. kirpma katmani).
+
+        Bu test max_trade_risk_usd'yi ENJEKTE ETMEDEN 197K'da riskin >= taban
+        (985 $) oldugunu dogrular. Cap default'u 250'ye donerse KIRMIZI olur.
+        """
+        big = snapshot(balance=197_000, equity=197_000, start_balance=197_000,
+                       day_start_equity=197_000, high_water_equity=197_000)
+        spec = SymbolSpec(tick_size=0.00001, tick_value=1.0,
+                          volume_min=0.01, volume_step=0.01, volume_max=1000.0)
+        req = request(entry=1.10000, stop=1.09000, target=1.13000)
+        # max_trade_risk_usd VERILMEDI -> default kullanilir. Taban devrede olmali.
+        r = evaluate_pretrade(big, (), req, spec, BrainConfig(race_mode=True))
+        self.assertTrue(r.allowed, r.reasons)
+        self.assertGreaterEqual(r.risk_usd, 985.0 - 5.0,
+                                "max_trade_risk_usd default olcekli tabani ezmemeli")
+
     def test_taban_hesap_korumasini_asamaz(self):
         # Toplam acik risk race tavani %100; ilk islemde taban race_total_open'i
         # asmamali (guvenlik limiti baglayici kalir).
@@ -268,7 +287,10 @@ class PureDecisionTests(unittest.TestCase):
         # tick_value 100, stop 1 birim -> 1 lot = 100 $ risk.
         spec = SymbolSpec(tick_size=1, tick_value=100, volume_min=0.01,
                           volume_step=0.01, volume_max=10)
-        capped = evaluate_pretrade(big, (), request(), spec, BrainConfig())
+        # Yeni semantik (2026-08-08): max_trade_risk_usd artik MUTLAK emniyet
+        # (default cok yuksek); cap-i test etmek icin ELLE 250 ver + taban kapat.
+        capped = evaluate_pretrade(big, (), request(), spec,
+            BrainConfig(max_trade_risk_usd=250, risk_usd_per_100k_min=0.0))
         self.assertTrue(capped.allowed, capped.reasons)
         self.assertLessEqual(capped.risk_usd, 250.0 + 1e-9)
         self.assertAlmostEqual(capped.lot, 2.5)          # 250/100
@@ -291,8 +313,9 @@ class PureDecisionTests(unittest.TestCase):
         # FOREX benzeri: 1 lot = 200 $ risk (dar stop)
         forex = SymbolSpec(tick_size=1, tick_value=200, volume_min=0.01,
                            volume_step=0.01, volume_max=10)
-        a = evaluate_pretrade(big, (), request(), altin, BrainConfig())
-        f = evaluate_pretrade(big, (), request(), forex, BrainConfig())
+        cfg = BrainConfig(max_trade_risk_usd=250, risk_usd_per_100k_min=0.0)
+        a = evaluate_pretrade(big, (), request(), altin, cfg)
+        f = evaluate_pretrade(big, (), request(), forex, cfg)
         self.assertAlmostEqual(a.lot, 0.25)              # 250/1000
         self.assertAlmostEqual(f.lot, 1.25)              # 250/200
         # Lotlar 5 kat farkli ama DOLAR RISKI ayni:

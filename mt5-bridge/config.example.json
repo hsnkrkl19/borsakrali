@@ -64,5 +64,12 @@
   "total_drawdown_flatten_pct_account": 9.25,
   "max_total_drawdown_pct_account": 9.5,
   "profit_target_pct_account": 10.0,
-  "loss_reopen_cooldown_min": 45
+  "loss_reopen_cooldown_min": 45,
+  "brain_min_rr": 3.0,
+  "risk_usd_per_100k_min": 500.0,
+  "risk_usd_per_100k_max": 2000.0,
+  "max_trade_risk_usd": 1000000.0,
+  "min_giveback_peak_usd": 100.0,
+  "est_commission_per_lot": 5.0,
+  "profit_giveback_activation_r": 1.0
 }
