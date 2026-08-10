@@ -76,21 +76,31 @@ def t_equity_baselines_ignore_balance_offset():
 def t_profit_giveback_exit():
     cfg = dict(brain.DEFAULTS)
     now = time.time()
-    meta = {"peakPnl": 100.0, "peakSec": now - 30, "lastPnl": 100.0,
+    # 2026-08-08 kullanici karari: kar kilidi 2.5R'de VE peak NET kar min 100 $
+    # (+komisyon) olmadan silahlanmaz. risk $100 -> arm = 2.5R = $250.
+    # peak $300 (>=250, >=100), now $200 <= locked(300*0.8=240) -> giveback.
+    meta = {"peakPnl": 300.0, "peakSec": now - 30, "lastPnl": 300.0,
             "lastSec": now - 2, "initialRiskUsd": 100.0}
-    reason = brain._dynamic_exit_reason(cfg, pos(79.0), meta, now)
+    reason = brain._dynamic_exit_reason(cfg, pos(200.0), meta, now)
     assert reason and reason.startswith("profit-giveback"), reason
     # Peak armed değilse kuruş kârında gereksiz çıkış yok.
     meta2 = {"peakPnl": 12.0, "peakSec": now, "lastPnl": 12.0,
              "lastSec": now - 2, "initialRiskUsd": 100.0}
     assert brain._dynamic_exit_reason(cfg, pos(10.0), meta2, now) is None
-    # 1R gorulmeden kar kilidi SILAHLANMAZ: risk $100, tepe $50 (0.5R),
-    # simdiki $35 -> eski davranis ($20 arm) erken kapatirdi, artik HOLD.
+    # 0.5R tepede giveback tetiklenmez (churn onlemi).
     meta3 = {"peakPnl": 50.0, "peakSec": now - 30, "lastPnl": 50.0,
              "lastSec": now - 2, "initialRiskUsd": 100.0}
     assert brain._dynamic_exit_reason(cfg, pos(35.0), meta3, now) is None, \
         "0.5R tepede giveback tetiklenmemeli (churn onlemi)"
-    print("OK peak-profit giveback (1R arm) + tiny-PnL anti-churn")
+    # ⚠️ YENI INVARYANT (2026-08-08): MUTLAK esik. risk $30 -> 3R = $90 tepe,
+    # yani R-esigi (2.5R=75) ASILDI ama peak $90 < net_esik (~$100.5).
+    # Eski kod burada kar kilidini silahlandirir ve ~$70'de kapatirdi (mikro-kar).
+    # Artik komisyon+100 $ NET kar olmadan pozisyon kapanmaz.
+    meta4 = {"peakPnl": 90.0, "peakSec": now - 30, "lastPnl": 90.0,
+             "lastSec": now - 2, "initialRiskUsd": 30.0}
+    assert brain._dynamic_exit_reason(cfg, pos(65.0), meta4, now) is None, \
+        "3R bile olsa peak < $100 iken giveback tetiklenmemeli (mikro-kar onlemi)"
+    print("OK kar kilidi: 2.5R arm + MUTLAK $100+komisyon esik (mikro-kar bitti)")
 
 
 def t_fast_adverse_exit():

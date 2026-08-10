@@ -181,7 +181,15 @@ def build_config(cfg):
         reservation_ttl_seconds=max(10.0, float(_value(
             cfg, "reservation_ttl_seconds", default=120))),
         profit_giveback_activation_r=max(0.1, float(_value(
-            cfg, "profit_giveback_activation_r", default=1.0))),
+            cfg, "profit_giveback_activation_r", default=2.5))),
+        # Hesap-olcekli risk (kullanici karari 2026-08-08): 100K icin 500-2000 $.
+        risk_usd_per_100k_min=_bounded(
+            _value(cfg, "risk_usd_per_100k_min", default=500.0), 500.0, 1.0, 100_000.0),
+        risk_usd_per_100k_max=_bounded(
+            _value(cfg, "risk_usd_per_100k_max", default=2000.0), 2000.0, 1.0, 100_000.0),
+        # Kar kilidi mutlak esigi (komisyon+100 $ olmadan erken cikis yok).
+        min_giveback_peak_usd=_bounded(
+            _value(cfg, "min_giveback_peak_usd", default=100.0), 100.0, 0.0, 100_000.0),
         max_profit_giveback_fraction=_bounded(
             _value(cfg, "max_profit_giveback_fraction", default=0.25), 0.25, 0.05, 0.9),
         volatility_exit_multiple=max(1.01, float(_value(

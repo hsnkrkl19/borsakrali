@@ -88,6 +88,16 @@ class BrainConfig:
     # tavan/stop-mesafesi oraniyla kucultuldugu icin 1 lot altin ile 1 lot
     # EURUSD ayni riski tasir.
     max_trade_risk_usd: float = 250.0
+    # Kullanici karari (2026-08-08): islem basi risk HESAP BOYUTUNA olcekli.
+    # 100K hesap icin 500-2000 $; equity ile lineer olcekler (200K -> 1000-4000).
+    # Bu, "gereksiz buyuk pozisyon acip kucuk karla kapatma" + asiri komisyon
+    # sorununu kokten cozer: her islem anlamli boyutta olur, mikro-islem elenir.
+    risk_usd_per_100k_min: float = 500.0
+    risk_usd_per_100k_max: float = 2000.0
+    # Kar kilidi (giveback) MUTLAK esik: peak kar bunu gecmeden erken cikis YOK.
+    # Eskiden 1R'de (kucuk riskte ~15-30 $) tetikleniyordu -> 61 mikro-kar
+    # kapanisi + komisyon kaybi. Kar komisyon+100 $ olmadan pozisyon kapanmaz.
+    min_giveback_peak_usd: float = 100.0
     # YARIS MODU TOPLAM ACIK RISK TAVANI (kullanici karari D3, 2026-07-31).
     # Yaris giris SAYISINI serbest birakir ama hesabin toplam acik riskini
     # sinirsiz birakamaz: 2026-07-31'de 20+ pozisyon neredeyse tamami ayni
@@ -111,7 +121,7 @@ class BrainConfig:
     reversal_cooldown_seconds: float = 15.0
     heartbeat_max_age_seconds: float = 10.0
     reservation_ttl_seconds: float = 120.0
-    profit_giveback_activation_r: float = 1.0
+    profit_giveback_activation_r: float = 2.5
     max_profit_giveback_fraction: float = 0.25
     volatility_exit_multiple: float = 2.0
     volatility_adverse_r: float = 0.25
@@ -191,6 +201,11 @@ class BrainConfig:
             raise ValueError("cooldown, heartbeat age and reservation TTL must be positive")
         if self.profit_giveback_activation_r <= 0:
             raise ValueError("profit_giveback_activation_r must be positive")
+        # 0 = taban KAPALI (mikro-islem serbest). Uretimde 500, testlerde 0.
+        if not (0 <= self.risk_usd_per_100k_min <= self.risk_usd_per_100k_max):
+            raise ValueError("risk_usd_per_100k_min must be in [0, max]")
+        if self.min_giveback_peak_usd < 0:
+            raise ValueError("min_giveback_peak_usd must be non-negative")
         if not 0 < self.max_profit_giveback_fraction < 1:
             raise ValueError("max_profit_giveback_fraction must be in (0,1)")
         if self.volatility_exit_multiple <= 1 or self.volatility_adverse_r < 0:
@@ -351,7 +366,11 @@ def decide_exit(context: ExitContext, config: BrainConfig,
     metrics = {"current_r": current_r, "peak_r": peak_r,
                "profit_giveback_fraction": giveback,
                "volatility_ratio": volatility_ratio}
+    # Kar kilidi: peak yeterli R'ye ULASMIS, MUTLAK kar esigini (komisyon+100 $)
+    # GECMIS ve giveback esigini asmis olmali. Mutlak esik olmadan kucuk riskli
+    # islemler mikro-karla kapaniyordu (canli: 61 islem <100 $, komisyon -561 $).
     if (peak_r >= config.profit_giveback_activation_r
+            and peak >= config.min_giveback_peak_usd
             and giveback >= config.max_profit_giveback_fraction):
         return ExitDecision(ExitAction.EXIT, ("peak_profit_giveback",), metrics)
     if (volatility_ratio >= config.volatility_exit_multiple
@@ -523,8 +542,14 @@ def evaluate_pretrade(snapshot: AccountSnapshot | None,
             "account": equity * config.max_open_risk_pct / 100.0 - current_account,
             "hard_account": equity * config.hard_max_open_risk_pct / 100.0 - current_account,
         }
-    # Mutlak dolar tavanı her iki profilde de bağlayıcıdır.
-    limits_usd["trade_usd_cap"] = float(config.max_trade_risk_usd)
+    # Işlem başı risk HESAP BOYUTUNA ölçekli (kullanıcı kararı 2026-08-08):
+    # 100K için 500-2000 $, equity ile lineer. max_trade_risk_usd artık YALNIZ
+    # mutlak bir üst emniyet sınırı (config'ten çok yüksek verilirse diye).
+    olcek = max(0.1, equity / 100_000.0)
+    risk_tavan = min(float(config.max_trade_risk_usd),
+                     float(config.risk_usd_per_100k_max) * olcek)
+    risk_taban = float(config.risk_usd_per_100k_min) * olcek
+    limits_usd["trade_usd_cap"] = risk_tavan
     # D2g — REJİM KISICISI: kötü bir günde aynı boyutta ısrar etmek çukuru
     # derinleştirir. Günlük zarar eşiği aşılınca YENİ girişlerin riski yarıya
     # iner. Açık pozisyonlara dokunmaz; mutlak frenler aynen yerinde kalır.
@@ -541,6 +566,15 @@ def evaluate_pretrade(snapshot: AccountSnapshot | None,
         advisory_limits["trade"] = limits_usd["trade"] * advisory
         advisory_limits["trade_usd_cap"] = limits_usd["trade_usd_cap"] * advisory
     risk_budget = min(advisory_limits.values())
+    # TABAN: bütçe tabanın altındaysa tabana çıkarılır (lot büyür) — mikro-işlem
+    # elenir. Ama HESAP KORUMASI limitlerini (race_total_open / account / hard)
+    # ASLA aşamaz; rejim kısıcısı ve AI temkini tabanı da kısar ("yalnız kıs").
+    guvenlik_min = min([v for k, v in advisory_limits.items()
+                        if k not in ("trade", "trade_usd_cap")],
+                       default=float("inf"))
+    etkili_taban = min(risk_taban, risk_tavan) * scale * advisory
+    if _finite_positive(etkili_taban):
+        risk_budget = min(max(risk_budget, etkili_taban), guvenlik_min)
     if not _finite_positive(risk_budget):
         return _reject("no_remaining_risk_budget", tier)
     sizing = _safe_lot(request, spec, risk_budget)
@@ -655,6 +689,40 @@ def load_advisory_scale(path: str | os.PathLike[str], now_ts: float,
         return min(1.0, max(ADVISORY_MIN_SCALE, scale))
     except Exception:
         return 1.0
+
+
+def load_instrument_verdict(path: str | os.PathLike[str], symbol: str,
+                            direction: str, now_ts: float,
+                            max_age_seconds: float = ADVISORY_MAX_AGE_SEC) -> bool:
+    """AI konseyinin bu sembol+yon icin ortak karari. HER hata durumunda True.
+
+    Kullanici istegi (2026-08-05): "3 api kullansin, hepsi ortak karar versin
+    islemlere". Karar ISLEM ANINDA uretilmez (1 sn'lik beyin dongusu bir LLM
+    cagrisini bekleyemez); konsey periyodik olarak sembol+yon tablosu uretir,
+    burada ANINDA okunur.
+
+    FAIL-OPEN: dosya yok/bayat/bozuk ya da o cift icin karar yoksa IZIN VAR.
+    Olu bir AI sureci islemleri durduramaz — "tum botlar islem alsin" cizgisi.
+    """
+    try:
+        raw = json.loads(Path(path).read_text(encoding="utf-8"))
+        if not isinstance(raw, dict):
+            return True
+        generated = float(raw.get("generatedAtSec", 0) or 0)
+        age = now_ts - generated
+        if age < -60 or age > max_age_seconds:
+            return True
+        kararlar = raw.get("instruments")
+        if not isinstance(kararlar, dict) or not kararlar:
+            return True
+        yon = str(direction or "").lower()
+        yon = "buy" if yon in ("buy", "long") else ("sell" if yon in ("sell", "short") else "")
+        if not yon:
+            return True
+        deger = kararlar.get("%s|%s" % (str(symbol or "").upper(), yon))
+        return True if deger is None else bool(deger)
+    except Exception:
+        return True
 
 
 def daily_loss_pct(snapshot: AccountSnapshot) -> float:

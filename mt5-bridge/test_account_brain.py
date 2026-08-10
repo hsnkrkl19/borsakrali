@@ -67,9 +67,60 @@ class ConfigAndTierTests(unittest.TestCase):
         self.assertEqual(canonical_underlying("GOLDmicro"), "XAUUSD")
 
 
+class HesapOlcekliRiskTests(unittest.TestCase):
+    """2026-08-08 kullanici karari: islem basi risk hesap boyutuna olcekli
+    (100K icin 500-2000 $) ve mikro-islem elenir. Bu testler degisikligin
+    GERCEKTEN yururlukte oldugunu kanitlar (aksi halde config sessizce yutulur)."""
+
+    def test_taban_mikro_islemi_buyutur(self):
+        # 100K hesap, dar stop: taban KAPALI iken kucuk risk cikardi.
+        big = snapshot(balance=100_000, equity=100_000, start_balance=100_000,
+                       day_start_equity=100_000, high_water_equity=100_000)
+        spec = SymbolSpec(tick_size=0.00001, tick_value=1.0,
+                          volume_min=0.01, volume_step=0.01, volume_max=100.0)
+        req = request(entry=1.10000, stop=1.09000, target=1.13000)
+        kapali = evaluate_pretrade(big, (), req, spec,
+                                   BrainConfig(race_mode=True, risk_usd_per_100k_min=0.0))
+        acik = evaluate_pretrade(big, (), req, spec,
+                                 BrainConfig(race_mode=True, max_trade_risk_usd=10000))
+        self.assertTrue(kapali.allowed and acik.allowed)
+        # Taban acikken risk 500 $ civarina cikar (mikro-islem elenir).
+        self.assertGreater(acik.risk_usd, kapali.risk_usd)
+        self.assertGreaterEqual(acik.risk_usd, 490.0)
+        self.assertLessEqual(acik.risk_usd, 500.0 + 1.0)
+
+    def test_hesap_boyutuna_lineer_olcekler(self):
+        spec = SymbolSpec(tick_size=0.00001, tick_value=1.0,
+                          volume_min=0.01, volume_step=0.01, volume_max=1000.0)
+        req = request(entry=1.10000, stop=1.09000, target=1.13000)
+        for equity, beklenen_taban in ((100_000, 500.0), (200_000, 1000.0)):
+            snap = snapshot(balance=equity, equity=equity, start_balance=equity,
+                            day_start_equity=equity, high_water_equity=equity)
+            r = evaluate_pretrade(snap, (), req, spec,
+                                  BrainConfig(race_mode=True, max_trade_risk_usd=10000))
+            self.assertGreaterEqual(r.risk_usd, beklenen_taban - 1.0, equity)
+            self.assertLessEqual(r.risk_usd, beklenen_taban + 1.0, equity)
+
+    def test_taban_hesap_korumasini_asamaz(self):
+        # Toplam acik risk race tavani %100; ilk islemde taban race_total_open'i
+        # asmamali (guvenlik limiti baglayici kalir).
+        big = snapshot(balance=100_000, equity=100_000, start_balance=100_000,
+                       day_start_equity=100_000, high_water_equity=100_000)
+        # race_max_open_risk_pct cok kucuk -> guvenlik limiti tabandan dusuk
+        cfg = BrainConfig(race_mode=True, race_max_open_risk_pct=0.3)   # 300 $
+        spec = SymbolSpec(tick_size=0.00001, tick_value=1.0,
+                          volume_min=0.01, volume_step=0.01, volume_max=1000.0)
+        req = request(entry=1.10000, stop=1.09000, target=1.13000)
+        r = evaluate_pretrade(big, (), req, spec, cfg)
+        if r.allowed:
+            # Taban 500 istese de guvenlik 300 -> risk 300'u ASMAZ.
+            self.assertLessEqual(r.risk_usd, 300.0 + 1.0)
+
+
 class PureDecisionTests(unittest.TestCase):
     def test_happy_path_sizes_down_and_reports_projected_candidate(self):
-        result = evaluate_pretrade(snapshot(), (), request(), SPEC, BrainConfig())
+        result = evaluate_pretrade(snapshot(), (), request(), SPEC,
+                                   BrainConfig(risk_usd_per_100k_min=0.0))
         self.assertTrue(result.allowed)
         self.assertEqual(result.action, DecisionAction.ALLOW)
         self.assertAlmostEqual(result.lot, 0.2)
@@ -270,12 +321,13 @@ class PureDecisionTests(unittest.TestCase):
 
     def test_minimum_lot_over_budget_is_rejected_not_upsized(self):
         spec = SymbolSpec(1, 300, 0.1, 0.1, 10)
-        result = evaluate_pretrade(snapshot(), (), request(), spec, BrainConfig())
+        result = evaluate_pretrade(snapshot(), (), request(), spec,
+                                   BrainConfig(risk_usd_per_100k_min=0.0))
         self.assertFalse(result.allowed)
         self.assertIn("minimum_lot_exceeds_risk_budget", result.reasons)
 
     def test_sub_15_safe_lot_is_rejected_not_upsized(self):
-        cfg = BrainConfig(trade_risk_pct=0.10)
+        cfg = BrainConfig(trade_risk_pct=0.10, risk_usd_per_100k_min=0.0)
         spec = SymbolSpec(1, 50, 0.1, 0.1, 10)
         result = evaluate_pretrade(snapshot(), (), request(), spec, cfg)
         self.assertFalse(result.allowed)
@@ -286,7 +338,7 @@ class PureDecisionTests(unittest.TestCase):
         # floor can only bind through a raised config floor.
         high_floor = evaluate_pretrade(
             snapshot(), (), request(signal_strength=0.5), SPEC,
-            BrainConfig(min_expected_profit_usd=100))
+            BrainConfig(min_expected_profit_usd=100, risk_usd_per_100k_min=0.0))
         self.assertFalse(high_floor.allowed)
         self.assertIn("expected_profit_below_minimum", high_floor.reasons)
         # A stricter min_rr lifts the required multiple with it.

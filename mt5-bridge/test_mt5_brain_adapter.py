@@ -83,6 +83,10 @@ class AdapterTests(unittest.TestCase):
             "brain_state_path": str(self.state), "account_tier_max_lot": 1.0,
             "stop_master_path": str(self.stop),
             "broker_event_outbox_path": str(self.outbox),
+            # Bu suit ENTRY BOYUTLAMA matematigini test eder; hesap-olcekli risk
+            # tabani (2026-08-08) ayri bir ozelliktir ve kendi testleri var.
+            # Taban KAPALI (0) -> boyutlama invaryantlari degismeden korunur.
+            "risk_usd_per_100k_min": 0.0,
         }
 
     def tearDown(self):

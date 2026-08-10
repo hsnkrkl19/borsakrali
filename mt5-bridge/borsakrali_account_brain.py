@@ -102,7 +102,7 @@ DEFAULTS = {
     "trail_distance_r": 1.0,
     # Kar kilidi dolarla degil R ile silahlanir: tepe en az bu kadar R olmadan
     # erken kar-alma kapanisi yapilmaz (kurus-islem/churn onlemi).
-    "profit_giveback_activation_r": 1.0,
+    "profit_giveback_activation_r": 2.5,
     # SURU / TERS-DONUS DEDEKTORU (kullanici 2026-07-30): ayni yonde >=N pozisyon
     # varken cogunlugu zarardaysa VE yonun toplam R'si pencere tepesinden hizla
     # dusuyorsa, o yonun ZARARDAKI pozisyonlari topluca kesilir; ayni yone
@@ -124,6 +124,8 @@ DEFAULTS = {
     # engellenir (kapan-ac dongusu kirilir); ters yon serbesttir.
     "reentry_cooldown_minutes": 45.0,
     "min_discretionary_exit_usd": 15.0,
+    "min_giveback_peak_usd": 100.0,
+    "est_commission_per_lot": 4.0,
     "report_interval_seconds": 2,
     "lifecycle_report_max_age_seconds": 30,
     "closed_history_hours": 48,
@@ -274,6 +276,8 @@ CONFIG_ARALIKLARI = {
     "runner_arm_r": (0.0, 10.0),
     "runner_target_r": (3.0, 50.0),
     "min_discretionary_exit_usd": (15.0, 1e9),
+    "min_giveback_peak_usd": (0.0, 1e9),
+    "est_commission_per_lot": (0.0, 1000.0),
     "report_interval_seconds": (0.2, 5.0),
     "lifecycle_report_max_age_seconds": (15.0, 300.0),
     "closed_history_hours": (24.0, 720.0),
@@ -862,8 +866,17 @@ def _dynamic_exit_reason(cfg, pos, meta, now):
     # silahlanmaz; $20'lik dolar esigi 40-50$ riskli islemde 0.5R'de erken
     # kar aldirip ayni sinyalin yeniden acilmasina yol aciyordu.
     if risk > 0:
-        arm = max(arm, risk * float(cfg.get("profit_giveback_activation_r", 1.0)))
-    floor = float(cfg.get("profit_lock_floor_usd", 15.0))
+        arm = max(arm, risk * float(cfg.get("profit_giveback_activation_r", 2.5)))
+    # Komisyon giris+cikista alinir; _net_position_pnl sadece profit+swap (BRUT).
+    # Kullanici: net kar min 100 $ + komisyonla orantili OLMADAN pozisyon kapanmaz.
+    # peak bu esigi gecmeden kar kilidi silahlanmaz; floor bunun altina inmez.
+    komisyon = abs(float(getattr(pos, "commission", 0) or 0))
+    komisyon_toplam = (komisyon * 2.0) if komisyon > 0 else (
+        float(getattr(pos, "volume", 0) or 0)
+        * float(cfg.get("est_commission_per_lot", 4.0)))
+    net_esik = float(cfg.get("min_giveback_peak_usd", 100.0)) + komisyon_toplam
+    arm = max(arm, net_esik)
+    floor = max(float(cfg.get("profit_lock_floor_usd", 15.0)), net_esik)
     giveback = float(cfg.get("profit_giveback_pct", 20.0)) / 100.0
     if peak >= arm:
         locked = max(floor, peak * (1.0 - giveback))
