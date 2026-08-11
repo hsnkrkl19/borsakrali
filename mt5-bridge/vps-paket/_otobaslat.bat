@@ -14,6 +14,13 @@ if exist "mt5-bridge\STOP_MASTER" (
   echo [ACIL] Risk STOP mevcut; yalniz merkez beyin close-only baslatilacak.
 )
 
+REM ── SISTEM UYANIK TUTUCU (2026-08-11) ────────────────────────────────────────
+REM Kapak kapaninca sistem/islemler acik kalir (Modern Standby away-mode).
+if exist "%~dp0_uyanik-kal.bat" (
+  tasklist /v /fi "imagename eq cmd.exe" 2>nul | find /i "SISTEM UYANIK" >nul
+  if errorlevel 1 start "" "%~dp0_uyanik-kal.bat"
+)
+
 REM ── CLOUDFLARE TUNEL (2026-08-05) ────────────────────────────────────────────
 REM borsakrali.com -> bu bilgisayar. Tunel COKSE bile botlar calismaya devam
 REM eder (kopruler localhost:5000 kullanir); yalniz SITE erisilemez olur.

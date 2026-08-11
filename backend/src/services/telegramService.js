@@ -196,6 +196,18 @@ async function processUpdates() {
     const text = (message.text || '').trim();
     const firstName = message.from.first_name || 'Kullanici';
 
+    // ⚠️ 2026-08-11 SPAM KORUMASI: bot public (@Borsa_krali_ai), rastgele
+    // (cogunlukla Rusca doxxing-botu) reklamlari DM atiyor. Polling uretimde
+    // KAPALI ama acilirsa bile YALNIZ yetkili chat'lerden komut islenir; yabanci
+    // DM'lere hicbir yanit verilmez (spam'a "Bilinmeyen komut" bile donmesin).
+    // Kanal/grup (negatif id) yayin hedefidir, dokunma; ozel sohbette (pozitif
+    // id) yalniz TELEGRAM_CHAT_ID yetkili. Bos ise (yapilandirilmamis) eski
+    // davranis korunur.
+    const yetkiliChat = process.env.TELEGRAM_CHAT_ID || '';
+    if (chatId > 0 && yetkiliChat && String(chatId) !== String(yetkiliChat)) {
+      continue;   // yabanci DM — sessizce yok say (spam'a yanit verme)
+    }
+
     console.log(`[Telegram] Komut: ${text} from ${firstName} (${chatId})`);
 
     // /start komutu
