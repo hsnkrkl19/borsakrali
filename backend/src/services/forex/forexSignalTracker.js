@@ -130,7 +130,10 @@ const reversalOff = () => process.env.FOREX_REVERSAL_DISABLED === '1';
 // review #1 kritik); ayrıca tek başına test için FOREX_SMART_TRAIL=1.
 const smartTrailOn = () => process.env.FOREX_SMART_TRAIL === '1' || carryToReversal();
 const tf5mGuardOn = () => process.env.FOREX_REVERSAL_TF5M_GUARD !== '0'; // vars. AÇIK
-const TRAIL_ATR_MULT = () => envNum('FOREX_TRAIL_ATR_MULT', 2.0);
+// 2026-08-12 otopsisi: 2.0×ATR chandelier + 1R'de başabaş, kazananları medyan
+// 0.08R'de kırpıyordu (Ağustos kapanışlarının %53'ü scratch; komisyon değirmeni).
+// Trail gevşetildi: 2.75×ATR; kilitler advanceSmartTrail'de 1.5R'ye taşındı.
+const TRAIL_ATR_MULT = () => envNum('FOREX_TRAIL_ATR_MULT', 2.75);
 const REV = {
   confirmBars: () => Math.max(1, Math.round(envNum('FOREX_REVERSAL_CONFIRM_BARS', 3))),
   minHoldMin: () => envNum('FOREX_REVERSAL_MIN_HOLD_MIN', 5),
@@ -395,9 +398,15 @@ function advanceSmartTrail(p, closed5m) {
   const price = closed5m[closed5m.length - 1].close;
   const r = ((price - p.entry) * (isLong ? 1 : -1)) / dist;
   const cands = [p.stop];
+  // 2026-08-12 otopsisi (mikro-trail yasağı): başabaş kilidi 1R→1.5R, chandelier
+  // ancak pozisyon ≥1R kârdayken silahlanır. Eski davranış girişten hemen sonra
+  // 5m ATR trail'iyle 0.05-0.1R "kâr"ları kilitleyip komisyona yediriyordu
+  // (gerçek defterde TP'ye ulaşan 1/417 deal; fiili RR ~0.35).
   if (r >= 2) cands.push(p.entry + (isLong ? 1 : -1) * dist);      // +1R kilit
-  else if (r >= 1) cands.push(p.entry);                            // başabaş
-  cands.push(isLong ? ext - TRAIL_ATR_MULT() * atr : ext + TRAIL_ATR_MULT() * atr); // chandelier
+  else if (r >= 1.5) cands.push(p.entry);                          // başabaş (1R→1.5R)
+  if (r >= 1) {
+    cands.push(isLong ? ext - TRAIL_ATR_MULT() * atr : ext + TRAIL_ATR_MULT() * atr); // chandelier
+  }
   let newStop = isLong ? Math.max(...cands) : Math.min(...cands);
   const eps = Math.abs(p.entry) * 1e-9;
   // Chandelier fiyatın ÜSTÜNE (long) / ALTINA (short) çıkamaz → aksi halde sonraki turda
