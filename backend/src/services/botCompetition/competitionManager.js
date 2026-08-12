@@ -38,6 +38,11 @@ const MIN_CONFIDENCE = Number(process.env.COMPETITION_MIN_CONFIDENCE ?? 55);
 // Ayrıca catalog costBps'leri gerçek FTMO maliyetinin ~2.3 katı (tutucu), yani
 // kapı zaten fazladan sıkı. 0.25 → 14 pip altı elenir (kuruş), 20 pip+ geçer.
 const MAX_COST_R = Number(process.env.COMPETITION_MAX_COST_R ?? 0.25);
+// FLIP COOLDOWN (2026-08-12 otopsisi): ters sinyal pozisyonu kapatır (risk
+// azaltma korunur) ama 30 dk'dan GENÇ pozisyonun tersine hemen yeni pozisyon
+// AÇILMAZ — buy→sell→buy ping-pongu çift komisyon öğütüyordu (eski hesapta
+// 30 dk içinde 139 hızlı yeniden giriş ölçüldü). 0 = kapalı.
+const FLIP_COOLDOWN_MIN = Number(process.env.COMPETITION_FLIP_COOLDOWN_MIN ?? 30);
 function finite(value, fallback = null) {
   if (value == null || (typeof value === 'string' && value.trim() === '')) return fallback;
   const n = Number(value);
@@ -496,7 +501,13 @@ function recordOpen(botId, raw = {}, meta = {}) {
   }
   // KALİTE KAPISI: düşük güvenli sinyaller (motor tabanı 40 junk) hem paper hem
   // GERÇEK MT5'e gidiyordu → zarar. Güven eşiği altındakini alma (0 = kapalı).
-  if (MIN_CONFIDENCE > 0 && signal.confidence != null && signal.confidence < MIN_CONFIDENCE) {
+  // 2026-08-12: confidence=null kapıyı bypass eder (TEMA34/BIST gibi güven
+  // kavramı olmayan botlar bilerek muaf — golden test bunu korur). İstenirse
+  // COMPETITION_NULL_CONFIDENCE_FLOOR=50 ile null'a taban atanır; otopsi notu:
+  // confidence gerçek R ile korelasyonsuz (−0.006), filtre gücü zaten beyinde.
+  const nullFloor = Number(process.env.COMPETITION_NULL_CONFIDENCE_FLOOR ?? 0);
+  const confGate = signal.confidence != null ? signal.confidence : (nullFloor > 0 ? nullFloor : null);
+  if (MIN_CONFIDENCE > 0 && confGate != null && confGate < MIN_CONFIDENCE) {
     return { ok: false, skipped: 'low-confidence' };
   }
   // KURUŞ İŞLEM KAPISI (kullanıcı içgörüsü 2026-07-21): "kuruş işlemler daha fazla
@@ -518,7 +529,19 @@ function recordOpen(botId, raw = {}, meta = {}) {
       persist();
       return { ok: false, skipped: 'already-open', position: existing };
     }
+    const flipAgeMin = (() => {
+      const t = Date.parse(existing.openedAt || '');
+      return Number.isFinite(t) ? (Date.now() - t) / 60000 : Infinity;
+    })();
     recordClose(botId, { symbol: existing.symbol, timeframe: existing.timeframe, strategy: existing.strategy, exit: signal.entry, outcome: 'signal_flip' });
+    // Ters sinyal KAPATMAYI her zaman yapar; ping-pong'u üreten "anında ters
+    // yönde YENİDEN AÇ" kısmıdır — genç pozisyonun flip'i yeni pozisyon açamaz.
+    if (FLIP_COOLDOWN_MIN > 0 && flipAgeMin < FLIP_COOLDOWN_MIN) {
+      bot.seen.push(signal.fingerprint);
+      if (bot.seen.length > MAX_SEEN) bot.seen = bot.seen.slice(-MAX_SEEN);
+      persist();
+      return { ok: false, skipped: 'flip-cooldown' };
+    }
   }
   const riskMultiplier = clamp(finite(bot.learning?.riskMultiplier, 1), 0.5, 1);
   const riskUsd = round(bot.equity * (RISK_PCT / 100) * riskMultiplier, 2);
