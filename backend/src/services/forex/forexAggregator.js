@@ -20,7 +20,17 @@ function aggregate(modules, ind) {
     else if (m.vote === 'short') shortW += m.weight * m.strength;
   }
   const net = longW - shortW;
-  const direction = net > 1e-4 ? 'long' : net < -1e-4 ? 'short' : 'neutral';
+  // 2026-08-12 otopsisi: 1e-4'lük fark bile "yön" sayılıyordu — teknikler fiilen
+  // yarıya bölünmüşken (long 2.1 vs short 1.9) sinyal üretiliyor, düşen piyasada
+  // SNR/SMC destek oyları LONG bastırıyordu (%83 long, gece kripto −5.283$).
+  // Yön için YÖN OYLARI arasındaki net fark, yön oyu toplamının en az %25'i
+  // olmalı (ihtilaf marjı); altı NÖTR. Payda bilerek longW+shortW: nötr modüller
+  // marjı sulandırmaz, oybirliği-ama-ılımlı gerçek sinyaller elenmez.
+  const MIN_DIRECTION_MARGIN = 0.25;
+  const dirW = longW + shortW;
+  const margin = dirW > 0 ? Math.abs(net) / dirW : 0;
+  const direction = (dirW > 1e-4 && margin >= MIN_DIRECTION_MARGIN)
+    ? (net > 0 ? 'long' : 'short') : 'neutral';
   const consensus = totalW > 0 ? Math.min(1, Math.abs(net) / totalW) : 0;
 
   const agreeing = modules.filter(m => m && m.vote === direction);
