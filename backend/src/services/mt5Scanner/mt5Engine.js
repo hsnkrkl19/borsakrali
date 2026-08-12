@@ -26,7 +26,7 @@ const ema34 = require('../forex/strategies/ema34');
 const tema34 = require('../forex/strategies/tema34');
 const snrStrat = require('../forex/strategies/snr');
 const smcStrat = require('../forex/strategies/smc');
-const { aggregate, computeConfidence, gradeFor, bandFor } = require('../forex/forexAggregator');
+const { aggregate, computeConfidence, calibrateConfidence, gradeFor, bandFor } = require('../forex/forexAggregator');
 const { computeSizing } = require('../forex/riskSizing');
 const forexBacktest = require('../forex/forexBacktest');
 const brokerPrices = require('../forex/brokerPrices');
@@ -157,16 +157,50 @@ async function evalInstrument(inst, equity) {
     if (!s || s.status !== 'signal') continue;
     const sameCount = dirs.filter((d) => d === s.direction).length;
     const confluence = Math.max(0, (sameCount - 1) / (TFS.length - 1));
-    const confidence = computeConfidence({ ...s._c, confluence });
+    const rawConfidence = computeConfidence({ ...s._c, confluence });
+    // KALİBRASYON (2026-08-12 otopsisi: forexEngineMTF'ten port): ampirik
+    // PF/expectancy güveni SINIRLI delta ile düzeltir — bu motorda geçmiş
+    // yalnız GÖRÜNTÜLENİYORDU, hiç uygulanmıyordu; oysa magic 550066 gerçek
+    // MT5 emri açıyor. Kapatma: MT5_CALIBRATION_ACTIVE=0
+    const h = forexBacktest.getHistory(meta.id, tf, rawConfidence);
+    let confidence = rawConfidence;
+    if (process.env.MT5_CALIBRATION_ACTIVE !== '0' && h) {
+      const cal = calibrateConfidence(rawConfidence, h);
+      confidence = cal.confidence;
+      if (cal.delta) s.calibration = { delta: cal.delta, empirical: cal.empirical, trust: cal.trust };
+    }
     s.confluence = +confluence.toFixed(2);
     s.sameTfCount = sameCount;
+    s.rawConfidence = rawConfidence;
     s.confidence = confidence;
     s.grade = gradeFor(confidence);
     s.confidenceBand = bandFor(confidence);
-    const h = forexBacktest.getHistory(meta.id, tf, confidence);
     if (h) { s.historicalWinRate = h.winRate; s.sampleSize = h.sampleSize; s.historicalAvgReturn = h.avgReturn; s.historyBand = h.band; }
     delete s._c;
     if (confidence < MIN_CONFIDENCE) { perTf[tf] = { tf, status: 'low_conf', direction: s.direction, confidence, votes: s.votes }; }
+  }
+
+  // ── REJİM + VETO (2026-08-12 otopsisi: forexEngineMTF:148-171'den birebir port —
+  // bu motor magic 550066 ile GERÇEK işlem açıyor ve SIFIR ters-trend koruması
+  // vardı; eski hesapta tarayıcı SHORT'ları −2.502$/%28.8 isabetti). 4h VE 1d
+  // aynı yönü GERÇEK sinyal statüsüyle gösteriyorsa rejimdir; ters-yön sinyal
+  // ancak ÇOK yüksek güvenle geçer. Kapatma: MT5_COUNTERTREND_GATE_DISABLED=1
+  // · eşik: MT5_COUNTERTREND_MIN_CONF (80).
+  const dirOf = (tf) => { const x = perTf[tf]; return (x && x.status === 'signal') ? x.direction : null; };
+  const d4 = dirOf('4h'), dGun = dirOf('1d');
+  const regime = (d4 && dGun && d4 === dGun) ? d4 : null;
+  for (const tf of TFS) {
+    const s = perTf[tf];
+    if (s && s.status === 'signal') s.regime = regime;
+  }
+  if (regime && process.env.MT5_COUNTERTREND_GATE_DISABLED !== '1') {
+    const minCf = Number(process.env.MT5_COUNTERTREND_MIN_CONF) || 80;
+    for (const tf of TFS) {
+      const s = perTf[tf];
+      if (s && s.status === 'signal' && s.direction !== regime && s.confidence < minCf) {
+        perTf[tf] = { tf, status: 'counter_trend', direction: s.direction, confidence: s.confidence, regime, votes: s.votes };
+      }
+    }
   }
 
   return { ...meta, status: 'open', livePrice, priceSource, ageMin: +ageMin.toFixed(1), perTf };
